@@ -30,7 +30,7 @@ fileInput.addEventListener("change", async () => {
             const metadata = await readM4AMetadata(file);
 
             item.textContent =
-                `${file.name} — ${metadata.date || "No date found"} — ${formatDuration(metadata.duration)} — ${metadata.uuid || "No UUID found"}`;
+                `${file.name} — ${metadata.date || "No date found"} — ${formatDuration(metadata.duration, metadata.durationTimescale)} — ${metadata.uuid || "No UUID found"}`;
 
             console.log(file.name, metadata);
 
@@ -60,7 +60,8 @@ async function readM4AMetadata(file) {
             resolve({
                 date: info.created || null,
                 uuid: uuid,
-                duration: info.duration || null
+                duration: info.duration || null,
+                durationTimescale: info.timescale || null
             });
         };
 
@@ -100,12 +101,13 @@ function extractVoiceMemoUUID(arrayBuffer) {
 }
 
 
-function formatDuration(seconds) {
-    if (!seconds) {
+function formatDuration(duration, timescale) {
+    if (!duration || !timescale) {
         return "Duration unknown";
     }
 
-    const totalSeconds = Math.round(seconds);
+    const totalSeconds = Math.round(duration / timescale);
+
     const minutes = Math.floor(totalSeconds / 60);
     const remainingSeconds = totalSeconds % 60;
 
