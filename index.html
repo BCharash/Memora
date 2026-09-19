@@ -23,6 +23,7 @@
 
     <header class="app-header">
         <img src="icons/icon-192.png" alt="Memora" class="app-icon">
+
         <div>
             <h1>Memora</h1>
             <p>Remember what you recorded.</p>
@@ -56,6 +57,41 @@
                     No recordings selected.
                 </p>
             </div>
+        </section>
+
+
+        <section class="panel">
+            <h2>Transcription</h2>
+
+            <div class="transcription-controls">
+
+                <label for="modelSelect">
+                    Model
+                </label>
+
+                <select id="modelSelect">
+                    <option value="tiny">Tiny — fastest</option>
+                    <option value="base">Base — fast</option>
+                    <option value="small" selected>Small — balanced</option>
+                    <option value="medium">Medium — higher accuracy</option>
+                    <option value="large-v3">
+                        Large-v3 — highest accuracy
+                    </option>
+                </select>
+
+                <button id="transcribeButton" type="button">
+                    Transcribe 
+                </button>
+
+            </div>
+
+            <div id="transcriptionStatus" class="transcription-status">
+                No transcription started.
+            </div>
+
+            <div id="transcriptionOutput" class="transcription-output">
+            </div>
+
         </section>
 
     </main>
