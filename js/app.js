@@ -57,12 +57,20 @@ destinationButton.addEventListener("click", async () => {
 
     try {
 
-        destinationHandle =
-            await window.showDirectoryPicker();
+destinationHandle =
+    await window.showDirectoryPicker({
+        mode: "readwrite"
+    });
 
-        destinationButton.textContent =
-            `Destination: ${destinationHandle.name}`;
+await destinationHandle.getDirectoryHandle(
+    "transcription",
+    {
+        create: true
+    }
+);
 
+destinationButton.textContent =
+    `Destination: ${destinationHandle.name}`;
     } catch (error) {
 
         if (error.name !== "AbortError") {
