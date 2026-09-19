@@ -29,11 +29,20 @@ fileInput.addEventListener("change", async () => {
         try {
             const metadata = await readM4AMetadata(file);
 
-            item.textContent =
-                `${file.name} — ${metadata.date || "No date found"} — ${formatDuration(metadata.duration, metadata.durationTimescale)} — ${metadata.uuid || "No UUID found"}`;
+            const name = document.createElement("div");
+                name.className = "recording-name";
+                name.textContent = file.name;
 
-            console.log(file.name, metadata);
+                const details = document.createElement("div");
+                details.className = "recording-details";
+                details.textContent =
+                    `${formatRecordingDate(metadata.date)} · ${formatDuration(metadata.duration, metadata.durationTimescale)}`;
 
+                item.textContent = "";
+                item.appendChild(name);
+                item.appendChild(details);
+
+                console.log(file.name, metadata);
         } catch (error) {
             console.error("Metadata error:", error);
 
@@ -98,6 +107,23 @@ function extractVoiceMemoUUID(arrayBuffer) {
     );
 
     return uuidMatch ? uuidMatch[0] : null;
+}
+
+
+function formatRecordingDate(date) {
+    if (!date) {
+        return "Date unknown";
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+    }).format(date);
 }
 
 
