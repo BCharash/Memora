@@ -6,7 +6,7 @@ sourceButton.addEventListener("click", () => {
     fileInput.click();
 });
 
-fileInput.addEventListener("change", () => {
+fileInput.addEventListener("change", async () => {
     const files = Array.from(fileInput.files);
 
     if (files.length === 0) {
@@ -20,12 +20,53 @@ fileInput.addEventListener("change", () => {
 
     recordings.innerHTML = "";
 
-    files.forEach(file => {
+    for (const file of files) {
         const item = document.createElement("div");
-
         item.className = "recording-item";
-        item.textContent = file.name;
-
+        item.textContent = `Reading ${file.name}…`;
         recordings.appendChild(item);
-    });
+
+        try {
+            const metadata = await readM4AMetadata(file);
+
+            item.textContent =
+                `${file.name} — ${metadata.date || "No date found"} — ${metadata.uuid || "No UUID found"}`;
+
+            console.log(file.name, metadata);
+
+        } catch (error) {
+            console.error("Metadata error:", error);
+
+            item.textContent =
+                `${file.name} — Unable to read metadata`;
+        }
+    }
 });
+
+
+async function readM4AMetadata(file) {
+    const arrayBuffer = await file.arrayBuffer();
+
+    const mp4boxFile = MP4Box.createFile();
+
+    return new Promise((resolve, reject) => {
+
+        mp4boxFile.onReady = (info) => {
+
+            console.log("MP4Box info:", info);
+
+            resolve({
+                date: info.created || null,
+                uuid: null
+            });
+        };
+
+        mp4boxFile.onError = (error) => {
+            reject(error);
+        };
+
+        arrayBuffer.fileStart = 0;
+        mp4boxFile.appendBuffer(arrayBuffer);
+        mp4boxFile.flush();
+    });
+}
