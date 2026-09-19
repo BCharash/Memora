@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#07145C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Memora">
+
+    <title>Memora</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/style.css">
+
+    <link rel="icon" type="image/png" href="icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+
+<body>
+
+    <header class="app-header">
+        <img src="icons/icon-192.png" alt="Memora" class="app-icon">
+        <div>
+            <h1>Memora</h1>
+            <p>Remember what you recorded.</p>
+        </div>
+    </header>
+
+    <main class="app-main">
+
+        <section class="panel">
+            <h2>Recordings</h2>
+
+            <div class="action-row">
+                <button id="sourceButton" type="button">
+                    Select Recordings
+                </button>
+
+                <button id="destinationButton" type="button">
+                    Select Destination
+                </button>
+            </div>
+
+            <input
+                id="fileInput"
+                type="file"
+                accept="audio/*"
+                multiple
+                hidden
+            >
+
+            <div id="recordings" class="recordings">
+                <p class="empty-message">
+                    No recordings selected.
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

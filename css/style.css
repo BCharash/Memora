@@ -1,0 +1,166 @@
+/* --------------------------------------------------
+   Memora — Base Styles
+-------------------------------------------------- */
+
+:root {
+    --navy: #07145C;
+    --text: #20242C;
+    --muted: #707782;
+    --background: #F7F8FA;
+    --surface: #FFFFFF;
+    --border: #E1E4E8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    color: var(--text);
+    background: var(--background);
+}
+
+/* Header */
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 20px 20px;
+}
+
+.app-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+.app-header p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 15px;
+}
+
+/* Main */
+
+.app-main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+}
+
+/* Panel */
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.panel h2 {
+    margin: 0 0 20px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* Buttons */
+
+.action-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+button {
+    border: none;
+    border-radius: 10px;
+    padding: 11px 17px;
+
+    background: var(--navy);
+    color: white;
+
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+/* Recordings */
+
+.recordings {
+    margin-top: 24px;
+}
+
+.empty-message {
+    margin: 0;
+    padding: 30px 10px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+    .app-header {
+        padding: 22px 16px 16px;
+    }
+
+    .app-main {
+        padding: 0 16px 30px;
+    }
+
+    .panel {
+        padding: 20px;
+        border-radius: 14px;
+    }
+
+    .app-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .app-header h1 {
+        font-size: 25px;
+    }
+
+    .action-row {
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+    }
+}
