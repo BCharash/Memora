@@ -153,6 +153,22 @@ button:active {
     line-height: 1.5;
 }
 
+.recording-select-all {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 14px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.recording-select-all input {
+    width: 18px;
+    height: 18px;
+}
+
 /* Mobile */
 
 @media (max-width: 600px) {

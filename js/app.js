@@ -1,59 +1,152 @@
 const sourceButton = document.getElementById("sourceButton");
+const destinationButton = document.getElementById("destinationButton");
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
+
+let destinationHandle = null;
+
 
 sourceButton.addEventListener("click", () => {
     fileInput.click();
 });
 
-fileInput.addEventListener("change", async () => {
-    const files = Array.from(fileInput.files);
 
-    if (files.length === 0) {
-        recordings.innerHTML = `
-            <p class="empty-message">
-                No recordings selected.
-            </p>
-        `;
+destinationButton.addEventListener("click", async () => {
+
+    if (!window.showDirectoryPicker) {
+        alert("Folder selection is not supported by this browser.");
         return;
     }
 
-    recordings.innerHTML = "";
+    try {
+        destinationHandle = await window.showDirectoryPicker();
 
-    for (const file of files) {
-        const item = document.createElement("div");
-        item.className = "recording-item";
-        item.textContent = `Reading ${file.name}…`;
-        recordings.appendChild(item);
+        destinationButton.textContent =
+            `Destination: ${destinationHandle.name}`;
 
-        try {
-            const metadata = await readM4AMetadata(file);
+    } catch (error) {
+        if (error.name !== "AbortError") {
+            console.error("Destination error:", error);
 
-            const name = document.createElement("div");
-                name.className = "recording-name";
-                name.textContent = file.name;
-
-                const details = document.createElement("div");
-                details.className = "recording-details";
-                details.textContent =
-                    `${formatRecordingDate(metadata.date)} · ${formatDuration(metadata.duration, metadata.durationTimescale)}`;
-
-                item.textContent = "";
-                item.appendChild(name);
-                item.appendChild(details);
-
-                console.log(file.name, metadata);
-        } catch (error) {
-            console.error("Metadata error:", error);
-
-            item.textContent =
-                `${file.name} — Unable to read metadata`;
+            alert("Unable to select the destination folder.");
         }
     }
 });
 
 
+fileInput.addEventListener("change", async () => {
+
+    const files = Array.from(fileInput.files);
+
+    if (files.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+
+    await displayFiles(files);
+});
+
+
+async function displayFiles(files) {
+
+    recordings.innerHTML = "";
+
+    const selectAllRow = document.createElement("div");
+    selectAllRow.className = "recording-select-all";
+
+    const selectAllCheckbox = document.createElement("input");
+    selectAllCheckbox.type = "checkbox";
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.id = "selectAllRecordings";
+
+    const selectAllLabel = document.createElement("label");
+    selectAllLabel.htmlFor = "selectAllRecordings";
+    selectAllLabel.textContent = "Select all";
+
+    selectAllRow.appendChild(selectAllCheckbox);
+    selectAllRow.appendChild(selectAllLabel);
+
+    recordings.appendChild(selectAllRow);
+
+    const recordingCheckboxes = [];
+
+    for (const file of files) {
+
+        const item = document.createElement("div");
+        item.className = "recording-item";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = true;
+        checkbox.className = "recording-checkbox";
+
+        recordingCheckboxes.push(checkbox);
+
+        const content = document.createElement("div");
+        content.className = "recording-content";
+
+        const name = document.createElement("div");
+        name.className = "recording-name";
+        name.textContent = file.name;
+
+        const details = document.createElement("div");
+        details.className = "recording-details";
+        details.textContent = "Reading metadata…";
+
+        content.appendChild(name);
+        content.appendChild(details);
+
+        item.appendChild(checkbox);
+        item.appendChild(content);
+
+        recordings.appendChild(item);
+
+        try {
+
+            const metadata = await readM4AMetadata(file);
+
+            details.textContent =
+                `${formatRecordingDate(metadata.date)} · ` +
+                `${formatDuration(metadata.duration, metadata.durationTimescale)}`;
+
+            console.log(file.name, metadata);
+
+        } catch (error) {
+
+            console.error("Metadata error:", error);
+
+            details.textContent =
+                "Unable to read metadata";
+        }
+    }
+
+    selectAllCheckbox.addEventListener("change", () => {
+        recordingCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    });
+
+    recordingCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener("change", () => {
+            selectAllCheckbox.checked =
+                recordingCheckboxes.every(checkbox => checkbox.checked);
+        });
+    });
+}
+
+
+function showEmptyMessage() {
+
+    recordings.innerHTML = `
+        <p class="empty-message">
+            No recordings selected.
+        </p>
+    `;
+}
+
+
 async function readM4AMetadata(file) {
+
     const arrayBuffer = await file.arrayBuffer();
 
     const uuid = extractVoiceMemoUUID(arrayBuffer);
@@ -86,6 +179,7 @@ async function readM4AMetadata(file) {
 
 
 function extractVoiceMemoUUID(arrayBuffer) {
+
     const bytes = new Uint8Array(arrayBuffer);
 
     const text = new TextDecoder("latin1").decode(bytes);
@@ -111,6 +205,7 @@ function extractVoiceMemoUUID(arrayBuffer) {
 
 
 function formatRecordingDate(date) {
+
     if (!date) {
         return "Date unknown";
     }
@@ -123,11 +218,12 @@ function formatRecordingDate(date) {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false
-    }).format(date);
+    }).format(date).replace(",", " ·");
 }
 
 
 function formatDuration(duration, timescale) {
+
     if (!duration || !timescale) {
         return "Duration unknown";
     }
