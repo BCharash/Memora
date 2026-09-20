@@ -116,6 +116,40 @@ async function getStorageModule() {
 
 
 // --------------------------------------------------
+// Combine module
+// --------------------------------------------------
+
+let combineModule = null;
+
+async function getCombineModule() {
+
+    if (!combineModule) {
+        combineModule =
+            await import("./combine.js");
+    }
+
+    return combineModule;
+}
+
+
+// --------------------------------------------------
+// HTML module
+// --------------------------------------------------
+
+let htmlModule = null;
+
+async function getHTMLModule() {
+
+    if (!htmlModule) {
+        htmlModule =
+            await import("./html.js");
+    }
+
+    return htmlModule;
+}
+
+
+// --------------------------------------------------
 
 let whisperModule = null;
 
