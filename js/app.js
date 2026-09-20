@@ -11,35 +11,6 @@ const recordings = document.getElementById("recordings");
 const modelSelect = document.getElementById("modelSelect");
 const transcribeButton = document.getElementById("transcribeButton");
 
-// Whisper model catalog. Keep the user-facing model names separate from
-// the actual Transformers.js / Hugging Face repository names.
-const MODEL_CATALOG = {
-    tiny: {
-        label: "Tiny",
-        repository: "onnx-community/whisper-tiny"
-    },
-    base: {
-        label: "Base",
-        repository: "onnx-community/whisper-base"
-    },
-    small: {
-        label: "Small",
-        repository: "onnx-community/whisper-small"
-    },
-    medium: {
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        dtype: "q4"
-    },
-    "large-v3": {
-        label: "Large-v3",
-        repository: "Xenova/whisper-large-v3",
-        dtype: {
-            encoder_model: "fp16",
-            decoder_model_merged: "q4"
-        }
-    }
-};
 const transcriptionStatus =
     document.getElementById("transcriptionStatus");
 const transcriptionOutput =
@@ -48,8 +19,6 @@ const transcriptionOutput =
 let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
-let transcriber = null;
-let loadedModel = null;
 
 
 function setActiveDestinationButton(button) {
@@ -75,29 +44,36 @@ async function updateTranscriptionFolderButton() {
     }
 
     try {
-        await sourceHandle.getDirectoryHandle(
-            "transcription",
-            { create: false }
-        );
+
+        const storage =
+            await getStorageModule();
+
+        const transcriptionFolder =
+            await storage.getSubfolder(
+                sourceHandle,
+                "transcription",
+                false
+            );
 
         transcriptionDestinationButton.textContent =
             'Use "transcription" Folder';
 
         destinationHandle =
-            await sourceHandle.getDirectoryHandle(
-                "transcription",
-                { create: false }
-            );
+            transcriptionFolder;
 
         setActiveDestinationButton(
             transcriptionDestinationButton
         );
 
     } catch (error) {
+
         if (error.name === "NotFoundError") {
+
             transcriptionDestinationButton.textContent =
                 'Create "transcription" Folder';
+
         } else {
+
             console.error(
                 "Unable to check transcription folder:",
                 error
@@ -108,25 +84,49 @@ async function updateTranscriptionFolderButton() {
 
 
 // --------------------------------------------------
-// Load Transformers.js
+// Transcription module
 // --------------------------------------------------
 
-let transformers = null;
+let transcriptionModule = null;
 
-async function loadTransformers() {
+async function getTranscriptionModule() {
+    if (!transcriptionModule) {
+        transcriptionModule =
+            await import("./transcription.js");
+    }
+    return transcriptionModule;
+}
 
-    if (transformers) {
-        return transformers;
+
+// --------------------------------------------------
+// Storage module
+// --------------------------------------------------
+
+let storageModule = null;
+
+async function getStorageModule() {
+
+    if (!storageModule) {
+        storageModule =
+            await import("./storage.js");
     }
 
-    transcriptionStatus.textContent =
-        "Loading transcription engine…";
+    return storageModule;
+}
 
-    transformers = await import(
-        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0"
-    );
 
-    return transformers;
+// --------------------------------------------------
+
+let whisperModule = null;
+
+async function getWhisperModule() {
+
+    if (!whisperModule) {
+        whisperModule =
+            await import("./whisper.js");
+    }
+
+    return whisperModule;
 }
 
 
@@ -136,34 +136,22 @@ async function loadTransformers() {
 
 sourceButton.addEventListener("click", async () => {
 
-    if (!window.showDirectoryPicker) {
-        alert("Folder selection is not supported by this browser.");
-        return;
-    }
-
     try {
 
+        const storage =
+            await getStorageModule();
+
         sourceHandle =
-            await window.showDirectoryPicker({
-                mode: "readwrite"
-            });
+            await storage.selectFolder();
 
         destinationHandle = null;
 
         setActiveDestinationButton(null);
 
-        const files = [];
-
-        for await (const [name, handle] of sourceHandle.entries()) {
-
-            if (
-                handle.kind === "file" &&
-                /\.m4a$/i.test(name)
-            ) {
-                const file = await handle.getFile();
-                files.push(file);
-            }
-        }
+        const files =
+            await storage.listM4AFiles(
+                sourceHandle
+            );
 
         if (files.length === 0) {
 
@@ -229,12 +217,14 @@ transcriptionDestinationButton.addEventListener("click", async () => {
 
     try {
 
+        const storage =
+            await getStorageModule();
+
         destinationHandle =
-            await sourceHandle.getDirectoryHandle(
+            await storage.getSubfolder(
+                sourceHandle,
                 "transcription",
-                {
-                    create: true
-                }
+                true
             );
 
         transcriptionDestinationButton.textContent =
@@ -257,17 +247,13 @@ transcriptionDestinationButton.addEventListener("click", async () => {
 
 destinationButton.addEventListener("click", async () => {
 
-    if (!window.showDirectoryPicker) {
-        alert("Folder selection is not supported by this browser.");
-        return;
-    }
-
     try {
 
+        const storage =
+            await getStorageModule();
+
         destinationHandle =
-            await window.showDirectoryPicker({
-                mode: "readwrite"
-            });
+            await storage.selectFolder();
 
         setActiveDestinationButton(
             destinationButton
@@ -696,8 +682,6 @@ transcribeButton.addEventListener(
             const model =
                 modelSelect.value;
 
-            await loadTranscriber(model);
-
             const transcriptionFolder =
                 destinationHandle;
 
@@ -716,36 +700,34 @@ transcribeButton.addEventListener(
                     `${file.name}`
                 );
 
-                const audio =
-                    await decodeAudio(file);
+                const transcription =
+                    await getTranscriptionModule();
 
-                const result =
-                    await transcriber(audio, {
-                        chunk_length_s: 30,
-                        stride_length_s: 5
-                    });
-
-                const metadata =
-                    await readM4AMetadata(file);
+                const record =
+                    await transcription.transcribeRecording(
+                        file,
+                        model,
+                        setTranscriptionBusy
+                    );
 
                 const transcript =
                     buildTranscript(
-                        file,
-                        metadata,
-                        result.text
+                        record.file,
+                        record.metadata,
+                        record.transcript
                     );
 
                 await saveTranscript(
                     transcriptionFolder,
-                    file,
-                    metadata,
+                    record.file,
+                    record.metadata,
                     transcript,
-                    model
+                    record.model
                 );
 
                 appendTranscription(
-                    file,
-                    result.text
+                    record.file,
+                    record.transcript
                 );
             }
 
@@ -834,148 +816,14 @@ function setTranscriptionError(message) {
 // Whisper model
 // --------------------------------------------------
 
-async function loadTranscriber(model) {
-
-    if (
-        transcriber &&
-        loadedModel === model
-    ) {
-        return;
-    }
-
-    const {
-        pipeline
-    } = await loadTransformers();
-
-    const modelInfo =
-        MODEL_CATALOG[model];
-
-    if (!modelInfo) {
-        throw new Error(
-            `Unknown Whisper model: ${model}`
-        );
-    }
-
-    setTranscriptionBusy(
-        `Loading Whisper ${modelInfo.label} using WebGPU…`
-    );
-
-    try {
-
-        const pipelineOptions = {
-                device: "webgpu"
-            };
-
-            if (modelInfo.dtype) {
-                pipelineOptions.dtype =
-                    modelInfo.dtype;
-            }
-
-            transcriber =
-                await pipeline(
-                    "automatic-speech-recognition",
-                    modelInfo.repository,
-                    pipelineOptions
-                );
-
-    } catch (error) {
-
-        throw new Error(
-            `Unable to load Whisper ${modelInfo.label}. ` +
-            `The model may no longer be available or compatible. ` +
-            `(${modelInfo.repository})`
-        );
-    }
-
-    loadedModel = model;
-
-    setTranscriptionComplete(
-        `Whisper ${model} loaded using WebGPU.`
-    );
-}
 
 
 // --------------------------------------------------
-// Audio decoding
+// Audio processing module
 // --------------------------------------------------
 
-async function decodeAudio(file) {
+let audioProcessor = null;
 
-    const arrayBuffer =
-        await file.arrayBuffer();
-
-    const audioContext =
-        new AudioContext();
-
-    const audioBuffer =
-        await audioContext.decodeAudioData(
-            arrayBuffer
-        );
-
-    const source =
-        audioBuffer.getChannelData(0);
-
-    const sourceSampleRate =
-        audioBuffer.sampleRate;
-
-    const targetSampleRate =
-        16000;
-
-    if (
-        sourceSampleRate ===
-        targetSampleRate
-    ) {
-
-        await audioContext.close();
-
-        return source;
-    }
-
-    const targetLength =
-        Math.ceil(
-            source.length *
-            targetSampleRate /
-            sourceSampleRate
-        );
-
-    const offlineContext =
-        new OfflineAudioContext(
-            1,
-            targetLength,
-            targetSampleRate
-        );
-
-    const buffer =
-        offlineContext.createBuffer(
-            1,
-            source.length,
-            sourceSampleRate
-        );
-
-    buffer.copyToChannel(
-        source,
-        0
-    );
-
-    const sourceNode =
-        offlineContext.createBufferSource();
-
-    sourceNode.buffer =
-        buffer;
-
-    sourceNode.connect(
-        offlineContext.destination
-    );
-
-    sourceNode.start();
-
-    const resampledBuffer =
-        await offlineContext.startRendering();
-
-    await audioContext.close();
-
-    return resampledBuffer.getChannelData(0);
-}
 
 
 // --------------------------------------------------
@@ -1028,22 +876,14 @@ async function saveTranscript(
             model
         );
 
-    const outputFile =
-        await transcriptionFolder.getFileHandle(
-            filename,
-            {
-                create: true
-            }
-        );
+    const storage =
+        await getStorageModule();
 
-    const writable =
-        await outputFile.createWritable();
-
-    await writable.write(
+    await storage.writeTextFile(
+        transcriptionFolder,
+        filename,
         transcript
     );
-
-    await writable.close();
 }
 
 
@@ -1076,21 +916,21 @@ async function createUniqueTranscriptFilename(
                 ? `${stem}${extension}`
                 : `${stem}-${version}${extension}`;
 
-        try {
-            await transcriptionFolder.getFileHandle(
-                filename,
-                { create: false }
-            );
+        const storage =
+            await getStorageModule();
+
+        if (
+            await storage.fileExists(
+                transcriptionFolder,
+                filename
+            )
+        ) {
 
             version++;
 
-        } catch (error) {
+        } else {
 
-            if (error.name === "NotFoundError") {
-                return filename;
-            }
-
-            throw error;
+            return filename;
         }
     }
 }
@@ -1178,107 +1018,19 @@ function appendTranscription(
 
 
 // --------------------------------------------------
-// M4A metadata
+// Metadata processing module
 // --------------------------------------------------
+
+let metadataModule = null;
 
 async function readM4AMetadata(file) {
 
-    const arrayBuffer =
-        await file.arrayBuffer();
-
-    const uuid =
-        extractVoiceMemoUUID(
-            arrayBuffer
-        );
-
-    const mp4boxFile =
-        MP4Box.createFile();
-
-    return new Promise(
-        (resolve, reject) => {
-
-            mp4boxFile.onReady =
-                (info) => {
-
-                    console.log(
-                        "MP4Box info:",
-                        info
-                    );
-
-                    resolve({
-                        date:
-                            info.created ||
-                            null,
-
-                        uuid:
-                            uuid,
-
-                        duration:
-                            info.duration ||
-                            null,
-
-                        durationTimescale:
-                            info.timescale ||
-                            null
-                    });
-                };
-
-            mp4boxFile.onError =
-                (error) => {
-
-                    reject(error);
-                };
-
-            arrayBuffer.fileStart = 0;
-
-            mp4boxFile.appendBuffer(
-                arrayBuffer
-            );
-
-            mp4boxFile.flush();
-        }
-    );
-}
-
-
-function extractVoiceMemoUUID(
-    arrayBuffer
-) {
-
-    const bytes =
-        new Uint8Array(
-            arrayBuffer
-        );
-
-    const text =
-        new TextDecoder(
-            "latin1"
-        ).decode(bytes);
-
-    const marker =
-        "voice-memo-uuid";
-
-    const markerIndex =
-        text.indexOf(marker);
-
-    if (markerIndex === -1) {
-        return null;
+    if (!metadataModule) {
+        metadataModule =
+            await import("./metadata.js");
     }
 
-    const searchArea =
-        text.slice(
-            markerIndex,
-            markerIndex + 200
-        );
-
-    const uuidMatch =
-        searchArea.match(
-            /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/
-        );
-
-    return uuidMatch ?
-        uuidMatch[0] :
-        null;
+    return metadataModule.readM4AMetadata(file);
 }
 
 
