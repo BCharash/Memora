@@ -32,98 +32,241 @@
 
     <main class="app-main">
 
-        <section class="panel">
+        <nav class="app-tabs" aria-label="Memora sections">
 
-            <div class="source-section">
+            <button
+                id="transcriptionTab"
+                class="app-tab active"
+                type="button"
+                aria-selected="true"
+            >
+                Transcription
+            </button>
 
-                <h2>Source</h2>
+            <button
+                id="combineTab"
+                class="app-tab"
+                type="button"
+                aria-selected="false"
+            >
+                Combine Files
+            </button>
 
-                <div class="action-row">
-                    <button id="sourceButton" type="button">
-                        Select Source Folder
-                    </button>
+        </nav>
+
+
+        <section
+            id="transcriptionPanel"
+            class="tab-panel"
+        >
+
+            <section class="panel">
+
+                <div class="source-section">
+
+                    <h2>Source</h2>
+
+                    <div class="action-row">
+                        <button id="sourceButton" type="button">
+                            Select Source Folder
+                        </button>
+                    </div>
+
                 </div>
 
-            </div>
+
+                <div class="destination-section">
+
+                    <h2>Destination</h2>
+
+                    <div class="destination-options">
+
+                        <button
+                            id="sourceDestinationButton"
+                            type="button"
+                        >
+                            Use Source Folder
+                        </button>
+
+                        <button
+                            id="transcriptionDestinationButton"
+                            type="button"
+                        >
+                            Create "transcription" Subfolder
+                        </button>
+
+                        <button
+                            id="destinationButton"
+                            type="button"
+                        >
+                            Browse for Another Folder
+                        </button>
+
+                    </div>
+
+                </div>
 
 
-            <div class="destination-section">
+                <div class="recordings-section">
 
-                <h2>Destination</h2>
+                    <h2>Recordings</h2>
 
-                <div class="destination-options">
+                    <div id="recordings" class="recordings">
+                        <p class="empty-message">
+                            No recordings selected.
+                        </p>
+                    </div>
 
-                    <button id="sourceDestinationButton" type="button">
-                        Use Source Folder
-                    </button>
+                </div>
 
-                    <button
-                        id="transcriptionDestinationButton"
-                        type="button"
-                    >
-                        Create "transcription" Subfolder
-                    </button>
+            </section>
 
-                    <button id="destinationButton" type="button">
-                        Browse for Another Folder
+
+            <section class="panel">
+
+                <h2>Transcription</h2>
+
+                <div class="transcription-controls">
+
+                    <label for="modelSelect">
+                        Model
+                    </label>
+
+                    <select id="modelSelect">
+                        <option value="tiny">Tiny — fastest</option>
+                        <option value="base">Base — fast</option>
+                        <option value="small" selected>
+                            Small — balanced
+                        </option>
+                        <option value="medium">
+                            Medium — higher accuracy
+                        </option>
+                        <option value="large-v3">
+                            Large-v3 — highest accuracy
+                        </option>
+                    </select>
+
+                    <button id="transcribeButton" type="button">
+                        Transcribe Selected
                     </button>
 
                 </div>
 
-            </div>
-
-
-            <div class="recordings-section">
-
-                <h2>Recordings</h2>
-
-                <div id="recordings" class="recordings">
-                    <p class="empty-message">
-                        No recordings selected.
-                    </p>
+                <div
+                    id="transcriptionStatus"
+                    class="transcription-status"
+                >
+                    No transcription started.
                 </div>
 
-            </div>
+                <div
+                    id="transcriptionOutput"
+                    class="transcription-output"
+                >
+                </div>
+
+            </section>
 
         </section>
 
 
-        <section class="panel">
+        <section
+            id="combinePanel"
+            class="tab-panel"
+            hidden
+        >
 
-            <h2>Transcription</h2>
+            <section class="panel">
 
-            <div class="transcription-controls">
+                <div class="source-section">
 
-                <label for="modelSelect">
-                    Model
-                </label>
+                    <h2>Text Source</h2>
 
-                <select id="modelSelect">
-                    <option value="tiny">Tiny — fastest</option>
-                    <option value="base">Base — fast</option>
-                    <option value="small" selected>
-                        Small — balanced
-                    </option>
-                    <option value="medium">
-                        Medium — higher accuracy
-                    </option>
-                    <option value="large-v3">
-                        Large-v3 — highest accuracy
-                    </option>
-                </select>
+                    <div class="action-row">
+                        <button
+                            id="textSourceButton"
+                            type="button"
+                        >
+                            Select Text Source Folder
+                        </button>
+                    </div>
 
-                <button id="transcribeButton" type="button">
-                    Transcribe Selected
-                </button>
+                </div>
 
-            </div>
 
-            <div id="transcriptionStatus" class="transcription-status">
-                No transcription started.
-            </div>
+                <div class="recordings-section">
 
-            <div id="transcriptionOutput" class="transcription-output">
-            </div>
+                    <h2>Transcripts</h2>
+
+                    <div id="transcripts" class="recordings">
+
+                        <p class="empty-message">
+                            No transcript files selected.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="destination-section">
+
+                    <h2>Output</h2>
+
+                    <div class="destination-options">
+
+                        <button
+                            id="combineSourceDestinationButton"
+                            type="button"
+                        >
+                            Use Source Folder
+                        </button>
+
+                        <button
+                            id="combineFolderDestinationButton"
+                            type="button"
+                        >
+                            Create "Combined" Folder
+                        </button>
+
+                        <button
+                            id="combineDestinationButton"
+                            type="button"
+                        >
+                            Browse for Another Folder
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="combine-actions">
+
+                    <button
+                        id="combineTextButton"
+                        type="button"
+                    >
+                        Create Combined Text
+                    </button>
+
+                    <button
+                        id="combineHTMLButton"
+                        type="button"
+                    >
+                        Create Combined HTML
+                    </button>
+
+                </div>
+
+                <div
+                    id="combineStatus"
+                    class="transcription-status"
+                >
+                    No combination started.
+                </div>
+
+            </section>
 
         </section>
 

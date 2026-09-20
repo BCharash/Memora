@@ -3,9 +3,6 @@
 // --------------------------------------------------
 //
 // Platform-specific file and folder access lives here.
-// The rest of Memora should work with the handles/files
-// returned by these functions rather than calling the
-// File System Access API directly.
 //
 
 export async function selectFolder() {
@@ -34,6 +31,29 @@ export async function listM4AFiles(directoryHandle) {
         if (
             handle.kind === "file" &&
             /\.m4a$/i.test(name)
+        ) {
+            files.push(
+                await handle.getFile()
+            );
+        }
+    }
+
+    return files;
+}
+
+
+export async function listTextFiles(directoryHandle) {
+
+    const files = [];
+
+    for await (
+        const [name, handle]
+        of directoryHandle.entries()
+    ) {
+
+        if (
+            handle.kind === "file" &&
+            /\.txt$/i.test(name)
         ) {
             files.push(
                 await handle.getFile()

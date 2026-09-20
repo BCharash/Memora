@@ -9,17 +9,11 @@ import {
     transcribeAudio
 } from "./whisper.js";
 
-
-// --------------------------------------------------
-// Transcribe a recording
-// --------------------------------------------------
-
 export async function transcribeRecording(
     file,
     model,
     statusCallback
 ) {
-
     if (statusCallback) {
         statusCallback(
             `Preparing ${file.name}…`
@@ -32,11 +26,16 @@ export async function transcribeRecording(
     const audio =
         await decodeAudio(file);
 
-    const transcriber =
-        await loadTranscriber(
-            model,
-            statusCallback
+    await loadTranscriber(
+        model,
+        statusCallback
+    );
+
+    if (statusCallback) {
+        statusCallback(
+            `Transcribing ${file.name}…`
         );
+    }
 
     const result =
         await transcribeAudio(

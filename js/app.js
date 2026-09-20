@@ -16,9 +16,50 @@ const transcriptionStatus =
 const transcriptionOutput =
     document.getElementById("transcriptionOutput");
 
+const transcriptionTab =
+    document.getElementById("transcriptionTab");
+
+const combineTab =
+    document.getElementById("combineTab");
+
+const transcriptionPanel =
+    document.getElementById("transcriptionPanel");
+
+const combinePanel =
+    document.getElementById("combinePanel");
+
+const textSourceButton =
+    document.getElementById("textSourceButton");
+
+const transcripts =
+    document.getElementById("transcripts");
+
+const combineSourceDestinationButton =
+    document.getElementById("combineSourceDestinationButton");
+
+const combineFolderDestinationButton =
+    document.getElementById("combineFolderDestinationButton");
+
+const combineDestinationButton =
+    document.getElementById("combineDestinationButton");
+
+const combineTextButton =
+    document.getElementById("combineTextButton");
+
+const combineHTMLButton =
+    document.getElementById("combineHTMLButton");
+
+const combineStatus =
+    document.getElementById("combineStatus");
+
 let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
+
+let textSourceHandle = null;
+let combineDestinationHandle = null;
+let selectedTranscriptFiles = [];
+let combineSortOrder = "date-desc";
 
 
 function setActiveDestinationButton(button) {
@@ -31,6 +72,57 @@ function setActiveDestinationButton(button) {
 
     if (button) {
         button.classList.add("active");
+    }
+}
+
+
+function setActiveCombineDestinationButton(button) {
+
+    document
+        .querySelectorAll("#combinePanel .destination-options button")
+        .forEach(otherButton => {
+            otherButton.classList.remove("active");
+        });
+
+    if (button) {
+        button.classList.add("active");
+    }
+}
+
+
+async function updateCombineFolderButton() {
+
+    if (!textSourceHandle) {
+        combineFolderDestinationButton.textContent =
+            'Create "Combined" Folder';
+        return;
+    }
+
+    try {
+
+        const storage =
+            await getStorageModule();
+
+        await storage.getSubfolder(
+            textSourceHandle,
+            "Combined",
+            false
+        );
+
+        combineFolderDestinationButton.textContent =
+            'Use "Combined" Folder';
+
+    } catch (error) {
+
+        if (error.name === "NotFoundError") {
+            combineFolderDestinationButton.textContent =
+                'Create "Combined" Folder';
+        } else {
+            console.error(
+                "Unable to check Combined folder:",
+                error
+            );
+        }
     }
 }
 
@@ -748,7 +840,8 @@ transcribeButton.addEventListener(
                     buildTranscript(
                         record.file,
                         record.metadata,
-                        record.transcript
+                        record.transcript,
+                        record.model
                     );
 
                 await saveTranscript(
@@ -846,6 +939,593 @@ function setTranscriptionError(message) {
 }
 
 
+
+// --------------------------------------------------
+// Combine Files
+// --------------------------------------------------
+
+if (transcriptionTab && combineTab) {
+
+    transcriptionTab.addEventListener(
+        "click",
+        () => {
+
+            transcriptionPanel.hidden = false;
+            combinePanel.hidden = true;
+
+            transcriptionTab.classList.add("active");
+            combineTab.classList.remove("active");
+
+            transcriptionTab.setAttribute(
+                "aria-selected",
+                "true"
+            );
+
+            combineTab.setAttribute(
+                "aria-selected",
+                "false"
+            );
+        }
+    );
+
+
+    combineTab.addEventListener(
+        "click",
+        () => {
+
+            transcriptionPanel.hidden = true;
+            combinePanel.hidden = false;
+
+            combineTab.classList.add("active");
+            transcriptionTab.classList.remove("active");
+
+            combineTab.setAttribute(
+                "aria-selected",
+                "true"
+            );
+
+            transcriptionTab.setAttribute(
+                "aria-selected",
+                "false"
+            );
+        }
+    );
+}
+
+
+if (textSourceButton) {
+
+    textSourceButton.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                const storage =
+                    await getStorageModule();
+
+                textSourceHandle =
+                    await storage.selectFolder();
+
+                const files =
+                    await storage.listTextFiles(
+                        textSourceHandle
+                    );
+
+                selectedTranscriptFiles =
+                    files;
+
+                combineDestinationHandle = null;
+                setActiveCombineDestinationButton(null);
+                await updateCombineFolderButton();
+
+                await displayTranscriptFiles(
+                    files
+                );
+
+                textSourceButton.textContent =
+                    `Text Source: ${textSourceHandle.name}`;
+
+                combineStatus.textContent =
+                    files.length === 0
+                        ? "No transcript files found."
+                        : `${files.length} transcript file${files.length === 1 ? "" : "s"} found.`;
+
+            } catch (error) {
+
+                if (error.name !== "AbortError") {
+
+                    console.error(
+                        "Text source error:",
+                        error
+                    );
+
+                    combineStatus.textContent =
+                        "Unable to read the text source folder.";
+                }
+            }
+        }
+    );
+}
+
+
+if (combineSourceDestinationButton) {
+
+    combineSourceDestinationButton.addEventListener(
+        "click",
+        () => {
+
+            if (!textSourceHandle) {
+                alert("Please select a text source folder first.");
+                return;
+            }
+
+            combineDestinationHandle =
+                textSourceHandle;
+
+            setActiveCombineDestinationButton(
+                combineSourceDestinationButton
+            );
+        }
+    );
+}
+
+
+if (combineFolderDestinationButton) {
+
+    combineFolderDestinationButton.addEventListener(
+        "click",
+        async () => {
+
+            if (!textSourceHandle) {
+                alert("Please select a text source folder first.");
+                return;
+            }
+
+            try {
+
+                const storage =
+                    await getStorageModule();
+
+                combineDestinationHandle =
+                    await storage.getSubfolder(
+                        textSourceHandle,
+                        "Combined",
+                        true
+                    );
+
+                combineFolderDestinationButton.textContent =
+                    'Use "Combined" Folder';
+
+                setActiveCombineDestinationButton(
+                    combineFolderDestinationButton
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Combined folder error:",
+                    error
+                );
+
+                combineStatus.textContent =
+                    "Unable to access the Combined folder.";
+            }
+        }
+    );
+}
+
+
+if (combineDestinationButton) {
+
+    combineDestinationButton.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                const storage =
+                    await getStorageModule();
+
+                combineDestinationHandle =
+                    await storage.selectFolder();
+
+                setActiveCombineDestinationButton(
+                    combineDestinationButton
+                );
+
+                combineDestinationButton.textContent =
+                    `Output: ${combineDestinationHandle.name}`;
+
+            } catch (error) {
+
+                if (error.name !== "AbortError") {
+
+                    console.error(
+                        "Combine destination error:",
+                        error
+                    );
+
+                    combineStatus.textContent =
+                        "Unable to select the output folder.";
+                }
+            }
+        }
+    );
+}
+
+
+async function displayTranscriptFiles(files) {
+
+    transcripts.innerHTML = "";
+
+    if (files.length === 0) {
+
+        transcripts.innerHTML = `
+            <p class="empty-message">
+                No transcript files found.
+            </p>
+        `;
+
+        return;
+    }
+
+    const controls =
+        document.createElement("div");
+
+    controls.className =
+        "recording-controls";
+
+    controls.style.display = "flex";
+    controls.style.alignItems = "center";
+    controls.style.gap = "10px";
+    controls.style.marginBottom = "14px";
+
+    const sortLabel =
+        document.createElement("label");
+
+    sortLabel.textContent =
+        "Sort transcripts";
+
+    sortLabel.htmlFor =
+        "transcriptSort";
+
+    sortLabel.style.color = "var(--muted)";
+    sortLabel.style.fontSize = "14px";
+    sortLabel.style.fontWeight = "500";
+
+    const sortSelect =
+        document.createElement("select");
+
+    sortSelect.id =
+        "transcriptSort";
+
+    sortSelect.innerHTML = `
+        <option value="date-desc">
+            Date — newest first
+        </option>
+        <option value="date-asc">
+            Date — oldest first
+        </option>
+        <option value="name-asc">
+            Name — A → Z
+        </option>
+        <option value="name-desc">
+            Name — Z → A
+        </option>
+    `;
+
+    sortSelect.style.border = "1px solid var(--border)";
+    sortSelect.style.borderRadius = "8px";
+    sortSelect.style.padding = "8px 10px";
+    sortSelect.style.background = "white";
+    sortSelect.style.color = "var(--text)";
+    sortSelect.style.font = "inherit";
+    sortSelect.style.fontSize = "14px";
+
+    controls.appendChild(sortLabel);
+    controls.appendChild(sortSelect);
+
+    const selectAllRow =
+        document.createElement("div");
+
+    selectAllRow.className =
+        "recording-select-all";
+
+    const selectAllCheckbox =
+        document.createElement("input");
+
+    selectAllCheckbox.type = "checkbox";
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.id =
+        "selectAllTranscripts";
+
+    const selectAllLabel =
+        document.createElement("label");
+
+    selectAllLabel.htmlFor =
+        "selectAllTranscripts";
+
+    selectAllLabel.textContent =
+        "Select all";
+
+    selectAllRow.appendChild(
+        selectAllCheckbox
+    );
+
+    selectAllRow.appendChild(
+        selectAllLabel
+    );
+
+    async function render(sortOrder) {
+
+        combineSortOrder = sortOrder;
+
+        const combineModule =
+            await getCombineModule();
+
+        // Use the actual Recording date stored inside each transcript
+        // rather than the filename. This keeps the on-screen order
+        // identical to the order used for the combined output.
+        const records =
+            await combineModule.readTranscriptFiles(
+                selectedTranscriptFiles
+            );
+
+        const sorted =
+            combineModule.sortTranscriptRecords(
+                records,
+                sortOrder
+            );
+
+        transcripts.innerHTML = "";
+
+        transcripts.appendChild(
+            controls
+        );
+
+                transcripts.appendChild(
+                    selectAllRow
+                );
+
+                const checkboxes = [];
+
+                for (const record of sorted) {
+
+                    const item =
+                        document.createElement("div");
+
+                    item.className =
+                        "recording-item";
+
+                    const checkbox =
+                        document.createElement("input");
+
+                    checkbox.type = "checkbox";
+                    checkbox.checked = true;
+                    checkbox.className =
+                        "recording-checkbox";
+                    checkbox.dataset.filename =
+                        record.filename;
+
+                    checkboxes.push(
+                        checkbox
+                    );
+
+                    const content =
+                        document.createElement("div");
+
+                    content.className =
+                        "recording-content";
+
+                    const name =
+                        document.createElement("div");
+
+                    name.className =
+                        "recording-name";
+
+                    name.textContent =
+                        record.filename;
+
+                    content.appendChild(name);
+
+                    item.appendChild(checkbox);
+                    item.appendChild(content);
+
+                    transcripts.appendChild(item);
+                }
+
+                selectAllCheckbox.checked =
+                    checkboxes.length > 0;
+
+                selectAllCheckbox.onchange =
+                    () => {
+
+                        checkboxes.forEach(
+                            checkbox => {
+                                checkbox.checked =
+                                    selectAllCheckbox.checked;
+                            }
+                        );
+                    };
+
+                checkboxes.forEach(
+                    checkbox => {
+
+                        checkbox.onchange =
+                            () => {
+
+                                selectAllCheckbox.checked =
+                                    checkboxes.every(
+                                        item =>
+                                            item.checked
+                                    );
+                            };
+                    }
+                );
+    }
+
+    render("date-desc");
+
+    sortSelect.addEventListener(
+        "change",
+        () => render(sortSelect.value)
+    );
+}
+
+
+function getSelectedTranscriptFiles() {
+
+    const checkboxes =
+        Array.from(
+            document.querySelectorAll(
+                "#transcripts .recording-checkbox"
+            )
+        );
+
+    return selectedTranscriptFiles.filter(
+        file => {
+
+            const checkbox =
+                checkboxes.find(
+                    item =>
+                        item.dataset.filename ===
+                        file.name
+                );
+
+            return checkbox &&
+                checkbox.checked;
+        }
+    );
+}
+
+
+async function combineSelectedFiles(
+    outputType
+) {
+
+    const files =
+        getSelectedTranscriptFiles();
+
+    if (files.length === 0) {
+
+        combineStatus.textContent =
+            "Please select at least one transcript.";
+
+        return;
+    }
+
+    if (!combineDestinationHandle) {
+
+        combineStatus.textContent =
+            "Please select an output folder first.";
+
+        return;
+    }
+
+    try {
+
+        combineTextButton.disabled = true;
+        combineHTMLButton.disabled = true;
+
+        combineStatus.textContent =
+            `Reading ${files.length} transcript${files.length === 1 ? "" : "s"}…`;
+
+        const combineModule =
+            await getCombineModule();
+
+        const records =
+            await combineModule.readTranscriptFiles(
+                files
+            );
+
+        const sortedRecords =
+            combineModule.sortTranscriptRecords(
+                records,
+                combineSortOrder
+            );
+
+        const selectedRecords =
+            combineModule.selectHighestModelRecords(
+                sortedRecords
+            );
+
+        const storage =
+            await getStorageModule();
+
+        if (outputType === "text") {
+
+            const combinedText =
+                combineModule.combineTranscriptRecords(
+                    selectedRecords
+                );
+
+            await storage.writeTextFile(
+                combineDestinationHandle,
+                "Memora - Combined Transcription.txt",
+                combinedText
+            );
+
+            combineStatus.textContent =
+                "Combined text created.";
+
+        } else {
+
+            const html =
+                await getHTMLModule();
+
+            const combinedHTML =
+                html.createCombinedHTML(
+                    selectedRecords
+                );
+
+            await storage.writeTextFile(
+                combineDestinationHandle,
+                "Memora - Combined Transcription.html",
+                combinedHTML
+            );
+
+            combineStatus.textContent =
+                "Combined HTML created.";
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Combine error:",
+            error
+        );
+
+        combineStatus.textContent =
+            error.message ||
+            "Unable to create the combined file.";
+
+    } finally {
+
+        combineTextButton.disabled = false;
+        combineHTMLButton.disabled = false;
+    }
+}
+
+
+if (combineTextButton) {
+
+    combineTextButton.addEventListener(
+        "click",
+        () => combineSelectedFiles("text")
+    );
+}
+
+
+if (combineHTMLButton) {
+
+    combineHTMLButton.addEventListener(
+        "click",
+        () => combineSelectedFiles("html")
+    );
+}
+
+
 // --------------------------------------------------
 // Whisper model
 // --------------------------------------------------
@@ -867,7 +1547,8 @@ let audioProcessor = null;
 function buildTranscript(
     file,
     metadata,
-    text
+    text,
+    model
 ) {
 
     const date =
@@ -883,7 +1564,8 @@ function buildTranscript(
         `${file.name}\n\n` +
         `Recording date: ${date}\n` +
         `Duration: ${duration}\n` +
-        `Voice Memo ID: ${metadata.uuid || "Unknown"}\n\n` +
+        `Voice Memo ID: ${metadata.uuid || "Unknown"}\n` +
+        `Whisper model: ${model}\n\n` +
         `--------------------------------------------------\n\n` +
         `${text.trim()}\n`
     );
