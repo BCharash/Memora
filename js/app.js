@@ -10,6 +10,36 @@ const recordings = document.getElementById("recordings");
 
 const modelSelect = document.getElementById("modelSelect");
 const transcribeButton = document.getElementById("transcribeButton");
+
+// Whisper model catalog. Keep the user-facing model names separate from
+// the actual Transformers.js / Hugging Face repository names.
+const MODEL_CATALOG = {
+    tiny: {
+        label: "Tiny",
+        repository: "onnx-community/whisper-tiny"
+    },
+    base: {
+        label: "Base",
+        repository: "onnx-community/whisper-base"
+    },
+    small: {
+        label: "Small",
+        repository: "onnx-community/whisper-small"
+    },
+    medium: {
+        label: "Medium",
+        repository: "Xenova/whisper-medium",
+        dtype: "q4"
+    },
+    "large-v3": {
+        label: "Large-v3",
+        repository: "Xenova/whisper-large-v3",
+        dtype: {
+            encoder_model: "fp16",
+            decoder_model_merged: "q4"
+        }
+    }
+};
 const transcriptionStatus =
     document.getElementById("transcriptionStatus");
 const transcriptionOutput =
@@ -38,8 +68,6 @@ function setActiveDestinationButton(button) {
 
 async function updateTranscriptionFolderButton() {
 
-    setActiveDestinationButton(null);
-
     if (!sourceHandle) {
         transcriptionDestinationButton.textContent =
             'Create "transcription" Folder';
@@ -54,6 +82,16 @@ async function updateTranscriptionFolderButton() {
 
         transcriptionDestinationButton.textContent =
             'Use "transcription" Folder';
+
+        destinationHandle =
+            await sourceHandle.getDirectoryHandle(
+                "transcription",
+                { create: false }
+            );
+
+        setActiveDestinationButton(
+            transcriptionDestinationButton
+        );
 
     } catch (error) {
         if (error.name === "NotFoundError") {
@@ -110,6 +148,10 @@ sourceButton.addEventListener("click", async () => {
                 mode: "readwrite"
             });
 
+        destinationHandle = null;
+
+        setActiveDestinationButton(null);
+
         const files = [];
 
         for await (const [name, handle] of sourceHandle.entries()) {
@@ -130,8 +172,6 @@ sourceButton.addEventListener("click", async () => {
             sourceButton.textContent =
                 `Source: ${sourceHandle.name}`;
 
-            destinationHandle = null;
-
             await updateTranscriptionFolderButton();
 
             alert(
@@ -143,8 +183,6 @@ sourceButton.addEventListener("click", async () => {
 
         sourceButton.textContent =
             `Source: ${sourceHandle.name}`;
-
-        destinationHandle = null;
 
         await updateTranscriptionFolderButton();
 
@@ -202,9 +240,6 @@ transcriptionDestinationButton.addEventListener("click", async () => {
         transcriptionDestinationButton.textContent =
             'Use "transcription" Folder';
 
-        setActiveDestinationButton(
-            transcriptionDestinationButton
-        );
 
     } catch (error) {
 
@@ -261,9 +296,69 @@ destinationButton.addEventListener("click", async () => {
 
 async function displayFiles(files) {
 
+    selectedFiles = files;
+
+    const metadataEntries = [];
+
     recordings.innerHTML = "";
 
-    selectedFiles = files;
+    const controls =
+        document.createElement("div");
+
+    controls.className =
+        "recording-controls";
+
+    controls.style.display = "flex";
+    controls.style.alignItems = "center";
+    controls.style.gap = "10px";
+    controls.style.marginBottom = "14px";
+
+    const sortLabel =
+        document.createElement("label");
+
+    sortLabel.textContent =
+        "Sort recordings";
+
+    sortLabel.htmlFor =
+        "recordingSort";
+
+    sortLabel.style.color = "var(--muted)";
+    sortLabel.style.fontSize = "14px";
+    sortLabel.style.fontWeight = "500";
+
+    const sortSelect =
+        document.createElement("select");
+
+    sortSelect.id =
+        "recordingSort";
+
+    sortSelect.innerHTML = `
+        <option value="date-desc">
+            Date — newest first
+        </option>
+        <option value="date-asc">
+            Date — oldest first
+        </option>
+        <option value="name-asc">
+            Name — A → Z
+        </option>
+        <option value="name-desc">
+            Name — Z → A
+        </option>
+    `;
+
+    sortSelect.style.border = "1px solid var(--border)";
+    sortSelect.style.borderRadius = "8px";
+    sortSelect.style.padding = "8px 10px";
+    sortSelect.style.background = "white";
+    sortSelect.style.color = "var(--text)";
+    sortSelect.style.font = "inherit";
+    sortSelect.style.fontSize = "14px";
+
+    controls.appendChild(sortLabel);
+    controls.appendChild(sortSelect);
+
+    recordings.appendChild(controls);
 
     const selectAllRow =
         document.createElement("div");
@@ -276,7 +371,8 @@ async function displayFiles(files) {
 
     selectAllCheckbox.type = "checkbox";
     selectAllCheckbox.checked = true;
-    selectAllCheckbox.id = "selectAllRecordings";
+    selectAllCheckbox.id =
+        "selectAllRecordings";
 
     const selectAllLabel =
         document.createElement("label");
@@ -299,79 +395,19 @@ async function displayFiles(files) {
         selectAllRow
     );
 
-    const recordingCheckboxes = [];
-
     for (const file of files) {
 
-        const item =
-            document.createElement("div");
+        const entry = {
+            file,
+            metadata: null
+        };
 
-        item.className =
-            "recording-item";
-
-        const checkbox =
-            document.createElement("input");
-
-        checkbox.type = "checkbox";
-        checkbox.checked = true;
-        checkbox.className =
-            "recording-checkbox";
-
-        checkbox.dataset.filename =
-            file.name;
-
-        recordingCheckboxes.push(
-            checkbox
-        );
-
-        const content =
-            document.createElement("div");
-
-        content.className =
-            "recording-content";
-
-        const name =
-            document.createElement("div");
-
-        name.className =
-            "recording-name";
-
-        name.textContent =
-            file.name;
-
-        const details =
-            document.createElement("div");
-
-        details.className =
-            "recording-details";
-
-        details.textContent =
-            "Reading metadata…";
-
-        content.appendChild(name);
-        content.appendChild(details);
-
-        item.appendChild(checkbox);
-        item.appendChild(content);
-
-        recordings.appendChild(item);
+        metadataEntries.push(entry);
 
         try {
 
-            const metadata =
+            entry.metadata =
                 await readM4AMetadata(file);
-
-            details.textContent =
-                `${formatRecordingDate(metadata.date)} · ` +
-                `${formatDuration(
-                    metadata.duration,
-                    metadata.durationTimescale
-                )}`;
-
-            console.log(
-                file.name,
-                metadata
-            );
 
         } catch (error) {
 
@@ -379,44 +415,236 @@ async function displayFiles(files) {
                 "Metadata error:",
                 error
             );
-
-            details.textContent =
-                "Unable to read metadata";
         }
     }
 
-    selectAllCheckbox.addEventListener(
-        "change",
-        () => {
+    function sortEntries(entries, sortOrder) {
 
-            recordingCheckboxes.forEach(
-                checkbox => {
+        return [...entries].sort(
+            (a, b) => {
 
-                    checkbox.checked =
-                        selectAllCheckbox.checked;
-                }
-            );
-        }
-    );
+                if (
+                    sortOrder === "name-asc" ||
+                    sortOrder === "name-desc"
+                ) {
 
-    recordingCheckboxes.forEach(
-        checkbox => {
-
-            checkbox.addEventListener(
-                "change",
-                () => {
-
-                    selectAllCheckbox.checked =
-                        recordingCheckboxes.every(
-                            checkbox =>
-                                checkbox.checked
+                    const comparison =
+                        a.file.name.localeCompare(
+                            b.file.name,
+                            undefined,
+                            {
+                                numeric: true,
+                                sensitivity: "base"
+                            }
                         );
+
+                    return sortOrder === "name-asc"
+                        ? comparison
+                        : -comparison;
                 }
+
+                const aTime =
+                    a.metadata &&
+                    a.metadata.date
+                        ? a.metadata.date.getTime()
+                        : null;
+
+                const bTime =
+                    b.metadata &&
+                    b.metadata.date
+                        ? b.metadata.date.getTime()
+                        : null;
+
+                if (aTime === null && bTime === null) {
+                    return a.file.name.localeCompare(
+                        b.file.name,
+                        undefined,
+                        {
+                            numeric: true,
+                            sensitivity: "base"
+                        }
+                    );
+                }
+
+                if (aTime === null) {
+                    return 1;
+                }
+
+                if (bTime === null) {
+                    return -1;
+                }
+
+                const comparison =
+                    aTime - bTime;
+
+                return sortOrder === "date-asc"
+                    ? comparison
+                    : -comparison;
+            }
+        );
+    }
+
+    function renderSortedEntries() {
+
+        const existingCheckboxes =
+            Array.from(
+                document.querySelectorAll(
+                    ".recording-checkbox"
+                )
             );
+
+        const checkedNames =
+            new Set(
+                existingCheckboxes
+                    .filter(
+                        checkbox =>
+                            checkbox.checked
+                    )
+                    .map(
+                        checkbox =>
+                            checkbox.dataset.filename
+                    )
+            );
+
+        const hasExistingSelection =
+            existingCheckboxes.length > 0;
+
+        const sortedEntries =
+            sortEntries(
+                metadataEntries,
+                sortSelect.value
+            );
+
+        recordings.innerHTML = "";
+
+        recordings.appendChild(
+            controls
+        );
+
+        recordings.appendChild(
+            selectAllRow
+        );
+
+        const recordingCheckboxes = [];
+
+        for (const entry of sortedEntries) {
+
+            const file =
+                entry.file;
+
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "recording-item";
+
+            const checkbox =
+                document.createElement("input");
+
+            checkbox.type = "checkbox";
+
+            checkbox.checked =
+                hasExistingSelection
+                    ? checkedNames.has(file.name)
+                    : true;
+
+            checkbox.className =
+                "recording-checkbox";
+
+            checkbox.dataset.filename =
+                file.name;
+
+            recordingCheckboxes.push(
+                checkbox
+            );
+
+            const content =
+                document.createElement("div");
+
+            content.className =
+                "recording-content";
+
+            const name =
+                document.createElement("div");
+
+            name.className =
+                "recording-name";
+
+            name.textContent =
+                file.name;
+
+            const details =
+                document.createElement("div");
+
+            details.className =
+                "recording-details";
+
+            if (entry.metadata) {
+
+                details.textContent =
+                    `${formatRecordingDate(entry.metadata.date)} · ` +
+                    `${formatDuration(
+                        entry.metadata.duration,
+                        entry.metadata.durationTimescale
+                    )}`;
+
+            } else {
+
+                details.textContent =
+                    "Unable to read metadata";
+            }
+
+            content.appendChild(name);
+            content.appendChild(details);
+
+            item.appendChild(checkbox);
+            item.appendChild(content);
+
+            recordings.appendChild(item);
         }
+
+        selectAllCheckbox.checked =
+            recordingCheckboxes.length > 0 &&
+            recordingCheckboxes.every(
+                checkbox =>
+                    checkbox.checked
+            );
+
+        selectAllCheckbox.onchange =
+            () => {
+
+                recordingCheckboxes.forEach(
+                    checkbox => {
+
+                        checkbox.checked =
+                            selectAllCheckbox.checked;
+                    }
+                );
+            };
+
+        recordingCheckboxes.forEach(
+            checkbox => {
+
+                checkbox.onchange =
+                    () => {
+
+                        selectAllCheckbox.checked =
+                            recordingCheckboxes.every(
+                                checkbox =>
+                                    checkbox.checked
+                            );
+                    };
+            }
+        );
+    }
+
+    renderSortedEntries();
+
+    sortSelect.addEventListener(
+        "change",
+        renderSortedEntries
     );
 }
-
 
 function showEmptyMessage() {
 
@@ -619,21 +847,45 @@ async function loadTranscriber(model) {
         pipeline
     } = await loadTransformers();
 
-    const modelName =
-        `onnx-community/whisper-${model}`;
+    const modelInfo =
+        MODEL_CATALOG[model];
+
+    if (!modelInfo) {
+        throw new Error(
+            `Unknown Whisper model: ${model}`
+        );
+    }
 
     setTranscriptionBusy(
-        `Loading Whisper ${model} using WebGPU…`
+        `Loading Whisper ${modelInfo.label} using WebGPU…`
     );
 
-    transcriber =
-        await pipeline(
-            "automatic-speech-recognition",
-            modelName,
-            {
+    try {
+
+        const pipelineOptions = {
                 device: "webgpu"
+            };
+
+            if (modelInfo.dtype) {
+                pipelineOptions.dtype =
+                    modelInfo.dtype;
             }
+
+            transcriber =
+                await pipeline(
+                    "automatic-speech-recognition",
+                    modelInfo.repository,
+                    pipelineOptions
+                );
+
+    } catch (error) {
+
+        throw new Error(
+            `Unable to load Whisper ${modelInfo.label}. ` +
+            `The model may no longer be available or compatible. ` +
+            `(${modelInfo.repository})`
         );
+    }
 
     loadedModel = model;
 
