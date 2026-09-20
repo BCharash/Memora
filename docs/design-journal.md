@@ -633,7 +633,7 @@ The application has also demonstrated:
 
 The current application contains substantial functionality in `app.js`.
 
-The next development stage is architectural refactoring rather than adding a large amount of new functionality at once.
+The next development stage is continued architectural refactoring and refinement rather than adding a large amount of new functionality at once.
 
 Planned sequence:
 
@@ -694,17 +694,101 @@ These should not drive unnecessary complexity into the current implementation.
 
 # 22. Current Status
 
-Memora has progressed beyond the proof-of-concept stage.
+Memora has progressed beyond the proof-of-concept stage and now has a working desktop transcription and Combine Files workflow.
 
-The important functionality has been demonstrated, including desktop transcription and an iPhone file-selection/output workflow.
+The current implementation supports:
 
-The immediate objective is to refactor the working implementation into a clearer modular architecture before adding the Combine Files functionality.
+- importing M4A recordings from a source folder
+- extracting recording metadata
+- selecting Whisper models
+- saving individual timestamped transcription files
+- recording the Whisper model in both transcript metadata and filenames
+- a separate **Combine Files** workflow for existing transcript files
+- selecting individual transcript files or all files
+- sorting transcripts by recording date or name
+- generating combined TXT and HTML output
+- selecting the output location, including a `Combined` subfolder
+- filtering duplicate recordings in combined output in favor of the highest available Whisper model
+- adjustable text size in generated HTML
+
+The current milestone has been committed after testing the Combine Files workflow and its reader/output presentation.
 
 The iPhone implementation remains an explicit future development phase.
 
 ---
 
-# 23. Journal Update Policy
+
+# 23. Recent Combine Files Milestone
+
+The **Combine Files** workflow has now become a distinct, working part of Memora rather than only a planned feature.
+
+## 23.1 Individual transcript files remain the source material
+
+The combined document is generated from the saved `.txt` transcription files rather than from the original audio.
+
+This preserves the earlier architectural decision that individual transcription files are durable source material and that combined documents are derived artifacts.
+
+## 23.2 Whisper model provenance
+
+The Whisper model used for each transcription is now preserved in two places:
+
+- the individual transcript's metadata
+- the individual transcript filename
+
+The filename convention therefore includes the model, for example:
+
+    2023-06-15 08-40 - Prarabda karma 2 - small.txt
+
+When the same recording exists at multiple model levels, the Combine Files operation can prefer the highest available model so that the combined document does not unnecessarily contain multiple transcriptions of the same recording.
+
+The current model hierarchy is:
+
+    tiny → base → small → medium → large-v3
+
+## 23.3 Sorting
+
+Combine Files provides four sort choices:
+
+- Date — newest first
+- Date — oldest first
+- Name — A → Z
+- Name — Z → A
+
+A design correction was made after testing showed that filename ordering was not sufficient to guarantee chronological ordering. The recording date stored inside each transcript is now treated as the authoritative date for date sorting.
+
+The displayed transcript list and the generated combined output are intended to use the same ordering.
+
+## 23.4 Output destinations
+
+The Combine Files workflow now follows the same destination concept used by transcription:
+
+- Use Source Folder
+- Create/use a `Combined` folder
+- Browse for Another Folder
+
+The `Combined` folder is created as a subfolder of the selected Text Source folder when needed.
+
+## 23.5 Combined document presentation
+
+The combined TXT format was refined so that the transcription belongs to its metadata rather than being separated from it by a divider. A solid divider separates one recording entry from the next.
+
+The generated HTML follows the same conceptual structure and is intended as a readable document rather than merely a formatted copy of the TXT file.
+
+The HTML now includes a text-size slider so the reader can adjust transcription size without regenerating the document.
+
+## 23.6 Accessibility and visual hierarchy
+
+The interface was refined with accessibility in mind, including the user's protanopia. Tabs and ordinary action buttons are deliberately differentiated by more than color alone, using different visual treatments and hierarchy.
+
+Destination buttons also have a visible selected state so the currently active output destination is apparent without relying only on text or color.
+
+## 23.7 Development milestone
+
+The Combine Files workflow and its presentation refinements were tested and committed as a stable milestone.
+
+The next changes should continue to be incremental and should avoid disturbing the now-working transcription workflow.
+
+# 24. Journal Update Policy
 
 This document is a living design journal.
 
