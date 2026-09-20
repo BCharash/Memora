@@ -1,5 +1,10 @@
 const sourceButton = document.getElementById("sourceButton");
 const destinationButton = document.getElementById("destinationButton");
+const sourceDestinationButton =
+    document.getElementById("sourceDestinationButton");
+const transcriptionDestinationButton =
+    document.getElementById("transcriptionDestinationButton");
+
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
 
@@ -10,10 +15,58 @@ const transcriptionStatus =
 const transcriptionOutput =
     document.getElementById("transcriptionOutput");
 
+let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
 let transcriber = null;
 let loadedModel = null;
+
+
+function setActiveDestinationButton(button) {
+
+    document
+        .querySelectorAll(".destination-options button")
+        .forEach(otherButton => {
+            otherButton.classList.remove("active");
+        });
+
+    if (button) {
+        button.classList.add("active");
+    }
+}
+
+
+async function updateTranscriptionFolderButton() {
+
+    setActiveDestinationButton(null);
+
+    if (!sourceHandle) {
+        transcriptionDestinationButton.textContent =
+            'Create "transcription" Folder';
+        return;
+    }
+
+    try {
+        await sourceHandle.getDirectoryHandle(
+            "transcription",
+            { create: false }
+        );
+
+        transcriptionDestinationButton.textContent =
+            'Use "transcription" Folder';
+
+    } catch (error) {
+        if (error.name === "NotFoundError") {
+            transcriptionDestinationButton.textContent =
+                'Create "transcription" Folder';
+        } else {
+            console.error(
+                "Unable to check transcription folder:",
+                error
+            );
+        }
+    }
+}
 
 
 // --------------------------------------------------
@@ -43,8 +96,127 @@ async function loadTransformers() {
 // Source / destination
 // --------------------------------------------------
 
-sourceButton.addEventListener("click", () => {
-    fileInput.click();
+sourceButton.addEventListener("click", async () => {
+
+    if (!window.showDirectoryPicker) {
+        alert("Folder selection is not supported by this browser.");
+        return;
+    }
+
+    try {
+
+        sourceHandle =
+            await window.showDirectoryPicker({
+                mode: "readwrite"
+            });
+
+        const files = [];
+
+        for await (const [name, handle] of sourceHandle.entries()) {
+
+            if (
+                handle.kind === "file" &&
+                /\.m4a$/i.test(name)
+            ) {
+                const file = await handle.getFile();
+                files.push(file);
+            }
+        }
+
+        if (files.length === 0) {
+
+            showEmptyMessage();
+
+            sourceButton.textContent =
+                `Source: ${sourceHandle.name}`;
+
+            destinationHandle = null;
+
+            await updateTranscriptionFolderButton();
+
+            alert(
+                "No M4A recordings were found in this folder."
+            );
+
+            return;
+        }
+
+        sourceButton.textContent =
+            `Source: ${sourceHandle.name}`;
+
+        destinationHandle = null;
+
+        await updateTranscriptionFolderButton();
+
+        await displayFiles(files);
+
+    } catch (error) {
+
+        if (error.name !== "AbortError") {
+
+            console.error(
+                "Source folder error:",
+                error
+            );
+
+            alert(
+                "Unable to read the source folder."
+            );
+        }
+    }
+});
+
+
+sourceDestinationButton.addEventListener("click", () => {
+
+    if (!sourceHandle) {
+        alert("Please select a source folder first.");
+        return;
+    }
+
+    destinationHandle = sourceHandle;
+
+    setActiveDestinationButton(
+        sourceDestinationButton
+    );
+});
+
+
+transcriptionDestinationButton.addEventListener("click", async () => {
+
+    if (!sourceHandle) {
+        alert("Please select a source folder first.");
+        return;
+    }
+
+    try {
+
+        destinationHandle =
+            await sourceHandle.getDirectoryHandle(
+                "transcription",
+                {
+                    create: true
+                }
+            );
+
+        transcriptionDestinationButton.textContent =
+            'Use "transcription" Folder';
+
+        setActiveDestinationButton(
+            transcriptionDestinationButton
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Transcription folder error:",
+            error
+        );
+
+        alert(
+            "Unable to access the transcription folder."
+        );
+    }
 });
 
 
@@ -57,20 +229,15 @@ destinationButton.addEventListener("click", async () => {
 
     try {
 
-destinationHandle =
-    await window.showDirectoryPicker({
-        mode: "readwrite"
-    });
+        destinationHandle =
+            await window.showDirectoryPicker({
+                mode: "readwrite"
+            });
 
-await destinationHandle.getDirectoryHandle(
-    "transcription",
-    {
-        create: true
-    }
-);
+        setActiveDestinationButton(
+            destinationButton
+        );
 
-destinationButton.textContent =
-    `Destination: ${destinationHandle.name}`;
     } catch (error) {
 
         if (error.name !== "AbortError") {
@@ -85,19 +252,6 @@ destinationButton.textContent =
             );
         }
     }
-});
-
-
-fileInput.addEventListener("change", async () => {
-
-    const files = Array.from(fileInput.files);
-
-    if (files.length === 0) {
-        showEmptyMessage();
-        return;
-    }
-
-    await displayFiles(files);
 });
 
 
@@ -317,12 +471,7 @@ transcribeButton.addEventListener(
             await loadTranscriber(model);
 
             const transcriptionFolder =
-                await destinationHandle.getDirectoryHandle(
-                    "transcription",
-                    {
-                        create: true
-                    }
-                );
+                destinationHandle;
 
             for (
                 let i = 0;
@@ -362,7 +511,8 @@ transcribeButton.addEventListener(
                     transcriptionFolder,
                     file,
                     metadata,
-                    transcript
+                    transcript,
+                    model
                 );
 
                 appendTranscription(
@@ -614,13 +764,16 @@ async function saveTranscript(
     transcriptionFolder,
     file,
     metadata,
-    transcript
+    transcript,
+    model
 ) {
 
     const filename =
-        createTranscriptFilename(
+        await createUniqueTranscriptFilename(
+            transcriptionFolder,
             file,
-            metadata
+            metadata,
+            model
         );
 
     const outputFile =
@@ -642,60 +795,87 @@ async function saveTranscript(
 }
 
 
-function createTranscriptFilename(
+async function createUniqueTranscriptFilename(
+    transcriptionFolder,
     file,
-    metadata
+    metadata,
+    model
 ) {
 
-    const date =
-        metadata.date;
+    const baseFilename =
+        createTranscriptFilename(
+            file,
+            metadata,
+            model
+        );
+
+    const extension = ".txt";
+    const stem =
+        baseFilename.endsWith(extension)
+            ? baseFilename.slice(0, -extension.length)
+            : baseFilename;
+
+    let version = 1;
+
+    while (true) {
+
+        const filename =
+            version === 1
+                ? `${stem}${extension}`
+                : `${stem}-${version}${extension}`;
+
+        try {
+            await transcriptionFolder.getFileHandle(
+                filename,
+                { create: false }
+            );
+
+            version++;
+
+        } catch (error) {
+
+            if (error.name === "NotFoundError") {
+                return filename;
+            }
+
+            throw error;
+        }
+    }
+}
+
+
+function createTranscriptFilename(
+    file,
+    metadata,
+    model
+) {
+
+    const date = metadata.date;
+
+    const baseName =
+        file.name.replace(/\.m4a$/i, "");
+
+    const modelSuffix =
+        sanitizeFilename(model);
 
     if (!date) {
-
         return (
-            sanitizeFilename(
-                file.name.replace(
-                    /\.m4a$/i,
-                    ""
-                )
-            ) +
-            ".txt"
+            `${sanitizeFilename(baseName)} - ` +
+            `${modelSuffix}.txt`
         );
     }
 
-    const year =
-        date.getFullYear();
-
-    const month =
-        String(
-            date.getMonth() + 1
-        ).padStart(2, "0");
-
-    const day =
-        String(
-            date.getDate()
-        ).padStart(2, "0");
-
-    const hours =
-        String(
-            date.getHours()
-        ).padStart(2, "0");
-
-    const minutes =
-        String(
-            date.getMinutes()
-        ).padStart(2, "0");
-
-    const baseName =
-        file.name.replace(
-            /\.m4a$/i,
-            ""
-        );
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
 
     return (
         `${year}-${month}-${day} ` +
         `${hours}-${minutes} - ` +
-        `${sanitizeFilename(baseName)}.txt`
+        `${sanitizeFilename(baseName)} - ` +
+        `${modelSuffix}.txt`
     );
 }
 

@@ -33,34 +33,63 @@
     <main class="app-main">
 
         <section class="panel">
-            <h2>Recordings</h2>
 
-            <div class="action-row">
-                <button id="sourceButton" type="button">
-                    Select Recordings
-                </button>
+            <div class="source-section">
 
-                <button id="destinationButton" type="button">
-                    Select Destination
-                </button>
+                <h2>Source</h2>
+
+                <div class="action-row">
+                    <button id="sourceButton" type="button">
+                        Select Source Folder
+                    </button>
+                </div>
+
             </div>
 
-            <input
-                id="fileInput"
-                type="file"
-                multiple
-                hidden
-            >
 
-            <div id="recordings" class="recordings">
-                <p class="empty-message">
-                    No recordings selected.
-                </p>
+            <div class="destination-section">
+
+                <h2>Destination</h2>
+
+                <div class="destination-options">
+
+                    <button id="sourceDestinationButton" type="button">
+                        Use Source Folder
+                    </button>
+
+                    <button
+                        id="transcriptionDestinationButton"
+                        type="button"
+                    >
+                        Create "transcription" Subfolder
+                    </button>
+
+                    <button id="destinationButton" type="button">
+                        Browse for Another Folder
+                    </button>
+
+                </div>
+
             </div>
+
+
+            <div class="recordings-section">
+
+                <h2>Recordings</h2>
+
+                <div id="recordings" class="recordings">
+                    <p class="empty-message">
+                        No recordings selected.
+                    </p>
+                </div>
+
+            </div>
+
         </section>
 
 
         <section class="panel">
+
             <h2>Transcription</h2>
 
             <div class="transcription-controls">
@@ -72,15 +101,19 @@
                 <select id="modelSelect">
                     <option value="tiny">Tiny — fastest</option>
                     <option value="base">Base — fast</option>
-                    <option value="small" selected>Small — balanced</option>
-                    <option value="medium">Medium — higher accuracy</option>
+                    <option value="small" selected>
+                        Small — balanced
+                    </option>
+                    <option value="medium">
+                        Medium — higher accuracy
+                    </option>
                     <option value="large-v3">
                         Large-v3 — highest accuracy
                     </option>
                 </select>
 
                 <button id="transcribeButton" type="button">
-                    Transcribe 
+                    Transcribe Selected
                 </button>
 
             </div>

@@ -1,7 +1,3 @@
-/* --------------------------------------------------
-   Memora — Base Styles
--------------------------------------------------- */
-
 :root {
     --navy: #07145C;
     --text: #20242C;
@@ -33,8 +29,6 @@ body {
     background: var(--background);
 }
 
-/* Header */
-
 .app-header {
     display: flex;
     align-items: center;
@@ -64,15 +58,11 @@ body {
     font-size: 15px;
 }
 
-/* Main */
-
 .app-main {
     max-width: 900px;
     margin: 0 auto;
     padding: 0 20px 40px;
 }
-
-/* Panel */
 
 .panel {
     background: var(--surface);
@@ -87,7 +77,21 @@ body {
     font-weight: 600;
 }
 
-/* Buttons */
+.source-section {
+    margin: 0;
+}
+
+.destination-section {
+    margin-top: 30px;
+    padding-top: 26px;
+    border-top: 1px solid var(--border);
+}
+
+.recordings-section {
+    margin-top: 30px;
+    padding-top: 26px;
+    border-top: 1px solid var(--border);
+}
 
 .action-row {
     display: flex;
@@ -116,7 +120,22 @@ button:active {
     transform: translateY(1px);
 }
 
-/* Recordings */
+.destination-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.destination-options button {
+    background: white;
+    color: var(--navy);
+    border: 1px solid var(--navy);
+}
+
+.destination-options button.active {
+    background: var(--navy);
+    color: white;
+}
 
 .recordings {
     margin-top: 24px;
@@ -215,8 +234,6 @@ button:active {
     line-height: 1.6;
 }
 
-/* Mobile */
-
 @media (max-width: 600px) {
 
     .app-header {
@@ -243,6 +260,10 @@ button:active {
     }
 
     .action-row {
+        flex-direction: column;
+    }
+
+    .destination-options {
         flex-direction: column;
     }
 
