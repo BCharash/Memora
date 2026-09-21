@@ -19,9 +19,12 @@ export async function selectFolder() {
 }
 
 
-export async function listM4AFiles(directoryHandle) {
+export async function listAudioFiles(directoryHandle) {
 
     const files = [];
+
+    const audioExtensions =
+        /\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
 
     for await (
         const [name, handle]
@@ -30,7 +33,7 @@ export async function listM4AFiles(directoryHandle) {
 
         if (
             handle.kind === "file" &&
-            /\.m4a$/i.test(name)
+            audioExtensions.test(name)
         ) {
             files.push(
                 await handle.getFile()

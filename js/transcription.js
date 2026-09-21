@@ -3,7 +3,7 @@
 // --------------------------------------------------
 
 import { decodeAudio } from "./audioProcessor.js";
-import { readM4AMetadata } from "./metadata.js";
+import { readAudioMetadata } from "./metadata.js";
 import {
     loadTranscriber,
     transcribeAudio
@@ -21,7 +21,7 @@ export async function transcribeRecording(
     }
 
     const metadata =
-        await readM4AMetadata(file);
+        await readAudioMetadata(file);
 
     const audio =
         await decodeAudio(file);

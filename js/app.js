@@ -298,7 +298,7 @@ sourceButton.addEventListener("click", async () => {
         setActiveDestinationButton(null);
 
         const files =
-            await storage.listM4AFiles(
+            await storage.listAudioFiles(
                 sourceHandle
             );
 
@@ -542,7 +542,7 @@ async function displayFiles(files) {
         try {
 
             entry.metadata =
-                await readM4AMetadata(file);
+                await readAudioMetadata(file);
 
         } catch (error) {
 
@@ -1806,14 +1806,14 @@ function appendTranscription(
 
 let metadataModule = null;
 
-async function readM4AMetadata(file) {
+async function readAudioMetadata(file) {
 
     if (!metadataModule) {
         metadataModule =
             await import("./metadata.js");
     }
 
-    return metadataModule.readM4AMetadata(file);
+    return metadataModule.readAudioMetadata(file);
 }
 
 

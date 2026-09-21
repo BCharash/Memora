@@ -1,8 +1,21 @@
 // --------------------------------------------------
-// M4A metadata
+// Audio metadata
 // --------------------------------------------------
 
-export async function readM4AMetadata(file) {
+export async function readAudioMetadata(file) {
+
+    const isMP4Container =
+        /\.(m4a|mp4)$/i.test(file.name);
+
+    if (isMP4Container) {
+        return readMP4Metadata(file);
+    }
+
+    return readBrowserAudioMetadata(file);
+}
+
+
+async function readMP4Metadata(file) {
 
     const arrayBuffer =
         await file.arrayBuffer();
@@ -54,6 +67,35 @@ export async function readM4AMetadata(file) {
             mp4boxFile.flush();
         }
     );
+}
+
+
+async function readBrowserAudioMetadata(file) {
+
+    const arrayBuffer =
+        await file.arrayBuffer();
+
+    const audioContext =
+        new AudioContext();
+
+    try {
+
+        const audioBuffer =
+            await audioContext.decodeAudioData(
+                arrayBuffer
+            );
+
+        return {
+            date: null,
+            uuid: null,
+            duration: audioBuffer.duration,
+            durationTimescale: 1
+        };
+
+    } finally {
+
+        await audioContext.close();
+    }
 }
 
 
