@@ -162,9 +162,9 @@ export function createCombinedHTML(
         textSize.addEventListener("input", () => {
             document.documentElement.style.setProperty(
                 "--transcript-size",
-                `\${textSize.value}px`
+                \`\${textSize.value}px\`
             );
-            textSizeValue.textContent = `\${textSize.value}px`;
+            textSizeValue.textContent = \`\${textSize.value}px\`;
         });
     </script>
 </body>
