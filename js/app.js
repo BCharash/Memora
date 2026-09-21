@@ -312,7 +312,7 @@ sourceButton.addEventListener("click", async () => {
             await updateTranscriptionFolderButton();
 
             alert(
-                "No M4A recordings were found in this folder."
+                "No audio recordings were found in this folder."
             );
 
             return;
@@ -1728,7 +1728,7 @@ function createTranscriptFilename(
     const date = metadata.date;
 
     const baseName =
-        file.name.replace(/\.m4a$/i, "");
+        file.name.replace(/\.[^.]+$/i, "");
 
     const modelSuffix =
         sanitizeFilename(model);
