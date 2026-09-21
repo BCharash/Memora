@@ -99,7 +99,7 @@ Platform-specific differences should primarily live in the storage/input/output 
 The primary desktop workflow is:
 
 1. Select an **Audio Source** folder.
-2. Memora finds the M4A recordings in that folder.
+2. Memora finds supported audio recordings in that folder.
 3. Display the recordings with metadata.
 4. Select or deselect individual recordings.
 5. Select a Whisper model.
@@ -218,10 +218,13 @@ It should not contain the detailed implementation of every subsystem.
 
 Responsible for converting source audio into the form required by Whisper.
 
-The current important operation is:
+The current important operations are:
 
-- decode M4A audio
+- decode supported source audio
 - resample it to 16 kHz
+- provide Whisper with a format-neutral audio representation
+
+The application currently recognizes common audio extensions including M4A, MP3, WAV, WebM, MP4, AIFF, FLAC, and OGG. Actual browser codec support may vary by device/browser; the extension list is not intended to promise that every codec combination will decode everywhere.
 
 This is an audio-processing module, not a recording module.
 
@@ -229,7 +232,9 @@ There is intentionally no `recorder.js` requirement in Memora because Memora doe
 
 ## metadata.js
 
-Responsible for extracting metadata from M4A files.
+Responsible for extracting metadata from supported audio files.
+
+For Apple Voice Memos, it can extract the recording date/time and Voice Memo UUID from embedded MP4 metadata. For more generic browser-decodable audio, duration is available even when recording-date or UUID metadata is not.
 
 Important information includes:
 
@@ -257,6 +262,22 @@ Current model choices include:
 - Large-v3
 
 Large-v3 has previously failed in testing and should not be reopened unless specifically requested.
+
+## Metadata provenance
+
+Memora should not guess where a recording came from.
+
+A recording may originate in Apple Voice Memos, iMuse, another recording application, a download, or a copied/edited file. The common metadata model therefore remains provenance-agnostic.
+
+The common record should preserve information Memora actually knows, such as:
+
+- original filename
+- recording date/time, when known
+- file date, when available
+- duration
+- unique recording ID, when available
+
+Apple Voice Memo UUIDs are preserved when present. A future iMuse integration may provide its own recording ID and locally known recording time, but that should be represented through the same general metadata model rather than by assuming every file is a Voice Memo.
 
 ## whisper-worker.js
 
@@ -430,7 +451,7 @@ The current desktop workflow uses:
 
     showDirectoryPicker({ mode: "readwrite" })
 
-The source directory is enumerated for top-level `.m4a` files.
+The source directory is enumerated for supported top-level audio files.
 
 The source folder is deliberately treated as a folder rather than merely a collection of individually selected files because the desktop workflow needs to support:
 
@@ -509,7 +530,7 @@ The longer-term design may include:
 - audio player
 - navigation between recordings
 
-Audio association is deliberately deferred until the basic transcription and Combine Files workflows are stable.
+Audio association is now the next planned output enhancement. The goal is for generated HTML to associate each transcript entry with its corresponding original audio when that audio can be identified and made available to the document.
 
 ---
 
@@ -637,21 +658,14 @@ The next development stage is continued architectural refactoring and refinement
 
 Planned sequence:
 
-1. Confirm the current Memora version is clean and committed.
-2. Extract audio processing into `audioProcessor.js`.
-3. Extract metadata processing into `metadata.js`.
-4. Separate Whisper machinery.
-5. Create `transcription.js`.
-6. Create `storage.js`.
-7. Simplify `app.js` into the UI coordinator.
-8. Add the Transcription / Combine Files tabs.
-9. Rename Source to Audio Source.
-10. Implement Text Source and Combine Files.
-11. Generate combined TXT and HTML.
-12. Add audio links/player support.
-13. Implement the iPhone workflow.
-14. Perform final cross-platform testing.
-15. Complete the final architecture and design documentation.
+1. Keep the current working desktop version stable and commit only after testing.
+2. Continue incremental cleanup/refinement of language and operation controls.
+3. Add audio links/player support to the generated HTML.
+4. Refine the iPhone file/folder structure and workflow around Apple's Files interface.
+5. Validate the storage abstraction across desktop and iPhone.
+6. Perform cross-platform testing of transcription, output, audio association, and file handling.
+7. Explore direct iCloud integration only if it provides a practical advantage.
+8. Complete the final architecture and design documentation.
 
 The application should be kept functional after each significant step.
 
@@ -692,28 +706,68 @@ These should not drive unnecessary complexity into the current implementation.
 
 ---
 
+# 22. Next Development Focus
+
+The next two major areas are:
+
+### 22.1 Audio links
+
+The first planned enhancement is to connect each combined HTML transcript entry with its corresponding original audio.
+
+The design should preserve the distinction between:
+
+- the transcript as durable text source material
+- the original audio as the source recording
+- the HTML document as a derived presentation that can optionally connect the two
+
+The implementation should avoid embedding unnecessary copies of audio when a stable local/reference link is sufficient. The exact mechanism will be determined during implementation and testing.
+
+### 22.2 iPhone file structure
+
+After audio association, the next major task is to refine the iPhone workflow around Apple's Files model.
+
+The objective is to determine a practical file/folder structure that works naturally on iPhone/iPad while remaining compatible with the existing desktop workflow.
+
+The iPhone design should preserve the same conceptual separation:
+
+- source audio
+- individual transcript files
+- combined outputs
+- optional future audio associations
+
+The web application's storage layer should absorb the differences between desktop directory handles and iOS file selection/share behavior rather than forcing the rest of the application to become platform-specific.
+
+Direct iCloud integration remains a later possibility rather than a prerequisite.
+
 # 22. Current Status
 
-Memora has progressed beyond the proof-of-concept stage and now has a working desktop transcription and Combine Files workflow.
+Memora has progressed beyond the proof-of-concept stage and has a working desktop transcription and Combine Files workflow.
 
 The current implementation supports:
 
-- importing M4A recordings from a source folder
-- extracting recording metadata
+- importing supported audio files from a source folder
+- extracting recording metadata where available
+- preserving Apple Voice Memo recording date/time and UUID when present
 - selecting Whisper models
+- selecting a language and transcription/translation operation
 - saving individual timestamped transcription files
-- recording the Whisper model in both transcript metadata and filenames
+- recording the Whisper model in transcript metadata and filenames
 - a separate **Combine Files** workflow for existing transcript files
 - selecting individual transcript files or all files
 - sorting transcripts by recording date or name
-- generating combined TXT and HTML output
+- generating combined TXT, DOCX, and HTML output
+- choosing a title for combined output and using it for the output filenames
 - selecting the output location, including a `Combined` subfolder
 - filtering duplicate recordings in combined output in favor of the highest available Whisper model
 - adjustable text size in generated HTML
+- desktop support for a broader set of common audio extensions, subject to browser/device codec support
+- a tested iPhone workflow for selecting multiple M4A files and saving generated files through Share → Save to Files
 
-The current milestone has been committed after testing the Combine Files workflow and its reader/output presentation.
+The Combine Files milestone has been tested and committed.
 
-The iPhone implementation remains an explicit future development phase.
+The language/operation control refinement is currently being worked on and has not yet been treated as a completed milestone.
+
+The next planned development steps are **audio links** followed by refinement of the **iPhone file structure/workflow**.
 
 ---
 
@@ -788,7 +842,17 @@ The Combine Files workflow and its presentation refinements were tested and comm
 
 The next changes should continue to be incremental and should avoid disturbing the now-working transcription workflow.
 
-# 24. Journal Update Policy
+# 24. Latest Development Milestone
+
+The audio-format work expanded Memora beyond an M4A-specific workflow.
+
+The application now treats the source as audio rather than specifically as M4A, while retaining Apple-specific metadata extraction when that metadata is actually present. The metadata display distinguishes recording date from file date and does not invent a source classification.
+
+The application architecture continues to treat iPhone support as a storage/input/output problem rather than a reason to duplicate the transcription system.
+
+The immediate next milestone is audio association in generated HTML. Once that is stable, attention will move to the practical iPhone file structure and workflow.
+
+# 25. Journal Update Policy
 
 This document is a living design journal.
 
