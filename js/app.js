@@ -49,8 +49,14 @@ const combineTextButton =
 const combineHTMLButton =
     document.getElementById("combineHTMLButton");
 
+const combineDOCXButton =
+    document.getElementById("combineDOCXButton");
+
 const combineStatus =
     document.getElementById("combineStatus");
+
+const combineTitleInput =
+    document.getElementById("combineTitleInput");
 
 let sourceHandle = null;
 let destinationHandle = null;
@@ -238,6 +244,23 @@ async function getHTMLModule() {
     }
 
     return htmlModule;
+}
+
+
+// --------------------------------------------------
+// DOCX module
+// --------------------------------------------------
+
+let docxModule = null;
+
+async function getDOCXModule() {
+
+    if (!docxModule) {
+        docxModule =
+            await import("./docx.js");
+    }
+
+    return docxModule;
 }
 
 
@@ -1407,6 +1430,17 @@ async function combineSelectedFiles(
     const files =
         getSelectedTranscriptFiles();
 
+    const combineTitle =
+        combineTitleInput?.value.trim() ||
+        "Memora — Combined Transcription";
+
+    const safeFilenameBase =
+        combineTitle
+            .replace(/[<>:"/\\|?*]/g, "-")
+            .replace(/[. ]+$/g, "")
+            .trim() ||
+        "Memora — Combined Transcription";
+
     if (files.length === 0) {
 
         combineStatus.textContent =
@@ -1426,6 +1460,7 @@ async function combineSelectedFiles(
     try {
 
         combineTextButton.disabled = true;
+        combineDOCXButton.disabled = true;
         combineHTMLButton.disabled = true;
 
         combineStatus.textContent =
@@ -1457,17 +1492,38 @@ async function combineSelectedFiles(
 
             const combinedText =
                 combineModule.combineTranscriptRecords(
-                    selectedRecords
+                    selectedRecords,
+                    combineTitle
                 );
 
             await storage.writeTextFile(
                 combineDestinationHandle,
-                "Memora - Combined Transcription.txt",
+                `${safeFilenameBase}.txt`,
                 combinedText
             );
 
             combineStatus.textContent =
-                "Combined text created.";
+                "Combined TXT created.";
+
+        } else if (outputType === "docx") {
+
+            const docx =
+                await getDOCXModule();
+
+            const combinedDOCX =
+                await docx.createCombinedDOCX(
+                    selectedRecords,
+                    combineTitle
+                );
+
+            await storage.writeBinaryFile(
+                combineDestinationHandle,
+                `${safeFilenameBase}.docx`,
+                combinedDOCX
+            );
+
+            combineStatus.textContent =
+                "Combined DOCX created.";
 
         } else {
 
@@ -1476,12 +1532,13 @@ async function combineSelectedFiles(
 
             const combinedHTML =
                 html.createCombinedHTML(
-                    selectedRecords
+                    selectedRecords,
+                    combineTitle
                 );
 
             await storage.writeTextFile(
                 combineDestinationHandle,
-                "Memora - Combined Transcription.html",
+                `${safeFilenameBase}.html`,
                 combinedHTML
             );
 
@@ -1503,6 +1560,7 @@ async function combineSelectedFiles(
     } finally {
 
         combineTextButton.disabled = false;
+        combineDOCXButton.disabled = false;
         combineHTMLButton.disabled = false;
     }
 }
@@ -1513,6 +1571,15 @@ if (combineTextButton) {
     combineTextButton.addEventListener(
         "click",
         () => combineSelectedFiles("text")
+    );
+}
+
+
+if (combineDOCXButton) {
+
+    combineDOCXButton.addEventListener(
+        "click",
+        () => combineSelectedFiles("docx")
     );
 }
 

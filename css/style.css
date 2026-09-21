@@ -193,6 +193,35 @@ button:disabled {
     border-color: var(--navy);
 }
 
+.combine-title {
+    margin-top: 26px;
+}
+
+.combine-title label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.combine-title input {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+}
+
+.combine-title input:focus {
+    outline: 2px solid #C9C3DD;
+    outline-offset: 1px;
+}
+
 .combine-actions {
     display: flex;
     gap: 10px;

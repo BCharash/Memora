@@ -103,6 +103,31 @@ export async function writeTextFile(
 }
 
 
+export async function writeBinaryFile(
+    directoryHandle,
+    filename,
+    data
+) {
+
+    const fileHandle =
+        await directoryHandle.getFileHandle(
+            filename,
+            { create: true }
+        );
+
+    const writable =
+        await fileHandle.createWritable();
+
+    try {
+        await writable.write(data);
+    } finally {
+        await writable.close();
+    }
+
+    return fileHandle;
+}
+
+
 export async function fileExists(
     directoryHandle,
     filename

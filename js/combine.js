@@ -344,12 +344,21 @@ function getRecordingKey(record) {
 }
 
 
-export function combineTranscriptRecords(records) {
+export function combineTranscriptRecords(
+    records,
+    title = "Memora — Combined Transcription"
+) {
 
     const selectedRecords =
         selectHighestModelRecords(records);
 
-    return selectedRecords
+    const documentTitle =
+        String(title).trim() ||
+        "Memora — Combined Transcription";
+
+    return (
+        documentTitle + "\n\n" +
+        selectedRecords
         .map(record => {
 
             const heading =
@@ -366,7 +375,8 @@ export function combineTranscriptRecords(records) {
                 `──────────────────────────────────────────────────\n`
             );
         })
-        .join("\n");
+        .join("\n")
+    );
 }
 
 
