@@ -9,6 +9,8 @@ const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
 
 const modelSelect = document.getElementById("modelSelect");
+const languageSelect = document.getElementById("languageSelect");
+const operationSelect = document.getElementById("operationSelect");
 const transcribeButton = document.getElementById("transcribeButton");
 
 const transcriptionStatus =
@@ -578,16 +580,24 @@ async function displayFiles(files) {
                         : -comparison;
                 }
 
-                const aTime =
+                const aDate =
                     a.metadata &&
-                    a.metadata.date
-                        ? a.metadata.date.getTime()
+                    (a.metadata.recordingDate ||
+                        a.metadata.fileCreationDate);
+
+                const bDate =
+                    b.metadata &&
+                    (b.metadata.recordingDate ||
+                        b.metadata.fileCreationDate);
+
+                const aTime =
+                    aDate
+                        ? aDate.getTime()
                         : null;
 
                 const bTime =
-                    b.metadata &&
-                    b.metadata.date
-                        ? b.metadata.date.getTime()
+                    bDate
+                        ? bDate.getTime()
                         : null;
 
                 if (aTime === null && bTime === null) {
@@ -716,8 +726,19 @@ async function displayFiles(files) {
 
             if (entry.metadata) {
 
+                const metadataDate =
+                    entry.metadata.recordingDate ||
+                    entry.metadata.fileCreationDate;
+
+                const dateLabel =
+                    entry.metadata.recordingDate
+                        ? formatRecordingDate(metadataDate)
+                        : entry.metadata.fileCreationDate
+                            ? `File date: ${formatRecordingDate(metadataDate)}`
+                            : "Date unknown";
+
                 details.textContent =
-                    `${formatRecordingDate(entry.metadata.date)} · ` +
+                    `${dateLabel} · ` +
                     `${formatDuration(
                         entry.metadata.duration,
                         entry.metadata.durationTimescale
@@ -797,6 +818,53 @@ function showEmptyMessage() {
 // Transcription
 // --------------------------------------------------
 
+// Keep the operation control consistent with the selected language.
+function updateOperationAvailability() {
+    if (!languageSelect || !operationSelect) {
+        return;
+    }
+
+    const language = languageSelect.value;
+
+    if (language === "") {
+        operationSelect.value = "translate";
+        operationSelect.disabled = true;
+    } else if (language === "en") {
+        operationSelect.value = "transcribe";
+        operationSelect.disabled = true;
+    } else {
+        operationSelect.disabled = false;
+    }
+
+    if (transcribeButton) {
+        transcribeButton.textContent =
+            operationSelect.value === "translate"
+                ? "Translate Selected"
+                : "Transcribe Selected";
+    }
+}
+
+if (languageSelect) {
+    languageSelect.addEventListener(
+        "change",
+        updateOperationAvailability
+    );
+}
+
+// Establish the correct initial state when Memora loads.
+updateOperationAvailability();
+
+// Keep the button text synchronized if the user changes
+// the operation for a language where it is enabled.
+if (operationSelect && transcribeButton) {
+    operationSelect.addEventListener("change", () => {
+        transcribeButton.textContent =
+            operationSelect.value === "translate"
+                ? "Translate Selected"
+                : "Transcribe Selected";
+    });
+}
+
 transcribeButton.addEventListener(
     "click",
     async () => {
@@ -831,6 +899,12 @@ transcribeButton.addEventListener(
             const model =
                 modelSelect.value;
 
+            const language =
+                languageSelect?.value || "auto";
+
+            const operation =
+                operationSelect?.value || "transcribe";
+
             const transcriptionFolder =
                 destinationHandle;
 
@@ -856,6 +930,8 @@ transcribeButton.addEventListener(
                     await transcription.transcribeRecording(
                         file,
                         model,
+                        language,
+                        operation,
                         setTranscriptionBusy
                     );
 
@@ -864,7 +940,9 @@ transcribeButton.addEventListener(
                         record.file,
                         record.metadata,
                         record.transcript,
-                        record.model
+                        record.model,
+                        language,
+                        operation
                     );
 
                 await saveTranscript(
@@ -1615,11 +1693,20 @@ function buildTranscript(
     file,
     metadata,
     text,
-    model
+    model,
+    language,
+    operation
 ) {
 
-    const date =
-        formatRecordingDate(metadata.date);
+    const recordingDate =
+        formatRecordingDate(
+            metadata.recordingDate
+        );
+
+    const fileDate =
+        formatRecordingDate(
+            metadata.fileCreationDate
+        );
 
     const duration =
         formatDuration(
@@ -1627,12 +1714,27 @@ function buildTranscript(
             metadata.durationTimescale
         );
 
+    const metadataLines = [
+        `Recording date: ${recordingDate}`,
+        `File date: ${fileDate}`,
+        `Duration: ${duration}`,
+        `Voice Memo ID: ${metadata.uuid || "Unknown"}`,
+        `Whisper model: ${model}`
+    ];
+
+    if (
+        operation === "translate" &&
+        language &&
+        language !== "auto"
+    ) {
+        metadataLines.push(
+            `Original language: ${formatLanguageName(language)}`
+        );
+    }
+
     return (
         `${file.name}\n\n` +
-        `Recording date: ${date}\n` +
-        `Duration: ${duration}\n` +
-        `Voice Memo ID: ${metadata.uuid || "Unknown"}\n` +
-        `Whisper model: ${model}\n\n` +
+        `${metadataLines.join("\n")}\n\n` +
         `--------------------------------------------------\n\n` +
         `${text.trim()}\n`
     );
@@ -1814,6 +1916,21 @@ async function readAudioMetadata(file) {
     }
 
     return metadataModule.readAudioMetadata(file);
+}
+
+
+function formatLanguageName(language) {
+
+    const names = {
+        en: "English",
+        pt: "Portuguese",
+        es: "Spanish",
+        fr: "French",
+        de: "German",
+        sa: "Sanskrit"
+    };
+
+    return names[language] || language;
 }
 
 

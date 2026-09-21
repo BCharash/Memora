@@ -296,6 +296,37 @@ button:disabled {
     min-width: 0;
 }
 
+.transcription-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.transcription-control {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.transcription-control label {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.transcription-control select {
+    min-width: 150px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+}
+
 .transcription-status {
     display: flex;
     align-items: center;
@@ -385,6 +416,19 @@ button:disabled {
 
     .combine-actions {
         flex-direction: column;
+    }
+
+    .transcription-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .transcription-control {
+        width: 100%;
+    }
+
+    .transcription-control select {
+        width: 100%;
     }
 
     button {

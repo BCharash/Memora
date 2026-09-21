@@ -12,6 +12,8 @@ import {
 export async function transcribeRecording(
     file,
     model,
+    language,
+    operation,
     statusCallback
 ) {
     if (statusCallback) {
@@ -31,15 +33,31 @@ export async function transcribeRecording(
         statusCallback
     );
 
+    const task =
+        operation === "translate"
+            ? "translate"
+            : "transcribe";
+
+    const whisperOptions = {
+        task
+    };
+
+    if (language && language !== "auto") {
+        whisperOptions.language = language;
+    }
+
     if (statusCallback) {
         statusCallback(
-            `Transcribing ${file.name}…`
+            operation === "translate"
+                ? `Translating ${file.name}…`
+                : `Transcribing ${file.name}…`
         );
     }
 
     const result =
         await transcribeAudio(
-            audio
+            audio,
+            whisperOptions
         );
 
     return {

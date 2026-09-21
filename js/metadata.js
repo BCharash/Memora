@@ -35,7 +35,12 @@ async function readMP4Metadata(file) {
                 (info) => {
 
                     resolve({
-                        date:
+                        recordingDate:
+                            uuid && info.created
+                                ? info.created
+                                : null,
+
+                        fileCreationDate:
                             info.created ||
                             null,
 
@@ -86,7 +91,8 @@ async function readBrowserAudioMetadata(file) {
             );
 
         return {
-            date: null,
+            recordingDate: null,
+            fileCreationDate: null,
             uuid: null,
             duration: audioBuffer.duration,
             durationTimescale: 1
