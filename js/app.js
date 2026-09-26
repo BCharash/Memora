@@ -1002,20 +1002,20 @@ function getSelectedFiles() {
             )
         );
 
-    return selectedFiles.filter(
-        file => {
-
-            const checkbox =
-                checkboxes.find(
-                    checkbox =>
-                        checkbox.dataset.filename ===
-                        file.name
-                );
-
-            return checkbox &&
-                checkbox.checked;
-        }
-    );
+    return checkboxes
+        .filter(
+            checkbox =>
+                checkbox.checked
+        )
+        .map(
+            checkbox =>
+                selectedFiles.find(
+                    file =>
+                        file.name ===
+                        checkbox.dataset.filename
+                )
+        )
+        .filter(Boolean);
 }
 
 
