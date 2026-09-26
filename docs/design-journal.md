@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 1  
+**Version:** 2  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -361,7 +361,8 @@ An initial representation is:
         filename,
         metadata,
         transcript,
-        model
+        model,
+        audioRelativePath
     }
 
 The structure may later include:
@@ -429,6 +430,24 @@ The saved text format is intentionally simple and durable.
 The operation is stored explicitly in the transcript metadata rather than being inferred from the filename. Combine Files uses this metadata to distinguish transcription from translation.
 
 For backward compatibility, older transcript files without an `Operation:` line are treated as transcription files.
+
+### Audio Relative Path Metadata
+
+Individual transcript files can also preserve the relationship between the transcript and its original audio recording.
+
+When Memora can determine the relative path from the transcription destination back to the selected audio source folder, it writes an additional metadata field:
+
+    Audio Relative Path: ../recording.m4a
+
+The path is relative to the location of the individual transcript file. It is deliberately stored with the transcript rather than relying on the current location of the audio source, because the transcript may later be selected for combining independently of the original source-folder selection.
+
+This allows the combined HTML generator to reconstruct the path to the original audio when the combined HTML is created within a location whose relationship to the transcript/source hierarchy can also be determined.
+
+The metadata is not displayed as part of the combined HTML's visible transcript content. It remains available in the durable individual `.txt` file as provenance information.
+
+The current implementation supports relative paths when the transcription destination is the selected source folder or a descendant of it. If the destination is an unrelated folder, Memora cannot safely calculate a relative path between the two File System Access handles, so no audio-path metadata is written.
+
+This preserves the intended architecture: audio remains an external file and does not need to be embedded into every transcript or HTML document.
 
 ---
 
@@ -569,9 +588,103 @@ The longer-term design may include:
 - audio player
 - navigation between recordings
 
-Audio association is now the next planned output enhancement. The goal is for generated HTML to associate each transcript entry with its corresponding original audio when that audio can be identified and made available to the document.
+## 14.1 Audio association through relative paths
 
----
+The combined HTML can now associate a transcript entry with its original audio without embedding a copy of the audio into the HTML.
+
+The individual transcript carries:
+
+    Audio Relative Path: ../recording.m4a
+
+When Combine Files reads the transcript, that value becomes part of the structured record. If the combined HTML destination is itself within the relevant source hierarchy, Memora calculates the additional relative path needed from the combined HTML to the original audio.
+
+For example:
+
+    Audio Source/
+    ├── recording.m4a
+    └── transcription/
+        ├── 2026-09-26 - recording - small.txt
+        └── combined/
+            └── combined.html
+
+The individual transcript can contain:
+
+    Audio Relative Path: ../recording.m4a
+
+The combined HTML is two directory levels below the audio source, so its effective audio reference becomes:
+
+    ../../recording.m4a
+
+This keeps the audio external and avoids unnecessarily increasing the size of every generated HTML document.
+
+The path is meaningful only as long as the referenced files remain in the corresponding relative locations. Moving the audio or changing the relevant folder hierarchy can therefore invalidate the reference.
+
+If Combine Files is asked to create HTML in an unrelated folder for which Memora cannot establish a valid relative relationship to the audio source, the generated HTML does not expose an audio-playback control. This avoids displaying a control that is known not to have a valid source.
+
+## 14.2 Suppressing audio playback on iPhone/touch devices
+
+A separate issue arose during testing: external audio references that work from desktop browsers are not reliably playable when standalone HTML is opened from the iPhone Files application in Safari.
+
+Rather than allowing a nonfunctional audio player to appear on iPhone, the generated HTML uses progressive enhancement.
+
+The generated HTML contains the audio reference as a data attribute rather than immediately assigning it to the `<audio>` element's `src`. The audio control is hidden by default.
+
+When JavaScript runs, Memora checks:
+
+    (pointer: fine) and (hover: hover)
+
+Only when that desktop-style pointer/hover combination is present does Memora enable the audio control. The user initially sees a small play button; when it is activated, the audio source is assigned and the browser's native audio controls are displayed.
+
+On touch/coarse-pointer devices such as the iPhone, the control remains hidden. If JavaScript is unavailable, it also remains hidden.
+
+This means the generated document does not present an apparently usable audio control in an environment where external local-file audio has not been reliably demonstrated.
+
+The decision is deliberately based on observed platform behavior rather than on assuming that iPhone browsers can or cannot play a particular audio format.
+
+## 14.3 Standalone HTML text-size controls
+
+Generated HTML also uses progressive enhancement for reading-size controls.
+
+With JavaScript available, the reader receives a continuous slider from 12px through 32px.
+
+Without JavaScript, the document provides a CSS-only fallback with discrete choices:
+
+- 12px
+- 16px
+- 20px
+- 24px
+- 28px
+- 32px
+
+The default is 16px. A small `A` appears at the left and a large 32px `A` at the right.
+
+The fallback uses radio inputs and the CSS `:has()` selector on a common reader container rather than depending on JavaScript.
+
+### Development and testing history
+
+This fallback was not the first implementation attempted. Several rounds of testing were required because standalone HTML opened from the iPhone Files application behaves differently from an ordinary web page.
+
+The testing established the following:
+
+1. A normal JavaScript slider works in desktop browsers.
+2. Opening the generated HTML directly from Files on iPhone Safari did not provide sufficiently reliable JavaScript behavior for the reader controls.
+3. Fragment/link-based approaches were tested and were not reliable in that standalone iPhone context.
+4. A CSS-only approach was then tested independently in a minimal standalone HTML file.
+5. CSS radio buttons combined with `:has()` successfully changed the transcript font size in iPhone Safari without JavaScript.
+6. The same fallback was then incorporated into the generated HTML.
+7. A further interaction between the fallback's default checked radio button and the JavaScript slider was discovered: the checked CSS rule could override the slider's font-size variable even when JavaScript was running.
+8. The solution was to clear the fallback radio-button checked states when JavaScript initializes the normal slider.
+9. The inner JavaScript template literals also required careful escaping in `html.js`, because the generated HTML itself is constructed inside an outer JavaScript template literal. Without that escaping, `${...}` expressions were evaluated while generating the HTML source and caused a JavaScript syntax/import failure.
+10. The final implementation was tested with the 32px option on iPhone and with the continuous slider in desktop Edge.
+
+The result is a deliberately layered design:
+
+- desktop/normal browser → continuous JavaScript slider
+- standalone iPhone HTML with restricted JavaScript → CSS-only size buttons
+- 16px → default
+- 32px → available specifically for comfortable iPhone reading
+
+No external stylesheet is required for these generated HTML controls; the required CSS and JavaScript are embedded in the standalone document.
 
 # 15. Combine Files Is Deliberately Separate
 
@@ -658,6 +771,30 @@ The goal is compatibility and future reuse, not immediate code sharing.
 ---
 
 # 18. Testing History
+
+## Standalone HTML audio-path testing
+
+Audio playback was tested separately before changing the Memora architecture.
+
+The tests progressed through increasingly controlled cases:
+
+- HTML in a combined/transcription folder referencing audio in its parent source folder.
+- A test using simulated transcript metadata containing an `Audio Relative Path:` field.
+- A minimal same-folder HTML/audio test with no metadata, no JavaScript, and no CSS.
+- A separate file-picker test to determine whether iPhone Safari could select an M4A through `<input type="file" accept="audio/*">`.
+
+The results established an important distinction:
+
+- Windows desktop browsers successfully played the external M4A through a relative path.
+- iPhone Files/Safari did not provide reliable external local-file audio playback, even in a minimal same-folder test.
+- The iPhone file picker also did not reliably expose the M4A as selectable through the standalone HTML file-input test.
+- The M4A itself remained playable normally from the iPhone Files application.
+
+The architecture was therefore deliberately **not** changed to embed audio into the HTML. The external relative-path architecture remains the desktop implementation, while the generated HTML suppresses the audio control on touch devices.
+
+A later end-to-end desktop test confirmed that the new Memora implementation works: a newly created transcript containing `Audio Relative Path:` produced a combined HTML document with a working desktop audio control. When HTML was created in a location for which no valid audio relationship could be established, the audio control was correctly omitted.
+
+Only after this desktop behavior was verified was the change committed and tested on iPhone. The iPhone test confirmed that the generated HTML can be opened successfully with the intended text-size fallback while not exposing the unsupported external audio control.
 
 ## iPhone file-selection test
 
@@ -749,17 +886,17 @@ These should not drive unnecessary complexity into the current implementation.
 
 The next two major areas are:
 
-### 22.1 Audio links
+### 22.1 Audio links — completed
 
-The first planned enhancement is to connect each combined HTML transcript entry with its corresponding original audio.
+The audio-link enhancement has been implemented using relative path metadata rather than embedding audio in the HTML.
 
-The design should preserve the distinction between:
+The design preserves the distinction between:
 
 - the transcript as durable text source material
 - the original audio as the source recording
 - the HTML document as a derived presentation that can optionally connect the two
 
-The implementation should avoid embedding unnecessary copies of audio when a stable local/reference link is sufficient. The exact mechanism will be determined during implementation and testing.
+Desktop HTML can now play the external audio when a valid relative path can be established. The audio control is deliberately suppressed when that relationship cannot be established or when the generated HTML is opened in a touch-oriented environment where local external audio has not been reliably demonstrated.
 
 ### 22.2 iPhone file structure
 
@@ -800,18 +937,22 @@ The current implementation supports:
 - filtering duplicate recordings in combined output in favor of the highest available Whisper model
 - adjustable text size in generated HTML
 - progressive CSS-only text-size controls for standalone HTML when JavaScript is unavailable
+- relative audio-path metadata in individual transcripts
+- desktop HTML audio playback through relative external audio references
+- suppression of the audio control when a valid audio relationship is unavailable or the environment is touch-oriented
 - text-size range of 12px–32px, including a 32px reading option for iPhone
 - desktop support for a broader set of common audio extensions, subject to browser/device codec support
 - a tested iPhone workflow for selecting multiple M4A files and saving generated files through Share → Save to Files
 - explicit transcription/translation operation metadata
 - `-eng` filename suffix for translation output only
 - independent model selection/provenance for transcription and translation operations
+- audio-path metadata and desktop HTML audio association
 
 The Combine Files milestone has been tested and committed.
 
 The language/operation refinement and standalone HTML text-size progressive enhancement have now been implemented and tested.
 
-The next planned development steps are **audio links** followed by refinement of the **iPhone file structure/workflow**.
+The audio-link milestone has now been implemented and tested. The next planned development step is refinement of the **iPhone file structure/workflow**.
 
 ---
 
@@ -957,7 +1098,51 @@ These controls are implemented entirely in `html.js`; no external stylesheet is 
 
 ---
 
-# 26. Journal Update Policy
+# 26. Latest Development Milestone: Relative Audio Association and Progressive HTML Playback
+
+The HTML/audio association milestone was completed after a series of isolated tests designed to distinguish browser security/file-system behavior from Memora's own implementation.
+
+## 26.1 Relative audio metadata
+
+Individual transcripts can now preserve an `Audio Relative Path:` metadata field. Combine Files carries that field into its structured records and adjusts it for the location of the generated combined HTML.
+
+This allows desktop HTML to reference the original recording without embedding the audio file.
+
+The implementation intentionally does not claim support for arbitrary unrelated source and destination folders. A relative path is generated only when the File System Access API can establish the relevant folder relationship.
+
+## 26.2 Audio-control suppression
+
+Because external local-file audio was not reliably playable from standalone HTML opened through iPhone Files/Safari, the generated HTML does not show a misleading play button on iPhone.
+
+The control is hidden by default. JavaScript enables it only when the environment reports a fine pointer and hover capability. The audio `src` is not assigned until the desktop user activates the play button.
+
+This also means that an HTML document created without a valid audio relationship contains no usable audio control.
+
+## 26.3 Testing before architectural commitment
+
+The audio implementation was preceded by minimal standalone tests rather than immediately changing Memora.
+
+Tests included:
+
+- relative-path audio from a nested `transcription/combined` directory
+- metadata-driven relative paths
+- a minimal same-folder HTML/audio test
+- a minimal iPhone file-input test
+- desktop Windows tests using both ordinary folders and iCloud Drive
+
+These tests established the desktop behavior and the iPhone limitation sufficiently to justify keeping audio external rather than embedding it.
+
+The successful final test then confirmed that a newly generated Memora transcript carries the path metadata, Combine Files reconstructs the appropriate HTML reference, and the desktop audio control works.
+
+## 26.4 Resulting architectural decision
+
+Keep original audio external.
+
+Do not embed audio into generated HTML merely to accommodate an unproven iPhone local-file playback path.
+
+The relative-path metadata remains part of the durable transcript design. Future iPhone work should first determine whether a different delivery mechanism—rather than embedded audio—is able to provide reliable playback before revisiting this decision.
+
+# 27. Journal Update Policy
 
 This document is a living design journal.
 
