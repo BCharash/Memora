@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safari M4A File Test</title>
+<style>
+body {
+    font-family: system-ui, sans-serif;
+    padding: 24px;
+    line-height: 1.5;
+}
+button {
+    font-size: 18px;
+    padding: 12px 18px;
+    margin: 12px 0;
+}
+#result {
+    white-space: pre-wrap;
+    margin-top: 20px;
+}
+</style>
+</head>
+<body>
+<h2>Safari M4A File Test</h2>
+<p>Choose one or more M4A recordings.</p>
+
+<input id="files" type="file" accept=".m4a,audio/mp4,audio/*" multiple>
+
+<div id="result">Waiting for files...</div>
+
+<script>
+const input = document.getElementById("files");
+const result = document.getElementById("result");
+
+input.addEventListener("change", () => {
+    const files = Array.from(input.files || []);
+
+    if (!files.length) {
+        result.textContent = "No files were delivered to the page.";
+        return;
+    }
+
+    result.textContent =
+        "SUCCESS — " + files.length + " M4A file(s) received:\n\n" +
+        files.map((file, i) =>
+            (i + 1) + ". " + file.name +
+            "\n   type: " + (file.type || "(none)") +
+            "\n   size: " + file.size + " bytes"
+        ).join("\n\n");
+});
+</script>
+</body>
+</html>
