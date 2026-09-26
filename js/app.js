@@ -950,7 +950,8 @@ transcribeButton.addEventListener(
                     record.file,
                     record.metadata,
                     transcript,
-                    record.model
+                    record.model,
+                    operation
                 );
 
                 appendTranscription(
@@ -1719,7 +1720,8 @@ function buildTranscript(
         `File date: ${fileDate}`,
         `Duration: ${duration}`,
         `Voice Memo ID: ${metadata.uuid || "Unknown"}`,
-        `Whisper model: ${model}`
+        `Whisper model: ${model}`,
+        `Operation: ${operation === "translate" ? "translate" : "transcribe"}`
     ];
 
     if (
@@ -1750,7 +1752,8 @@ async function saveTranscript(
     file,
     metadata,
     transcript,
-    model
+    model,
+    operation
 ) {
 
     const filename =
@@ -1758,7 +1761,8 @@ async function saveTranscript(
             transcriptionFolder,
             file,
             metadata,
-            model
+            model,
+            operation
         );
 
     const storage =
@@ -1776,14 +1780,16 @@ async function createUniqueTranscriptFilename(
     transcriptionFolder,
     file,
     metadata,
-    model
+    model,
+    operation
 ) {
 
     const baseFilename =
         createTranscriptFilename(
             file,
             metadata,
-            model
+            model,
+            operation
         );
 
     const extension = ".txt";
@@ -1824,10 +1830,13 @@ async function createUniqueTranscriptFilename(
 function createTranscriptFilename(
     file,
     metadata,
-    model
+    model,
+    operation
 ) {
 
-    const date = metadata.date;
+    const date =
+        metadata.recordingDate ||
+        metadata.fileCreationDate;
 
     const baseName =
         file.name.replace(/\.[^.]+$/i, "");
@@ -1835,24 +1844,26 @@ function createTranscriptFilename(
     const modelSuffix =
         sanitizeFilename(model);
 
+    const operationSuffix =
+        operation === "translate"
+            ? " - eng"
+            : "";
+
     if (!date) {
         return (
             `${sanitizeFilename(baseName)} - ` +
-            `${modelSuffix}.txt`
+            `${modelSuffix}${operationSuffix}.txt`
         );
     }
 
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
 
     return (
-        `${year}-${month}-${day} ` +
-        `${hours}-${minutes} - ` +
+        `${year}-${month}-${day} - ` +
         `${sanitizeFilename(baseName)} - ` +
-        `${modelSuffix}.txt`
+        `${modelSuffix}${operationSuffix}.txt`
     );
 }
 

@@ -42,6 +42,14 @@ export function parseTranscriptFile(file, text) {
         normalizeModelName(whisperModelField) ||
         extractModelFromFilename(filename);
 
+    const operationField =
+        extractField(lines, "Operation:");
+
+    const operation =
+        operationField.toLowerCase() === "translate"
+            ? "translate"
+            : "transcribe";
+
     const separatorIndex =
         lines.findIndex(
             line => line.trim() === "--------------------------------------------------"
@@ -68,6 +76,7 @@ export function parseTranscriptFile(file, text) {
                 ? null
                 : voiceMemoId,
         whisperModel,
+        operation,
         transcript
     };
 }
@@ -332,12 +341,21 @@ export function selectHighestModelRecords(records) {
 
 function getRecordingKey(record) {
 
+    const operation =
+        record.operation === "translate"
+            ? "translate"
+            : "transcribe";
+
     if (record.voiceMemoId) {
-        return `id:${record.voiceMemoId}`;
+        return `id:${record.voiceMemoId}|operation:${operation}`;
     }
 
     if (record.recordingFilename) {
-        return `name:${record.recordingFilename}|date:${record.recordingDate || ""}`;
+        return (
+            `name:${record.recordingFilename}` +
+            `|date:${record.recordingDate || ""}` +
+            `|operation:${operation}`
+        );
     }
 
     return null;
