@@ -917,6 +917,13 @@ transcribeButton.addEventListener(
                 const file =
                     filesToTranscribe[i];
 
+                const transcriptionAudioPath =
+                    await getAudioRelativePath(
+                        sourceHandle,
+                        transcriptionFolder,
+                        file.name
+                    );
+
                 setTranscriptionBusy(
                     `Transcribing ${i + 1} of ` +
                     `${filesToTranscribe.length}: ` +
@@ -942,7 +949,8 @@ transcribeButton.addEventListener(
                         record.transcript,
                         record.model,
                         language,
-                        operation
+                        operation,
+                        transcriptionAudioPath
                     );
 
                 await saveTranscript(
@@ -1609,9 +1617,26 @@ async function combineSelectedFiles(
             const html =
                 await getHTMLModule();
 
+            const htmlAudioPathPrefix =
+                await getCombinedAudioPathPrefix(
+                    textSourceHandle,
+                    combineDestinationHandle
+                );
+
+            const htmlRecords =
+                selectedRecords.map(record => ({
+                    ...record,
+                    audioRelativePath:
+                        record.audioRelativePath &&
+                        htmlAudioPathPrefix !== null
+                            ? htmlAudioPathPrefix +
+                                record.audioRelativePath
+                            : null
+                }));
+
             const combinedHTML =
                 html.createCombinedHTML(
-                    selectedRecords,
+                    htmlRecords,
                     combineTitle
                 );
 
@@ -1687,6 +1712,58 @@ let audioProcessor = null;
 
 
 // --------------------------------------------------
+// Audio path helpers
+// --------------------------------------------------
+
+async function getAudioRelativePath(
+    sourceFolder,
+    transcriptionFolder,
+    filename
+) {
+
+    if (!sourceFolder || !transcriptionFolder) {
+        return null;
+    }
+
+    const path =
+        await sourceFolder.resolve(
+            transcriptionFolder
+        );
+
+    if (!path) {
+        return null;
+    }
+
+    return (
+        "../".repeat(path.length) +
+        filename
+    );
+}
+
+
+async function getCombinedAudioPathPrefix(
+    textSourceFolder,
+    combineFolder
+) {
+
+    if (!textSourceFolder || !combineFolder) {
+        return null;
+    }
+
+    const path =
+        await textSourceFolder.resolve(
+            combineFolder
+        );
+
+    if (!path) {
+        return null;
+    }
+
+    return "../".repeat(path.length);
+}
+
+
+// --------------------------------------------------
 // Build transcript file
 // --------------------------------------------------
 
@@ -1696,7 +1773,8 @@ function buildTranscript(
     text,
     model,
     language,
-    operation
+    operation,
+    audioRelativePath
 ) {
 
     const recordingDate =
@@ -1731,6 +1809,12 @@ function buildTranscript(
     ) {
         metadataLines.push(
             `Original language: ${formatLanguageName(language)}`
+        );
+    }
+
+    if (audioRelativePath) {
+        metadataLines.push(
+            `Audio Relative Path: ${audioRelativePath}`
         );
     }
 

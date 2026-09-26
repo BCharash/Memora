@@ -178,6 +178,47 @@ export function createCombinedHTML(
             font-size: 32px;
         }
 
+        .audio-control {
+            display: none;
+            margin: 0 0 18px;
+            align-items: center;
+        }
+
+        .audio-control.audio-enabled {
+            display: flex;
+        }
+
+        .audio-play-button {
+            width: 32px;
+            height: 30px;
+            padding: 0;
+            border: 1px solid #D5D9DE;
+            border-radius: 6px;
+            background: #FFFFFF;
+            color: #20242C;
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .audio-play-button:hover {
+            background: #F7F8FA;
+        }
+
+        .audio-player {
+            display: none;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .audio-control.active .audio-play-button {
+            display: none;
+        }
+
+        .audio-control.active .audio-player {
+            display: block;
+        }
+
         .record {
             padding: 28px 0;
             border-top: 1px solid #E1E4E8;
@@ -271,6 +312,43 @@ export function createCombinedHTML(
             );
             textSizeValue.textContent = \`\${textSize.value}px\`;
         });
+
+        const audioIsDesktop =
+            window.matchMedia(
+                "(pointer: fine) and (hover: hover)"
+            ).matches;
+
+        if (audioIsDesktop) {
+            document
+                .querySelectorAll(".audio-control")
+                .forEach(control => {
+                    const button =
+                        control.querySelector(".audio-play-button");
+
+                    const audio =
+                        control.querySelector(".audio-player");
+
+                    if (!button || !audio) {
+                        return;
+                    }
+
+                    control.classList.add("audio-enabled");
+
+                    button.addEventListener("click", async () => {
+                        audio.src = audio.dataset.src;
+                        audio.controls = true;
+                        control.classList.add("active");
+
+                        try {
+                            await audio.play();
+                        } catch (error) {
+                            control.classList.remove("active");
+                            audio.controls = false;
+                            audio.removeAttribute("src");
+                        }
+                    });
+                });
+        }
     </script>
 </body>
 </html>`;
@@ -322,8 +400,37 @@ function createTranscriptSection(record) {
                 ${escapeHTML(whisperModel)}
             </div>
 
+            ${createAudioControl(record.audioRelativePath)}
+
             <div class="transcript">${escapeHTML(transcript)}</div>
         </section>
+    `;
+}
+
+
+function createAudioControl(audioRelativePath) {
+
+    if (!audioRelativePath) {
+        return "";
+    }
+
+    const safePath =
+        escapeHTML(audioRelativePath);
+
+    return `
+        <div class="audio-control">
+            <button
+                class="audio-play-button"
+                type="button"
+                aria-label="Play recording"
+                title="Play recording"
+            >▶</button>
+            <audio
+                class="audio-player"
+                preload="metadata"
+                data-src="${safePath}"
+            ></audio>
+        </div>
     `;
 }
 

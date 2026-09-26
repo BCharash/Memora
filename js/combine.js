@@ -50,6 +50,10 @@ export function parseTranscriptFile(file, text) {
             ? "translate"
             : "transcribe";
 
+    const audioRelativePath =
+        extractField(lines, "Audio Relative Path:") ||
+        null;
+
     const separatorIndex =
         lines.findIndex(
             line => line.trim() === "--------------------------------------------------"
@@ -77,6 +81,7 @@ export function parseTranscriptFile(file, text) {
                 : voiceMemoId,
         whisperModel,
         operation,
+        audioRelativePath,
         transcript
     };
 }
