@@ -998,7 +998,7 @@ function getSelectedFiles() {
     const checkboxes =
         Array.from(
             document.querySelectorAll(
-                ".recording-checkbox"
+                "#recordings .recording-checkbox"
             )
         );
 
