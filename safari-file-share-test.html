@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safari File Share Test</title>
+<style>
+body {
+    font-family: system-ui, sans-serif;
+    padding: 24px;
+    line-height: 1.5;
+}
+button {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    font-size: 18px;
+    padding: 14px 18px;
+    margin: 14px 0;
+}
+#result {
+    white-space: pre-wrap;
+    margin-top: 20px;
+}
+</style>
+</head>
+<body>
+<h2>Safari File Share Test</h2>
+
+<p>First select one or more M4A recordings.</p>
+
+<input id="files" type="file" accept=".m4a,audio/mp4,audio/*" multiple>
+
+<button id="share" type="button" disabled>
+    Create & Share Test File
+</button>
+
+<div id="result">Waiting for files...</div>
+
+<script>
+const input = document.getElementById("files");
+const shareButton = document.getElementById("share");
+const result = document.getElementById("result");
+
+let selectedFiles = [];
+
+input.addEventListener("change", () => {
+    selectedFiles = Array.from(input.files || []);
+
+    if (!selectedFiles.length) {
+        shareButton.disabled = true;
+        result.textContent = "No files were delivered to the page.";
+        return;
+    }
+
+    shareButton.disabled = false;
+
+    result.textContent =
+        "Received " + selectedFiles.length + " M4A file(s).\n\n" +
+        selectedFiles.map((file, i) =>
+            (i + 1) + ". " + file.name
+        ).join("\n") +
+        "\n\nNow tap “Create & Share Test File”.";
+});
+
+shareButton.addEventListener("click", async () => {
+    if (!selectedFiles.length) return;
+
+    const lines = [
+        "Memora iPhone Share Test",
+        "",
+        "Files received:",
+        ...selectedFiles.map(file => file.name),
+        "",
+        "This file was created by the Safari test page."
+    ];
+
+    const blob = new Blob(
+        [lines.join("\n")],
+        { type: "text/plain" }
+    );
+
+    const testFile = new File(
+        [blob],
+        "memora-share-test.txt",
+        { type: "text/plain" }
+    );
+
+    if (!navigator.share) {
+        result.textContent =
+            "Safari does not report Web Share support.";
+        return;
+    }
+
+    if (navigator.canShare && !navigator.canShare({ files: [testFile] })) {
+        result.textContent =
+            "Safari reports that sharing this file is not supported.";
+        return;
+    }
+
+    try {
+        await navigator.share({
+            files: [testFile],
+            title: "Memora Share Test"
+        });
+
+        result.textContent =
+            "Share completed. Check Files to see whether " +
+            "memora-share-test.txt was saved.";
+    } catch (error) {
+        result.textContent =
+            "Share was cancelled or failed:\n" +
+            error.name + ": " + error.message;
+    }
+});
+</script>
+</body>
+</html>
