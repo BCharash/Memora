@@ -381,13 +381,27 @@ The important design principle is that the transcription result is represented a
 
 # 9. Individual Transcription Files
 
-The current intended filename pattern is:
+The current filename convention uses the recording date, recording name, Whisper model, and—when applicable—the translation operation.
 
-    YYYY-MM-DD HH-MM - basename - model.txt
+For transcription:
+
+    YYYY-MM-DD - basename - model.txt
+
+For translation to English:
+
+    YYYY-MM-DD - basename - model - eng.txt
+
+The `-eng` suffix is used only when the operation is **Translate**. Ordinary English transcription does not receive the suffix.
 
 For example:
 
-    2023-06-15 08-40 - Prarabda karma 2 - small.txt
+    2026-09-26 - Recording Name - medium.txt
+
+and:
+
+    2026-09-26 - Recording Name - medium - eng.txt
+
+The recording date is used rather than the full recording time in the filename. The full recording date/time remains available as metadata.
 
 If a filename collision occurs, Memora adds a numeric suffix rather than overwriting an existing file.
 
@@ -404,10 +418,17 @@ The contents currently include:
 - recording date
 - duration
 - Voice Memo ID
+- Whisper model
+- Operation (`transcribe` or `translate`)
+- original language when relevant to translation
 - separator
 - transcript
 
 The saved text format is intentionally simple and durable.
+
+The operation is stored explicitly in the transcript metadata rather than being inferred from the filename. Combine Files uses this metadata to distinguish transcription from translation.
+
+For backward compatibility, older transcript files without an `Operation:` line are treated as transcription files.
 
 ---
 
@@ -443,7 +464,25 @@ The exact default model may evolve after further testing.
 
 ---
 
-# 12. Desktop File Handling
+# 11A. Language and Operation Controls
+
+Memora distinguishes the **language** of the recording from the **operation** performed by Whisper.
+
+The intended behavior is:
+
+- **Auto-detect** → Translate to English; the operation selector is disabled.
+- **English** → Transcribe; the operation selector is disabled.
+- **Portuguese, Spanish, French, German, Sanskrit, and other explicit non-English languages** → the user can choose Transcribe or Translate.
+
+The initial operation state must be established when the page loads because Auto-detect is the default language selection.
+
+The selected operation is recorded in the individual transcript metadata.
+
+When the operation is Translate, the filename receives the `-eng` suffix. When the operation is Transcribe, it does not.
+
+Model selection treats transcription and translation as separate operations for the same recording, allowing the highest available model to be selected independently for each operation.
+
+Combine Files uses the stored `Operation:` metadata rather than relying on filename parsing.
 
 Desktop browsers can provide access to a directory through the File System Access API.
 
@@ -760,12 +799,17 @@ The current implementation supports:
 - selecting the output location, including a `Combined` subfolder
 - filtering duplicate recordings in combined output in favor of the highest available Whisper model
 - adjustable text size in generated HTML
+- progressive CSS-only text-size controls for standalone HTML when JavaScript is unavailable
+- text-size range of 12px–32px, including a 32px reading option for iPhone
 - desktop support for a broader set of common audio extensions, subject to browser/device codec support
 - a tested iPhone workflow for selecting multiple M4A files and saving generated files through Share → Save to Files
+- explicit transcription/translation operation metadata
+- `-eng` filename suffix for translation output only
+- independent model selection/provenance for transcription and translation operations
 
 The Combine Files milestone has been tested and committed.
 
-The language/operation control refinement is currently being worked on and has not yet been treated as a completed milestone.
+The language/operation refinement and standalone HTML text-size progressive enhancement have now been implemented and tested.
 
 The next planned development steps are **audio links** followed by refinement of the **iPhone file structure/workflow**.
 
@@ -828,7 +872,28 @@ The combined TXT format was refined so that the transcription belongs to its met
 
 The generated HTML follows the same conceptual structure and is intended as a readable document rather than merely a formatted copy of the TXT file.
 
-The HTML now includes a text-size slider so the reader can adjust transcription size without regenerating the document.
+The HTML now includes adjustable text sizing without requiring the document to be regenerated.
+
+### Progressive enhancement for standalone HTML
+
+The text-size control was deliberately designed as a progressive enhancement because generated HTML may be opened directly from the iPhone Files application in Safari, where JavaScript behavior can be restricted.
+
+When JavaScript is available:
+
+- the continuous text-size slider is displayed;
+- the reader can select any size from 12px through 32px;
+- the current size is displayed beside the slider.
+
+When JavaScript is unavailable:
+
+- a CSS-only fallback is displayed;
+- discrete buttons provide 12, 16, 20, 24, 28, and 32px;
+- 16px is the default;
+- a small `A` appears on the left and a large 32px `A` on the right.
+
+The fallback uses CSS radio buttons and `:has()` rather than JavaScript. This was tested successfully when the generated HTML was opened directly from iPhone Files in Safari.
+
+The 32px option was added specifically to make reading on an iPhone more comfortable without reading glasses.
 
 ## 23.6 Accessibility and visual hierarchy
 
@@ -852,7 +917,47 @@ The application architecture continues to treat iPhone support as a storage/inpu
 
 The immediate next milestone is audio association in generated HTML. Once that is stable, attention will move to the practical iPhone file structure and workflow.
 
-# 25. Journal Update Policy
+# 25. Latest Development Milestone: Operation Metadata and Accessible HTML Controls
+
+Two refinements were completed after the previous milestone.
+
+## 25.1 Transcription versus translation
+
+Memora now records the selected operation explicitly in each transcript's metadata:
+
+- `transcribe`
+- `translate`
+
+The filename convention adds `-eng` only to translation output.
+
+The operation is stored as metadata rather than inferred from the filename. Combine Files therefore has a reliable source for distinguishing transcription from translation.
+
+For recordings that have both versions, operation is part of the recording identity for model-selection purposes, allowing the best available Whisper model to be selected independently for each operation.
+
+## 25.2 Standalone HTML text-size progressive enhancement
+
+Generated HTML now supports two levels of text-size control.
+
+With JavaScript, the reader receives a continuous slider from 12px to 32px.
+
+Without JavaScript, the reader receives CSS-only size buttons. This is important because standalone HTML opened directly from iPhone Files in Safari does not always execute JavaScript in the same way as a normal web page.
+
+The CSS fallback was tested successfully on iPhone Safari. The normal slider was tested successfully in Edge and desktop browsers.
+
+The fallback design uses:
+
+- a small `A` at the left;
+- discrete size buttons;
+- 16px as the default;
+- a large 32px `A` at the right.
+
+The 32px option was added specifically for comfortable iPhone reading without reading glasses.
+
+These controls are implemented entirely in `html.js`; no external stylesheet is required, preserving the portability of the generated standalone HTML document.
+
+---
+
+# 26. Journal Update Policy
 
 This document is a living design journal.
 
