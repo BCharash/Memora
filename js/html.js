@@ -71,9 +71,6 @@ export function createCombinedHTML(
         }
 
         .reader-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
             margin-bottom: 28px;
             padding: 12px 14px;
             background: #F7F8FA;
@@ -83,13 +80,66 @@ export function createCombinedHTML(
             color: #707782;
         }
 
-        .reader-controls label {
-            white-space: nowrap;
-            font-weight: 600;
+        .reader-controls .js-controls {
+            display: none;
+            grid-template-columns: auto minmax(120px, 1fr) auto;
+            align-items: center;
+            gap: 12px;
         }
 
-        .reader-controls input[type="range"] {
-            flex: 1;
+        .reader-controls .fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .reader-controls .fallback input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .reader-controls .fallback label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 30px;
+            padding: 0 6px;
+            box-sizing: border-box;
+            border: 1px solid #D5D9DE;
+            border-radius: 6px;
+            background: #FFFFFF;
+            color: #20242C;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .reader-controls .fallback > span:first-child {
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .reader-controls .fallback > span:last-child {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .reader-controls .fallback .size-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reader-controls .fallback .size-buttons input:checked + label {
+            border-color: #707782;
+            background: #E9ECF0;
+        }
+
+        .reader-controls .js-controls input[type="range"] {
+            width: auto;
             min-width: 120px;
         }
 
@@ -102,6 +152,30 @@ export function createCombinedHTML(
         .transcript {
             white-space: pre-wrap;
             font-size: var(--transcript-size, 16px);
+        }
+
+        .reader:has(#size12:checked) .transcript {
+            font-size: 12px;
+        }
+
+        .reader:has(#size16:checked) .transcript {
+            font-size: 16px;
+        }
+
+        .reader:has(#size20:checked) .transcript {
+            font-size: 20px;
+        }
+
+        .reader:has(#size24:checked) .transcript {
+            font-size: 24px;
+        }
+
+        .reader:has(#size28:checked) .transcript {
+            font-size: 28px;
+        }
+
+        .reader:has(#size32:checked) .transcript {
+            font-size: 32px;
         }
 
         .record {
@@ -123,13 +197,12 @@ export function createCombinedHTML(
                 padding: 24px 18px;
             }
 
-            .reader-controls {
-                flex-wrap: wrap;
+            .reader-controls .js-controls {
+                grid-template-columns: auto minmax(120px, 1fr) auto;
             }
 
-            .reader-controls input[type="range"] {
-                order: 3;
-                flex-basis: 100%;
+            .reader-controls .fallback {
+                width: 100%;
             }
         }
     </style>
@@ -138,24 +211,56 @@ export function createCombinedHTML(
     <main>
         <h1>${escapeHTML(title)}</h1>
 
-        <div class="reader-controls">
-            <label for="textSize">Text size</label>
-            <input
-                id="textSize"
-                type="range"
-                min="12"
-                max="28"
-                step="1"
-                value="16"
-                aria-label="Text size"
-            >
-            <span id="textSizeValue" class="reader-size-value">16px</span>
-        </div>
+        <div class="reader">
+            <div class="reader-controls">
+                <div class="js-controls">
+                    <label for="textSize">Text size</label>
+                    <input
+                        id="textSize"
+                        type="range"
+                        min="12"
+                        max="32"
+                        step="1"
+                        value="16"
+                        aria-label="Text size"
+                    >
+                    <span id="textSizeValue" class="reader-size-value">16px</span>
+                </div>
 
-        ${sections}
+                <div class="fallback" aria-label="Text size">
+                    <span aria-hidden="true">A</span>
+                    <div class="size-buttons">
+                        <input id="size12" type="radio" name="textSizeFallback" value="12">
+                        <label for="size12">12</label>
+                        <input id="size16" type="radio" name="textSizeFallback" value="16" checked>
+                        <label for="size16">16</label>
+                        <input id="size20" type="radio" name="textSizeFallback" value="20">
+                        <label for="size20">20</label>
+                        <input id="size24" type="radio" name="textSizeFallback" value="24">
+                        <label for="size24">24</label>
+                        <input id="size28" type="radio" name="textSizeFallback" value="28">
+                        <label for="size28">28</label>
+                        <input id="size32" type="radio" name="textSizeFallback" value="32">
+                        <label for="size32">32</label>
+                    </div>
+                    <span aria-hidden="true">A</span>
+                </div>
+            </div>
+
+            ${sections}
+        </div>
     </main>
 
     <script>
+        document.querySelector(".js-controls").style.display = "grid";
+        document.querySelector(".fallback").style.display = "none";
+
+        document
+            .querySelectorAll('.fallback input[type="radio"]')
+            .forEach(input => {
+                input.checked = false;
+            });
+
         const textSize = document.getElementById("textSize");
         const textSizeValue = document.getElementById("textSizeValue");
 
