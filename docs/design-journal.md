@@ -1082,6 +1082,111 @@ The Combine Files workflow and its presentation refinements were tested and comm
 
 The next changes should continue to be incremental and should avoid disturbing the now-working transcription workflow.
 
+# 24. Paragraphing Architecture and User Functions
+
+Memora now has two user-facing places where the same semantic paragraphing capability can be requested. Both use the shared `paragraphing.js` module and the same established Hybrid Paragraph Test 2 algorithm. The difference is **when the paragraphing is applied and whether the individual transcript files are changed**.
+
+## 24.1 Transcription — Create paragraphs
+
+The **Transcription** tab has a **Create paragraphs** checkbox alongside the transcription controls.
+
+When selected, the workflow is:
+
+    Audio recording
+        ↓
+    metadata extraction
+        ↓
+    audio processing
+        ↓
+    Whisper transcription
+        ↓
+    optional `paragraphize()`
+        ↓
+    individual transcript file
+
+In this mode, paragraphing is applied to the fresh Whisper transcript before the individual `.txt` file is saved.
+
+Therefore:
+
+- the saved individual transcript contains the paragraph breaks;
+- the paragraphized transcript becomes part of the durable source material;
+- the original audio is not modified;
+- the paragraphing model is loaded only when the option is selected.
+
+If the checkbox is not selected, the Whisper transcript is saved without this additional paragraphing stage.
+
+## 24.2 Combine Files — Create paragraphs
+
+The **Combine Files** tab has a separate **Create paragraphs** checkbox positioned directly below the combined document title and above the three output buttons.
+
+When selected, the workflow is:
+
+    selected transcript files
+        ↓
+    read transcript records
+        ↓
+    sort records
+        ↓
+    select highest-model records
+        ↓
+    optional `paragraphize()` on each selected transcript
+        ↓
+    combined TXT / DOCX / HTML
+
+In this mode, paragraphing is an **output-stage transformation**.
+
+The individual `.txt` files are not rewritten. Instead, Memora creates an in-memory version of each selected record with the paragraphized transcript text and sends those processed records to the requested output generator.
+
+This allows the same source collection to be combined either with or without paragraphing.
+
+## 24.3 One paragraphing engine, two entry points
+
+These two controls deliberately do not represent two different paragraphing systems.
+
+Both call:
+
+    paragraphing.js
+        ↓
+    `paragraphize()`
+
+The distinction is the surrounding workflow:
+
+    Transcription:
+    Whisper → paragraphize → save individual transcript
+
+    Combine:
+    read existing transcript → paragraphize → create combined output
+
+This keeps the paragraphing algorithm in one place and avoids maintaining separate versions of the semantic paragraphing logic.
+
+The existing `paragraphizeTranscript()` function remains available for the future workflow of paragraphizing complete existing transcript files while preserving their metadata. It is not required by either of the two current user-facing paragraphing controls.
+
+## 24.4 Why both functions are useful
+
+The two controls serve different practical needs.
+
+**Create paragraphs during Transcription** is appropriate when the user wants the individual transcript files themselves to contain the paragraph structure.
+
+**Create paragraphs during Combine Files** is appropriate when the user wants to leave the individual transcript files untouched but wants a particular combined document to have paragraph structure.
+
+This distinction preserves the project's central principle that individual transcript files are durable source material while combined documents are derived outputs.
+
+It also means that paragraphing does not have to be decided permanently when a recording is first transcribed. A later Combine Files operation can still apply the same paragraphing algorithm to the existing collection.
+
+## 24.5 Re-paragraphing existing paragraphized transcripts
+
+The Combine Files function does not need to determine whether an input transcript has already been paragraphized.
+
+Testing with the earlier batch-paragraphized corpus established that applying the paragraphing process again preserves the existing paragraph structure rather than destroying it.
+
+This permits a simple workflow:
+
+- unparagraphized transcripts can be paragraphized during Combine;
+- already paragraphized transcripts can also be passed through the same function;
+- no paragraph-state metadata or detection heuristic is required.
+
+This is consistent with the project's preference for avoiding additional layers of complexity when the existing algorithm already behaves safely.
+
 # 24.1 Latest Development Milestone: Optional Paragraphing in Combine Files
 
 The Combine Files workflow has been extended so that paragraphing can be applied at the point where combined documents are created.
