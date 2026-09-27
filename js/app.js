@@ -11,6 +11,7 @@ const recordings = document.getElementById("recordings");
 const modelSelect = document.getElementById("modelSelect");
 const languageSelect = document.getElementById("languageSelect");
 const operationSelect = document.getElementById("operationSelect");
+const paragraphingCheckbox = document.getElementById("paragraphingCheckbox");
 const transcribeButton = document.getElementById("transcribeButton");
 
 const transcriptionStatus =
@@ -278,6 +279,23 @@ async function getWhisperModule() {
     }
 
     return whisperModule;
+}
+
+
+// --------------------------------------------------
+// Paragraphing module
+// --------------------------------------------------
+
+let paragraphingModule = null;
+
+async function getParagraphingModule() {
+
+    if (!paragraphingModule) {
+        paragraphingModule =
+            await import("./paragraphing.js");
+    }
+
+    return paragraphingModule;
 }
 
 
@@ -942,11 +960,31 @@ transcribeButton.addEventListener(
                         setTranscriptionBusy
                     );
 
+                let processedTranscript =
+                    record.transcript;
+
+                if (paragraphingCheckbox?.checked) {
+                    setTranscriptionBusy(
+                        `Creating paragraphs for ${i + 1} of ` +
+                        `${filesToTranscribe.length}: ` +
+                        `${file.name}`
+                    );
+
+                    const paragraphing =
+                        await getParagraphingModule();
+
+                    processedTranscript =
+                        await paragraphing.paragraphize(
+                            record.transcript,
+                            setTranscriptionBusy
+                        );
+                }
+
                 const transcript =
                     buildTranscript(
                         record.file,
                         record.metadata,
-                        record.transcript,
+                        processedTranscript,
                         record.model,
                         language,
                         operation,
@@ -964,7 +1002,7 @@ transcribeButton.addEventListener(
 
                 appendTranscription(
                     record.file,
-                    record.transcript
+                    processedTranscript
                 );
             }
 

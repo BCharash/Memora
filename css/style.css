@@ -310,6 +310,10 @@ button:disabled {
     min-width: 0;
 }
 
+.transcribe-action {
+    flex-basis: 100%;
+}
+
 .transcription-control label {
     color: var(--text);
     font-size: 14px;
