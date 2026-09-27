@@ -61,6 +61,9 @@ const combineStatus =
 const combineTitleInput =
     document.getElementById("combineTitleInput");
 
+const combineParagraphingCheckbox =
+    document.getElementById("combineParagraphingCheckbox");
+
 let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
@@ -1610,6 +1613,42 @@ async function combineSelectedFiles(
                 sortedRecords
             );
 
+        let outputRecords =
+            selectedRecords;
+
+        if (combineParagraphingCheckbox?.checked) {
+
+            const paragraphing =
+                await getParagraphingModule();
+
+            outputRecords = [];
+
+            for (let i = 0; i < selectedRecords.length; i++) {
+
+                const record =
+                    selectedRecords[i];
+
+                combineStatus.textContent =
+                    `Creating paragraphs for ${i + 1} of ` +
+                    `${selectedRecords.length}: ` +
+                    `${record.filename}`;
+
+                const paragraphizedTranscript =
+                    await paragraphing.paragraphize(
+                        record.transcript,
+                        message => {
+                            combineStatus.textContent =
+                                message;
+                        }
+                    );
+
+                outputRecords.push({
+                    ...record,
+                    transcript: paragraphizedTranscript
+                });
+            }
+        }
+
         const storage =
             await getStorageModule();
 
@@ -1617,7 +1656,7 @@ async function combineSelectedFiles(
 
             const combinedText =
                 combineModule.combineTranscriptRecords(
-                    selectedRecords,
+                    outputRecords,
                     combineTitle
                 );
 
@@ -1637,7 +1676,7 @@ async function combineSelectedFiles(
 
             const combinedDOCX =
                 await docx.createCombinedDOCX(
-                    selectedRecords,
+                    outputRecords,
                     combineTitle
                 );
 
@@ -1662,7 +1701,7 @@ async function combineSelectedFiles(
                 );
 
             const htmlRecords =
-                selectedRecords.map(record => ({
+                outputRecords.map(record => ({
                     ...record,
                     audioRelativePath:
                         record.audioRelativePath &&
