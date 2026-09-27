@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 2  
+**Version:** 3  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -193,6 +193,7 @@ The intended JavaScript structure is:
         ├── transcription.js
         ├── storage.js
         ├── combine.js
+        ├── paragraphing.js
         └── html.js
 
 Not all modules need to be created at once. The architecture will be introduced incrementally.
@@ -336,6 +337,32 @@ It should:
 
 It should not perform transcription.
 
+## paragraphing.js
+
+Responsible for the optional semantic paragraphing of transcript text.
+
+The paragraphing implementation is deliberately separate from both Whisper transcription and Combine Files. It receives transcript text and returns the same spoken words with paragraph breaks inserted.
+
+The production module is based on the previously tested **Memora — Hybrid Paragraph Test 2** algorithm. It uses:
+
+- Transformers.js 3.7.2
+- the browser-local `Xenova/all-MiniLM-L6-v2` MiniLM model
+- `q8` model weights
+- sentence-level embeddings
+- semantic transition, paragraph-center fit, forward semantic direction, rhetorical/continuation cues, and modest length pressure
+- the established boundary-selection logic
+
+The module does not introduce paragraph-length rules, word-count thresholds, sensitivity controls, additional semantic models, LLM paragraphing, or other new heuristic layers.
+
+The module exposes two conceptual operations:
+
+- `paragraphize()` — paragraphizes raw transcript text
+- `paragraphizeTranscript()` — intended for a future workflow that paragraphizes complete existing transcript files while preserving their metadata
+
+The current transcription workflow uses `paragraphize()` after Whisper has produced the raw transcript. Combine Files also uses `paragraphize()` when its **Create paragraphs** option is selected.
+
+The semantic model is loaded lazily and cached for reuse. This keeps paragraphing optional: a normal transcription or combine operation does not incur the additional model-loading and embedding work unless paragraphing is requested.
+
 ## html.js
 
 Responsible for rendering structured records as HTML.
@@ -377,6 +404,8 @@ The structure may later include:
 - source filename
 
 The important design principle is that the transcription result is represented as structured data before being rendered into a particular output format.
+
+For Combine Files paragraphing, the existing `TranscriptRecord` structure is retained. Paragraphing changes only the `transcript` text carried by the records; metadata, filename, model, operation, and audio-relative-path information remain intact. This allows the same processed records to feed TXT, DOCX, and HTML generation.
 
 ---
 
@@ -947,12 +976,17 @@ The current implementation supports:
 - `-eng` filename suffix for translation output only
 - independent model selection/provenance for transcription and translation operations
 - audio-path metadata and desktop HTML audio association
+- optional semantic paragraphing during individual transcription
+- optional semantic paragraphing during Combine Files output generation
+- paragraphing applied consistently to combined TXT, DOCX, and HTML output
+- non-destructive Combine Files paragraphing that leaves individual transcript source files unchanged
+- safe reuse of paragraphing on transcripts that are already paragraphized
 
 The Combine Files milestone has been tested and committed.
 
 The language/operation refinement and standalone HTML text-size progressive enhancement have now been implemented and tested.
 
-The audio-link milestone has now been implemented and tested. The next planned development step is refinement of the **iPhone file structure/workflow**.
+The audio-link milestone has now been implemented and tested. Optional paragraphing is now available both during transcription and during Combine Files output generation. The next planned development step remains refinement of the **iPhone file structure/workflow**.
 
 ---
 
@@ -1047,6 +1081,234 @@ Destination buttons also have a visible selected state so the currently active o
 The Combine Files workflow and its presentation refinements were tested and committed as a stable milestone.
 
 The next changes should continue to be incremental and should avoid disturbing the now-working transcription workflow.
+
+# 24.1 Latest Development Milestone: Optional Paragraphing in Combine Files
+
+The Combine Files workflow has been extended so that paragraphing can be applied at the point where combined documents are created.
+
+This is intentionally an **output-stage transformation**, not a change to the durable individual transcript files.
+
+## 24.1.1 User interface
+
+The Combine Files tab now places a **Create paragraphs** checkbox:
+
+1. directly below **Combined document title**
+2. directly above the three combined-output buttons
+
+The three output choices remain:
+
+- Create Combined TXT
+- Create Combined DOCX
+- Create Combined HTML
+
+The checkbox is independent of the transcription-tab paragraphing control. The transcription control affects newly generated individual transcripts; the Combine Files control affects only the combined output being created.
+
+This preserves a simple mental model:
+
+- **Transcription → Create paragraphs**: paragraph the individual transcript being saved.
+- **Combine Files → Create paragraphs**: paragraph the transcript text used for the combined document, without modifying the source `.txt` files.
+
+## 24.1.2 Combine processing sequence
+
+The normal Combine Files pipeline remains intact:
+
+    selected transcript files
+            ↓
+    readTranscriptFiles()
+            ↓
+    sortTranscriptRecords()
+            ↓
+    selectHighestModelRecords()
+            ↓
+    output generation
+
+When **Create paragraphs** is checked, one additional stage is inserted after the records have been selected:
+
+    selected transcript files
+            ↓
+    readTranscriptFiles()
+            ↓
+    sortTranscriptRecords()
+            ↓
+    selectHighestModelRecords()
+            ↓
+    optional paragraphize() for each selected record
+            ↓
+    TXT / DOCX / HTML output
+
+This placement is deliberate.
+
+Paragraphing occurs only after Combine Files has determined which transcript records actually belong in the combined document. Therefore:
+
+- duplicate recordings are resolved first;
+- the highest-model selection remains unchanged;
+- the established sort order remains unchanged;
+- the same paragraphized records can be used by all three output formats.
+
+The paragraphing operation does not perform transcription and does not reread or modify the original audio.
+
+## 24.1.3 Source files remain unchanged
+
+A major design decision is that Combine Files paragraphing is **non-destructive**.
+
+If the user selects **Create paragraphs**, Memora does not rewrite the individual `.txt` transcript files.
+
+Instead, it creates an in-memory processed version of each selected `TranscriptRecord` and passes those records to the requested output generator.
+
+This preserves the original individual transcripts as durable source material while allowing different combined documents to be generated with or without paragraphing.
+
+For example, the same source collection can produce:
+
+- a combined TXT without paragraphing;
+- a combined TXT with paragraphing;
+- a combined DOCX with paragraphing;
+- a combined HTML without paragraphing;
+
+without changing the underlying transcript files.
+
+## 24.1.4 Existing paragraphized transcripts
+
+The Combine Files paragraphing option was deliberately designed so that it does not need to determine whether a transcript has already been paragraphized.
+
+Testing with the previously batch-paragraphized transcript corpus established that running the paragraphing process again preserves the existing paragraph structure rather than destroying it.
+
+This is important because transcript collections may contain a mixture of:
+
+- older transcripts that have already been paragraphized;
+- newly generated transcripts without paragraph breaks;
+- transcripts that have been paragraphized by an earlier batch process.
+
+The Combine Files workflow can therefore apply the same paragraphing operation uniformly rather than introducing a separate detection system.
+
+This avoids another layer of state or heuristic detection and follows the project's general preference for keeping the system simple.
+
+## 24.1.5 Metadata and separator preservation
+
+Combine Files continues to parse the established individual transcript format.
+
+The paragraphing operation is applied to the transcript body represented by the `transcript` field of the structured record. It does not paragraphize or alter the metadata block.
+
+Consequently, the following remain properties of the individual record:
+
+- original filename
+- recording date
+- file date when available
+- duration
+- Voice Memo ID when available
+- Whisper model
+- operation
+- original language when relevant
+- Audio Relative Path when available
+
+The existing Combine Files separator handling is also unchanged.
+
+A previous batch-paragraphing experiment exposed an important compatibility issue: an older paragraphized corpus had used a 20-hyphen metadata separator, while normal Memora transcript files use the established 50-hyphen separator. The old corpus was subsequently regenerated with the normal 50-hyphen separator. The paragraph structure survived that correction, and Combine Files then worked normally.
+
+The resulting decision is that paragraphing itself should not introduce another transcript-file format. The existing individual transcript format remains authoritative.
+
+## 24.1.6 All three output formats use the same processed records
+
+The paragraphing operation is performed before the output-type branch.
+
+Therefore the same paragraphized transcript records feed:
+
+    TXT
+      ↓
+    combineTranscriptRecords()
+
+    DOCX
+      ↓
+    createCombinedDOCX()
+
+    HTML
+      ↓
+    createCombinedHTML()
+
+This avoids implementing three independent paragraphing mechanisms.
+
+It also means that paragraph boundaries are consistent across TXT, DOCX, and HTML generated from the same Combine Files operation.
+
+## 24.1.7 Progress reporting
+
+Paragraphing can be substantially more expensive than simply reading transcript files because it loads the local semantic model and computes sentence embeddings.
+
+The Combine Files status area therefore reports paragraphing progress while it is occurring.
+
+The user can see which selected transcript is currently being processed, for example:
+
+    Creating paragraphs for 1 of N: filename
+
+The paragraphing module also reports semantic-model loading and sentence-analysis progress through the existing status callback.
+
+This makes the additional processing visible rather than leaving the user with an apparently stalled Combine Files operation.
+
+## 24.1.8 Model reuse and optional resource cost
+
+Paragraphing remains optional.
+
+If the checkbox is not selected:
+
+- the paragraphing module is not needed;
+- the MiniLM model is not loaded;
+- Combine Files follows the existing path with no semantic-analysis overhead.
+
+If the checkbox is selected:
+
+- `paragraphing.js` is loaded lazily;
+- the MiniLM model is loaded when first needed;
+- the model is cached and reused for subsequent transcripts in the same page session.
+
+This is consistent with the existing desktop batch-processing philosophy: expensive local models should be loaded only when the user explicitly requests the corresponding function.
+
+## 24.1.9 No change to combine.js
+
+The Combine Files parser and record-processing module remains unchanged.
+
+This is an intentional architectural boundary.
+
+`combine.js` continues to be responsible for:
+
+- reading transcript files;
+- parsing their metadata and transcript body;
+- creating structured records;
+- sorting records;
+- selecting the highest available model records;
+- providing records to the output layer.
+
+Paragraphing is a transformation of the transcript text after those responsibilities have been completed. It therefore belongs in `paragraphing.js` and is orchestrated by `app.js`.
+
+This avoids making `combine.js` responsible for a semantic text-processing task that is also needed independently by the transcription workflow and may later be used for an explicit **Paragraph existing transcripts** operation.
+
+## 24.1.10 Architectural rationale
+
+The new Combine Files option reinforces several existing Memora design principles:
+
+1. **Individual transcript files remain the source material.**
+2. **Combine Files remains a derived-output operation.**
+3. **Paragraphing remains a reusable independent module.**
+4. **Output formats do not contain their own paragraphing logic.**
+5. **Existing sorting and duplicate/model-selection behavior is preserved.**
+6. **Paragraphing is optional because of its additional model and computation cost.**
+7. **Already-paragraphized transcripts do not require special detection.**
+8. **No new paragraphing heuristics are introduced merely to support Combine Files.**
+9. **The same processed record can feed TXT, DOCX, and HTML.**
+10. **The change is intentionally small and localized to the UI/orchestration layer.**
+
+The resulting architecture is:
+
+    Individual transcript files
+              ↓
+        Combine Files
+              ↓
+       record selection
+              ↓
+       optional paragraphing
+              ↓
+       structured records
+          ↙    ↓    ↘
+        TXT   DOCX   HTML
+
+This preserves the separation between source data, processing, and presentation.
 
 # 24. Latest Development Milestone
 
