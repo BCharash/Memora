@@ -133,7 +133,7 @@ async function updateCombineFolderButton() {
                 'Create "combined" Folder';
         } else {
             console.error(
-                "Unable to check Combined folder:",
+                "Unable to check combined folder:",
                 error
             );
         }
@@ -1268,7 +1268,7 @@ if (combineFolderDestinationButton) {
                 );
 
                 combineStatus.textContent =
-                    "Unable to access the Combined folder.";
+                    "Unable to access the combined folder.";
             }
         }
     );
