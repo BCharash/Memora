@@ -6,12 +6,6 @@ const transcriptionDestinationButton =
     document.getElementById("transcriptionDestinationButton");
 
 const fileInput = document.getElementById("fileInput");
-const iPhoneFolderTestButton =
-    document.getElementById("iPhoneFolderTestButton");
-const iPhoneFolderInput =
-    document.getElementById("iPhoneFolderInput");
-const iPhoneFolderTestResult =
-    document.getElementById("iPhoneFolderTestResult");
 const recordings = document.getElementById("recordings");
 
 const modelSelect = document.getElementById("modelSelect");
@@ -309,54 +303,6 @@ async function getParagraphingModule() {
 
 
 // --------------------------------------------------
-// iPhone folder-selection test
-// --------------------------------------------------
-
-if (iPhoneFolderTestButton && iPhoneFolderInput) {
-
-    iPhoneFolderTestButton.addEventListener("click", () => {
-        iPhoneFolderInput.value = "";
-        iPhoneFolderInput.click();
-    });
-
-    iPhoneFolderInput.addEventListener("change", () => {
-
-        const files =
-            Array.from(iPhoneFolderInput.files || []);
-
-        const audioExtensions =
-            /\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
-
-        const audioFiles =
-            files.filter(file =>
-                audioExtensions.test(file.name)
-            );
-
-        if (iPhoneFolderTestResult) {
-
-            if (audioFiles.length === 0) {
-
-                iPhoneFolderTestResult.textContent =
-                    "No audio files were found.";
-
-                return;
-            }
-
-            iPhoneFolderTestResult.innerHTML =
-                `<strong>${audioFiles.length} audio file` +
-                `${audioFiles.length === 1 ? "" : "s"} found:</strong><br>` +
-                audioFiles
-                    .map(file =>
-                        file.webkitRelativePath ||
-                        file.name
-                    )
-                    .join("<br>");
-        }
-    });
-}
-
-
-// --------------------------------------------------
 // Source / destination
 // --------------------------------------------------
 
@@ -386,7 +332,9 @@ sourceButton.addEventListener("click", async () => {
             sourceButton.textContent =
                 `Source: ${sourceHandle.name}`;
 
-            await updateTranscriptionFolderButton();
+            if (sourceHandle.kind !== "file-input") {
+                await updateTranscriptionFolderButton();
+            }
 
             alert(
                 "No audio recordings were found in this folder."
@@ -398,7 +346,9 @@ sourceButton.addEventListener("click", async () => {
         sourceButton.textContent =
             `Source: ${sourceHandle.name}`;
 
-        await updateTranscriptionFolderButton();
+        if (sourceHandle.kind !== "file-input") {
+            await updateTranscriptionFolderButton();
+        }
 
         await displayFiles(files);
 
@@ -426,6 +376,11 @@ sourceDestinationButton.addEventListener("click", () => {
         return;
     }
 
+    if (sourceHandle.kind === "file-input") {
+        alert("An iPhone destination is not implemented yet.");
+        return;
+    }
+
     destinationHandle = sourceHandle;
 
     setActiveDestinationButton(
@@ -438,6 +393,11 @@ transcriptionDestinationButton.addEventListener("click", async () => {
 
     if (!sourceHandle) {
         alert("Please select a source folder first.");
+        return;
+    }
+
+    if (sourceHandle.kind === "file-input") {
+        alert("An iPhone destination is not implemented yet.");
         return;
     }
 

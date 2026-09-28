@@ -7,24 +7,70 @@
 
 export async function selectFolder() {
 
-    if (!window.showDirectoryPicker) {
-        throw new Error(
-            "Folder selection is not supported by this browser."
-        );
+    if (window.showDirectoryPicker) {
+        return window.showDirectoryPicker({
+            mode: "readwrite"
+        });
     }
 
-    return window.showDirectoryPicker({
-        mode: "readwrite"
-    });
+    if ("webkitdirectory" in document.createElement("input")) {
+
+        const input =
+            document.createElement("input");
+
+        input.type = "file";
+        input.webkitdirectory = true;
+        input.multiple = true;
+
+        const files = await new Promise((resolve, reject) => {
+
+            input.addEventListener(
+                "change",
+                () => resolve(Array.from(input.files || [])),
+                { once: true }
+            );
+
+            input.addEventListener(
+                "cancel",
+                () => reject(
+                    new DOMException(
+                        "The folder selection was cancelled.",
+                        "AbortError"
+                    )
+                ),
+                { once: true }
+            );
+
+            input.click();
+        });
+
+        return {
+            kind: "file-input",
+            name:
+                files[0]?.webkitRelativePath?.split("/")[0] ||
+                "Selected Folder",
+            files
+        };
+    }
+
+    throw new Error(
+        "Folder selection is not supported by this browser."
+    );
 }
 
 
 export async function listAudioFiles(directoryHandle) {
 
-    const files = [];
-
     const audioExtensions =
         /\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
+
+    if (directoryHandle?.kind === "file-input") {
+        return directoryHandle.files.filter(
+            file => audioExtensions.test(file.name)
+        );
+    }
+
+    const files = [];
 
     for await (
         const [name, handle]
