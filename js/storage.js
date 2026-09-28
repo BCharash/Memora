@@ -7,14 +7,7 @@
 
 export async function selectFolder() {
 
-    console.log("Memora selectFolder diagnostic:", {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        maxTouchPoints: navigator.maxTouchPoints,
-        showDirectoryPicker: typeof window.showDirectoryPicker,
-        webkitdirectory:
-            "webkitdirectory" in document.createElement("input")
-    });
+    
 
     if (window.showDirectoryPicker) {
         return window.showDirectoryPicker({
