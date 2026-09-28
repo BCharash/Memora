@@ -72,8 +72,7 @@ export async function loadTranscriber(
     }
 
     const {
-        pipeline,
-        env
+        pipeline
     } = await loadTransformers();
 
     const modelInfo =
@@ -85,19 +84,16 @@ export async function loadTranscriber(
         );
     }
 
-    const useWebGPU = env.IS_WEBGPU_AVAILABLE;
-    let device = useWebGPU ? "webgpu" : "wasm";
-
     if (statusCallback) {
         statusCallback(
-            `Loading Whisper ${modelInfo.label} using ${useWebGPU ? "WebGPU" : "CPU/WASM"}…`
+            `Loading Whisper ${modelInfo.label} using WebGPU…`
         );
     }
 
     try {
 
         const pipelineOptions = {
-            device
+            device: "webgpu"
         };
 
         if (modelInfo.dtype) {
@@ -114,58 +110,18 @@ export async function loadTranscriber(
 
     } catch (error) {
 
-        if (device === "webgpu") {
-
-            device = "wasm";
-
-            if (statusCallback) {
-                statusCallback(
-                    `WebGPU unavailable for Whisper ${modelInfo.label}; retrying using CPU/WASM…`
-                );
-            }
-
-            try {
-
-                const pipelineOptions = {
-                    device: "wasm"
-                };
-
-                if (modelInfo.dtype) {
-                    pipelineOptions.dtype =
-                        modelInfo.dtype;
-                }
-
-                transcriber =
-                    await pipeline(
-                        "automatic-speech-recognition",
-                        modelInfo.repository,
-                        pipelineOptions
-                    );
-
-            } catch (fallbackError) {
-
-                throw new Error(
-                    `Unable to load Whisper ${modelInfo.label}. ` +
-                    `The model may no longer be available or compatible. ` +
-                    `(${modelInfo.repository})`
-                );
-            }
-
-        } else {
-
-            throw new Error(
-                `Unable to load Whisper ${modelInfo.label}. ` +
-                `The model may no longer be available or compatible. ` +
-                `(${modelInfo.repository})`
-            );
-        }
+        throw new Error(
+            `Unable to load Whisper ${modelInfo.label}. ` +
+            `The model may no longer be available or compatible. ` +
+            `(${modelInfo.repository})`
+        );
     }
 
     loadedModel = model;
 
     if (statusCallback) {
         statusCallback(
-            `Whisper ${model} loaded using ${device === "webgpu" ? "WebGPU" : "CPU/WASM"}.`
+            `Whisper ${model} loaded using WebGPU.`
         );
     }
 
