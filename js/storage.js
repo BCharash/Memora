@@ -16,11 +16,13 @@ export async function selectFolder() {
     if ("webkitdirectory" in document.createElement("input")) {
 
         const input =
-            document.createElement("input");
+            document.getElementById("folderInput");
 
-        input.type = "file";
-        input.webkitdirectory = true;
-        input.multiple = true;
+        if (!input) {
+            throw new Error(
+                "Folder input element was not found."
+            );
+        }
 
         const files = await new Promise((resolve, reject) => {
 
