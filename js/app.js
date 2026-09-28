@@ -1027,19 +1027,14 @@ transcribeButton.addEventListener(
                         transcriptionAudioPath
                     );
 
-                if (isIPhoneSource) {
-                    transcriptionStatus.textContent =
-                        "Diagnostic: IndexedDB save skipped.";
-                } else {
-                    await saveTranscript(
-                        transcriptionFolder,
-                        record.file,
-                        record.metadata,
-                        transcript,
-                        record.model,
-                        operation
-                    );
-                }
+                await saveTranscript(
+                    transcriptionFolder,
+                    record.file,
+                    record.metadata,
+                    transcript,
+                    record.model,
+                    operation
+                );
 
                 appendTranscription(
                     record.file,
