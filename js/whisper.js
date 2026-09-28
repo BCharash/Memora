@@ -84,17 +84,24 @@ export async function loadTranscriber(
         );
     }
 
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const device = isIOS ? "wasm" : "webgpu";
+
     if (statusCallback) {
         statusCallback(
-            `Loading Whisper ${modelInfo.label} using WebGPU…`
+            `Loading Whisper ${modelInfo.label} using ${isIOS ? "CPU/WASM" : "WebGPU"}…`
         );
     }
 
     try {
 
         const pipelineOptions = {
-            device: "webgpu"
+            device
         };
+
+        if (isIOS) {
+            pipelineOptions.dtype = "q8";
+        }
 
         if (modelInfo.dtype) {
             pipelineOptions.dtype =
@@ -121,7 +128,7 @@ export async function loadTranscriber(
 
     if (statusCallback) {
         statusCallback(
-            `Whisper ${model} loaded using WebGPU.`
+            `Whisper ${model} loaded using ${device === "webgpu" ? "WebGPU" : "CPU/WASM"}.`
         );
     }
 
