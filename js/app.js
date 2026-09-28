@@ -7,6 +7,9 @@ const sourceDestinationButton =
 const transcriptionDestinationButton =
     document.getElementById("transcriptionDestinationButton");
 
+const transcriptionDestinationSection =
+    document.getElementById("transcriptionDestinationSection");
+
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
 
@@ -47,6 +50,9 @@ const combineFolderDestinationButton =
 
 const combineDestinationButton =
     document.getElementById("combineDestinationButton");
+
+const combineDestinationSection =
+    document.getElementById("combineDestinationSection");
 
 const combineTextButton =
     document.getElementById("combineTextButton");
@@ -300,6 +306,16 @@ async function getParagraphingModule() {
 // Source / destination
 // --------------------------------------------------
 
+function updateDestinationVisibility(isFileInput) {
+    if (transcriptionDestinationSection) {
+        transcriptionDestinationSection.hidden = isFileInput;
+    }
+
+    if (combineDestinationSection) {
+        combineDestinationSection.hidden = isFileInput;
+    }
+}
+
 sourceButton.addEventListener("click", async () => {
 
     try {
@@ -311,6 +327,8 @@ sourceButton.addEventListener("click", async () => {
             await storage.selectFolder();
 
         destinationHandle = null;
+
+        updateDestinationVisibility(sourceHandle.kind === "file-input");
 
         setActiveDestinationButton(null);
 
@@ -1165,6 +1183,8 @@ if (textSourceButton) {
 
                 textSourceHandle =
                     await storage.selectFolder();
+
+                updateDestinationVisibility(textSourceHandle.kind === "file-input");
 
                 const files =
                     await storage.listTextFiles(
