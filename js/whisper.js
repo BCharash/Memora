@@ -44,7 +44,7 @@ async function loadTransformers() {
     }
 
     transformers = await import(
-        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0"
+        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2"
     );
 
     return transformers;
@@ -84,24 +84,15 @@ export async function loadTranscriber(
         );
     }
 
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const device = isIOS ? "wasm" : "webgpu";
-
     if (statusCallback) {
         statusCallback(
-            `Loading Whisper ${modelInfo.label} using ${isIOS ? "CPU/WASM" : "WebGPU"}…`
+            `Loading Whisper ${modelInfo.label}…`
         );
     }
 
     try {
 
-        const pipelineOptions = {
-            device
-        };
-
-        if (isIOS) {
-            pipelineOptions.dtype = "q8";
-        }
+        const pipelineOptions = {};
 
         if (modelInfo.dtype) {
             pipelineOptions.dtype =
@@ -118,8 +109,8 @@ export async function loadTranscriber(
     } catch (error) {
 
         throw new Error(
+            error?.message ||
             `Unable to load Whisper ${modelInfo.label}. ` +
-            `The model may no longer be available or compatible. ` +
             `(${modelInfo.repository})`
         );
     }
@@ -128,7 +119,7 @@ export async function loadTranscriber(
 
     if (statusCallback) {
         statusCallback(
-            `Whisper ${model} loaded using ${device === "webgpu" ? "WebGPU" : "CPU/WASM"}.`
+            `Whisper ${model} loaded.`
         );
     }
 
