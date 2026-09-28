@@ -1,3 +1,5 @@
+import * as storageModule from "./storage.js";
+
 const sourceButton = document.getElementById("sourceButton");
 const destinationButton = document.getElementById("destinationButton");
 const sourceDestinationButton =
@@ -206,15 +208,7 @@ async function getTranscriptionModule() {
 // Storage module
 // --------------------------------------------------
 
-let storageModule = null;
-
-async function getStorageModule() {
-
-    if (!storageModule) {
-        storageModule =
-            await import("./storage.js");
-    }
-
+function getStorageModule() {
     return storageModule;
 }
 
@@ -441,32 +435,7 @@ destinationButton.addEventListener("click", async () => {
         destinationHandle =
             await storage.selectFolder();
 
-        if (destinationHandle?.kind === "file-input") {
-
-    const firstFile =
-        destinationHandle.files?.[0];
-
-    alert(
-        "iPhone destination test\n\n" +
-
-        `kind: ${destinationHandle.kind}\n` +
-        `constructor: ${destinationHandle.constructor?.name}\n` +
-        `name: ${destinationHandle.name}\n` +
-        `files: ${destinationHandle.files?.length ?? 0}\n\n` +
-
-        `first file: ${firstFile?.name ?? "(none)"}\n` +
-        `webkitRelativePath: ` +
-        `${firstFile?.webkitRelativePath ?? "(none)"}\n\n` +
-
-        `resolve: ${typeof destinationHandle.resolve}\n` +
-        `getFileHandle: ` +
-        `${typeof destinationHandle.getFileHandle}\n` +
-        `createWritable: ` +
-        `${typeof destinationHandle.createWritable}`
-    );
-}
-
-        setActiveDestinationButton(
+                setActiveDestinationButton(
             destinationButton
         );
 
