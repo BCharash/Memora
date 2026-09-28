@@ -122,11 +122,18 @@ export async function loadTranscriber(
 
     } catch (error) {
 
-        throw new Error(
-            `Unable to load Whisper ${modelInfo.label}. ` +
-            `The model may no longer be available or compatible. ` +
-            `(${modelInfo.repository})`
-        );
+        const details =
+            error?.stack ||
+            error?.message ||
+            String(error);
+
+        if (statusCallback) {
+            statusCallback(
+                `Whisper ${modelInfo.label} failed to load:\n${details}`
+            );
+        }
+
+        throw new Error(details);
     }
 
     loadedModel = model;
