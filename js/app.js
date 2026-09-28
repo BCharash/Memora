@@ -6,6 +6,12 @@ const transcriptionDestinationButton =
     document.getElementById("transcriptionDestinationButton");
 
 const fileInput = document.getElementById("fileInput");
+const iPhoneFolderTestButton =
+    document.getElementById("iPhoneFolderTestButton");
+const iPhoneFolderInput =
+    document.getElementById("iPhoneFolderInput");
+const iPhoneFolderTestResult =
+    document.getElementById("iPhoneFolderTestResult");
 const recordings = document.getElementById("recordings");
 
 const modelSelect = document.getElementById("modelSelect");
@@ -299,6 +305,54 @@ async function getParagraphingModule() {
     }
 
     return paragraphingModule;
+}
+
+
+// --------------------------------------------------
+// iPhone folder-selection test
+// --------------------------------------------------
+
+if (iPhoneFolderTestButton && iPhoneFolderInput) {
+
+    iPhoneFolderTestButton.addEventListener("click", () => {
+        iPhoneFolderInput.value = "";
+        iPhoneFolderInput.click();
+    });
+
+    iPhoneFolderInput.addEventListener("change", () => {
+
+        const files =
+            Array.from(iPhoneFolderInput.files || []);
+
+        const audioExtensions =
+            /\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
+
+        const audioFiles =
+            files.filter(file =>
+                audioExtensions.test(file.name)
+            );
+
+        if (iPhoneFolderTestResult) {
+
+            if (audioFiles.length === 0) {
+
+                iPhoneFolderTestResult.textContent =
+                    "No audio files were found.";
+
+                return;
+            }
+
+            iPhoneFolderTestResult.innerHTML =
+                `<strong>${audioFiles.length} audio file` +
+                `${audioFiles.length === 1 ? "" : "s"} found:</strong><br>` +
+                audioFiles
+                    .map(file =>
+                        file.webkitRelativePath ||
+                        file.name
+                    )
+                    .join("<br>");
+        }
+    });
 }
 
 
