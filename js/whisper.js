@@ -126,7 +126,7 @@ function createWhisperWorker() {
                         null;
 
                     resolve(
-                        message.result
+                        { text: message.text }
                     );
                 }
 
@@ -379,7 +379,8 @@ export async function transcribeAudio(
                     stride_length_s: 5,
                     ...options
                 }
-            }
+            },
+            [audio.buffer]
         );
 
         return workerTranscriptionPromise.promise;

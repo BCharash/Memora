@@ -89,7 +89,7 @@ self.onmessage = async event => {
 
             self.postMessage({
                 type: "transcription",
-                result
+                text: result.text
             });
 
         } catch (error) {
