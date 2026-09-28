@@ -7,13 +7,14 @@
 
 export async function selectFolder() {
 
-    if (window.showDirectoryPicker) {
-        return window.showDirectoryPicker({
-            mode: "readwrite"
-        });
-    }
+    const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (
+            navigator.platform === "MacIntel" &&
+            navigator.maxTouchPoints > 1
+        );
 
-    if ("webkitdirectory" in document.createElement("input")) {
+    if (isIOS && "webkitdirectory" in document.createElement("input")) {
 
         const input =
             document.getElementById("folderInput");
