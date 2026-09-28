@@ -316,11 +316,7 @@ function updateDestinationVisibility(isFileInput) {
     }
 }
 
-function isIPhone() {
-    return /iPhone|iPod/.test(navigator.userAgent);
-}
-
-updateDestinationVisibility(isIPhone());
+updateDestinationVisibility(true);
 
 sourceButton.addEventListener("click", async () => {
 
