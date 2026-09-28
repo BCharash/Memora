@@ -43,8 +43,14 @@ async function loadTransformers() {
         return transformers;
     }
 
+    const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
     transformers = await import(
-        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2"
+        isIOS
+            ? "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2"
+            : "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0"
     );
 
     return transformers;
@@ -84,15 +90,23 @@ export async function loadTranscriber(
         );
     }
 
+    const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
     if (statusCallback) {
         statusCallback(
-            `Loading Whisper ${modelInfo.label}…`
+            isIOS
+                ? `Loading Whisper ${modelInfo.label} on iPhone/iPad…`
+                : `Loading Whisper ${modelInfo.label} using WebGPU…`
         );
     }
 
     try {
 
-        const pipelineOptions = {};
+        const pipelineOptions = isIOS
+            ? {}
+            : { device: "webgpu" };
 
         if (modelInfo.dtype) {
             pipelineOptions.dtype =
@@ -109,8 +123,8 @@ export async function loadTranscriber(
     } catch (error) {
 
         throw new Error(
-            error?.message ||
             `Unable to load Whisper ${modelInfo.label}. ` +
+            `The model may no longer be available or compatible. ` +
             `(${modelInfo.repository})`
         );
     }
@@ -119,7 +133,9 @@ export async function loadTranscriber(
 
     if (statusCallback) {
         statusCallback(
-            `Whisper ${model} loaded.`
+            isIOS
+                ? `Whisper ${model} loaded on iPhone/iPad.`
+                : `Whisper ${model} loaded using WebGPU.`
         );
     }
 
