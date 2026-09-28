@@ -61,6 +61,127 @@ export async function selectFolder() {
 }
 
 
+const TRANSCRIPT_DB_NAME = "Memora";
+const TRANSCRIPT_DB_VERSION = 1;
+const TRANSCRIPT_STORE_NAME = "transcripts";
+
+function openTranscriptDatabase() {
+    return new Promise((resolve, reject) => {
+        const request =
+            indexedDB.open(
+                TRANSCRIPT_DB_NAME,
+                TRANSCRIPT_DB_VERSION
+            );
+
+        request.onupgradeneeded = () => {
+            const database = request.result;
+
+            if (!database.objectStoreNames.contains(TRANSCRIPT_STORE_NAME)) {
+                database.createObjectStore(
+                    TRANSCRIPT_STORE_NAME,
+                    { keyPath: "filename" }
+                );
+            }
+        };
+
+        request.onsuccess = () => {
+            resolve(request.result);
+        };
+
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+}
+
+
+export async function transcriptExists(filename) {
+    const database =
+        await openTranscriptDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction =
+            database.transaction(
+                TRANSCRIPT_STORE_NAME,
+                "readonly"
+            );
+
+        const store =
+            transaction.objectStore(
+                TRANSCRIPT_STORE_NAME
+            );
+
+        const request =
+            store.getKey(filename);
+
+        request.onsuccess = () => {
+            resolve(request.result !== undefined);
+        };
+
+        request.onerror = () => {
+            reject(request.error);
+        };
+
+        transaction.oncomplete = () => {
+            database.close();
+        };
+
+        transaction.onerror = () => {
+            reject(transaction.error);
+        };
+    });
+}
+
+
+export async function saveTranscriptRecord(
+    filename,
+    transcript,
+    metadata,
+    model,
+    operation
+) {
+    const database =
+        await openTranscriptDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction =
+            database.transaction(
+                TRANSCRIPT_STORE_NAME,
+                "readwrite"
+            );
+
+        const store =
+            transaction.objectStore(
+                TRANSCRIPT_STORE_NAME
+            );
+
+        store.put({
+            filename,
+            transcript,
+            metadata,
+            model,
+            operation,
+            savedAt: new Date()
+        });
+
+        transaction.oncomplete = () => {
+            database.close();
+            resolve();
+        };
+
+        transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+        };
+
+        transaction.onabort = () => {
+            database.close();
+            reject(transaction.error);
+        };
+    });
+}
+
+
 export async function listAudioFiles(directoryHandle) {
 
     const audioExtensions =

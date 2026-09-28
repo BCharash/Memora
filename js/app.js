@@ -930,7 +930,10 @@ transcribeButton.addEventListener(
             return;
         }
 
-        if (!destinationHandle) {
+        const isIPhoneSource =
+            sourceHandle?.kind === "file-input";
+
+        if (!isIPhoneSource && !destinationHandle) {
 
             alert(
                 "Please select a destination folder first."
@@ -955,7 +958,9 @@ transcribeButton.addEventListener(
                 operationSelect?.value || "transcribe";
 
             const transcriptionFolder =
-                destinationHandle;
+                isIPhoneSource
+                    ? null
+                    : destinationHandle;
 
             for (
                 let i = 0;
@@ -1947,6 +1952,31 @@ async function saveTranscript(
     operation
 ) {
 
+    const storage =
+        await getStorageModule();
+
+    if (sourceHandle?.kind === "file-input") {
+
+        const filename =
+            await createUniqueTranscriptFilename(
+                null,
+                file,
+                metadata,
+                model,
+                operation
+            );
+
+        await storage.saveTranscriptRecord(
+            filename,
+            transcript,
+            metadata,
+            model,
+            operation
+        );
+
+        return;
+    }
+
     const filename =
         await createUniqueTranscriptFilename(
             transcriptionFolder,
@@ -1955,9 +1985,6 @@ async function saveTranscript(
             model,
             operation
         );
-
-    const storage =
-        await getStorageModule();
 
     await storage.writeTextFile(
         transcriptionFolder,
@@ -2000,6 +2027,21 @@ async function createUniqueTranscriptFilename(
 
         const storage =
             await getStorageModule();
+
+        if (sourceHandle?.kind === "file-input") {
+
+            if (
+                await storage.transcriptExists(
+                    filename
+                )
+            ) {
+
+                version++;
+                continue;
+            }
+
+            return filename;
+        }
 
         if (
             await storage.fileExists(
