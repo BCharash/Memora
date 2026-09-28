@@ -1,3 +1,5 @@
+import * as storageModule from "./storage.js";
+
 const sourceButton = document.getElementById("sourceButton");
 const destinationButton = document.getElementById("destinationButton");
 const sourceDestinationButton =
@@ -206,15 +208,7 @@ async function getTranscriptionModule() {
 // Storage module
 // --------------------------------------------------
 
-let storageModule = null;
-
-async function getStorageModule() {
-
-    if (!storageModule) {
-        storageModule =
-            await import("./storage.js");
-    }
-
+function getStorageModule() {
     return storageModule;
 }
 
