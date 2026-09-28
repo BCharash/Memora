@@ -379,8 +379,7 @@ export async function transcribeAudio(
                     stride_length_s: 5,
                     ...options
                 }
-            },
-            [audio.buffer]
+            }
         );
 
         return workerTranscriptionPromise.promise;
