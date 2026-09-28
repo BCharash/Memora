@@ -108,7 +108,7 @@ async function updateCombineFolderButton() {
 
     if (!textSourceHandle) {
         combineFolderDestinationButton.textContent =
-            'Create "Combined" Folder';
+            'Create "combined" Folder';
         return;
     }
 
@@ -119,18 +119,18 @@ async function updateCombineFolderButton() {
 
         await storage.getSubfolder(
             textSourceHandle,
-            "Combined",
+            "combined",
             false
         );
 
         combineFolderDestinationButton.textContent =
-            'Use "Combined" Folder';
+            'Use "combined" Folder';
 
     } catch (error) {
 
         if (error.name === "NotFoundError") {
             combineFolderDestinationButton.textContent =
-                'Create "Combined" Folder';
+                'Create "combined" Folder';
         } else {
             console.error(
                 "Unable to check Combined folder:",
@@ -1249,12 +1249,12 @@ if (combineFolderDestinationButton) {
                 combineDestinationHandle =
                     await storage.getSubfolder(
                         textSourceHandle,
-                        "Combined",
+                        "combined",
                         true
                     );
 
                 combineFolderDestinationButton.textContent =
-                    'Use "Combined" Folder';
+                    'Use "combined" Folder';
 
                 setActiveCombineDestinationButton(
                     combineFolderDestinationButton
@@ -1263,7 +1263,7 @@ if (combineFolderDestinationButton) {
             } catch (error) {
 
                 console.error(
-                    "Combined folder error:",
+                    "combined folder error:",
                     error
                 );
 
