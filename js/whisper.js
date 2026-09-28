@@ -273,9 +273,7 @@ export async function loadTranscriber(
                 type: "load",
                 model,
                 repository:
-                    modelInfo.repository,
-                dtype:
-                    modelInfo.dtype || null
+                    modelInfo.repository
             });
 
             await workerLoadPromise.promise;
@@ -370,18 +368,11 @@ export async function transcribeAudio(
                 }
             );
 
-        whisperWorker.postMessage(
-            {
-                type: "transcribe",
-                audioData: audio,
-                options: {
-                    chunk_length_s: 30,
-                    stride_length_s: 5,
-                    ...options
-                }
-            },
-            [audio.buffer]
-        );
+        whisperWorker.postMessage({
+            type: "transcribe",
+            audioData: audio,
+            language: options.language || null
+        });
 
         return workerTranscriptionPromise.promise;
     }

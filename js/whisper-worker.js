@@ -30,18 +30,10 @@ self.onmessage = async event => {
                     `Loading Whisper ${message.model} on iPhone/iPad…`
             });
 
-            const pipelineOptions = {};
-
-            if (message.dtype) {
-                pipelineOptions.dtype =
-                    message.dtype;
-            }
-
             transcriber =
                 await pipeline(
                     "automatic-speech-recognition",
-                    message.repository,
-                    pipelineOptions
+                    message.repository
                 );
 
             loadedModel =
@@ -84,7 +76,12 @@ self.onmessage = async event => {
             const result =
                 await transcriber(
                     message.audioData,
-                    message.options
+                    {
+                        language: message.language,
+                        task: "transcribe",
+                        chunk_length_s: 30,
+                        stride_length_s: 5
+                    }
                 );
 
             self.postMessage({
