@@ -987,6 +987,11 @@ transcribeButton.addEventListener(
                 const transcription =
                     await getTranscriptionModule();
 
+                if (isIPhoneSource) {
+                    transcriptionStatus.textContent =
+                        "Diagnostic: starting Whisper transcription…";
+                }
+
                 const record =
                     await transcription.transcribeRecording(
                         file,
@@ -995,6 +1000,11 @@ transcribeButton.addEventListener(
                         operation,
                         setTranscriptionBusy
                     );
+
+                if (isIPhoneSource) {
+                    transcriptionStatus.textContent =
+                        "Diagnostic: Whisper transcription returned.";
+                }
 
                 let processedTranscript =
                     record.transcript;
