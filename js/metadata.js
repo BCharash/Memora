@@ -114,25 +114,60 @@ function extractVoiceMemoUUID(
             arrayBuffer
         );
 
-    const text =
-        new TextDecoder(
-            "latin1"
-        ).decode(bytes);
-
     const marker =
         "voice-memo-uuid";
 
-    const markerIndex =
-        text.indexOf(marker);
+    const markerBytes =
+        new TextEncoder().encode(
+            marker
+        );
+
+    let markerIndex = -1;
+
+    for (
+        let i = 0;
+        i <= bytes.length - markerBytes.length;
+        i++
+    ) {
+
+        let match = true;
+
+        for (
+            let j = 0;
+            j < markerBytes.length;
+            j++
+        ) {
+
+            if (bytes[i + j] !== markerBytes[j]) {
+                match = false;
+                break;
+            }
+        }
+
+        if (match) {
+            markerIndex = i;
+            break;
+        }
+    }
 
     if (markerIndex === -1) {
         return null;
     }
 
+    const searchEnd =
+        Math.min(
+            bytes.length,
+            markerIndex + markerBytes.length + 200
+        );
+
     const searchArea =
-        text.slice(
-            markerIndex,
-            markerIndex + 200
+        new TextDecoder(
+            "latin1"
+        ).decode(
+            bytes.subarray(
+                markerIndex,
+                searchEnd
+            )
         );
 
     const uuidMatch =
