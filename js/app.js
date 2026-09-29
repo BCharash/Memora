@@ -13,12 +13,8 @@ const desktopTranscriptionDestinationOptions =
     document.getElementById("desktopTranscriptionDestinationOptions");
 const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
-const iphoneDestinationButton =
-    document.getElementById("iphoneDestinationButton");
 const iphoneExportButton =
     document.getElementById("iphoneExportButton");
-const iphoneDestinationStatus =
-    document.getElementById("iphoneDestinationStatus");
 
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
@@ -85,7 +81,6 @@ const combineParagraphingCheckbox =
 let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
-let iphoneDestinationSelected = false;
 let pendingIPhoneExports = [];
 
 let textSourceHandle = null;
@@ -324,11 +319,15 @@ function updateDestinationVisibility(isFileInput) {
     }
 
     if (desktopTranscriptionDestinationOptions) {
-        desktopTranscriptionDestinationOptions.hidden = isFileInput;
+        desktopTranscriptionDestinationOptions.hidden = false;
+        desktopTranscriptionDestinationOptions.style.display =
+            isFileInput ? "none" : "flex";
     }
 
     if (iphoneTranscriptionDestinationOptions) {
-        iphoneTranscriptionDestinationOptions.hidden = !isFileInput;
+        iphoneTranscriptionDestinationOptions.hidden = false;
+        iphoneTranscriptionDestinationOptions.style.display =
+            isFileInput ? "flex" : "none";
     }
 
     if (combineDestinationSection) {
@@ -351,24 +350,12 @@ sourceButton.addEventListener("click", async () => {
             await storage.selectFolder();
 
         destinationHandle = null;
-        iphoneDestinationSelected = false;
         pendingIPhoneExports = [];
 
         updateIPhoneExportButton(true);
         updateDestinationVisibility(sourceHandle.kind === "file-input");
 
         setActiveDestinationButton(null);
-
-        if (iphoneDestinationButton) {
-            iphoneDestinationButton.textContent =
-                "Select iPhone Files as Destination";
-            iphoneDestinationButton.classList.remove("active");
-        }
-
-        if (iphoneDestinationStatus) {
-            iphoneDestinationStatus.textContent =
-                "Choose this destination before transcription. iOS will ask for the actual Files location when you save the completed batch.";
-        }
 
         const files =
             await storage.listAudioFiles(
@@ -419,24 +406,6 @@ sourceButton.addEventListener("click", async () => {
 });
 
 
-if (iphoneDestinationButton) {
-    iphoneDestinationButton.addEventListener("click", () => {
-        if (sourceHandle?.kind !== "file-input") {
-            return;
-        }
-
-        iphoneDestinationSelected = true;
-
-        iphoneDestinationButton.textContent =
-            "Destination: iPhone Files";
-        iphoneDestinationButton.classList.add("active");
-
-        if (iphoneDestinationStatus) {
-            iphoneDestinationStatus.textContent =
-                "Ready. Completed transcripts will be prepared for one Files save operation after transcription.";
-        }
-    });
-}
 
 if (iphoneExportButton) {
     iphoneExportButton.addEventListener("click", exportIPhoneTranscripts);
@@ -514,6 +483,9 @@ destinationButton.addEventListener("click", async () => {
 
         destinationHandle =
             await storage.selectFolder();
+
+        destinationButton.textContent =
+            `Use "${destinationHandle.name}"`;
 
         setActiveDestinationButton(
             destinationButton
@@ -1002,14 +974,6 @@ transcribeButton.addEventListener(
             return;
         }
 
-        if (isIPhoneSource && !iphoneDestinationSelected) {
-
-            alert(
-                "Please select iPhone Files as the destination first."
-            );
-
-            return;
-        }
 
         try {
 
@@ -1134,10 +1098,6 @@ transcribeButton.addEventListener(
 
             if (isIPhoneSource) {
                 updateIPhoneExportButton(true);
-                if (iphoneDestinationStatus && pendingIPhoneExports.length > 0) {
-                    iphoneDestinationStatus.textContent =
-                        `${pendingIPhoneExports.length} transcript${pendingIPhoneExports.length === 1 ? "" : "s"} ready to save to Files.`;
-                }
             }
 
         } catch (error) {
@@ -1154,10 +1114,6 @@ transcribeButton.addEventListener(
 
             if (isIPhoneSource && pendingIPhoneExports.length > 0) {
                 updateIPhoneExportButton(true);
-                if (iphoneDestinationStatus) {
-                    iphoneDestinationStatus.textContent =
-                        `${pendingIPhoneExports.length} completed transcript${pendingIPhoneExports.length === 1 ? "" : "s"} ready to save to Files.`;
-                }
             }
 
         } finally {
@@ -2143,10 +2099,6 @@ async function exportIPhoneTranscripts() {
     try {
         await navigator.share(shareData);
 
-        if (iphoneDestinationStatus) {
-            iphoneDestinationStatus.textContent =
-                `${pendingIPhoneExports.length} transcript${pendingIPhoneExports.length === 1 ? "" : "s"} sent to the iOS share sheet.`;
-        }
 
     } catch (error) {
         if (error.name !== "AbortError") {
