@@ -25,7 +25,7 @@ export async function transcribeRecording(
     const metadata =
         await readAudioMetadata(file);
 
-    let audio =
+    const audio =
         await decodeAudio(file);
 
     await loadTranscriber(
@@ -54,16 +54,11 @@ export async function transcribeRecording(
         );
     }
 
-    const transcriptionPromise =
-        transcribeAudio(
+    const result =
+        await transcribeAudio(
             audio,
             whisperOptions
         );
-
-    audio = null;
-
-    const result =
-        await transcriptionPromise;
 
     return {
         file,
