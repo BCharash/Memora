@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 3  
+**Version:** 4  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -1509,7 +1509,333 @@ Do not embed audio into generated HTML merely to accommodate an unproven iPhone 
 
 The relative-path metadata remains part of the durable transcript design. Future iPhone work should first determine whether a different delivery mechanism—rather than embedded audio—is able to provide reliable playback before revisiting this decision.
 
-# 27. Journal Update Policy
+
+---
+
+# 28. Latest Development Milestone: Metadata Stability and Resource Reduction
+
+The metadata reader was optimized after iPhone stability testing revealed that the original implementation was unnecessarily memory-intensive.
+
+## 28.1 Problem observed during iPhone transcription
+
+The original metadata workflow loaded the entire MP4/M4A file into memory and then created a full-file decoded text representation in order to search for the Apple Voice Memo UUID.
+
+This was especially significant on iPhone because Memora was already loading and processing substantial audio/model resources. The full-file text conversion created another potentially large memory allocation even though only a small amount of metadata was required.
+
+During the broader iPhone stability investigation, several transcription crashes were observed. A controlled metadata experiment that removed the full-file `TextDecoder` step produced a major improvement: batches containing multiple recordings of roughly 1.5–2 minutes and a single recording of approximately 15 minutes completed successfully, including optional paragraphing.
+
+The result did not prove that metadata processing was the only source of instability, but it provided strong evidence that unnecessary whole-file memory allocation was contributing materially to resource pressure.
+
+## 28.2 Direct byte search instead of full-file text decoding
+
+The Voice Memo UUID is now located without converting the entire file into a JavaScript string.
+
+The optimized approach:
+
+1. Reads the MP4/M4A structure needed for metadata.
+2. Uses MP4 box/header information to locate the relevant metadata fields.
+3. Searches bounded byte ranges directly for the Voice Memo UUID pattern.
+4. Avoids creating a full decoded text copy of the complete recording.
+
+This preserves the required metadata while substantially reducing temporary memory pressure.
+
+## 28.3 Bounded MP4/M4A metadata reading
+
+The metadata reader was subsequently taken further so that it no longer needs to treat the complete audio file as one large metadata buffer.
+
+The implementation reads the required MP4/M4A box/header information, including the movie-header information used for duration/timescale, and examines only bounded regions where the required metadata is expected.
+
+The design goal is now:
+
+> Read only the bytes needed to answer the metadata question.
+
+This is preferable to reading and decoding a complete recording simply to obtain a small amount of embedded metadata.
+
+## 28.4 Cross-device testing
+
+The optimized metadata reader was tested with real iPhone recordings and with a Samsung recording.
+
+The resulting behavior was reported as working correctly on both the user's Windows PC and iPhone under a range of test conditions.
+
+The metadata milestone is therefore considered complete for the current architecture.
+
+## 28.5 Architectural consequence
+
+Metadata extraction is now treated as a resource-sensitive operation rather than merely a parsing problem.
+
+This reinforces a broader Memora principle:
+
+- avoid whole-file conversions when a bounded read can provide the same information;
+- minimize temporary duplicate representations of large recordings;
+- preserve the metadata model while reducing the memory cost of obtaining it.
+
+This change was deliberately confined to `metadata.js`; the higher-level transcription architecture did not need to change.
+
+---
+
+# 29. Latest Development Milestone: iPhone File-System and Save Workflow
+
+The iPhone file-writing work established a practical browser-based output strategy without requiring Safari to provide a writable destination directory handle.
+
+## 29.1 The platform constraint
+
+Desktop Memora can use the File System Access API to select a directory and write files directly into it.
+
+iPhone Safari does not provide the same general-purpose writable directory workflow. A desktop-style destination-folder abstraction therefore cannot simply be copied to iPhone.
+
+The design decision was to keep the core transcription/storage concepts platform-independent while using an iPhone-specific input/output mechanism.
+
+## 29.2 Selected iPhone strategy
+
+The chosen strategy is:
+
+1. Select recordings through the iPhone file-input workflow.
+2. Transcribe them normally.
+3. Store each completed transcript in Memora's IndexedDB safety layer.
+4. Keep the completed transcript files in an in-memory export queue.
+5. After the batch is complete, use the iOS share sheet to let the user choose the actual Files destination.
+6. Save the shared transcript files through **Share → Save to Files**.
+
+The user therefore chooses the physical Files location only when the completed batch is ready to be saved.
+
+This avoids pretending that Memora has a writable iPhone folder handle when it does not.
+
+## 29.3 IndexedDB as a safety/recovery layer
+
+The iPhone workflow does not depend solely on the share sheet.
+
+Each completed transcript is first saved through `storage.saveTranscriptRecord()` into the existing Memora IndexedDB store.
+
+The conceptual separation is therefore:
+
+    transcription
+        ↓
+    durable IndexedDB transcript record
+        ↓
+    iPhone export file
+        ↓
+    Share → Save to Files
+
+The browser-side stored record acts as a safety layer during the batch. The user does not have to keep the Files save dialog open while transcription is occurring.
+
+Audio itself is not stored in IndexedDB as part of this workflow.
+
+## 29.4 iPhone destination UI
+
+The iPhone Destination area was initially implemented with a separate **Select iPhone Files as Destination** button. Testing showed that this did not actually select a folder; it only established an application state.
+
+The workflow was subsequently simplified.
+
+For a source selected through the iPhone file-input path:
+
+- the desktop destination choices are hidden;
+- the iPhone output controls are shown automatically;
+- no separate destination-selection button is required;
+- the actual Files location is selected only when the user saves the completed batch.
+
+This keeps the interface aligned with what the destination control actually does.
+
+## 29.5 File naming and duplicate handling
+
+The existing transcript naming convention remains in effect on iPhone.
+
+The filename incorporates:
+
+- recording date when available;
+- original recording filename;
+- Whisper model;
+- `-eng` when the operation is translation.
+
+Because the iPhone transcript is initially stored in IndexedDB rather than written into a selected directory, uniqueness is checked against the IndexedDB transcript records.
+
+This permits multiple versions of a recording to coexist when different models or operations are used.
+
+## 29.6 Export batch state
+
+The iPhone workflow introduced the concept of a **pending export batch**.
+
+`pendingIPhoneExports` represents the transcript files that have been completed in the current batch and are waiting to be saved through the iOS share sheet.
+
+The intended state progression is:
+
+    no pending transcripts
+        ↓
+    Save 0 Transcripts to Files
+
+    transcription completes
+        ↓
+    Save N Transcripts to Files
+
+    successful Files save
+        ↓
+    N Transcripts Saved
+
+The completed export queue is then cleared so the same transcripts are not offered again automatically.
+
+The current implementation also resets this state when the model changes or when a new source is selected.
+
+A final refinement remains: the same reset behavior should apply when the effective selected recording set or the paragraphing choice changes. The desired rule is that merely toggling a file off and back on should not invalidate the batch if the final selection is identical; only an actual change to the effective recording set should do so.
+
+## 29.7 Removal of the unwanted extra text file
+
+An iPhone-specific problem was identified in which an additional text file containing:
+
+    Memora transcripts
+
+was created during the share operation.
+
+The cause was the `title: "Memora transcripts"` property supplied to `navigator.share()`.
+
+The share call was changed to provide the transcript files without that title.
+
+Testing then confirmed that the unwanted extra `.txt` file no longer appeared.
+
+This is an important example of keeping the browser-generated export payload minimal: the share operation should contain the files that are intended to be saved, not additional metadata that can be interpreted as an exportable document by the receiving interface.
+
+## 29.8 Desktop destination behavior remains separate
+
+The desktop workflow remains based on actual directory handles and direct file writing.
+
+The three desktop transcription destinations remain:
+
+- Use Source Folder
+- Create/use `transcription` Subfolder
+- Browse for Another Folder
+
+When the user browses to an unrelated destination, the button now changes from:
+
+    Browse for Another Folder
+
+to:
+
+    Use "Folder Name"
+
+This makes the current selected destination visible in the control itself.
+
+The desktop file-writing mechanism was not replaced by the iPhone share mechanism.
+
+## 29.9 Why the two workflows should remain separate
+
+The current design deliberately treats iPhone output as a different storage/UI implementation rather than forcing the entire application to use a lowest-common-denominator file API.
+
+Conceptually:
+
+    Desktop:
+    directory handle
+        ↓
+    direct file write
+
+    iPhone:
+    IndexedDB safety record
+        ↓
+    in-memory export File objects
+        ↓
+    iOS share sheet
+        ↓
+    Save to Files
+
+The transcription, metadata, naming, and transcript-format layers remain shared.
+
+The platform difference is isolated to input/output behavior.
+
+---
+
+# 30. Stability Lessons from the iPhone Transcription Investigation
+
+The metadata optimization and file-system work occurred within a broader effort to make long-running iPhone transcription practical.
+
+Several lessons are now considered part of the design record.
+
+## 30.1 Avoid unnecessary large object creation
+
+The strongest confirmed stability improvement came from eliminating the full-file `TextDecoder` allocation in metadata processing.
+
+This supports treating memory allocation patterns as part of the application's platform design, particularly on iPhone.
+
+## 30.2 Keep heavy processing separated
+
+Whisper processing uses a worker on iPhone. Audio is converted to the format required by Whisper rather than passing browser-specific audio objects through the worker.
+
+Optional paragraphing remains a separate lazy-loaded operation.
+
+The metadata reader is likewise separated from transcription and now minimizes the amount of data it materializes.
+
+## 30.3 Test changes independently
+
+Several iPhone stability experiments demonstrated that combining unrelated changes made it difficult to identify the cause of a crash or regression.
+
+The development procedure therefore remains:
+
+1. establish a known working baseline;
+2. change one architectural or behavioral area;
+3. test it on both relevant platforms;
+4. keep the change only when the observed behavior supports it.
+
+This procedure is now considered especially important for iPhone work, where browser/resource behavior can be sensitive to the current WebKit process state.
+
+## 30.4 Do not infer platform limitations too quickly
+
+The iPhone experiments showed that failures were sometimes intermittent and depended on the current resource state.
+
+For example, Tiny, Base, and Small models did not behave as though there were one simple fixed audio-duration limit. Short recordings could sometimes succeed while another run failed, and later clean runs could succeed again.
+
+Similarly, iPhone translation was eventually demonstrated successfully with Small using Auto-detect and Translate in a multi-file batch.
+
+The design conclusion is to distinguish:
+
+- confirmed architectural limitations;
+- observed resource pressure;
+- intermittent browser/process behavior;
+- and features that are actually unsupported.
+
+This avoids unnecessarily redesigning the application based on one failure.
+
+---
+
+# 31. Current iPhone File/Folder Model
+
+The intended physical organization remains conceptually:
+
+    audio/
+    transcription/
+    combined/
+
+On desktop, Memora can calculate an `Audio Relative Path` because it has directory handles for the source and destination.
+
+On iPhone, the browser file-input workflow does not establish the same persistent directory relationship. Consequently, newly generated iPhone transcript files do not currently carry a reliable `Audio Relative Path`.
+
+This is intentional rather than an error.
+
+A later Combine Files investigation may attempt to infer the conventional relationship from the physical folder structure used by the user, but that implementation must first verify that the corresponding audio file actually exists before exposing any audio control.
+
+The original audio filename remains the reliable correspondence key.
+
+This iPhone Combine experiment is deferred and should not be allowed to complicate the current transcription/save workflow.
+
+---
+
+# 32. Current Status After Today's Work
+
+The metadata optimization is considered stable and complete for the present architecture.
+
+The iPhone file-output milestone has also established a working browser workflow:
+
+- select multiple recordings through the iPhone file-input mechanism;
+- extract metadata;
+- transcribe;
+- optionally paragraphize;
+- persist completed transcript records in IndexedDB;
+- prepare transcript `File` objects;
+- save the completed batch through the iOS share sheet and Save to Files;
+- avoid creation of the previously observed extra title-derived text file.
+
+The remaining iPhone refinement is the export-batch state model described above: the UI should distinguish a newly generated pending batch from a successfully saved batch and should invalidate that pending state whenever the effective inputs change.
+
+The desktop and iPhone storage approaches remain intentionally different while sharing the same core transcription/data architecture.
+
+The next work should continue incrementally, with the current working iPhone save path treated as the baseline.
+
+# 33. Journal Update Policy
 
 This document is a living design journal.
 
