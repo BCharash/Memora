@@ -15,6 +15,8 @@ const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
 const iphoneExportButton =
     document.getElementById("iphoneExportButton");
+const iphoneExportStatus =
+    document.getElementById("iphoneExportStatus");
 
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
@@ -350,9 +352,8 @@ sourceButton.addEventListener("click", async () => {
             await storage.selectFolder();
 
         destinationHandle = null;
-        pendingIPhoneExports = [];
 
-        updateIPhoneExportButton(true);
+        resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind === "file-input");
 
         setActiveDestinationButton(null);
@@ -934,6 +935,14 @@ if (languageSelect) {
 
 // Establish the correct initial state when Memora loads.
 updateOperationAvailability();
+
+// Changing the model invalidates any completed-but-not-yet-saved
+// iPhone transcript batch. A new model must start a new save batch.
+if (modelSelect) {
+    modelSelect.addEventListener("change", () => {
+        resetIPhoneExportState();
+    });
+}
 
 // Keep the button text synchronized if the user changes
 // the operation for a language where it is enabled.
@@ -2070,6 +2079,36 @@ function updateIPhoneExportButton(forceEnable = false) {
 }
 
 
+function resetIPhoneExportState() {
+    pendingIPhoneExports = [];
+
+    if (iphoneExportButton) {
+        iphoneExportButton.disabled = true;
+        iphoneExportButton.textContent = "Save 0 Transcripts to Files";
+    }
+
+    if (iphoneExportStatus) {
+        iphoneExportStatus.textContent = "No transcripts saved.";
+    }
+}
+
+
+function setIPhoneExportSavedStatus(count) {
+    pendingIPhoneExports = [];
+
+    if (iphoneExportButton) {
+        iphoneExportButton.disabled = true;
+        iphoneExportButton.textContent =
+            `${count} Transcript${count === 1 ? "" : "s"} Saved`;
+    }
+
+    if (iphoneExportStatus) {
+        iphoneExportStatus.textContent =
+            `${count} transcript${count === 1 ? "" : "s"} saved`;
+    }
+}
+
+
 async function exportIPhoneTranscripts() {
     if (pendingIPhoneExports.length === 0) {
         return;
@@ -2083,7 +2122,6 @@ async function exportIPhoneTranscripts() {
     }
 
     const shareData = {
-        title: "Memora transcripts",
         files: pendingIPhoneExports
     };
 
@@ -2097,8 +2135,11 @@ async function exportIPhoneTranscripts() {
     }
 
     try {
+        const savedCount = pendingIPhoneExports.length;
+
         await navigator.share(shareData);
 
+        setIPhoneExportSavedStatus(savedCount);
 
     } catch (error) {
         if (error.name !== "AbortError") {
