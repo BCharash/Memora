@@ -9,6 +9,16 @@ const transcriptionDestinationButton =
 
 const transcriptionDestinationSection =
     document.getElementById("transcriptionDestinationSection");
+const desktopTranscriptionDestinationOptions =
+    document.getElementById("desktopTranscriptionDestinationOptions");
+const iphoneTranscriptionDestinationOptions =
+    document.getElementById("iphoneTranscriptionDestinationOptions");
+const iphoneDestinationButton =
+    document.getElementById("iphoneDestinationButton");
+const iphoneExportButton =
+    document.getElementById("iphoneExportButton");
+const iphoneDestinationStatus =
+    document.getElementById("iphoneDestinationStatus");
 
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
@@ -75,6 +85,8 @@ const combineParagraphingCheckbox =
 let sourceHandle = null;
 let destinationHandle = null;
 let selectedFiles = [];
+let iphoneDestinationSelected = false;
+let pendingIPhoneExports = [];
 
 let textSourceHandle = null;
 let combineDestinationHandle = null;
@@ -308,7 +320,15 @@ async function getParagraphingModule() {
 
 function updateDestinationVisibility(isFileInput) {
     if (transcriptionDestinationSection) {
-        transcriptionDestinationSection.hidden = isFileInput;
+        transcriptionDestinationSection.hidden = false;
+    }
+
+    if (desktopTranscriptionDestinationOptions) {
+        desktopTranscriptionDestinationOptions.hidden = isFileInput;
+    }
+
+    if (iphoneTranscriptionDestinationOptions) {
+        iphoneTranscriptionDestinationOptions.hidden = !isFileInput;
     }
 
     if (combineDestinationSection) {
@@ -316,7 +336,9 @@ function updateDestinationVisibility(isFileInput) {
     }
 }
 
-updateDestinationVisibility(true);
+if (transcriptionDestinationSection) {
+    transcriptionDestinationSection.hidden = true;
+}
 
 sourceButton.addEventListener("click", async () => {
 
@@ -329,10 +351,24 @@ sourceButton.addEventListener("click", async () => {
             await storage.selectFolder();
 
         destinationHandle = null;
+        iphoneDestinationSelected = false;
+        pendingIPhoneExports = [];
 
+        updateIPhoneExportButton(true);
         updateDestinationVisibility(sourceHandle.kind === "file-input");
 
         setActiveDestinationButton(null);
+
+        if (iphoneDestinationButton) {
+            iphoneDestinationButton.textContent =
+                "Select iPhone Files as Destination";
+            iphoneDestinationButton.classList.remove("active");
+        }
+
+        if (iphoneDestinationStatus) {
+            iphoneDestinationStatus.textContent =
+                "Choose this destination before transcription. iOS will ask for the actual Files location when you save the completed batch.";
+        }
 
         const files =
             await storage.listAudioFiles(
@@ -381,6 +417,30 @@ sourceButton.addEventListener("click", async () => {
         }
     }
 });
+
+
+if (iphoneDestinationButton) {
+    iphoneDestinationButton.addEventListener("click", () => {
+        if (sourceHandle?.kind !== "file-input") {
+            return;
+        }
+
+        iphoneDestinationSelected = true;
+
+        iphoneDestinationButton.textContent =
+            "Destination: iPhone Files";
+        iphoneDestinationButton.classList.add("active");
+
+        if (iphoneDestinationStatus) {
+            iphoneDestinationStatus.textContent =
+                "Ready. Completed transcripts will be prepared for one Files save operation after transcription.";
+        }
+    });
+}
+
+if (iphoneExportButton) {
+    iphoneExportButton.addEventListener("click", exportIPhoneTranscripts);
+}
 
 
 sourceDestinationButton.addEventListener("click", () => {
@@ -942,6 +1002,15 @@ transcribeButton.addEventListener(
             return;
         }
 
+        if (isIPhoneSource && !iphoneDestinationSelected) {
+
+            alert(
+                "Please select iPhone Files as the destination first."
+            );
+
+            return;
+        }
+
         try {
 
             transcribeButton.disabled = true;
@@ -961,6 +1030,11 @@ transcribeButton.addEventListener(
                 isIPhoneSource
                     ? null
                     : destinationHandle;
+
+            if (isIPhoneSource && iphoneExportButton) {
+                iphoneExportButton.disabled = true;
+                updateIPhoneExportButton();
+            }
 
             for (
                 let i = 0;
@@ -1027,14 +1101,26 @@ transcribeButton.addEventListener(
                         transcriptionAudioPath
                     );
 
-                await saveTranscript(
-                    transcriptionFolder,
-                    record.file,
-                    record.metadata,
-                    transcript,
-                    record.model,
-                    operation
-                );
+                const savedFilename =
+                    await saveTranscript(
+                        transcriptionFolder,
+                        record.file,
+                        record.metadata,
+                        transcript,
+                        record.model,
+                        operation
+                    );
+
+                if (isIPhoneSource) {
+                    pendingIPhoneExports.push(
+                        new File(
+                            [transcript],
+                            savedFilename,
+                            { type: "text/plain" }
+                        )
+                    );
+                    updateIPhoneExportButton();
+                }
 
                 appendTranscription(
                     record.file,
@@ -1045,6 +1131,14 @@ transcribeButton.addEventListener(
             setTranscriptionComplete(
                 "Transcription complete."
             );
+
+            if (isIPhoneSource) {
+                updateIPhoneExportButton(true);
+                if (iphoneDestinationStatus && pendingIPhoneExports.length > 0) {
+                    iphoneDestinationStatus.textContent =
+                        `${pendingIPhoneExports.length} transcript${pendingIPhoneExports.length === 1 ? "" : "s"} ready to save to Files.`;
+                }
+            }
 
         } catch (error) {
 
@@ -1057,6 +1151,14 @@ transcribeButton.addEventListener(
                 error.message ||
                 String(error)
             );
+
+            if (isIPhoneSource && pendingIPhoneExports.length > 0) {
+                updateIPhoneExportButton(true);
+                if (iphoneDestinationStatus) {
+                    iphoneDestinationStatus.textContent =
+                        `${pendingIPhoneExports.length} completed transcript${pendingIPhoneExports.length === 1 ? "" : "s"} ready to save to Files.`;
+                }
+            }
 
         } finally {
 
@@ -1974,7 +2076,7 @@ async function saveTranscript(
             operation
         );
 
-        return;
+        return filename;
     }
 
     const filename =
@@ -1991,6 +2093,72 @@ async function saveTranscript(
         filename,
         transcript
     );
+
+    return filename;
+}
+
+
+function updateIPhoneExportButton(forceEnable = false) {
+    if (!iphoneExportButton) {
+        return;
+    }
+
+    const count = pendingIPhoneExports.length;
+
+    iphoneExportButton.textContent =
+        `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
+
+    if (forceEnable) {
+        iphoneExportButton.disabled = count === 0;
+    }
+}
+
+
+async function exportIPhoneTranscripts() {
+    if (pendingIPhoneExports.length === 0) {
+        return;
+    }
+
+    if (!navigator.share) {
+        alert(
+            "This iPhone browser cannot share files to the Files app."
+        );
+        return;
+    }
+
+    const shareData = {
+        title: "Memora transcripts",
+        files: pendingIPhoneExports
+    };
+
+    if (navigator.canShare && !navigator.canShare({
+        files: pendingIPhoneExports
+    })) {
+        alert(
+            "These transcript files cannot be shared from this browser."
+        );
+        return;
+    }
+
+    try {
+        await navigator.share(shareData);
+
+        if (iphoneDestinationStatus) {
+            iphoneDestinationStatus.textContent =
+                `${pendingIPhoneExports.length} transcript${pendingIPhoneExports.length === 1 ? "" : "s"} sent to the iOS share sheet.`;
+        }
+
+    } catch (error) {
+        if (error.name !== "AbortError") {
+            console.error(
+                "iPhone transcript export error:",
+                error
+            );
+            alert(
+                "Unable to save the transcripts to Files."
+            );
+        }
+    }
 }
 
 
