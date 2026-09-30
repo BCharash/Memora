@@ -344,6 +344,20 @@ function updateDestinationVisibility(isFileInput) {
         combineDestinationSection.hidden = isFileInput;
     }
 
+    // The three desktop Combine output buttons are direct-write actions.
+    // On iPhone they are replaced by the single format-specific share button.
+    if (combineTextButton) {
+        combineTextButton.hidden = isFileInput;
+    }
+
+    if (combineDOCXButton) {
+        combineDOCXButton.hidden = isFileInput;
+    }
+
+    if (combineHTMLButton) {
+        combineHTMLButton.hidden = isFileInput;
+    }
+
     if (iphoneCombineDestinationOptions) {
         iphoneCombineDestinationOptions.hidden = !isFileInput;
         iphoneCombineDestinationOptions.style.display =
@@ -1283,9 +1297,13 @@ if (textSourceButton) {
                 updateDestinationVisibility(textSourceHandle.kind === "file-input");
 
                 const files =
-                    await storage.listTextFiles(
-                        textSourceHandle
-                    );
+                    textSourceHandle.kind === "file-input"
+                        ? textSourceHandle.files.filter(
+                            file => /\.txt$/i.test(file.name)
+                        )
+                        : await storage.listTextFiles(
+                            textSourceHandle
+                        );
 
                 selectedTranscriptFiles =
                     files;
