@@ -15,6 +15,8 @@ const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
 const iphoneExportButton =
     document.getElementById("iphoneExportButton");
+const iphoneExportStatus =
+    document.getElementById("iphoneExportStatus");
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
 
@@ -2092,16 +2094,23 @@ function resetIPhoneExportState() {
         iphoneExportButton.textContent = "Save 0 Transcripts to Files";
     }
 
+    if (iphoneExportStatus) {
+        iphoneExportStatus.textContent = "No transcripts saved yet.";
+    }
+
 }
 
 
 function setIPhoneExportSavedStatus(count) {
-    pendingIPhoneExports = [];
-
     if (iphoneExportButton) {
-        iphoneExportButton.disabled = true;
+        iphoneExportButton.disabled = count === 0;
         iphoneExportButton.textContent =
-            `${count} Transcript${count === 1 ? "" : "s"} Saved`;
+            `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
+    }
+
+    if (iphoneExportStatus) {
+        iphoneExportStatus.textContent =
+            `${count} Transcript${count === 1 ? "" : "s"} saved`;
     }
 
 }
