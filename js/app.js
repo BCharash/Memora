@@ -344,20 +344,6 @@ function updateDestinationVisibility(isFileInput) {
         combineDestinationSection.hidden = isFileInput;
     }
 
-    // The three desktop Combine output buttons are direct-write actions.
-    // On iPhone they are replaced by the single format-specific share button.
-    if (combineTextButton) {
-        combineTextButton.hidden = isFileInput;
-    }
-
-    if (combineDOCXButton) {
-        combineDOCXButton.hidden = isFileInput;
-    }
-
-    if (combineHTMLButton) {
-        combineHTMLButton.hidden = isFileInput;
-    }
-
     if (iphoneCombineDestinationOptions) {
         iphoneCombineDestinationOptions.hidden = !isFileInput;
         iphoneCombineDestinationOptions.style.display =
@@ -1297,13 +1283,9 @@ if (textSourceButton) {
                 updateDestinationVisibility(textSourceHandle.kind === "file-input");
 
                 const files =
-                    textSourceHandle.kind === "file-input"
-                        ? textSourceHandle.files.filter(
-                            file => /\.txt$/i.test(file.name)
-                        )
-                        : await storage.listTextFiles(
-                            textSourceHandle
-                        );
+                    await storage.listTextFiles(
+                        textSourceHandle
+                    );
 
                 selectedTranscriptFiles =
                     files;
@@ -1317,6 +1299,10 @@ if (textSourceButton) {
                 await displayTranscriptFiles(
                     files
                 );
+
+                if (textSourceHandle.kind === "file-input") {
+                    updateIPhoneCombineButton(true);
+                }
 
                 textSourceButton.textContent =
                     `Text Source: ${textSourceHandle.name}`;
@@ -1700,8 +1686,11 @@ function updateIPhoneCombineButton(forceEnable = false) {
         `Save ${getIPhoneCombineFormatLabel()} to Files`;
 
     if (forceEnable) {
+        const hasSelectedTranscripts =
+            getSelectedTranscriptFiles().length > 0;
+
         iphoneCombineExportButton.disabled =
-            pendingIPhoneCombineExport === null;
+            !hasSelectedTranscripts;
     }
 }
 
@@ -1710,9 +1699,14 @@ function resetIPhoneCombineExportState() {
     pendingIPhoneCombineExport = null;
 
     if (iphoneCombineExportButton) {
-        iphoneCombineExportButton.disabled = true;
         iphoneCombineExportButton.textContent =
             `Save ${getIPhoneCombineFormatLabel()} to Files`;
+
+        const hasSelectedTranscripts =
+            getSelectedTranscriptFiles().length > 0;
+
+        iphoneCombineExportButton.disabled =
+            !hasSelectedTranscripts;
     }
 
     if (iphoneCombineExportStatus) {
