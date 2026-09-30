@@ -15,9 +15,6 @@ const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
 const iphoneExportButton =
     document.getElementById("iphoneExportButton");
-const iphoneExportStatus =
-    document.getElementById("iphoneExportStatus");
-
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
 
@@ -944,6 +941,14 @@ if (modelSelect) {
     });
 }
 
+// Changing paragraphing changes the transcript that will be produced.
+// A new iPhone save batch must therefore start from zero.
+if (paragraphingCheckbox) {
+    paragraphingCheckbox.addEventListener("change", () => {
+        resetIPhoneExportState();
+    });
+}
+
 // Keep the button text synchronized if the user changes
 // the operation for a language where it is enabled.
 if (operationSelect && transcribeButton) {
@@ -983,6 +988,11 @@ transcribeButton.addEventListener(
             return;
         }
 
+        // Pressing Transcribe Selected defines a new iPhone export batch
+        // using the recordings selected at that moment.
+        if (isIPhoneSource) {
+            resetIPhoneExportState();
+        }
 
         try {
 
@@ -1003,11 +1013,6 @@ transcribeButton.addEventListener(
                 isIPhoneSource
                     ? null
                     : destinationHandle;
-
-            if (isIPhoneSource && iphoneExportButton) {
-                iphoneExportButton.disabled = true;
-                updateIPhoneExportButton();
-            }
 
             for (
                 let i = 0;
@@ -2087,9 +2092,6 @@ function resetIPhoneExportState() {
         iphoneExportButton.textContent = "Save 0 Transcripts to Files";
     }
 
-    if (iphoneExportStatus) {
-        iphoneExportStatus.textContent = "No transcripts saved.";
-    }
 }
 
 
@@ -2102,10 +2104,6 @@ function setIPhoneExportSavedStatus(count) {
             `${count} Transcript${count === 1 ? "" : "s"} Saved`;
     }
 
-    if (iphoneExportStatus) {
-        iphoneExportStatus.textContent =
-            `${count} transcript${count === 1 ? "" : "s"} saved`;
-    }
 }
 
 
