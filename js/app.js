@@ -2169,6 +2169,13 @@ async function createUniqueTranscriptFilename(
             operation
         );
 
+    // On iPhone, the actual Files destination is chosen later through
+    // the iOS share sheet, so Memora must not perform its own filename
+    // collision/version tracking.
+    if (sourceHandle?.kind === "file-input") {
+        return baseFilename;
+    }
+
     const extension = ".txt";
     const stem =
         baseFilename.endsWith(extension)
@@ -2186,21 +2193,6 @@ async function createUniqueTranscriptFilename(
 
         const storage =
             await getStorageModule();
-
-        if (sourceHandle?.kind === "file-input") {
-
-            if (
-                await storage.transcriptExists(
-                    filename
-                )
-            ) {
-
-                version++;
-                continue;
-            }
-
-            return filename;
-        }
 
         if (
             await storage.fileExists(
