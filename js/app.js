@@ -1691,7 +1691,29 @@ function getIPhoneCombineFormatLabel() {
 }
 
 
-function updateIPhoneCombineButton(forceEnable = false) {
+function hasIPhoneCombineSelection() {
+    if (textSourceHandle?.kind !== "file-input") {
+        return false;
+    }
+
+    const checkboxes =
+        Array.from(
+            document.querySelectorAll(
+                "#transcripts .recording-checkbox"
+            )
+        );
+
+    if (checkboxes.length > 0) {
+        return checkboxes.some(
+            checkbox => checkbox.checked
+        );
+    }
+
+    return selectedTranscriptFiles.length > 0;
+}
+
+
+function updateIPhoneCombineButton() {
     if (!iphoneCombineExportButton) {
         return;
     }
@@ -1699,10 +1721,8 @@ function updateIPhoneCombineButton(forceEnable = false) {
     iphoneCombineExportButton.textContent =
         `Save ${getIPhoneCombineFormatLabel()} to Files`;
 
-    if (forceEnable) {
-        iphoneCombineExportButton.disabled =
-            pendingIPhoneCombineExport === null;
-    }
+    iphoneCombineExportButton.disabled =
+        !hasIPhoneCombineSelection();
 }
 
 
@@ -1710,9 +1730,10 @@ function resetIPhoneCombineExportState() {
     pendingIPhoneCombineExport = null;
 
     if (iphoneCombineExportButton) {
-        iphoneCombineExportButton.disabled = true;
         iphoneCombineExportButton.textContent =
             `Save ${getIPhoneCombineFormatLabel()} to Files`;
+        iphoneCombineExportButton.disabled =
+            !hasIPhoneCombineSelection();
     }
 
     if (iphoneCombineExportStatus) {
