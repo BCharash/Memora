@@ -19,6 +19,8 @@ const iphoneExportStatus =
     document.getElementById("iphoneExportStatus");
 const fileInput = document.getElementById("fileInput");
 const recordings = document.getElementById("recordings");
+const recordingCollapseBottom =
+    document.getElementById("recordingCollapseBottom");
 
 const modelSelect = document.getElementById("modelSelect");
 const languageSelect = document.getElementById("languageSelect");
@@ -48,6 +50,8 @@ const textSourceButton =
 
 const transcripts =
     document.getElementById("transcripts");
+const transcriptCollapseBottom =
+    document.getElementById("transcriptCollapseBottom");
 
 const combineSourceDestinationButton =
     document.getElementById("combineSourceDestinationButton");
@@ -568,6 +572,11 @@ async function displayFiles(files) {
 
     recordings.innerHTML = "";
 
+    if (recordingCollapseBottom) {
+        recordingCollapseBottom.innerHTML = "";
+        recordingCollapseBottom.hidden = files.length === 0;
+    }
+
     const controls =
         document.createElement("div");
 
@@ -624,8 +633,6 @@ async function displayFiles(files) {
     controls.appendChild(sortLabel);
     controls.appendChild(sortSelect);
 
-    recordings.appendChild(controls);
-
     const selectAllRow =
         document.createElement("div");
 
@@ -657,9 +664,112 @@ async function displayFiles(files) {
         selectAllLabel
     );
 
-    recordings.appendChild(
-        selectAllRow
+    const collapseCheckboxTop =
+        document.createElement("input");
+
+    collapseCheckboxTop.type = "checkbox";
+    collapseCheckboxTop.id =
+        "collapseAllRecordingsTop";
+
+    const collapseLabelTop =
+        document.createElement("label");
+
+    collapseLabelTop.htmlFor =
+        "collapseAllRecordingsTop";
+    collapseLabelTop.textContent =
+        "Collapse all";
+
+    const collapseControlTop =
+        document.createElement("span");
+
+    collapseControlTop.className =
+        "selection-action";
+
+    collapseControlTop.appendChild(
+        collapseCheckboxTop
     );
+
+    collapseControlTop.appendChild(
+        collapseLabelTop
+    );
+
+    selectAllRow.appendChild(
+        collapseControlTop
+    );
+
+    let recordingListItems = null;
+    let recordingsCollapsed = false;
+
+    const collapseCheckboxBottom =
+        document.createElement("input");
+
+    collapseCheckboxBottom.type = "checkbox";
+    collapseCheckboxBottom.id =
+        "collapseAllRecordingsBottom";
+
+    const collapseLabelBottom =
+        document.createElement("label");
+
+    collapseLabelBottom.htmlFor =
+        "collapseAllRecordingsBottom";
+    collapseLabelBottom.textContent =
+        "Collapse all";
+
+    const collapseControlBottom =
+        document.createElement("div");
+
+    collapseControlBottom.className =
+        "selection-action selection-action-bottom";
+
+    collapseControlBottom.appendChild(
+        collapseCheckboxBottom
+    );
+
+    collapseControlBottom.appendChild(
+        collapseLabelBottom
+    );
+
+    if (recordingCollapseBottom) {
+        const lowerSeparator =
+            document.createElement("div");
+
+        lowerSeparator.className =
+            "selection-double-separator";
+
+        recordingCollapseBottom.appendChild(
+            lowerSeparator
+        );
+
+        recordingCollapseBottom.appendChild(
+            collapseControlBottom
+        );
+    }
+
+    function updateRecordingCollapseUI() {
+
+        const label =
+            recordingsCollapsed
+                ? "Expand all"
+                : "Collapse all";
+
+        collapseLabelTop.textContent = label;
+        collapseLabelBottom.textContent = label;
+
+        collapseCheckboxTop.checked = false;
+        collapseCheckboxBottom.checked = false;
+
+        if (recordingListItems) {
+            recordingListItems.hidden = recordingsCollapsed;
+        }
+    }
+
+    function toggleRecordingCollapse() {
+        recordingsCollapsed = !recordingsCollapsed;
+        updateRecordingCollapseUI();
+    }
+
+    collapseCheckboxTop.onchange = toggleRecordingCollapse;
+    collapseCheckboxBottom.onchange = toggleRecordingCollapse;
 
     for (const file of files) {
 
@@ -789,15 +899,11 @@ async function displayFiles(files) {
                 sortSelect.value
             );
 
-        recordings.innerHTML = "";
+        recordingListItems =
+            document.createElement("div");
 
-        recordings.appendChild(
-            controls
-        );
-
-        recordings.appendChild(
-            selectAllRow
-        );
+        recordingListItems.className =
+            "recording-list-items";
 
         const recordingCheckboxes = [];
 
@@ -885,8 +991,32 @@ async function displayFiles(files) {
             item.appendChild(checkbox);
             item.appendChild(content);
 
-            recordings.appendChild(item);
+            recordingListItems.appendChild(item);
         }
+
+        recordings.innerHTML = "";
+
+        recordings.appendChild(
+            controls
+        );
+
+        recordings.appendChild(
+            selectAllRow
+        );
+
+        const upperSeparator =
+            document.createElement("div");
+
+        upperSeparator.className =
+            "selection-double-separator";
+
+        recordings.appendChild(
+            upperSeparator
+        );
+
+        recordings.appendChild(
+            recordingListItems
+        );
 
         selectAllCheckbox.checked =
             recordingCheckboxes.length > 0 &&
@@ -900,7 +1030,6 @@ async function displayFiles(files) {
 
                 recordingCheckboxes.forEach(
                     checkbox => {
-
                         checkbox.checked =
                             selectAllCheckbox.checked;
                     }
@@ -915,12 +1044,14 @@ async function displayFiles(files) {
 
                         selectAllCheckbox.checked =
                             recordingCheckboxes.every(
-                                checkbox =>
-                                    checkbox.checked
+                                item =>
+                                    item.checked
                             );
                     };
             }
         );
+
+        updateRecordingCollapseUI();
     }
 
     renderSortedEntries();
@@ -931,6 +1062,7 @@ async function displayFiles(files) {
     );
 }
 
+
 function showEmptyMessage() {
 
     recordings.innerHTML = `
@@ -938,6 +1070,11 @@ function showEmptyMessage() {
             No recordings selected.
         </p>
     `;
+
+    if (recordingCollapseBottom) {
+        recordingCollapseBottom.innerHTML = "";
+        recordingCollapseBottom.hidden = true;
+    }
 
     selectedFiles = [];
 }
@@ -1475,6 +1612,11 @@ async function displayTranscriptFiles(files) {
 
     transcripts.innerHTML = "";
 
+    if (transcriptCollapseBottom) {
+        transcriptCollapseBottom.innerHTML = "";
+        transcriptCollapseBottom.hidden = files.length === 0;
+    }
+
     if (files.length === 0) {
 
         transcripts.innerHTML = `
@@ -1573,6 +1715,113 @@ async function displayTranscriptFiles(files) {
         selectAllLabel
     );
 
+    const collapseCheckboxTop =
+        document.createElement("input");
+
+    collapseCheckboxTop.type = "checkbox";
+    collapseCheckboxTop.id =
+        "collapseAllTranscriptsTop";
+
+    const collapseLabelTop =
+        document.createElement("label");
+
+    collapseLabelTop.htmlFor =
+        "collapseAllTranscriptsTop";
+    collapseLabelTop.textContent =
+        "Collapse all";
+
+    const collapseControlTop =
+        document.createElement("span");
+
+    collapseControlTop.className =
+        "selection-action";
+
+    collapseControlTop.appendChild(
+        collapseCheckboxTop
+    );
+
+    collapseControlTop.appendChild(
+        collapseLabelTop
+    );
+
+    selectAllRow.appendChild(
+        collapseControlTop
+    );
+
+    let transcriptListItems = null;
+    let transcriptsCollapsed = false;
+
+    const collapseCheckboxBottom =
+        document.createElement("input");
+
+    collapseCheckboxBottom.type = "checkbox";
+    collapseCheckboxBottom.id =
+        "collapseAllTranscriptsBottom";
+
+    const collapseLabelBottom =
+        document.createElement("label");
+
+    collapseLabelBottom.htmlFor =
+        "collapseAllTranscriptsBottom";
+    collapseLabelBottom.textContent =
+        "Collapse all";
+
+    const collapseControlBottom =
+        document.createElement("div");
+
+    collapseControlBottom.className =
+        "selection-action selection-action-bottom";
+
+    collapseControlBottom.appendChild(
+        collapseCheckboxBottom
+    );
+
+    collapseControlBottom.appendChild(
+        collapseLabelBottom
+    );
+
+    if (transcriptCollapseBottom) {
+        const lowerSeparator =
+            document.createElement("div");
+
+        lowerSeparator.className =
+            "selection-double-separator";
+
+        transcriptCollapseBottom.appendChild(
+            lowerSeparator
+        );
+
+        transcriptCollapseBottom.appendChild(
+            collapseControlBottom
+        );
+    }
+
+    function updateTranscriptCollapseUI() {
+
+        const label =
+            transcriptsCollapsed
+                ? "Expand all"
+                : "Collapse all";
+
+        collapseLabelTop.textContent = label;
+        collapseLabelBottom.textContent = label;
+
+        collapseCheckboxTop.checked = false;
+        collapseCheckboxBottom.checked = false;
+
+        if (transcriptListItems) {
+            transcriptListItems.hidden = transcriptsCollapsed;
+        }
+    }
+
+    function toggleTranscriptCollapse() {
+        transcriptsCollapsed = !transcriptsCollapsed;
+        updateTranscriptCollapseUI();
+    }
+
+    collapseCheckboxTop.onchange = toggleTranscriptCollapse;
+    collapseCheckboxBottom.onchange = toggleTranscriptCollapse;
+
     async function render(sortOrder) {
 
         combineSortOrder = sortOrder;
@@ -1594,95 +1843,117 @@ async function displayTranscriptFiles(files) {
                 sortOrder
             );
 
+        transcriptListItems =
+            document.createElement("div");
+
+        transcriptListItems.className =
+            "recording-list-items";
+
+        const checkboxes = [];
+
+        for (const record of sorted) {
+
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "recording-item";
+
+            const checkbox =
+                document.createElement("input");
+
+            checkbox.type = "checkbox";
+            checkbox.checked = true;
+            checkbox.className =
+                "recording-checkbox";
+            checkbox.dataset.filename =
+                record.filename;
+
+            checkboxes.push(
+                checkbox
+            );
+
+            const content =
+                document.createElement("div");
+
+            content.className =
+                "recording-content";
+
+            const name =
+                document.createElement("div");
+
+            name.className =
+                "recording-name";
+
+            name.textContent =
+                record.filename;
+
+            content.appendChild(name);
+
+            item.appendChild(checkbox);
+            item.appendChild(content);
+
+            transcriptListItems.appendChild(item);
+        }
+
         transcripts.innerHTML = "";
 
         transcripts.appendChild(
             controls
         );
 
-                transcripts.appendChild(
-                    selectAllRow
-                );
+        transcripts.appendChild(
+            selectAllRow
+        );
 
-                const checkboxes = [];
+        const upperSeparator =
+            document.createElement("div");
 
-                for (const record of sorted) {
+        upperSeparator.className =
+            "selection-double-separator";
 
-                    const item =
-                        document.createElement("div");
+        transcripts.appendChild(
+            upperSeparator
+        );
 
-                    item.className =
-                        "recording-item";
+        transcripts.appendChild(
+            transcriptListItems
+        );
 
-                    const checkbox =
-                        document.createElement("input");
+        selectAllCheckbox.checked =
+            checkboxes.length > 0;
 
-                    checkbox.type = "checkbox";
-                    checkbox.checked = true;
-                    checkbox.className =
-                        "recording-checkbox";
-                    checkbox.dataset.filename =
-                        record.filename;
-
-                    checkboxes.push(
-                        checkbox
-                    );
-
-                    const content =
-                        document.createElement("div");
-
-                    content.className =
-                        "recording-content";
-
-                    const name =
-                        document.createElement("div");
-
-                    name.className =
-                        "recording-name";
-
-                    name.textContent =
-                        record.filename;
-
-                    content.appendChild(name);
-
-                    item.appendChild(checkbox);
-                    item.appendChild(content);
-
-                    transcripts.appendChild(item);
-                }
-
-                selectAllCheckbox.checked =
-                    checkboxes.length > 0;
-
-                selectAllCheckbox.onchange =
-                    () => {
-
-                        checkboxes.forEach(
-                            checkbox => {
-                                checkbox.checked =
-                                    selectAllCheckbox.checked;
-                            }
-                        );
-
-                        resetIPhoneCombineExportState();
-                    };
+        selectAllCheckbox.onchange =
+            () => {
 
                 checkboxes.forEach(
                     checkbox => {
-
-                        checkbox.onchange =
-                            () => {
-
-                                selectAllCheckbox.checked =
-                                    checkboxes.every(
-                                        item =>
-                                            item.checked
-                                    );
-
-                                resetIPhoneCombineExportState();
-                            };
+                        checkbox.checked =
+                            selectAllCheckbox.checked;
                     }
                 );
+
+                resetIPhoneCombineExportState();
+            };
+
+        checkboxes.forEach(
+            checkbox => {
+
+                checkbox.onchange =
+                    () => {
+
+                        selectAllCheckbox.checked =
+                            checkboxes.every(
+                                item =>
+                                    item.checked
+                            );
+
+                        resetIPhoneCombineExportState();
+                    };
+            }
+        );
+
+        updateTranscriptCollapseUI();
     }
 
     render("date-desc");

@@ -272,17 +272,42 @@ button:disabled {
 .recording-select-all {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding-bottom: 14px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--border);
+    gap: 18px;
     font-size: 14px;
     font-weight: 500;
 }
 
-.recording-select-all input {
+.recording-select-all > label,
+.selection-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recording-select-all input,
+.selection-action input {
     width: 18px;
     height: 18px;
+    margin: 0;
+}
+
+.selection-double-separator {
+    height: 8px;
+    margin: 12px 0 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.recording-list-items {
+    margin-top: 0;
+}
+
+.recording-collapse-bottom {
+    margin-top: 12px;
+}
+
+.recording-collapse-bottom .selection-action {
+    min-height: 18px;
 }
 
 .recording-checkbox {
