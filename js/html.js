@@ -339,8 +339,7 @@ export function createCombinedHTML(
                             audio.dataset.src;
 
                         const candidates =
-                            sourcePath.includes("/") ||
-                            sourcePath.includes("\\")
+                            sourcePath.includes("/")
                                 ? [sourcePath]
                                 : [
                                     sourcePath,
