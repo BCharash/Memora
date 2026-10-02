@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 4  
+**Version:** 5  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -1646,35 +1646,43 @@ The filename incorporates:
 - Whisper model;
 - `-eng` when the operation is translation.
 
-Because the iPhone transcript is initially stored in IndexedDB rather than written into a selected directory, uniqueness is checked against the IndexedDB transcript records.
+On iPhone, Memora does not try to determine whether the eventual Files destination already contains a file with the same name. The actual physical destination is chosen later through the iOS share sheet, so filename conflict handling is left to the Files workflow rather than duplicated inside Memora.
 
-This permits multiple versions of a recording to coexist when different models or operations are used.
+This keeps the iPhone implementation faithful to the actual platform workflow: Memora creates the intended filename, and iOS Files handles the physical save.
 
-## 29.6 Export batch state
+## 29.6 Final iPhone transcript export-batch behavior
 
-The iPhone workflow introduced the concept of a **pending export batch**.
+The iPhone workflow uses an in-memory `pendingIPhoneExports` queue for transcripts completed in the current transcription batch.
 
-`pendingIPhoneExports` represents the transcript files that have been completed in the current batch and are waiting to be saved through the iOS share sheet.
+The state progression is:
 
-The intended state progression is:
-
-    no pending transcripts
+    new transcription batch
         ↓
-    Save 0 Transcripts to Files
+    no pending export files
 
-    transcription completes
+    each transcript completes
+        ↓
+    transcript saved to IndexedDB
+        ↓
+    File object added to pendingIPhoneExports
+
+    batch completes
         ↓
     Save N Transcripts to Files
 
-    successful Files save
+    user taps Save
         ↓
-    N Transcripts Saved
+    iOS share sheet
+        ↓
+    Share → Save to Files
 
-The completed export queue is then cleared so the same transcripts are not offered again automatically.
+After a successful share, the generated `File` objects remain available in the current batch. The Save button therefore remains usable for another share operation, rather than being disabled or clearing the queue immediately. This allows the same completed batch to be saved again to another Files location if needed.
 
-The current implementation also resets this state when the model changes or when a new source is selected.
+The status line records the completed share, while the button continues to identify the operation as saving the current batch.
 
-A final refinement remains: the same reset behavior should apply when the effective selected recording set or the paragraphing choice changes. The desired rule is that merely toggling a file off and back on should not invalidate the batch if the final selection is identical; only an actual change to the effective recording set should do so.
+Starting a new transcription batch resets the pending export queue. Changing the Whisper model or the paragraphing choice also resets the pending export state because those choices change the resulting transcript files.
+
+The browser's IndexedDB transcript record remains separate from the physical Files copy. IndexedDB acts as a browser-side safety/recovery layer; the Files copy is the user's durable external archive.
 
 ## 29.7 Removal of the unwanted extra text file
 
@@ -1792,50 +1800,133 @@ This avoids unnecessarily redesigning the application based on one failure.
 
 ---
 
-# 31. Current iPhone File/Folder Model
+# 31. Current iPhone File/Folder and Audio Metadata Model
 
-The intended physical organization remains conceptually:
+The physical organization remains conceptually:
 
     audio/
     transcription/
     combined/
 
-On desktop, Memora can calculate an `Audio Relative Path` because it has directory handles for the source and destination.
+The important change is that Memora now uses the existing **Audio Relative Path:** metadata field for both desktop and iPhone, but the value has a deliberately different meaning on the two platforms.
 
-On iPhone, the browser file-input workflow does not establish the same persistent directory relationship. Consequently, newly generated iPhone transcript files do not currently carry a reliable `Audio Relative Path`.
+## 31.1 Desktop transcription metadata
 
-This is intentional rather than an error.
+On desktop, Memora has directory handles for the audio source and transcription destination. It therefore calculates the genuine relative path from the individual transcript file to the original recording.
 
-A later Combine Files investigation may attempt to infer the conventional relationship from the physical folder structure used by the user, but that implementation must first verify that the corresponding audio file actually exists before exposing any audio control.
+Examples include:
 
-The original audio filename remains the reliable correspondence key.
+    Audio Relative Path: ../recording.m4a
 
-This iPhone Combine experiment is deferred and should not be allowed to complicate the current transcription/save workflow.
+or, depending on the destination hierarchy:
 
----
+    Audio Relative Path: ../../recording.m4a
+
+The value is an actual relative filesystem path, not merely the recording filename.
+
+## 31.2 iPhone transcription metadata
+
+The iPhone file-input workflow does not establish the same persistent directory relationship between the selected audio and the later Files destination. Memora therefore does not invent a relative folder path.
+
+Instead, newly generated iPhone transcripts store:
+
+    Audio Relative Path: recording.m4a
+
+In the iPhone case, the field is therefore a filename reference to the original recording rather than a calculated directory traversal.
+
+This keeps one common metadata field across both platforms while preserving the important distinction between:
+
+- a genuine desktop-relative path;
+- an iPhone filename reference.
+
+No second `Audio Filename:` field is required.
+
+## 31.3 Why the iPhone filename reference is useful
+
+The original audio filename is the stable correspondence key available to the iPhone workflow.
+
+When users organize their Files folders into a conventional hierarchy, the filename can be resolved by the generated HTML without requiring Memora to have known the eventual destination during transcription.
+
+The design also keeps the audio external. Memora does not copy or embed the M4A into each transcript or combined HTML document.
+
+## 31.4 Backward compatibility with older transcripts
+
+Older transcript files created before the iPhone `Audio Relative Path:` field was added may have no audio-path metadata at all.
+
+This is not a format-breaking condition.
+
+The HTML generator uses the audio-relative-path value when present, but falls back to the transcript's original recording filename when it is absent:
+
+    record.audioRelativePath || record.recordingFilename
+
+Consequently, an older transcript can still produce a working audio control on desktop when the original recording can be reached by the generated filename-based relative search.
+
+A tested older iPhone transcript with no `Audio Relative Path:` field was therefore still able to generate HTML whose audio played successfully on the PC. This confirms that adding the metadata field improved explicit path information without making older transcript files unusable.
+
+## 31.5 HTML path handling
+
+The generated HTML carries the chosen audio reference in a `data-src` attribute rather than immediately assigning it to the `<audio>` element.
+
+For a transcript with an explicit relative path, the stored path is tried first.
+
+For a filename-only reference, the generated HTML can try the filename relative to the HTML document and then parent/grandparent locations:
+
+    recording.m4a
+    ../recording.m4a
+    ../../recording.m4a
+
+This allows an iPhone-produced transcript whose audio reference is only the filename to work naturally when the HTML and audio are arranged in the expected nearby folder structure.
+
+On desktop, when Combine Files has a genuine `Audio Relative Path:` and a known relationship between the Text Source and combined-output folder, `app.js` adds the required prefix for the combined HTML's location. Thus the HTML receives the path appropriate to where that combined document actually resides.
+
+## 31.6 iPhone combined HTML
+
+For iPhone Combine Files, there is no destination folder handle from which Memora can calculate a new path prefix. The existing `Audio Relative Path:` value carried by the transcript record is therefore passed directly into the HTML generator.
+
+This is appropriate for the iPhone filename-based reference because the physical placement of the eventual HTML file is chosen through **Share → Save to Files**.
+
+The HTML generator itself remains platform-independent; only the path information available to it differs.
+
+This architecture avoids coupling HTML generation to either desktop directory handles or iPhone share-sheet behavior.
 
 # 32. Current Status After Today's Work
 
-The metadata optimization is considered stable and complete for the present architecture.
+The current Memora architecture now has a tested desktop and iPhone workflow for transcription and Combine Files.
 
-The iPhone file-output milestone has also established a working browser workflow:
+The current iPhone workflow supports:
 
-- select multiple recordings through the iPhone file-input mechanism;
-- extract metadata;
-- transcribe;
-- optionally paragraphize;
-- persist completed transcript records in IndexedDB;
-- prepare transcript `File` objects;
-- save the completed batch through the iOS share sheet and Save to Files;
-- avoid creation of the previously observed extra title-derived text file.
+- selecting multiple recordings through the iPhone file-input mechanism;
+- extracting available recording metadata;
+- local Whisper transcription;
+- optional semantic paragraphing;
+- storing completed transcript records in IndexedDB;
+- preserving the original audio filename in the `Audio Relative Path:` metadata field;
+- preparing transcript `File` objects for export;
+- saving a completed transcript batch through the iOS share sheet and **Save to Files**;
+- repeatedly sharing the same completed transcript batch during the current batch state;
+- generating a single selected Combine Files output format (TXT, DOCX, or HTML) in memory;
+- sharing that combined file through the iOS share sheet;
+- changing the selected Combine format, title, paragraphing choice, or effective transcript selection and thereby returning the iPhone combine export state to a fresh pending state.
 
-The remaining iPhone refinement is the export-batch state model described above: the UI should distinguish a newly generated pending batch from a successfully saved batch and should invalidate that pending state whenever the effective inputs change.
+The current audio-association architecture supports:
 
-The desktop and iPhone storage approaches remain intentionally different while sharing the same core transcription/data architecture.
+- genuine desktop-relative audio paths in individual transcript metadata;
+- filename-based audio references in iPhone-generated transcripts;
+- propagation of audio references from individual transcripts into Combine Files structured records;
+- adjustment of genuine desktop-relative paths when a combined HTML file is created deeper in the source hierarchy;
+- filename fallback for older transcripts that lack an `Audio Relative Path:` field;
+- external audio playback without embedding the original audio into the HTML.
 
-The next work should continue incrementally, with the current working iPhone save path treated as the baseline.
+The standalone generated HTML continues to use the previously established progressive-enhancement design for text-size controls and touch-oriented audio behavior.
+
+The current desktop and iPhone storage approaches remain intentionally different while sharing the same transcription/data architecture.
+
+The collapse/expand controls added to the recording and transcript lists are a UI usability refinement rather than an architectural milestone. They are therefore not treated as a separate architectural section in this journal.
+
+The next development should continue incrementally, with the current transcription, iPhone save, Combine Files, and audio-association behavior treated as the working baseline.
 
 # 33. Journal Update Policy
+
 
 This document is a living design journal.
 
@@ -1849,3 +1940,136 @@ When a significant architectural or workflow decision is made, it should be adde
 At major milestones, the version/status at the top of this document should be updated.
 
 The final version should provide a coherent record of how Memora evolved, not merely a list of code changes.
+
+---
+
+# 34. Latest Development Milestone: Final iPhone Combine Save and Unified Audio Reference
+
+The iPhone Combine Files workflow is now considered functionally complete for the current browser architecture.
+
+## 34.1 One selected output format
+
+The iPhone interface presents a single format selector:
+
+- TXT
+- DOCX
+- HTML
+
+The user chooses one format and presses the corresponding **Save … to Files** action.
+
+Memora generates only that selected combined file in memory and passes it to the iOS share sheet.
+
+The core Combine Files processing remains shared with desktop:
+
+    selected transcript files
+        ↓
+    read transcript records
+        ↓
+    sort records
+        ↓
+    select highest-model records
+        ↓
+    optional paragraphing
+        ↓
+    output generator
+
+Only the final storage/output mechanism differs.
+
+## 34.2 Share-sheet output instead of a destination folder
+
+On desktop, the combined file is written directly through a selected directory handle.
+
+On iPhone, the browser does not receive an equivalent writable destination directory handle for this workflow. The selected combined output is therefore represented as a browser `File` object and passed to:
+
+    navigator.share({
+        files: [file]
+    })
+
+The physical destination is chosen by the user through the iOS share sheet and **Save to Files**.
+
+The share payload deliberately contains the intended file itself and does not include a separate share title that could be interpreted by the receiving interface as another file.
+
+## 34.3 Repeatable iPhone Combine sharing
+
+The generated combined file remains in `pendingIPhoneCombineExport` after a successful share.
+
+This was chosen deliberately so that a user can save the same combined document again without regenerating it.
+
+The status line reports the completed share, while the button remains associated with the current output file.
+
+The pending combined output is reset when the effective output changes, including:
+
+- format;
+- combined title;
+- paragraphing choice;
+- selected transcript set;
+- sorting changes that cause the processed record set to be regenerated.
+
+This establishes a simple rule: the button represents the currently generated combined output, and a material change to that output starts a new pending state.
+
+## 34.4 Unified audio metadata field
+
+The `Audio Relative Path:` field is now the common audio-reference field for both platforms.
+
+Its semantics are intentionally platform-aware:
+
+    Desktop:
+    Audio Relative Path: ../recording.m4a
+
+    iPhone:
+    Audio Relative Path: recording.m4a
+
+The desktop value represents a genuine relative filesystem path determined from directory handles.
+
+The iPhone value represents the original audio filename because the eventual Files destination is not known when the transcript is created.
+
+This design avoids proliferating platform-specific metadata fields while still preserving the information actually available on each platform.
+
+## 34.5 HTML generation from the common record
+
+Combine Files reads `Audio Relative Path:` into the structured transcript record.
+
+For desktop combined HTML, the application can add an additional relative prefix based on the relationship between the Text Source folder and the combined-output folder.
+
+For iPhone combined HTML, the existing reference is passed directly because the eventual output location is selected later through Files.
+
+The HTML renderer itself remains unaware of whether a record originated on desktop or iPhone.
+
+It receives an audio reference and creates a deferred audio control around that reference.
+
+The generated standalone HTML therefore remains portable at the presentation layer.
+
+## 34.6 Fallback for legacy transcripts
+
+A transcript created before the iPhone filename metadata was introduced may contain no:
+
+    Audio Relative Path:
+
+field.
+
+Such a transcript is still usable because the HTML generator falls back to the original recording filename.
+
+This makes the metadata change backward-compatible at the HTML layer.
+
+The observed result is important: an older iPhone-generated transcript without the new metadata field was combined into HTML and the corresponding recording still played successfully on the PC. The newer metadata is therefore an explicit improvement in provenance/path information, not a requirement for historical transcript files to remain usable.
+
+## 34.7 Design conclusion
+
+The final architecture keeps three concerns separate:
+
+    transcript metadata
+        ↓
+    structured record
+        ↓
+    HTML rendering
+
+The transcript records the audio reference that Memora actually knows.
+
+Combine Files preserves that information.
+
+The HTML generator resolves it according to the location context available at generation time.
+
+This avoids embedding the original audio, avoids requiring iPhone to simulate a desktop filesystem, and retains compatibility with older transcript files.
+
+The current iPhone Combine implementation and unified audio-reference model are now part of the working baseline.
+
