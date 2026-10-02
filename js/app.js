@@ -1691,7 +1691,7 @@ function getIPhoneCombineFormatLabel() {
 }
 
 
-function updateIPhoneCombineButton(forceEnable = false) {
+function updateIPhoneCombineButton() {
     if (!iphoneCombineExportButton) {
         return;
     }
@@ -1699,10 +1699,8 @@ function updateIPhoneCombineButton(forceEnable = false) {
     iphoneCombineExportButton.textContent =
         `Save ${getIPhoneCombineFormatLabel()} to Files`;
 
-    if (forceEnable) {
-        iphoneCombineExportButton.disabled =
-            pendingIPhoneCombineExport === null;
-    }
+    iphoneCombineExportButton.disabled =
+        selectedTranscriptFiles.length === 0;
 }
 
 
@@ -1710,7 +1708,8 @@ function resetIPhoneCombineExportState() {
     pendingIPhoneCombineExport = null;
 
     if (iphoneCombineExportButton) {
-        iphoneCombineExportButton.disabled = true;
+        iphoneCombineExportButton.disabled =
+            selectedTranscriptFiles.length === 0;
         iphoneCombineExportButton.textContent =
             `Save ${getIPhoneCombineFormatLabel()} to Files`;
     }
