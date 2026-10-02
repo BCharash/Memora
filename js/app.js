@@ -369,6 +369,25 @@ if (transcriptionDestinationSection) {
     transcriptionDestinationSection.hidden = true;
 }
 
+// Keep Combine output controls hidden until a text source is selected.
+// The source selection will reveal the appropriate desktop or iPhone controls.
+if (combineTextButton) {
+    combineTextButton.hidden = true;
+}
+
+if (combineDOCXButton) {
+    combineDOCXButton.hidden = true;
+}
+
+if (combineHTMLButton) {
+    combineHTMLButton.hidden = true;
+}
+
+if (iphoneCombineDestinationOptions) {
+    iphoneCombineDestinationOptions.hidden = true;
+    iphoneCombineDestinationOptions.style.display = "none";
+}
+
 sourceButton.addEventListener("click", async () => {
 
     try {
