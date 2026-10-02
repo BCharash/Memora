@@ -313,60 +313,67 @@ export function createCombinedHTML(
             textSizeValue.textContent = \`\${textSize.value}px\`;
         });
 
-        const audioIsDesktop =
-            window.matchMedia(
-                "(pointer: fine) and (hover: hover)"
-            ).matches;
+        document
+            .querySelectorAll(".audio-control")
+            .forEach(control => {
+                const button =
+                    control.querySelector(".audio-play-button");
 
-        if (audioIsDesktop) {
-            document
-                .querySelectorAll(".audio-control")
-                .forEach(control => {
-                    const button =
-                        control.querySelector(".audio-play-button");
+                const audio =
+                    control.querySelector(".audio-player");
 
-                    const audio =
-                        control.querySelector(".audio-player");
+                if (!button || !audio) {
+                    return;
+                }
 
-                    if (!button || !audio) {
-                        return;
+                control.classList.add("audio-enabled");
+
+                button.addEventListener("click", async () => {
+                    const storedPath =
+                        audio.dataset.src || "";
+
+                    const recordingFilename =
+                        audio.dataset.filename || "";
+
+                    const candidates = [];
+
+                    if (storedPath) {
+                        candidates.push(storedPath);
                     }
 
-                    control.classList.add("audio-enabled");
+                    if (recordingFilename) {
+                        candidates.push(recordingFilename);
+                        candidates.push("../" + recordingFilename);
+                        candidates.push("../../" + recordingFilename);
+                    }
 
-                    button.addEventListener("click", async () => {
-                        const sourcePath =
-                            audio.dataset.src;
+                    const uniqueCandidates =
+                        [...new Set(candidates)];
 
-                        const candidates =
-                            sourcePath.includes("/")
-                                ? [sourcePath]
-                                : [
-                                    sourcePath,
-                                    "../" + sourcePath,
-                                    "../../" + sourcePath
-                                ];
+                    audio.controls = true;
+                    control.classList.add("active");
 
-                        control.classList.add("active");
-                        audio.controls = true;
+                    for (const candidate of uniqueCandidates) {
+                        audio.pause();
+                        audio.removeAttribute("src");
+                        audio.load();
 
-                        for (const candidate of candidates) {
-                            audio.src = candidate;
+                        audio.src = candidate;
 
-                            try {
-                                await audio.play();
-                                return;
-                            } catch (error) {
-                                audio.pause();
-                                audio.controls = false;
-                                audio.removeAttribute("src");
-                            }
+                        try {
+                            await audio.play();
+                            return;
+                        } catch (error) {
+                            audio.pause();
+                            audio.removeAttribute("src");
+                            audio.load();
                         }
+                    }
 
-                        control.classList.remove("active");
-                    });
+                    control.classList.remove("active");
+                    audio.controls = false;
                 });
-        }
+            });
     </script>
 </body>
 </html>`;
@@ -451,7 +458,9 @@ function createAudioControl(record) {
             <audio
                 class="audio-player"
                 preload="metadata"
+                controls
                 data-src="${safePath}"
+                data-filename="${escapeHTML(record.recordingFilename || "")}"
             ></audio>
         </div>
     `;
