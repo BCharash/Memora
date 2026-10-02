@@ -284,6 +284,11 @@ button:disabled {
     gap: 8px;
 }
 
+.selection-action {
+    font-size: 14px;
+    font-weight: 400;
+}
+
 .recording-select-all input,
 .selection-action input {
     width: 18px;
