@@ -768,8 +768,37 @@ async function displayFiles(files) {
         updateRecordingCollapseUI();
     }
 
+    function expandRecordingsFromBottom() {
+        const bottomTopBefore =
+            recordingCollapseBottom
+                ? recordingCollapseBottom.getBoundingClientRect().top
+                : null;
+
+        recordingsCollapsed = false;
+        updateRecordingCollapseUI();
+
+        if (bottomTopBefore !== null && recordingCollapseBottom) {
+            requestAnimationFrame(() => {
+                const bottomTopAfter =
+                    recordingCollapseBottom.getBoundingClientRect().top;
+
+                window.scrollBy(
+                    0,
+                    bottomTopAfter - bottomTopBefore
+                );
+            });
+        }
+    }
+
     collapseCheckboxTop.onchange = toggleRecordingCollapse;
-    collapseCheckboxBottom.onchange = toggleRecordingCollapse;
+
+    collapseCheckboxBottom.onchange = () => {
+        if (recordingsCollapsed) {
+            expandRecordingsFromBottom();
+        } else {
+            toggleRecordingCollapse();
+        }
+    };
 
     for (const file of files) {
 
@@ -1819,8 +1848,37 @@ async function displayTranscriptFiles(files) {
         updateTranscriptCollapseUI();
     }
 
+    function expandTranscriptsFromBottom() {
+        const bottomTopBefore =
+            transcriptCollapseBottom
+                ? transcriptCollapseBottom.getBoundingClientRect().top
+                : null;
+
+        transcriptsCollapsed = false;
+        updateTranscriptCollapseUI();
+
+        if (bottomTopBefore !== null && transcriptCollapseBottom) {
+            requestAnimationFrame(() => {
+                const bottomTopAfter =
+                    transcriptCollapseBottom.getBoundingClientRect().top;
+
+                window.scrollBy(
+                    0,
+                    bottomTopAfter - bottomTopBefore
+                );
+            });
+        }
+    }
+
     collapseCheckboxTop.onchange = toggleTranscriptCollapse;
-    collapseCheckboxBottom.onchange = toggleTranscriptCollapse;
+
+    collapseCheckboxBottom.onchange = () => {
+        if (transcriptsCollapsed) {
+            expandTranscriptsFromBottom();
+        } else {
+            toggleTranscriptCollapse();
+        }
+    };
 
     async function render(sortOrder) {
 
