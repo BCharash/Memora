@@ -335,17 +335,36 @@ export function createCombinedHTML(
                     control.classList.add("audio-enabled");
 
                     button.addEventListener("click", async () => {
-                        audio.src = audio.dataset.src;
-                        audio.controls = true;
-                        control.classList.add("active");
+                        const sourcePath =
+                            audio.dataset.src;
 
-                        try {
-                            await audio.play();
-                        } catch (error) {
-                            control.classList.remove("active");
-                            audio.controls = false;
-                            audio.removeAttribute("src");
+                        const candidates =
+                            sourcePath.includes("/") ||
+                            sourcePath.includes("\\")
+                                ? [sourcePath]
+                                : [
+                                    sourcePath,
+                                    "../" + sourcePath,
+                                    "../../" + sourcePath
+                                ];
+
+                        control.classList.add("active");
+                        audio.controls = true;
+
+                        for (const candidate of candidates) {
+                            audio.src = candidate;
+
+                            try {
+                                await audio.play();
+                                return;
+                            } catch (error) {
+                                audio.pause();
+                                audio.controls = false;
+                                audio.removeAttribute("src");
+                            }
                         }
+
+                        control.classList.remove("active");
                     });
                 });
         }
@@ -400,7 +419,7 @@ function createTranscriptSection(record) {
                 ${escapeHTML(whisperModel)}
             </div>
 
-            ${createAudioControl(record.audioRelativePath)}
+            ${createAudioControl(record)}
 
             <div class="transcript">${escapeHTML(transcript)}</div>
         </section>
@@ -408,14 +427,19 @@ function createTranscriptSection(record) {
 }
 
 
-function createAudioControl(audioRelativePath) {
+function createAudioControl(record) {
 
-    if (!audioRelativePath) {
+    const audioPath =
+        record.audioRelativePath ||
+        record.recordingFilename ||
+        "";
+
+    if (!audioPath) {
         return "";
     }
 
     const safePath =
-        escapeHTML(audioRelativePath);
+        escapeHTML(audioPath);
 
     return `
         <div class="audio-control">

@@ -1055,11 +1055,13 @@ transcribeButton.addEventListener(
                     filesToTranscribe[i];
 
                 const transcriptionAudioPath =
-                    await getAudioRelativePath(
-                        sourceHandle,
-                        transcriptionFolder,
-                        file.name
-                    );
+                    isIPhoneSource
+                        ? file.name
+                        : await getAudioRelativePath(
+                            sourceHandle,
+                            transcriptionFolder,
+                            file.name
+                        );
 
                 setTranscriptionBusy(
                     `Transcribing ${i + 1} of ` +
@@ -1707,16 +1709,19 @@ function updateIPhoneCombineButton() {
 function resetIPhoneCombineExportState() {
     pendingIPhoneCombineExport = null;
 
+    const formatLabel =
+        getIPhoneCombineFormatLabel();
+
     if (iphoneCombineExportButton) {
         iphoneCombineExportButton.disabled =
             selectedTranscriptFiles.length === 0;
         iphoneCombineExportButton.textContent =
-            `Save ${getIPhoneCombineFormatLabel()} to Files`;
+            `Save ${formatLabel} to Files`;
     }
 
     if (iphoneCombineExportStatus) {
         iphoneCombineExportStatus.textContent =
-            "No combined file shared yet.";
+            `Ready to share ${formatLabel}`;
     }
 }
 
@@ -1981,6 +1986,7 @@ async function combineSelectedFiles(
                     "Creating combined TXT…";
 
                 await exportIPhoneCombinedFile(file);
+                combineStatus.textContent = "";
 
             } else if (outputType === "docx") {
 
@@ -2007,6 +2013,7 @@ async function combineSelectedFiles(
                     "Creating combined DOCX…";
 
                 await exportIPhoneCombinedFile(file);
+                combineStatus.textContent = "";
 
             } else {
 
@@ -2036,6 +2043,7 @@ async function combineSelectedFiles(
                     "Creating combined HTML…";
 
                 await exportIPhoneCombinedFile(file);
+                combineStatus.textContent = "";
             }
 
             return;
