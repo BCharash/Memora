@@ -2106,7 +2106,10 @@ function renderSearchResults(payload) {
                 )
                 .filter(Boolean);
 
-        await useSearchSelectionInCombine(selected);
+        await useSearchSelectionInCombine(
+            selected,
+            searchQueryInput?.value.trim() || ""
+        );
     };
 
     updateSelectionUI();
@@ -2181,7 +2184,77 @@ async function runSearchQuery() {
 }
 
 
-async function useSearchSelectionInCombine(files) {
+function createSearchCombineTitle(query) {
+
+    let phrase =
+        String(query || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/[?!.]+$/g, "")
+            .trim();
+
+    if (!phrase) {
+        return "Memora — Combined Transcription";
+    }
+
+    // Remove common conversational framing while preserving the user's
+    // actual subject. This is intentionally conservative; it is a title
+    // normalization step, not a semantic rewriting model.
+    const framingPatterns = [
+        /^what did I say about\s+/i,
+        /^what have I said about\s+/i,
+        /^what was I saying about\s+/i,
+        /^tell me what I said about\s+/i,
+        /^tell me about what I said about\s+/i,
+        /^can you remind me what I said about\s+/i,
+        /^can you remind me about what I said about\s+/i,
+        /^when did I talk about\s+/i,
+        /^where did I talk about\s+/i,
+        /^did I say anything about\s+/i,
+        /^what do I say about\s+/i,
+        /^what have I said regarding\s+/i,
+        /^what did I say regarding\s+/i
+    ];
+
+    for (const pattern of framingPatterns) {
+        const stripped =
+            phrase.replace(pattern, "").trim();
+
+        if (stripped && stripped !== phrase) {
+            phrase = stripped;
+            break;
+        }
+    }
+
+    // Produce a readable title without changing words such as iPhone,
+    // Sanskrit names, acronyms, or other mixed-case terms already supplied
+    // by the user.
+    const smallWords = new Set([
+        "a", "an", "and", "as", "at", "by",
+        "for", "from", "in", "into", "of", "on",
+        "or", "the", "to", "with"
+    ]);
+
+    const words = phrase.split(" ");
+
+    phrase =
+        words.map((word, index) => {
+            if (!/^[a-z]+$/.test(word)) {
+                return word;
+            }
+
+            if (index > 0 && index < words.length - 1 && smallWords.has(word)) {
+                return word;
+            }
+
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(" ");
+
+    return `Memora — Search: ${phrase}`;
+}
+
+
+async function useSearchSelectionInCombine(files, searchQuery) {
 
     if (!files.length) {
         return;
@@ -2196,6 +2269,11 @@ async function useSearchSelectionInCombine(files) {
     combineDestinationHandle = null;
     resetIPhoneCombineExportState();
     setActiveCombineDestinationButton(null);
+
+    if (combineTitleInput) {
+        combineTitleInput.value =
+            createSearchCombineTitle(searchQuery);
+    }
 
     if (textSourceHandle) {
 
