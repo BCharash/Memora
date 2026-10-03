@@ -50,6 +50,21 @@ const combinePanel =
 const searchPanel =
     document.getElementById("searchPanel");
 
+const searchSourceButton =
+    document.getElementById("searchSourceButton");
+const searchModelSelect =
+    document.getElementById("searchModelSelect");
+const searchQueryInput =
+    document.getElementById("searchQueryInput");
+const searchButton =
+    document.getElementById("searchButton");
+const searchIndexStatus =
+    document.getElementById("searchIndexStatus");
+const searchQueryStatus =
+    document.getElementById("searchQueryStatus");
+const searchResults =
+    document.getElementById("searchResults");
+
 const appIcon =
     document.getElementById("appIcon");
 
@@ -109,6 +124,10 @@ let combineDestinationHandle = null;
 let selectedTranscriptFiles = [];
 let combineSortOrder = "date-desc";
 let pendingIPhoneCombineExport = null;
+
+let searchSourceHandle = null;
+let searchIndexBuildToken = 0;
+let searchIndexReady = false;
 
 
 function setActiveDestinationButton(button) {
@@ -328,6 +347,23 @@ async function getParagraphingModule() {
     }
 
     return paragraphingModule;
+}
+
+
+// --------------------------------------------------
+// Search module
+// --------------------------------------------------
+
+let searchModule = null;
+
+async function getSearchModule() {
+
+    if (!searchModule) {
+        searchModule =
+            await import("./search.js");
+    }
+
+    return searchModule;
 }
 
 
@@ -1496,6 +1532,841 @@ if (transcriptionTab && combineTab && searchTab) {
         "click",
         () => {
             activateTab(searchTab);
+        }
+    );
+}
+
+
+// --------------------------------------------------
+// Search
+// --------------------------------------------------
+
+function setSearchBusy(busy) {
+
+    if (searchSourceButton) {
+        searchSourceButton.disabled = busy;
+    }
+
+    if (searchModelSelect) {
+        searchModelSelect.disabled = busy;
+    }
+
+    if (searchQueryInput) {
+        searchQueryInput.disabled = busy || !searchIndexReady;
+    }
+
+    if (searchButton) {
+        searchButton.disabled = busy || !searchIndexReady;
+    }
+}
+
+
+function setSearchIndexStatus(message, busy = false) {
+
+    if (!searchIndexStatus) {
+        return;
+    }
+
+    searchIndexStatus.innerHTML = "";
+
+    if (busy) {
+        const spinner =
+            document.createElement("span");
+
+        spinner.className =
+            "transcription-spinner";
+        spinner.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        searchIndexStatus.appendChild(
+            spinner
+        );
+    }
+
+    const text =
+        document.createElement("span");
+
+    text.textContent = message;
+
+    searchIndexStatus.appendChild(text);
+}
+
+
+function setSearchQueryStatus(message, busy = false) {
+
+    if (!searchQueryStatus) {
+        return;
+    }
+
+    searchQueryStatus.hidden = false;
+    searchQueryStatus.innerHTML = "";
+
+    if (busy) {
+        const spinner =
+            document.createElement("span");
+
+        spinner.className =
+            "transcription-spinner";
+        spinner.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        searchQueryStatus.appendChild(
+            spinner
+        );
+    }
+
+    const text =
+        document.createElement("span");
+
+    text.textContent = message;
+
+    searchQueryStatus.appendChild(text);
+}
+
+
+function formatElapsed(seconds) {
+    if (seconds < 1) {
+        return `${Math.round(seconds * 1000)} ms`;
+    }
+
+    return `${seconds.toFixed(1)} s`;
+}
+
+
+async function getSearchSourceFiles(handle) {
+
+    const storage =
+        await getStorageModule();
+
+    return handle.kind === "file-input"
+        ? handle.files.filter(
+            file => /\.txt$/i.test(file.name)
+        )
+        : await storage.listTextFiles(handle);
+}
+
+
+async function buildSearchIndexForSource(files) {
+
+    const token = ++searchIndexBuildToken;
+    searchIndexReady = false;
+    setSearchBusy(true);
+
+    if (searchQueryStatus) {
+        searchQueryStatus.hidden = true;
+        searchQueryStatus.textContent = "";
+    }
+
+    setSearchIndexStatus(
+        "Building the semantic index…",
+        true
+    );
+
+    if (searchResults) {
+        searchResults.innerHTML = `
+            <p class="empty-message">
+                Building the semantic index…
+            </p>
+        `;
+    }
+
+    try {
+
+        const search =
+            await getSearchModule();
+
+        const index =
+            await search.buildSearchIndex(
+                files,
+                searchModelSelect?.value || "minilm",
+                message => {
+                    if (token !== searchIndexBuildToken) {
+                        return;
+                    }
+
+                    setSearchIndexStatus(
+                        message,
+                        true
+                    );
+                }
+            );
+
+        if (token !== searchIndexBuildToken) {
+            return;
+        }
+
+        searchIndexReady =
+            index.sentences > 0;
+
+        const elapsedSeconds =
+            index.durationMs / 1000;
+
+        if (searchIndexStatus) {
+
+            if (index.sentences > 0) {
+                const timingDetails =
+                    `Reading ${formatElapsed(index.readDurationMs / 1000)} · ` +
+                    `sentences ${formatElapsed(index.sentenceProcessingDurationMs / 1000)} · ` +
+                    `embeddings ${formatElapsed(index.embeddingDurationMs / 1000)}`;
+
+                setSearchIndexStatus(
+                    `Search ready — ${index.records.length} transcript${index.records.length === 1 ? "" : "s"}, ` +
+                    `${index.sentences.toLocaleString()} sentences indexed in ${formatElapsed(elapsedSeconds)} ` +
+                    `(${timingDetails}).`
+                );
+            } else {
+                setSearchIndexStatus(
+                    "No searchable sentences were found in the selected transcripts."
+                );
+            }
+        }
+
+        setSearchBusy(false);
+
+    } catch (error) {
+
+        if (token !== searchIndexBuildToken) {
+            return;
+        }
+
+        console.error(
+            "Search index error:",
+            error
+        );
+
+        searchIndexReady = false;
+        setSearchBusy(false);
+
+        if (searchIndexStatus) {
+            setSearchIndexStatus(
+                "Unable to build the semantic search index."
+            );
+        }
+
+        if (searchResults) {
+            searchResults.innerHTML = `
+                <p class="empty-message">
+                    Search indexing failed. See the browser console for details.
+                </p>
+            `;
+        }
+    }
+}
+
+
+function normalizeSearchParagraph(text) {
+    return String(text || "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+function appendHighlightedParagraph(
+    container,
+    paragraph,
+    matchedSentences
+) {
+
+    const text =
+        normalizeSearchParagraph(paragraph);
+
+    if (!text) {
+        return;
+    }
+
+    const matches = [...matchedSentences]
+        .sort((a, b) =>
+            a.sentenceIndex - b.sentenceIndex
+        );
+
+    let cursor = 0;
+
+    for (const match of matches) {
+
+        const sentence =
+            normalizeSearchParagraph(match.sentence);
+
+        if (!sentence) {
+            continue;
+        }
+
+        const start =
+            text.indexOf(sentence, cursor);
+
+        if (start === -1) {
+            continue;
+        }
+
+        if (start > cursor) {
+            container.appendChild(
+                document.createTextNode(
+                    text.slice(cursor, start)
+                )
+            );
+        }
+
+        const mark =
+            document.createElement("mark");
+
+        mark.textContent = sentence;
+        container.appendChild(mark);
+
+        cursor =
+            start + sentence.length;
+    }
+
+    if (cursor < text.length) {
+        container.appendChild(
+            document.createTextNode(
+                text.slice(cursor)
+            )
+        );
+    }
+
+    if (!container.childNodes.length) {
+        container.textContent = text;
+    }
+}
+
+
+function renderSearchResults(payload) {
+
+    if (!searchResults) {
+        return [];
+    }
+
+    searchResults.innerHTML = "";
+
+    const rawResults =
+        payload?.results || [];
+
+    if (rawResults.length === 0) {
+
+        searchResults.innerHTML = `
+            <p class="empty-message">
+                No semantic matches were found.
+            </p>
+        `;
+
+        return [];
+    }
+
+    // Group sentence-level hits into paragraph-level passages and then
+    // group those passages by transcript file. This lets the user select
+    // entire transcript files for the existing Combine workflow without
+    // losing sentence-level semantic ranking.
+    const files = new Map();
+
+    for (const result of rawResults) {
+
+        let fileGroup =
+            files.get(result.filename);
+
+        if (!fileGroup) {
+            fileGroup = {
+                filename: result.filename,
+                record: result.record,
+                passages: new Map()
+            };
+
+            files.set(
+                result.filename,
+                fileGroup
+            );
+        }
+
+        const passageKey =
+            `${result.paragraphIndex}`;
+
+        let passage =
+            fileGroup.passages.get(passageKey);
+
+        if (!passage) {
+            passage = {
+                paragraph: result.paragraph,
+                paragraphIndex: result.paragraphIndex,
+                matches: [],
+                bestScore: result.score
+            };
+
+            fileGroup.passages.set(
+                passageKey,
+                passage
+            );
+        }
+
+        passage.matches.push(result);
+        passage.bestScore = Math.max(
+            passage.bestScore,
+            result.score
+        );
+    }
+
+    const groups =
+        Array.from(files.values());
+
+    const toolbar =
+        document.createElement("div");
+
+    toolbar.className =
+        "search-results-toolbar";
+
+    const selectAllLabel =
+        document.createElement("label");
+
+    const selectAllCheckbox =
+        document.createElement("input");
+
+    selectAllCheckbox.type = "checkbox";
+    selectAllCheckbox.checked = true;
+
+    selectAllLabel.appendChild(
+        selectAllCheckbox
+    );
+    selectAllLabel.appendChild(
+        document.createTextNode("Select all")
+    );
+
+    const summary =
+        document.createElement("span");
+
+    summary.textContent =
+        `${groups.length} transcript${groups.length === 1 ? "" : "s"} represented · ` +
+        `${rawResults.length} strongest sentence match${rawResults.length === 1 ? "" : "es"}`;
+
+    const useButton =
+        document.createElement("button");
+
+    useButton.type = "button";
+    useButton.className =
+        "search-use-combine-button";
+    useButton.textContent =
+        "Use Selected in Combine";
+
+    toolbar.appendChild(selectAllLabel);
+    toolbar.appendChild(summary);
+    toolbar.appendChild(useButton);
+    searchResults.appendChild(toolbar);
+
+    const groupCheckboxes = [];
+
+    for (const group of groups) {
+
+        const section =
+            document.createElement("section");
+
+        section.className =
+            "search-result-file";
+
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "search-result-file-header";
+
+        const checkbox =
+            document.createElement("input");
+
+        checkbox.type = "checkbox";
+        checkbox.checked = true;
+        checkbox.className =
+            "search-result-file-checkbox";
+        checkbox.dataset.filename =
+            group.filename;
+        checkbox.dataset.searchFileKey =
+            group.filename;
+
+        groupCheckboxes.push(checkbox);
+
+        const fileText =
+            document.createElement("div");
+
+        const fileName =
+            document.createElement("div");
+
+        fileName.className =
+            "search-result-file-name";
+        fileName.textContent =
+            group.filename;
+
+        fileText.appendChild(fileName);
+
+        if (group.record.recordingFilename) {
+            const details =
+                document.createElement("div");
+
+            details.className =
+                "search-result-file-details";
+            details.textContent =
+                group.record.recordingFilename;
+
+            fileText.appendChild(details);
+        }
+
+        header.appendChild(checkbox);
+        header.appendChild(fileText);
+        section.appendChild(header);
+
+        const passages =
+            Array.from(group.passages.values())
+                .sort((a, b) => b.bestScore - a.bestScore)
+                .slice(0, 4);
+
+        for (const passage of passages) {
+
+            const passageElement =
+                document.createElement("div");
+
+            passageElement.className =
+                "search-result-passage";
+
+            const label =
+                document.createElement("div");
+
+            label.className =
+                "search-result-passage-label";
+            label.textContent =
+                "Matching passage";
+
+            const textElement =
+                document.createElement("div");
+
+            textElement.className =
+                "search-result-passage-text";
+
+            appendHighlightedParagraph(
+                textElement,
+                passage.paragraph,
+                passage.matches
+            );
+
+            passageElement.appendChild(label);
+            passageElement.appendChild(textElement);
+            section.appendChild(passageElement);
+        }
+
+        searchResults.appendChild(section);
+    }
+
+    function updateSelectionUI() {
+
+        const selectedCount =
+            groupCheckboxes.filter(
+                checkbox => checkbox.checked
+            ).length;
+
+        selectAllCheckbox.checked =
+            selectedCount === groupCheckboxes.length;
+
+        selectAllCheckbox.indeterminate =
+            selectedCount > 0 &&
+            selectedCount < groupCheckboxes.length;
+
+        useButton.disabled =
+            selectedCount === 0;
+
+        useButton.textContent =
+            selectedCount === 0
+                ? "Use Selected in Combine"
+                : `Use ${selectedCount} Selected in Combine`;
+    }
+
+    selectAllCheckbox.onchange = () => {
+        groupCheckboxes.forEach(
+            checkbox => {
+                checkbox.checked =
+                    selectAllCheckbox.checked;
+            }
+        );
+
+        updateSelectionUI();
+    };
+
+    groupCheckboxes.forEach(
+        checkbox => {
+            checkbox.onchange = updateSelectionUI;
+        }
+    );
+
+    useButton.onclick = async () => {
+
+        const selected =
+            groupCheckboxes
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox =>
+                    groups.find(
+                        group =>
+                            group.filename ===
+                            checkbox.dataset.filename
+                    )?.record.file
+                )
+                .filter(Boolean);
+
+        await useSearchSelectionInCombine(selected);
+    };
+
+    updateSelectionUI();
+
+    return groups
+        .map(group => group.record.file)
+        .filter(Boolean);
+}
+
+
+async function runSearchQuery() {
+
+    if (!searchIndexReady || !searchQueryInput) {
+        return;
+    }
+
+    const query =
+        searchQueryInput.value.trim();
+
+    if (!query) {
+        searchQueryInput.focus();
+        return;
+    }
+
+    if (searchButton) {
+        searchButton.disabled = true;
+    }
+
+    setSearchQueryStatus(
+        "Searching…",
+        true
+    );
+
+    try {
+
+        const search =
+            await getSearchModule();
+
+        const payload =
+            await search.search(
+                query,
+                30,
+                message => {
+                    setSearchQueryStatus(
+                        message,
+                        true
+                    );
+                }
+            );
+
+        renderSearchResults(payload);
+
+        setSearchQueryStatus(
+            `${payload.results.length} sentence match${payload.results.length === 1 ? "" : "es"} found in ${formatElapsed(payload.durationMs / 1000)}.`
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Search error:",
+            error
+        );
+
+        setSearchQueryStatus(
+            "Unable to perform the search."
+        );
+    }
+
+    if (searchButton) {
+        searchButton.disabled = !searchIndexReady;
+    }
+}
+
+
+async function useSearchSelectionInCombine(files) {
+
+    if (!files.length) {
+        return;
+    }
+
+    selectedTranscriptFiles =
+        files;
+
+    textSourceHandle =
+        searchSourceHandle;
+
+    combineDestinationHandle = null;
+    resetIPhoneCombineExportState();
+    setActiveCombineDestinationButton(null);
+
+    if (textSourceHandle) {
+
+        const isFileInput =
+            textSourceHandle.kind === "file-input";
+
+        if (combineDestinationSection) {
+            combineDestinationSection.hidden = isFileInput;
+        }
+
+        if (combineTextButton) {
+            combineTextButton.hidden = isFileInput;
+        }
+
+        if (combineDOCXButton) {
+            combineDOCXButton.hidden = isFileInput;
+        }
+
+        if (combineHTMLButton) {
+            combineHTMLButton.hidden = isFileInput;
+        }
+
+        if (iphoneCombineDestinationOptions) {
+            iphoneCombineDestinationOptions.hidden = !isFileInput;
+            iphoneCombineDestinationOptions.style.display =
+                isFileInput ? "block" : "none";
+        }
+
+        if (!isFileInput) {
+            await updateCombineFolderButton();
+        }
+
+        textSourceButton.textContent =
+            `Text Source: ${textSourceHandle.name}`;
+    }
+
+    await displayTranscriptFiles(files);
+
+    combineStatus.textContent =
+        `${files.length} transcript${files.length === 1 ? "" : "s"} selected from Search.`;
+
+    combineTab.click();
+}
+
+
+if (searchSourceButton) {
+
+    searchSourceButton.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                const storage =
+                    await getStorageModule();
+
+                const handle =
+                    await storage.selectFolder();
+
+                const files =
+                    await getSearchSourceFiles(handle);
+
+                searchSourceHandle = handle;
+
+                searchIndexReady = false;
+                setSearchBusy(true);
+                setSearchIndexStatus(
+                    "Preparing the semantic index…",
+                    true
+                );
+
+                if (searchQueryInput) {
+                    searchQueryInput.value = "";
+                }
+
+                if (searchButton) {
+                    searchButton.disabled = true;
+                }
+
+                searchSourceButton.textContent =
+                    `Search Source: ${handle.name}`;
+
+                if (files.length === 0) {
+
+                    setSearchIndexStatus(
+                        "No transcript files found in the selected folder."
+                    );
+
+                    if (searchResults) {
+                        searchResults.innerHTML = `
+                            <p class="empty-message">
+                                No transcript files found.
+                            </p>
+                        `;
+                    }
+
+                    setSearchBusy(false);
+                    return;
+                }
+
+                await buildSearchIndexForSource(files);
+
+            } catch (error) {
+
+                if (error.name !== "AbortError") {
+
+                    console.error(
+                        "Search source error:",
+                        error
+                    );
+
+                    searchIndexReady = false;
+                    setSearchBusy(false);
+
+                    setSearchIndexStatus(
+                        "Unable to read the search source folder."
+                    );
+                }
+            }
+        }
+    );
+}
+
+
+if (searchModelSelect) {
+
+    searchModelSelect.addEventListener(
+        "change",
+        async () => {
+
+            if (!searchSourceHandle) {
+                return;
+            }
+
+            try {
+                const files =
+                    await getSearchSourceFiles(
+                        searchSourceHandle
+                    );
+
+                await buildSearchIndexForSource(
+                    files
+                );
+
+            } catch (error) {
+                console.error(
+                    "Search model change error:",
+                    error
+                );
+            }
+        }
+    );
+}
+
+
+if (searchButton) {
+    searchButton.addEventListener(
+        "click",
+        runSearchQuery
+    );
+}
+
+
+if (searchQueryInput) {
+    searchQueryInput.addEventListener(
+        "keydown",
+        event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                runSearchQuery();
+            }
         }
     );
 }

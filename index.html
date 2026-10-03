@@ -448,11 +448,90 @@
 
             <section class="panel">
 
-                <h2>Search</h2>
+                <div class="search-source-section">
 
-                <p class="empty-message">
-                    Semantic search will be added here.
-                </p>
+                    <h2>Source</h2>
+
+                    <div class="action-row">
+                        <button id="searchSourceButton" type="button">
+                            Select Transcript Folder
+                        </button>
+                    </div>
+
+                    <div
+                        id="searchIndexStatus"
+                        class="transcription-status"
+                    >
+                        No search source selected.
+                    </div>
+
+                </div>
+
+                <div class="search-controls">
+
+                    <div class="search-control">
+
+                        <label for="searchModelSelect">
+                            Search model
+                        </label>
+
+                        <select id="searchModelSelect">
+                            <option value="minilm" selected>
+                                MiniLM — fast, general
+                            </option>
+                            <option value="multilingualE5">
+                                Multilingual E5-small — multilingual
+                            </option>
+                        </select>
+
+                    </div>
+
+                    <p class="search-model-note">
+                        The selected model is downloaded once and reused from the browser cache.
+                    </p>
+
+                </div>
+
+                <div class="search-query-section">
+
+                    <label for="searchQueryInput">
+                        Search your transcripts
+                    </label>
+
+                    <div class="search-query-row">
+                        <input
+                            id="searchQueryInput"
+                            type="search"
+                            autocomplete="off"
+                            disabled
+                        >
+
+                        <button
+                            id="searchButton"
+                            type="button"
+                            disabled
+                        >
+                            Search
+                        </button>
+                    </div>
+
+                </div>
+
+                <div
+                    id="searchQueryStatus"
+                    class="transcription-status"
+                    hidden
+                >
+                </div>
+
+                <div
+                    id="searchResults"
+                    class="search-results"
+                >
+                    <p class="empty-message">
+                        Select a transcript folder to begin.
+                    </p>
+                </div>
 
             </section>
 
