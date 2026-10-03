@@ -35,6 +35,8 @@ const transcriptionOutput =
 
 const transcriptionTab =
     document.getElementById("transcriptionTab");
+const searchTab =
+    document.getElementById("searchTab");
 
 const combineTab =
     document.getElementById("combineTab");
@@ -44,6 +46,12 @@ const transcriptionPanel =
 
 const combinePanel =
     document.getElementById("combinePanel");
+
+const searchPanel =
+    document.getElementById("searchPanel");
+
+const appIcon =
+    document.getElementById("appIcon");
 
 const textSourceButton =
     document.getElementById("textSourceButton");
@@ -1418,27 +1426,60 @@ function setTranscriptionError(message) {
 // Combine Files
 // --------------------------------------------------
 
-if (transcriptionTab && combineTab) {
+if (transcriptionTab && combineTab && searchTab) {
+
+    function activateTab(activeTab) {
+
+        const tabConfig = {
+            transcription: {
+                tab: transcriptionTab,
+                panel: transcriptionPanel,
+                icon: "icons/transcribe.png"
+            },
+            combine: {
+                tab: combineTab,
+                panel: combinePanel,
+                icon: "icons/combine.png"
+            },
+            search: {
+                tab: searchTab,
+                panel: searchPanel,
+                icon: "icons/search.png"
+            }
+        };
+
+        Object.values(tabConfig).forEach(config => {
+            const isActive =
+                config.tab === activeTab;
+
+            config.tab.classList.toggle(
+                "active",
+                isActive
+            );
+
+            config.tab.setAttribute(
+                "aria-selected",
+                isActive ? "true" : "false"
+            );
+
+            config.panel.hidden = !isActive;
+        });
+
+        const activeConfig =
+            Object.values(tabConfig).find(
+                config => config.tab === activeTab
+            );
+
+        if (activeConfig && appIcon) {
+            appIcon.src = activeConfig.icon;
+        }
+    }
+
 
     transcriptionTab.addEventListener(
         "click",
         () => {
-
-            transcriptionPanel.hidden = false;
-            combinePanel.hidden = true;
-
-            transcriptionTab.classList.add("active");
-            combineTab.classList.remove("active");
-
-            transcriptionTab.setAttribute(
-                "aria-selected",
-                "true"
-            );
-
-            combineTab.setAttribute(
-                "aria-selected",
-                "false"
-            );
+            activateTab(transcriptionTab);
         }
     );
 
@@ -1446,22 +1487,15 @@ if (transcriptionTab && combineTab) {
     combineTab.addEventListener(
         "click",
         () => {
+            activateTab(combineTab);
+        }
+    );
 
-            transcriptionPanel.hidden = true;
-            combinePanel.hidden = false;
 
-            combineTab.classList.add("active");
-            transcriptionTab.classList.remove("active");
-
-            combineTab.setAttribute(
-                "aria-selected",
-                "true"
-            );
-
-            transcriptionTab.setAttribute(
-                "aria-selected",
-                "false"
-            );
+    searchTab.addEventListener(
+        "click",
+        () => {
+            activateTab(searchTab);
         }
     );
 }

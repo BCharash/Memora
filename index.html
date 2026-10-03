@@ -30,7 +30,7 @@
     >
 
     <header class="app-header">
-        <img src="icons/icon-192.png" alt="Memora" class="app-icon">
+        <img id="appIcon" src="icons/transcribe.png" alt="Memora" class="app-icon">
 
         <div>
             <h1>Memora</h1>
@@ -48,7 +48,7 @@
                 type="button"
                 aria-selected="true"
             >
-                Transcription
+                Transcribe
             </button>
 
             <button
@@ -57,7 +57,16 @@
                 type="button"
                 aria-selected="false"
             >
-                Combine Files
+                Combine
+            </button>
+
+            <button
+                id="searchTab"
+                class="app-tab"
+                type="button"
+                aria-selected="false"
+            >
+                Search
             </button>
 
         </nav>
@@ -425,6 +434,25 @@
                 >
                     No combination started.
                 </div>
+
+            </section>
+
+        </section>
+
+
+        <section
+            id="searchPanel"
+            class="tab-panel"
+            hidden
+        >
+
+            <section class="panel">
+
+                <h2>Search</h2>
+
+                <p class="empty-message">
+                    Semantic search will be added here.
+                </p>
 
             </section>
 
