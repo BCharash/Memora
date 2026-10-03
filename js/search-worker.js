@@ -113,7 +113,7 @@ async function embedTexts(
         self.postMessage({
             type: "status",
             message:
-                `${phaseLabel} sentences ${start + 1}–` +
+                `${phaseLabel} ${start + 1}–` +
                 `${Math.min(start + batch.length, texts.length)} ` +
                 `of ${texts.length}…`
         });

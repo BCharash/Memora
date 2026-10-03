@@ -1711,11 +1711,12 @@ async function buildSearchIndexForSource(files) {
                 const timingDetails =
                     `Reading ${formatElapsed(index.readDurationMs / 1000)} · ` +
                     `sentences ${formatElapsed(index.sentenceProcessingDurationMs / 1000)} · ` +
+                    `chunks ${formatElapsed(index.chunkProcessingDurationMs / 1000)} · ` +
                     `embeddings ${formatElapsed(index.embeddingDurationMs / 1000)}`;
 
                 setSearchIndexStatus(
                     `Search ready — ${index.records.length} transcript${index.records.length === 1 ? "" : "s"}, ` +
-                    `${index.sentences.toLocaleString()} sentences indexed in ${formatElapsed(elapsedSeconds)} ` +
+                    `${index.sentences.toLocaleString()} sentences + ${index.chunkCount.toLocaleString()} contextual chunks indexed in ${formatElapsed(elapsedSeconds)} ` +
                     `(${timingDetails}).`
                 );
             } else {
@@ -1855,19 +1856,18 @@ function renderSearchResults(payload) {
         return [];
     }
 
-    // Group sentence-level hits into paragraph-level passages and then
-    // group those passages by transcript file. This lets the user select
-    // entire transcript files for the existing Combine workflow without
-    // losing sentence-level semantic ranking.
+    // Contextual chunks and sentence matches are independent retrieval
+    // mechanisms. A chunk result is never discarded merely because none of
+    // its sentences is a strong sentence-level match.
     const files = new Map();
 
-    for (const result of rawResults) {
+    function getFileGroup(result) {
 
-        let fileGroup =
+        let group =
             files.get(result.filename);
 
-        if (!fileGroup) {
-            fileGroup = {
+        if (!group) {
+            group = {
                 filename: result.filename,
                 record: result.record,
                 passages: new Map()
@@ -1875,28 +1875,88 @@ function renderSearchResults(payload) {
 
             files.set(
                 result.filename,
-                fileGroup
+                group
             );
         }
 
-        const passageKey =
-            `${result.paragraphIndex}`;
+        return group;
+    }
+
+    const chunkPassages = [];
+
+    for (const result of payload.chunkResults || []) {
+
+        const group =
+            getFileGroup(result);
+
+        const key =
+            `chunk:${result.firstSentenceGlobalIndex}`;
+
+        const passage = {
+            type: "chunk",
+            text: result.text,
+            paragraph: null,
+            paragraphIndex: null,
+            matches: [],
+            bestScore: result.score,
+            firstSentenceGlobalIndex:
+                result.firstSentenceGlobalIndex,
+            lastSentenceGlobalIndex:
+                result.lastSentenceGlobalIndex,
+            sentenceRefs: result.sentences
+        };
+
+        group.passages.set(key, passage);
+        chunkPassages.push({
+            result,
+            group,
+            passage
+        });
+    }
+
+    // Add sentence matches. If the sentence belongs to one of the displayed
+    // contextual chunks, use it only to provide optional highlighting inside
+    // that chunk. Otherwise retain the sentence result as its own passage.
+    for (const result of payload.sentenceResults || []) {
+
+        const containingChunk =
+            chunkPassages.find(item =>
+                item.result.filename === result.filename &&
+                item.result.sentences.some(sentence =>
+                    sentence.sentenceIndex === result.sentenceIndex &&
+                    sentence.paragraphIndex === result.paragraphIndex
+                )
+            );
+
+        if (containingChunk) {
+            containingChunk.passage.matches.push(result);
+            containingChunk.passage.bestScore = Math.max(
+                containingChunk.passage.bestScore,
+                result.score
+            );
+            continue;
+        }
+
+        const group =
+            getFileGroup(result);
+
+        const key =
+            `paragraph:${result.paragraphIndex}`;
 
         let passage =
-            fileGroup.passages.get(passageKey);
+            group.passages.get(key);
 
         if (!passage) {
             passage = {
+                type: "sentence",
+                text: null,
                 paragraph: result.paragraph,
                 paragraphIndex: result.paragraphIndex,
                 matches: [],
                 bestScore: result.score
             };
 
-            fileGroup.passages.set(
-                passageKey,
-                passage
-            );
+            group.passages.set(key, passage);
         }
 
         passage.matches.push(result);
@@ -1907,7 +1967,8 @@ function renderSearchResults(payload) {
     }
 
     const groups =
-        Array.from(files.values());
+        Array.from(files.values())
+            .filter(group => group.passages.size > 0);
 
     const toolbar =
         document.createElement("div");
@@ -1936,7 +1997,8 @@ function renderSearchResults(payload) {
 
     summary.textContent =
         `${groups.length} transcript${groups.length === 1 ? "" : "s"} represented · ` +
-        `${rawResults.length} strongest sentence match${rawResults.length === 1 ? "" : "es"}`;
+        `${(payload.sentenceResults || []).length} sentence matches · ` +
+        `${(payload.chunkResults || []).length} contextual chunk matches`;
 
     const useButton =
         document.createElement("button");
@@ -2030,7 +2092,9 @@ function renderSearchResults(payload) {
             label.className =
                 "search-result-passage-label";
             label.textContent =
-                "Matching passage";
+                passage.type === "chunk"
+                    ? "Contextual match"
+                    : "Sentence match";
 
             const textElement =
                 document.createElement("div");
@@ -2038,11 +2102,22 @@ function renderSearchResults(payload) {
             textElement.className =
                 "search-result-passage-text";
 
-            appendHighlightedParagraph(
-                textElement,
-                passage.paragraph,
-                passage.matches
-            );
+            if (passage.type === "chunk") {
+
+                appendHighlightedChunk(
+                    textElement,
+                    passage.text,
+                    passage.matches
+                );
+
+            } else {
+
+                appendHighlightedParagraph(
+                    textElement,
+                    passage.paragraph,
+                    passage.matches
+                );
+            }
 
             passageElement.appendChild(label);
             passageElement.appendChild(textElement);
@@ -2120,6 +2195,32 @@ function renderSearchResults(payload) {
 }
 
 
+function appendHighlightedChunk(
+    container,
+    chunkText,
+    matchedSentences
+) {
+
+    const text =
+        normalizeSearchParagraph(chunkText);
+
+    if (!text) {
+        return;
+    }
+
+    if (!matchedSentences || matchedSentences.length === 0) {
+        container.textContent = text;
+        return;
+    }
+
+    appendHighlightedParagraph(
+        container,
+        text,
+        matchedSentences
+    );
+}
+
+
 async function runSearchQuery() {
 
     if (!searchIndexReady || !searchQueryInput) {
@@ -2163,7 +2264,9 @@ async function runSearchQuery() {
         renderSearchResults(payload);
 
         setSearchQueryStatus(
-            `${payload.results.length} sentence match${payload.results.length === 1 ? "" : "es"} found in ${formatElapsed(payload.durationMs / 1000)}.`
+            `${payload.sentenceResults.length} sentence match${payload.sentenceResults.length === 1 ? "" : "es"} and ` +
+            `${payload.chunkResults.length} contextual chunk match${payload.chunkResults.length === 1 ? "" : "es"} found in ` +
+            `${formatElapsed(payload.durationMs / 1000)}.`
         );
 
     } catch (error) {

@@ -137,6 +137,74 @@ function buildSentenceEntries(records) {
 }
 
 
+// Experimental contextual-search settings. These are deliberately kept
+// local to the Search experiment and are not yet part of a permanent
+// Memora search architecture.
+const CHUNK_SIZE = 5;
+const CHUNK_OVERLAP = 2;
+
+
+function buildChunkEntries(sentenceEntries) {
+
+    const chunks = [];
+
+    if (!sentenceEntries.length) {
+        return chunks;
+    }
+
+    const step =
+        Math.max(1, CHUNK_SIZE - CHUNK_OVERLAP);
+
+    // Chunks are built from the complete sentence sequence of each
+    // transcript. They are therefore independent of paragraph size and
+    // may cross paragraph boundaries when that provides useful context.
+    let start = 0;
+
+    while (start < sentenceEntries.length) {
+
+        const firstEntry =
+            sentenceEntries[start];
+
+        const transcriptFile =
+            firstEntry.record.file;
+
+        let end = start;
+
+        while (
+            end < sentenceEntries.length &&
+            sentenceEntries[end].record.file === transcriptFile &&
+            end < start + CHUNK_SIZE
+        ) {
+            end++;
+        }
+
+        const chunkEntries =
+            sentenceEntries.slice(start, end);
+
+        if (chunkEntries.length > 0) {
+            chunks.push({
+                record: firstEntry.record,
+                sentences: chunkEntries,
+                text: chunkEntries
+                    .map(entry => entry.sentence)
+                    .join(" "),
+                firstSentenceGlobalIndex: start,
+                lastSentenceGlobalIndex: end - 1
+            });
+        }
+
+        if (end >= sentenceEntries.length ||
+            sentenceEntries[end]?.record.file !== transcriptFile) {
+            start = end;
+        } else {
+            start += step;
+        }
+    }
+
+    return chunks;
+}
+
+
 function getSearchWorker() {
 
     if (searchWorker) {
@@ -315,7 +383,9 @@ export async function buildSearchIndex(
             modelId,
             records,
             entries,
+            chunks: [],
             sentences: 0,
+            chunkCount: 0,
             readDurationMs,
             sentenceProcessingDurationMs,
             embeddingDurationMs: 0,
@@ -327,13 +397,33 @@ export async function buildSearchIndex(
         return emptyIndex;
     }
 
+    const chunkStart = performance.now();
+
+    const chunks =
+        buildChunkEntries(entries);
+
+    const chunkProcessingDurationMs =
+        performance.now() - chunkStart;
+
     const embeddingStart = performance.now();
+
+    // Sentence and chunk embeddings are generated in the same worker/model
+    // request. This avoids loading or initializing the embedding model twice.
+    const sentenceTexts =
+        entries.map(entry => entry.sentence);
+
+    const chunkTexts =
+        chunks.map(chunk => chunk.text);
+
+    const allTexts =
+        sentenceTexts.concat(chunkTexts);
 
     const embeddings =
         await embedTexts(
-            entries.map(entry => entry.sentence),
+            allTexts,
             modelId,
-            statusCallback
+            statusCallback,
+            "Analyzing semantic units"
         );
 
     const embeddingDurationMs =
@@ -343,13 +433,21 @@ export async function buildSearchIndex(
         entries[i].embedding = embeddings[i];
     }
 
+    for (let i = 0; i < chunks.length; i++) {
+        chunks[i].embedding =
+            embeddings[entries.length + i];
+    }
+
     const index = {
         modelId,
         records,
         entries,
+        chunks,
         sentences: entries.length,
+        chunkCount: chunks.length,
         readDurationMs,
         sentenceProcessingDurationMs,
+        chunkProcessingDurationMs,
         embeddingDurationMs,
         durationMs: performance.now() - startTime
     };
@@ -398,9 +496,10 @@ export async function search(
                 : ""
         ))[0];
 
-    const scored =
+    const scoredSentences =
         currentIndex.entries.map(
             (entry, index) => ({
+                type: "sentence",
                 entry,
                 score: cosine(
                     queryEmbedding,
@@ -410,28 +509,83 @@ export async function search(
             })
         );
 
-    scored.sort(
+    const scoredChunks =
+        currentIndex.chunks.map(
+            (chunk, index) => ({
+                type: "chunk",
+                chunk,
+                score: cosine(
+                    queryEmbedding,
+                    chunk.embedding
+                ),
+                index
+            })
+        );
+
+    scoredSentences.sort(
         (a, b) => b.score - a.score
     );
 
-    return {
-        results: scored
-            .slice(0, Math.max(1, maxResults))
+    scoredChunks.sort(
+        (a, b) => b.score - a.score
+    );
+
+    // Keep the two retrieval modes visible to the caller. A chunk is allowed
+    // to remain a result even when none of its individual sentences is a
+    // strong match; sentence-level similarity is therefore never a gate on
+    // contextual retrieval.
+    const sentenceLimit = Math.max(1, maxResults);
+    const chunkLimit = Math.max(1, maxResults);
+
+    const sentenceResults =
+        scoredSentences
+            .slice(0, sentenceLimit)
             .map(({ entry, score }) => ({
+                type: "sentence",
                 record: entry.record,
                 filename: entry.record.filename,
-                recordingFilename:
-                    entry.record.recordingFilename,
-                recordingDate:
-                    entry.record.recordingDate,
-                audioRelativePath:
-                    entry.record.audioRelativePath,
+                recordingFilename: entry.record.recordingFilename,
+                recordingDate: entry.record.recordingDate,
+                audioRelativePath: entry.record.audioRelativePath,
                 paragraph: entry.paragraph,
                 paragraphIndex: entry.paragraphIndex,
                 sentence: entry.sentence,
                 sentenceIndex: entry.sentenceIndex,
                 score
-            })),
+            }));
+
+    const chunkResults =
+        scoredChunks
+            .slice(0, chunkLimit)
+            .map(({ chunk, score }) => ({
+                type: "chunk",
+                record: chunk.record,
+                filename: chunk.record.filename,
+                recordingFilename: chunk.record.recordingFilename,
+                recordingDate: chunk.record.recordingDate,
+                audioRelativePath: chunk.record.audioRelativePath,
+                text: chunk.text,
+                sentences: chunk.sentences.map(entry => ({
+                    sentence: entry.sentence,
+                    sentenceIndex: entry.sentenceIndex,
+                    paragraphIndex: entry.paragraphIndex
+                })),
+                firstSentenceGlobalIndex: chunk.firstSentenceGlobalIndex,
+                lastSentenceGlobalIndex: chunk.lastSentenceGlobalIndex,
+                score
+            }));
+
+    const combined =
+        sentenceResults.concat(chunkResults);
+
+    combined.sort(
+        (a, b) => b.score - a.score
+    );
+
+    return {
+        results: combined.slice(0, Math.max(1, maxResults * 2)),
+        sentenceResults,
+        chunkResults,
         durationMs:
             performance.now() - startTime
     };
@@ -451,6 +605,8 @@ export function getSearchIndexStats() {
         readDurationMs: currentIndex.readDurationMs,
         sentenceProcessingDurationMs:
             currentIndex.sentenceProcessingDurationMs,
+        chunkProcessingDurationMs:
+            currentIndex.chunkProcessingDurationMs,
         embeddingDurationMs:
             currentIndex.embeddingDurationMs,
         durationMs: currentIndex.durationMs
