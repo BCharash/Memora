@@ -2,18 +2,24 @@
 // Memora semantic search
 // --------------------------------------------------
 //
-// Builds an in-memory sentence-level semantic index for selected
-// transcript files and searches that index with a natural-language query.
+// Memora semantic search
 //
-// The search model is loaded locally through Transformers.js and cached by
-// the browser. The search index itself is deliberately kept in memory for
-// the current page session; it is not written to disk or IndexedDB.
+// Builds/reuses a persistent semantic store for selected transcript files
+// and searches it with a natural-language query. The semantic representations
+// are stored in IndexedDB so search experiments do not require re-embedding
+// unchanged transcripts.
 // --------------------------------------------------
 
 import {
     readTranscriptFiles,
     selectHighestModelRecords
 } from "./combine.js";
+
+import {
+    getSemanticEmbeddings,
+    getSemanticStoreStats,
+    clearSemanticStore
+} from "./semantic.js";
 
 const SEARCH_MODELS = {
     minilm: {
@@ -144,7 +150,11 @@ const CHUNK_SIZE = 5;
 const CHUNK_OVERLAP = 2;
 
 
-function buildChunkEntries(sentenceEntries) {
+function buildChunkEntries(
+    sentenceEntries,
+    chunkSize = CHUNK_SIZE,
+    chunkOverlap = CHUNK_OVERLAP
+) {
 
     const chunks = [];
 
@@ -153,7 +163,7 @@ function buildChunkEntries(sentenceEntries) {
     }
 
     const step =
-        Math.max(1, CHUNK_SIZE - CHUNK_OVERLAP);
+        Math.max(1, chunkSize - chunkOverlap);
 
     // Chunks are built from the complete sentence sequence of each
     // transcript. They are therefore independent of paragraph size and
@@ -173,7 +183,7 @@ function buildChunkEntries(sentenceEntries) {
         while (
             end < sentenceEntries.length &&
             sentenceEntries[end].record.file === transcriptFile &&
-            end < start + CHUNK_SIZE
+            end < start + chunkSize
         ) {
             end++;
         }
@@ -205,115 +215,24 @@ function buildChunkEntries(sentenceEntries) {
 }
 
 
-function getSearchWorker() {
-
-    if (searchWorker) {
-        return searchWorker;
-    }
-
-    searchWorker = new Worker(
-        new URL("./search-worker.js", import.meta.url),
-        { type: "module" }
-    );
-
-    searchWorker.addEventListener(
-        "message",
-        event => {
-
-            const data = event.data || {};
-
-            if (data.type === "status") {
-                for (const request of pendingWorkerRequests.values()) {
-                    if (request.statusCallback) {
-                        request.statusCallback(data.message);
-                    }
-                }
-                return;
-            }
-
-            const request =
-                pendingWorkerRequests.get(data.requestId);
-
-            if (!request) {
-                return;
-            }
-
-            pendingWorkerRequests.delete(data.requestId);
-
-            if (data.type === "complete") {
-                request.resolve(data.embeddings || []);
-                return;
-            }
-
-            if (data.type === "error") {
-                const error = new Error(
-                    data.message || "Search worker failed."
-                );
-
-                if (data.stack) {
-                    error.stack = data.stack;
-                }
-
-                request.reject(error);
-            }
-        }
-    );
-
-    searchWorker.addEventListener(
-        "error",
-        event => {
-
-            const message =
-                event.message ||
-                "The search worker stopped unexpectedly.";
-
-            const error = new Error(message);
-
-            for (const request of pendingWorkerRequests.values()) {
-                request.reject(error);
-            }
-
-            pendingWorkerRequests.clear();
-            searchWorker = null;
-        }
-    );
-
-    return searchWorker;
-}
-
-
-function embedTexts(
+async function embedTexts(
     texts,
     modelId,
     statusCallback,
     phaseLabel = "Analyzing",
-    prefixOverride = null
+    prefixOverride = null,
+    semanticContext = null
 ) {
-
-    const worker = getSearchWorker();
-    const requestId = nextWorkerRequestId++;
-
-    return new Promise((resolve, reject) => {
-
-        pendingWorkerRequests.set(
-            requestId,
-            {
-                resolve,
-                reject,
-                statusCallback
-            }
-        );
-
-        worker.postMessage({
-            type: "embed",
-            requestId,
-            texts,
-            modelId,
-            phaseLabel,
-            prefixOverride
-        });
+    return getSemanticEmbeddings({
+        texts,
+        modelId,
+        statusCallback,
+        phaseLabel,
+        prefixOverride,
+        ...semanticContext
     });
 }
+
 function cosine(a, b) {
 
     let dot = 0;
@@ -400,7 +319,21 @@ export async function buildSearchIndex(
     const chunkStart = performance.now();
 
     const chunks =
-        buildChunkEntries(entries);
+        buildChunkEntries(entries, CHUNK_SIZE, CHUNK_OVERLAP);
+
+    // A second persistent representation is intentionally generated now so
+    // that the semantic-store diagnostics have real work to report. It is
+    // stored for future experiments but is NOT used by the current Search
+    // ranking, which continues to use the established 5–3 representation.
+    const experimentalChunkSize = 5;
+    const experimentalChunkOverlap = 3;
+
+    const experimentalChunks =
+        buildChunkEntries(
+            entries,
+            experimentalChunkSize,
+            experimentalChunkOverlap
+        );
 
     const chunkProcessingDurationMs =
         performance.now() - chunkStart;
@@ -415,27 +348,116 @@ export async function buildSearchIndex(
     const chunkTexts =
         chunks.map(chunk => chunk.text);
 
-    const allTexts =
-        sentenceTexts.concat(chunkTexts);
+    // Persistent semantic identities must be stable regardless of the order
+    // in which transcript files are supplied to Search. The semantic store
+    // already identifies each representation by transcript, so the ordinal
+    // is local to that transcript rather than the position in the combined
+    // Search array.
+    //
+    // Sentences and contextual chunks are deliberately embedded in separate
+    // semantic-store calls. This makes the persistent-store diagnostic
+    // representation-aware and will allow additional chunk configurations to
+    // coexist later without making the status ambiguous.
+    const sentenceItems = [];
+    const sentenceOrdinals = new Map();
 
-    const embeddings =
-        await embedTexts(
-            allTexts,
+    for (let i = 0; i < entries.length; i++) {
+        const record = entries[i].record;
+        const ordinal = sentenceOrdinals.get(record) || 0;
+        sentenceOrdinals.set(record, ordinal + 1);
+
+        sentenceItems.push({
+            representationType: "sentence",
+            ordinal,
+            record,
+            text: sentenceTexts[i],
+            paragraphIndex: entries[i].paragraphIndex,
+            sentenceIndex: entries[i].sentenceIndex
+        });
+    }
+
+    const sentenceEmbeddings =
+        await getSemanticEmbeddings({
+            items: sentenceItems,
             modelId,
             statusCallback,
-            "Analyzing semantic units"
-        );
+            phaseLabel: "Sentences",
+            sourceRecords: records
+        });
+
+    const chunkItems = [];
+    const chunkOrdinals = new Map();
+
+    for (let i = 0; i < chunks.length; i++) {
+        const record = chunks[i].record;
+        const ordinal = chunkOrdinals.get(record) || 0;
+        chunkOrdinals.set(record, ordinal + 1);
+
+        chunkItems.push({
+            representationType: "chunk",
+            ordinal,
+            record,
+            text: chunkTexts[i],
+            firstSentenceGlobalIndex: chunks[i].firstSentenceGlobalIndex,
+            lastSentenceGlobalIndex: chunks[i].lastSentenceGlobalIndex,
+            chunkSize: CHUNK_SIZE,
+            chunkOverlap: CHUNK_OVERLAP
+        });
+    }
+
+    const chunkEmbeddings =
+        await getSemanticEmbeddings({
+            items: chunkItems,
+            modelId,
+            statusCallback,
+            phaseLabel: `Chunks ${CHUNK_SIZE}–${CHUNK_SIZE - CHUNK_OVERLAP}`,
+            sourceRecords: records
+        });
+
+    // Persist 5–2 as a second representation. Its embeddings are deliberately
+    // not added to currentIndex yet; this experiment is about proving that
+    // multiple chunk configurations can coexist in persistent storage.
+    const experimentalChunkItems = [];
+    const experimentalChunkOrdinals = new Map();
+
+    for (let i = 0; i < experimentalChunks.length; i++) {
+        const record = experimentalChunks[i].record;
+        const ordinal = experimentalChunkOrdinals.get(record) || 0;
+        experimentalChunkOrdinals.set(record, ordinal + 1);
+
+        experimentalChunkItems.push({
+            representationType: "chunk",
+            ordinal,
+            record,
+            text: experimentalChunks[i].text,
+            firstSentenceGlobalIndex:
+                experimentalChunks[i].firstSentenceGlobalIndex,
+            lastSentenceGlobalIndex:
+                experimentalChunks[i].lastSentenceGlobalIndex,
+            chunkSize: experimentalChunkSize,
+            chunkOverlap: experimentalChunkOverlap
+        });
+    }
+
+    await getSemanticEmbeddings({
+        items: experimentalChunkItems,
+        modelId,
+        statusCallback,
+        phaseLabel:
+            `Chunks ${experimentalChunkSize}–` +
+            `${experimentalChunkSize - experimentalChunkOverlap}`,
+        sourceRecords: records
+    });
 
     const embeddingDurationMs =
         performance.now() - embeddingStart;
 
     for (let i = 0; i < entries.length; i++) {
-        entries[i].embedding = embeddings[i];
+        entries[i].embedding = sentenceEmbeddings[i];
     }
 
     for (let i = 0; i < chunks.length; i++) {
-        chunks[i].embedding =
-            embeddings[entries.length + i];
+        chunks[i].embedding = chunkEmbeddings[i];
     }
 
     const index = {
@@ -445,6 +467,7 @@ export async function buildSearchIndex(
         chunks,
         sentences: entries.length,
         chunkCount: chunks.length,
+        experimentalChunkCount: experimentalChunks.length,
         readDurationMs,
         sentenceProcessingDurationMs,
         chunkProcessingDurationMs,
@@ -486,15 +509,21 @@ export async function search(
     }
 
     const queryEmbedding =
-        (await embedTexts(
-            [cleanQuery],
-            currentIndex.modelId,
-            null,
-            "",
-            config.prefix === "passage: "
-                ? "query: "
-                : ""
-        ))[0];
+        (await getSemanticEmbeddings({
+            items: [{
+                representationType: "query",
+                ordinal: 0,
+                text: cleanQuery
+            }],
+            modelId: currentIndex.modelId,
+            statusCallback: null,
+            phaseLabel: "",
+            prefixOverride:
+                config.prefix === "passage: "
+                    ? "query: "
+                    : null,
+            persist: false
+        }))[0];
 
     const scoredSentences =
         currentIndex.entries.map(
@@ -615,5 +644,14 @@ export function getSearchIndexStats() {
 
 
 export function clearSearchIndex() {
+    currentIndex = null;
+}
+
+export async function getSearchSemanticStats() {
+    return getSemanticStoreStats();
+}
+
+export async function clearSearchSemanticStore() {
+    await clearSemanticStore();
     currentIndex = null;
 }

@@ -1,10 +1,10 @@
 // --------------------------------------------------
-// Memora semantic search worker
+// Memora semantic worker
 // --------------------------------------------------
 //
-// Keeps Transformers.js model loading and embedding work off the main
-// browser thread so the Search UI remains responsive while a collection
-// is being indexed.
+// Owns Transformers.js model loading and embedding generation.
+// Persistent storage remains on the main thread; this worker only performs
+// the computationally expensive embedding work.
 // --------------------------------------------------
 
 import { pipeline, env } from
@@ -29,29 +29,24 @@ const BATCH_SIZE = 8;
 let extractor = null;
 let loadedModelId = null;
 
-
 async function getExtractor(modelId) {
-
     const config = SEARCH_MODELS[modelId];
 
     if (!config) {
-        throw new Error(
-            `Unknown search model: ${modelId}`
-        );
+        throw new Error(`Unknown semantic model: ${modelId}`);
     }
 
     if (extractor && loadedModelId === modelId) {
         return extractor;
     }
 
-    // A model change starts a new model instance. The browser/Transformers.js
-    // cache still avoids downloading weights again when they are available.
     extractor = null;
     loadedModelId = null;
 
     self.postMessage({
         type: "status",
-        message: "Loading the local semantic model. The first run may take a little while…"
+        message:
+            "Loading the local semantic model. The first run may take a little while…"
     });
 
     extractor = await pipeline(
@@ -61,10 +56,8 @@ async function getExtractor(modelId) {
     );
 
     loadedModelId = modelId;
-
     return extractor;
 }
-
 
 async function embedTexts(
     texts,
@@ -72,43 +65,26 @@ async function embedTexts(
     phaseLabel = "Analyzing",
     prefixOverride = null
 ) {
-
     const config = SEARCH_MODELS[modelId];
 
     if (!config) {
-        throw new Error(
-            `Unknown search model: ${modelId}`
-        );
+        throw new Error(`Unknown semantic model: ${modelId}`);
     }
 
-    const semanticModel =
-        await getExtractor(modelId);
-
+    const semanticModel = await getExtractor(modelId);
     const embeddings = [];
 
-    for (
-        let start = 0;
-        start < texts.length;
-        start += BATCH_SIZE
-    ) {
-
-        const batch =
-            texts.slice(
-                start,
-                start + BATCH_SIZE
-            );
+    for (let start = 0; start < texts.length; start += BATCH_SIZE) {
+        const batch = texts.slice(start, start + BATCH_SIZE);
 
         const inputPrefix =
             prefixOverride === null
                 ? config.prefix
                 : prefixOverride;
 
-        const modelInputs =
-            inputPrefix
-                ? batch.map(text =>
-                    `${inputPrefix}${text}`
-                )
-                : batch;
+        const modelInputs = inputPrefix
+            ? batch.map(text => `${inputPrefix}${text}`)
+            : batch;
 
         self.postMessage({
             type: "status",
@@ -118,28 +94,22 @@ async function embedTexts(
                 `of ${texts.length}…`
         });
 
-        const output =
-            await semanticModel(
-                modelInputs,
-                {
-                    pooling: "mean",
-                    normalize: true
-                }
-            );
+        const output = await semanticModel(
+            modelInputs,
+            {
+                pooling: "mean",
+                normalize: true
+            }
+        );
 
         const dimension =
             output.dims[output.dims.length - 1];
 
         for (let i = 0; i < batch.length; i++) {
-
             const offset = i * dimension;
-
             embeddings.push(
                 new Float32Array(
-                    output.data.slice(
-                        offset,
-                        offset + dimension
-                    )
+                    output.data.slice(offset, offset + dimension)
                 )
             );
         }
@@ -148,9 +118,7 @@ async function embedTexts(
     return embeddings;
 }
 
-
 self.addEventListener("message", async event => {
-
     const {
         requestId,
         type,
@@ -161,21 +129,13 @@ self.addEventListener("message", async event => {
     } = event.data || {};
 
     try {
-
         if (type === "embed") {
-
-            const embeddings =
-                await embedTexts(
-                    Array.isArray(texts) ? texts : [],
-                    modelId,
-                    phaseLabel || "Analyzing",
-                    prefixOverride ?? null
-                );
-
-            const transferables =
-                embeddings.map(
-                    embedding => embedding.buffer
-                );
+            const embeddings = await embedTexts(
+                Array.isArray(texts) ? texts : [],
+                modelId,
+                phaseLabel || "Analyzing",
+                prefixOverride ?? null
+            );
 
             self.postMessage(
                 {
@@ -183,25 +143,18 @@ self.addEventListener("message", async event => {
                     requestId,
                     embeddings
                 },
-                transferables
+                embeddings.map(embedding => embedding.buffer)
             );
-
             return;
         }
 
-        throw new Error(
-            `Unknown search-worker request: ${type}`
-        );
-
+        throw new Error(`Unknown semantic-worker request: ${type}`);
     } catch (error) {
-
         self.postMessage({
             type: "error",
             requestId,
-            message:
-                error?.message || String(error),
-            stack:
-                error?.stack || ""
+            message: error?.message || String(error),
+            stack: error?.stack || ""
         });
     }
 });

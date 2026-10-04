@@ -64,7 +64,7 @@ export async function selectFolder() {
 
 
 const TRANSCRIPT_DB_NAME = "Memora";
-const TRANSCRIPT_DB_VERSION = 1;
+const TRANSCRIPT_DB_VERSION = 3;
 const TRANSCRIPT_STORE_NAME = "transcripts";
 
 function openTranscriptDatabase() {
@@ -83,6 +83,22 @@ function openTranscriptDatabase() {
                     TRANSCRIPT_STORE_NAME,
                     { keyPath: "filename" }
                 );
+            }
+
+            if (!database.objectStoreNames.contains("semanticEntries")) {
+                const store = database.createObjectStore("semanticEntries", {
+                    keyPath: "id"
+                });
+                store.createIndex("representationKey", "representationKey", {
+                    unique: false
+                });
+                store.createIndex("sourceKey", "sourceKey", {
+                    unique: false
+                });
+            }
+
+            if (!database.objectStoreNames.contains("semanticMetadata")) {
+                database.createObjectStore("semanticMetadata", { keyPath: "key" });
             }
         };
 
