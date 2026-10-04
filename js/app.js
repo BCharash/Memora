@@ -2036,11 +2036,57 @@ function renderSearchResults(payload) {
         "Use Selected in Combine";
 
     toolbar.appendChild(selectAllLabel);
+
+    const collapseCheckboxTop =
+        document.createElement("input");
+
+    collapseCheckboxTop.type = "checkbox";
+    collapseCheckboxTop.id =
+        "collapseAllSearchTop";
+
+    const collapseLabelTop =
+        document.createElement("label");
+
+    collapseLabelTop.htmlFor =
+        "collapseAllSearchTop";
+    collapseLabelTop.textContent =
+        "Collapse all";
+
+    const collapseControlTop =
+        document.createElement("span");
+
+    collapseControlTop.className =
+        "selection-action";
+
+    collapseControlTop.appendChild(
+        collapseCheckboxTop
+    );
+
+    collapseControlTop.appendChild(
+        collapseLabelTop
+    );
+
+    toolbar.appendChild(
+        collapseControlTop
+    );
+
     toolbar.appendChild(summary);
     toolbar.appendChild(useButton);
     searchResults.appendChild(toolbar);
 
+    const upperSeparator =
+        document.createElement("div");
+
+    upperSeparator.className =
+        "selection-double-separator";
+
+    searchResults.appendChild(
+        upperSeparator
+    );
+
     const groupCheckboxes = [];
+    let searchResultListItems = [];
+    let searchResultsCollapsed = false;
 
     for (const group of groups) {
 
@@ -2151,7 +2197,112 @@ function renderSearchResults(payload) {
         }
 
         searchResults.appendChild(section);
+        searchResultListItems.push(section);
     }
+
+    const bottomSeparator =
+        document.createElement("div");
+
+    bottomSeparator.className =
+        "selection-double-separator";
+
+    searchResults.appendChild(
+        bottomSeparator
+    );
+
+    const collapseCheckboxBottom =
+        document.createElement("input");
+
+    collapseCheckboxBottom.type = "checkbox";
+    collapseCheckboxBottom.id =
+        "collapseAllSearchBottom";
+
+    const collapseLabelBottom =
+        document.createElement("label");
+
+    collapseLabelBottom.htmlFor =
+        "collapseAllSearchBottom";
+    collapseLabelBottom.textContent =
+        "Collapse all";
+
+    const collapseControlBottom =
+        document.createElement("div");
+
+    collapseControlBottom.className =
+        "selection-action selection-action-bottom";
+
+    collapseControlBottom.appendChild(
+        collapseCheckboxBottom
+    );
+
+    collapseControlBottom.appendChild(
+        collapseLabelBottom
+    );
+
+    searchResults.appendChild(
+        collapseControlBottom
+    );
+
+    function updateSearchCollapseUI() {
+
+        const label =
+            searchResultsCollapsed
+                ? "Expand all"
+                : "Collapse all";
+
+        collapseLabelTop.textContent = label;
+        collapseLabelBottom.textContent = label;
+
+        collapseCheckboxTop.checked = false;
+        collapseCheckboxBottom.checked = false;
+
+        searchResultListItems.forEach(
+            section => {
+                section.hidden = searchResultsCollapsed;
+            }
+        );
+    }
+
+    function toggleSearchCollapse() {
+        searchResultsCollapsed =
+            !searchResultsCollapsed;
+        updateSearchCollapseUI();
+    }
+
+    function expandSearchResultsFromBottom() {
+        const bottomTopBefore =
+            collapseControlBottom
+                ? collapseControlBottom.getBoundingClientRect().top
+                : null;
+
+        searchResultsCollapsed = false;
+        updateSearchCollapseUI();
+
+        if (bottomTopBefore !== null) {
+            requestAnimationFrame(() => {
+                const bottomTopAfter =
+                    collapseControlBottom.getBoundingClientRect().top;
+
+                window.scrollBy(
+                    0,
+                    bottomTopAfter - bottomTopBefore
+                );
+            });
+        }
+    }
+
+    collapseCheckboxTop.onchange =
+        toggleSearchCollapse;
+
+    collapseCheckboxBottom.onchange = () => {
+        if (searchResultsCollapsed) {
+            expandSearchResultsFromBottom();
+        } else {
+            toggleSearchCollapse();
+        }
+    };
+
+    updateSearchCollapseUI();
 
     function updateSelectionUI() {
 
