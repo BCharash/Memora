@@ -368,6 +368,59 @@ async function getSearchModule() {
 
 
 // --------------------------------------------------
+// Developer tools: persistent semantic store
+// --------------------------------------------------
+//
+// These console helpers are intentionally developer-only. They provide a
+// lightweight way to inspect and reset the persisted semantic index while
+// the storage architecture is being developed. They do not affect transcripts.
+
+window.memoraSemanticStoreStats = async function() {
+
+    const search =
+        await getSearchModule();
+
+    const stats =
+        await search.getSearchSemanticStats();
+
+    console.table(
+        stats.representations.map(item => ({
+            Model: item.modelId,
+            Version: item.modelVersion,
+            Representation: item.representationType,
+            "Chunk size": item.chunkSize ?? "—",
+            Overlap: item.chunkOverlap ?? "—",
+            Entries: item.count,
+            Dimensions: item.dimension ?? "—",
+            "Embedding MB":
+                Number(item.embeddingMB.toFixed(2)),
+            Sources: item.sourceCount,
+            "Transcript hashes": item.transcriptHashCount
+        }))
+    );
+
+    console.info(
+        `Semantic store: ${stats.entryCount.toLocaleString()} entries · ` +
+        `${stats.totalEmbeddingMB.toFixed(2)} MB of embedding data · ` +
+        `${stats.representationCount} representations`
+    );
+
+    return stats;
+};
+
+window.memoraClearSemanticStore = async function() {
+
+    const semantic =
+        await import("./semantic.js");
+
+    await semantic.clearSemanticStore();
+
+    console.info(
+        "Memora semantic store cleared. Transcripts were not affected."
+    );
+};
+
+// --------------------------------------------------
 // Source / destination
 // --------------------------------------------------
 

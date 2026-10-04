@@ -423,18 +423,98 @@ export async function getSemanticStoreStats() {
         request.onsuccess = () => {
             const entries = request.result;
             const groups = new Map();
+            let totalEmbeddingBytes = 0;
 
             for (const entry of entries) {
-                const key = `${entry.modelId}|${entry.representationType}|${entry.chunkSize ?? ""}|${entry.chunkOverlap ?? ""}`;
-                groups.set(key, (groups.get(key) || 0) + 1);
+                const representationKey = [
+                    entry.modelId,
+                    entry.modelVersion || "",
+                    entry.representationType,
+                    entry.chunkSize ?? "",
+                    entry.chunkOverlap ?? ""
+                ].join("|");
+
+                let group = groups.get(representationKey);
+
+                if (!group) {
+                    group = {
+                        modelId: entry.modelId,
+                        modelVersion: entry.modelVersion || null,
+                        representationType: entry.representationType,
+                        chunkSize: entry.chunkSize ?? null,
+                        chunkOverlap: entry.chunkOverlap ?? null,
+                        count: 0,
+                        dimension: entry.dimension ?? null,
+                        dtype: entry.dtype || null,
+                        embeddingBytes: 0,
+                        sourceKeys: new Set(),
+                        transcriptHashes: new Set()
+                    };
+
+                    groups.set(representationKey, group);
+                }
+
+                group.count += 1;
+                group.embeddingBytes +=
+                    entry.embedding?.byteLength || 0;
+                group.sourceKeys.add(entry.sourceKey);
+                group.transcriptHashes.add(entry.transcriptHash);
+
+                totalEmbeddingBytes +=
+                    entry.embedding?.byteLength || 0;
             }
 
+            const representations =
+                [...groups.values()]
+                    .map(group => ({
+                        modelId: group.modelId,
+                        modelVersion: group.modelVersion,
+                        representationType:
+                            group.representationType,
+                        chunkSize: group.chunkSize,
+                        chunkOverlap: group.chunkOverlap,
+                        count: group.count,
+                        dimension: group.dimension,
+                        dtype: group.dtype,
+                        embeddingBytes: group.embeddingBytes,
+                        embeddingMB:
+                            group.embeddingBytes / (1024 * 1024),
+                        sourceCount: group.sourceKeys.size,
+                        transcriptHashCount:
+                            group.transcriptHashes.size
+                    }))
+                    .sort((a, b) => {
+                        const modelComparison =
+                            a.modelId.localeCompare(b.modelId);
+
+                        if (modelComparison !== 0) {
+                            return modelComparison;
+                        }
+
+                        return (
+                            a.representationType.localeCompare(
+                                b.representationType
+                            ) ||
+                            (a.chunkSize ?? 0) -
+                                (b.chunkSize ?? 0) ||
+                            (a.chunkOverlap ?? 0) -
+                                (b.chunkOverlap ?? 0)
+                        );
+                    });
+
             db.close();
+
             resolve({
                 entryCount: entries.length,
-                representations: Object.fromEntries(groups)
+                totalEmbeddingBytes,
+                totalEmbeddingMB:
+                    totalEmbeddingBytes / (1024 * 1024),
+                representationCount:
+                    representations.length,
+                representations
             });
         };
+
         request.onerror = () => {
             db.close();
             reject(request.error);
