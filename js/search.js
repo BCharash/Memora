@@ -17,38 +17,22 @@ import {
 
 import {
     getSemanticEmbeddings,
-    getSemanticStoreStats,
-    clearSemanticStore
+    getStoredSemanticEntries
 } from "./semantic.js";
 
-const SEARCH_MODELS = {
-    minilm: {
-        label: "MiniLM — fast, general",
-        model: "Xenova/all-MiniLM-L6-v2",
-        prefix: ""
-    },
-    multilingualE5: {
-        label: "Multilingual E5-small — multilingual",
-        model: "Xenova/multilingual-e5-small",
-        prefix: "passage: "
-    }
-};
+const SEARCH_MODEL_ID = "minilm";
+
+const SEARCH_CONTEXTS = [
+    { chunkSize: 3, chunkOverlap: 1, label: "3–2" },
+    { chunkSize: 5, chunkOverlap: 2, label: "5–3" },
+    { chunkSize: 7, chunkOverlap: 3, label: "7–4" }
+];
 
 let currentIndex = null;
 
 let searchWorker = null;
 let nextWorkerRequestId = 1;
 const pendingWorkerRequests = new Map();
-
-
-export function getSearchModels() {
-    return Object.entries(SEARCH_MODELS).map(
-        ([id, config]) => ({
-            id,
-            label: config.label
-        })
-    );
-}
 
 
 function splitSentences(text) {
@@ -250,9 +234,10 @@ function cosine(a, b) {
 
 export async function buildSearchIndex(
     files,
-    modelId = "minilm",
     statusCallback
 ) {
+
+    const modelId = SEARCH_MODEL_ID;
 
     const startTime = performance.now();
 
@@ -321,19 +306,17 @@ export async function buildSearchIndex(
     const chunks =
         buildChunkEntries(entries, CHUNK_SIZE, CHUNK_OVERLAP);
 
-    // A second persistent representation is intentionally generated now so
-    // that the semantic-store diagnostics have real work to report. It is
-    // stored for future experiments but is NOT used by the current Search
-    // ranking, which continues to use the established 5–3 representation.
-    const experimentalChunkSize = 5;
-    const experimentalChunkOverlap = 3;
-
-    const experimentalChunks =
-        buildChunkEntries(
+    // Persist the three contextual representations used by Search.
+    const contextualConfigs = SEARCH_CONTEXTS.filter(
+        config => !(config.chunkSize === CHUNK_SIZE && config.chunkOverlap === CHUNK_OVERLAP)
+    ).map(config => ({
+        ...config,
+        chunks: buildChunkEntries(
             entries,
-            experimentalChunkSize,
-            experimentalChunkOverlap
-        );
+            config.chunkSize,
+            config.chunkOverlap
+        )
+    }));
 
     const chunkProcessingDurationMs =
         performance.now() - chunkStart;
@@ -348,16 +331,8 @@ export async function buildSearchIndex(
     const chunkTexts =
         chunks.map(chunk => chunk.text);
 
-    // Persistent semantic identities must be stable regardless of the order
-    // in which transcript files are supplied to Search. The semantic store
-    // already identifies each representation by transcript, so the ordinal
-    // is local to that transcript rather than the position in the combined
-    // Search array.
-    //
-    // Sentences and contextual chunks are deliberately embedded in separate
-    // semantic-store calls. This makes the persistent-store diagnostic
-    // representation-aware and will allow additional chunk configurations to
-    // coexist later without making the status ambiguous.
+    // Persistent semantic identities are local to each transcript so Search
+    // results remain stable regardless of source-file order.
     const sentenceItems = [];
     const sentenceOrdinals = new Map();
 
@@ -414,40 +389,37 @@ export async function buildSearchIndex(
             sourceRecords: records
         });
 
-    // Persist 5–2 as a second representation. Its embeddings are deliberately
-    // not added to currentIndex yet; this experiment is about proving that
-    // multiple chunk configurations can coexist in persistent storage.
-    const experimentalChunkItems = [];
-    const experimentalChunkOrdinals = new Map();
+    for (const config of contextualConfigs) {
+        const contextualChunkItems = [];
+        const contextualChunkOrdinals = new Map();
 
-    for (let i = 0; i < experimentalChunks.length; i++) {
-        const record = experimentalChunks[i].record;
-        const ordinal = experimentalChunkOrdinals.get(record) || 0;
-        experimentalChunkOrdinals.set(record, ordinal + 1);
+        for (const chunk of config.chunks) {
+            const record = chunk.record;
+            const ordinal = contextualChunkOrdinals.get(record) || 0;
+            contextualChunkOrdinals.set(record, ordinal + 1);
 
-        experimentalChunkItems.push({
-            representationType: "chunk",
-            ordinal,
-            record,
-            text: experimentalChunks[i].text,
-            firstSentenceGlobalIndex:
-                experimentalChunks[i].firstSentenceGlobalIndex,
-            lastSentenceGlobalIndex:
-                experimentalChunks[i].lastSentenceGlobalIndex,
-            chunkSize: experimentalChunkSize,
-            chunkOverlap: experimentalChunkOverlap
+            contextualChunkItems.push({
+                representationType: "chunk",
+                ordinal,
+                record,
+                text: chunk.text,
+                firstSentenceGlobalIndex:
+                    chunk.firstSentenceGlobalIndex,
+                lastSentenceGlobalIndex:
+                    chunk.lastSentenceGlobalIndex,
+                chunkSize: config.chunkSize,
+                chunkOverlap: config.chunkOverlap
+            });
+        }
+
+        await getSemanticEmbeddings({
+            items: contextualChunkItems,
+            modelId,
+            statusCallback,
+            phaseLabel: `Chunks ${config.label}`,
+            sourceRecords: records
         });
     }
-
-    await getSemanticEmbeddings({
-        items: experimentalChunkItems,
-        modelId,
-        statusCallback,
-        phaseLabel:
-            `Chunks ${experimentalChunkSize}–` +
-            `${experimentalChunkSize - experimentalChunkOverlap}`,
-        sourceRecords: records
-    });
 
     const embeddingDurationMs =
         performance.now() - embeddingStart;
@@ -467,7 +439,6 @@ export async function buildSearchIndex(
         chunks,
         sentences: entries.length,
         chunkCount: chunks.length,
-        experimentalChunkCount: experimentalChunks.length,
         readDurationMs,
         sentenceProcessingDurationMs,
         chunkProcessingDurationMs,
@@ -501,9 +472,6 @@ export async function search(
     }
 
     const startTime = performance.now();
-    const config =
-        SEARCH_MODELS[currentIndex.modelId];
-
     if (statusCallback) {
         statusCallback("Understanding your search…");
     }
@@ -518,10 +486,6 @@ export async function search(
             modelId: currentIndex.modelId,
             statusCallback: null,
             phaseLabel: "",
-            prefixOverride:
-                config.prefix === "passage: "
-                    ? "query: "
-                    : null,
             persist: false
         }))[0];
 
@@ -621,37 +585,162 @@ export async function search(
 }
 
 
-export function getSearchIndexStats() {
+export async function searchStoredRepresentations(
+    query,
+    {
+        maxResults = 30,
+        records = []
+    } = {}
+) {
+    const cleanQuery = String(query || "").trim();
 
-    if (!currentIndex) {
-        return null;
+    if (!cleanQuery) {
+        return {
+            results: [],
+            chunkResults: [],
+            representations: []
+        };
     }
 
+    const queryEmbedding =
+        (await getSemanticEmbeddings({
+            items: [{
+                representationType: "query",
+                ordinal: 0,
+                text: cleanQuery
+            }],
+            modelId: SEARCH_MODEL_ID,
+            persist: false
+        }))[0];
+
+    const allSentenceEntries = buildSentenceEntries(records);
+    const candidates = new Map();
+    const representationResults = [];
+
+    for (const context of SEARCH_CONTEXTS) {
+        const entries =
+            await getStoredSemanticEntries({
+                sourceRecords: records,
+                modelId: SEARCH_MODEL_ID,
+                representationType: "chunk",
+                chunkSize: context.chunkSize,
+                chunkOverlap: context.chunkOverlap
+            });
+
+        const scored = entries
+            .map(entry => ({
+                entry,
+                score: cosine(
+                    queryEmbedding,
+                    new Float32Array(entry.embedding)
+                )
+            }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, Math.max(1, maxResults));
+
+        const results = scored.map(({ entry, score }, index) => ({
+            type: "chunk",
+            rank: index + 1,
+            representation: context.label,
+            relativeRank: 1 / (index + 1),
+            record: entry.record,
+            filename: entry.record.filename,
+            recordingFilename: entry.record.recordingFilename,
+            recordingDate: entry.record.recordingDate,
+            audioRelativePath: entry.record.audioRelativePath,
+            text: entry.text,
+            sentences: buildStoredChunkSentenceRefs(
+                entry,
+                allSentenceEntries
+            ),
+            firstSentenceGlobalIndex: entry.firstSentenceGlobalIndex,
+            lastSentenceGlobalIndex: entry.lastSentenceGlobalIndex,
+            score
+        }));
+
+        representationResults.push({
+            representation: context.label,
+            results
+        });
+
+        for (const result of results) {
+            const existing = candidates.get(result.filename);
+
+            if (!existing) {
+                candidates.set(result.filename, {
+                    ...result,
+                    representations: [result.representation]
+                });
+                continue;
+            }
+
+            existing.representations.push(result.representation);
+
+            if (
+                result.relativeRank > existing.relativeRank ||
+                (
+                    result.relativeRank === existing.relativeRank &&
+                    result.score > existing.score
+                )
+            ) {
+                const representations = existing.representations;
+                Object.assign(existing, result);
+                existing.representations = representations;
+            }
+        }
+    }
+
+    const chunkResults =
+        Array.from(candidates.values())
+            .sort((a, b) => {
+                if (b.relativeRank !== a.relativeRank) {
+                    return b.relativeRank - a.relativeRank;
+                }
+
+                if (b.representations.length !== a.representations.length) {
+                    return b.representations.length - a.representations.length;
+                }
+
+                return b.score - a.score;
+            })
+            .slice(0, Math.max(1, maxResults))
+            .map((result, index) => ({
+                ...result,
+                rank: index + 1
+            }));
+
     return {
-        modelId: currentIndex.modelId,
-        transcriptCount: currentIndex.records.length,
-        sentenceCount: currentIndex.sentences,
-        readDurationMs: currentIndex.readDurationMs,
-        sentenceProcessingDurationMs:
-            currentIndex.sentenceProcessingDurationMs,
-        chunkProcessingDurationMs:
-            currentIndex.chunkProcessingDurationMs,
-        embeddingDurationMs:
-            currentIndex.embeddingDurationMs,
-        durationMs: currentIndex.durationMs
+        results: chunkResults,
+        chunkResults,
+        representations: representationResults
     };
+}
+
+function buildStoredChunkSentenceRefs(
+    entry,
+    allSentenceEntries
+) {
+    const first =
+        entry.firstSentenceGlobalIndex ?? 0;
+    const last =
+        entry.lastSentenceGlobalIndex ?? first;
+
+    return allSentenceEntries
+        .slice(first, last + 1)
+        .filter(item => item.record === entry.record)
+        .map(item => ({
+            sentence: item.sentence,
+            sentenceIndex: item.sentenceIndex,
+            paragraphIndex: item.paragraphIndex
+        }));
+}
+
+
+export function getSearchIndexRecords() {
+    return currentIndex?.records || [];
 }
 
 
 export function clearSearchIndex() {
-    currentIndex = null;
-}
-
-export async function getSearchSemanticStats() {
-    return getSemanticStoreStats();
-}
-
-export async function clearSearchSemanticStore() {
-    await clearSemanticStore();
     currentIndex = null;
 }

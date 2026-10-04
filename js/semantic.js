@@ -413,6 +413,62 @@ function findRecordForItem(item, sourceInfo) {
     );
 }
 
+export async function getStoredSemanticEntries({
+    sourceRecords = [],
+    modelId = "minilm",
+    representationType = "chunk",
+    chunkSize = null,
+    chunkOverlap = null
+}) {
+    if (!sourceRecords.length) return [];
+
+    const db = await openDatabase();
+    const sourceInfo = [];
+
+    for (const record of sourceRecords) {
+        const sourceKey = await getSourceKey(record);
+        const transcriptHash = await getTranscriptHash(record);
+        const representationKey = makeRepresentationKey({
+            sourceKey,
+            transcriptHash,
+            modelId,
+            representationType,
+            chunkSize,
+            chunkOverlap
+        });
+
+        sourceInfo.push({
+            record,
+            representationKey
+        });
+    }
+
+    const entries =
+        await loadExistingEntries(
+            db,
+            sourceInfo.map(info => info.representationKey)
+        );
+
+    const recordByRepresentationKey =
+        new Map(
+            sourceInfo.map(info => [
+                info.representationKey,
+                info.record
+            ])
+        );
+
+    db.close();
+
+    return entries.map(entry => ({
+        ...entry,
+        record:
+            recordByRepresentationKey.get(
+                entry.representationKey
+            ) || null
+    }));
+}
+
+
 export async function getSemanticStoreStats() {
     const db = await openDatabase();
 

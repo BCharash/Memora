@@ -52,8 +52,6 @@ const searchPanel =
 
 const searchSourceButton =
     document.getElementById("searchSourceButton");
-const searchModelSelect =
-    document.getElementById("searchModelSelect");
 const searchQueryInput =
     document.getElementById("searchQueryInput");
 const searchButton =
@@ -366,59 +364,6 @@ async function getSearchModule() {
     return searchModule;
 }
 
-
-// --------------------------------------------------
-// Developer tools: persistent semantic store
-// --------------------------------------------------
-//
-// These console helpers are intentionally developer-only. They provide a
-// lightweight way to inspect and reset the persisted semantic index while
-// the storage architecture is being developed. They do not affect transcripts.
-
-window.memoraSemanticStoreStats = async function() {
-
-    const search =
-        await getSearchModule();
-
-    const stats =
-        await search.getSearchSemanticStats();
-
-    console.table(
-        stats.representations.map(item => ({
-            Model: item.modelId,
-            Version: item.modelVersion,
-            Representation: item.representationType,
-            "Chunk size": item.chunkSize ?? "—",
-            Overlap: item.chunkOverlap ?? "—",
-            Entries: item.count,
-            Dimensions: item.dimension ?? "—",
-            "Embedding MB":
-                Number(item.embeddingMB.toFixed(2)),
-            Sources: item.sourceCount,
-            "Transcript hashes": item.transcriptHashCount
-        }))
-    );
-
-    console.info(
-        `Semantic store: ${stats.entryCount.toLocaleString()} entries · ` +
-        `${stats.totalEmbeddingMB.toFixed(2)} MB of embedding data · ` +
-        `${stats.representationCount} representations`
-    );
-
-    return stats;
-};
-
-window.memoraClearSemanticStore = async function() {
-
-    const semantic =
-        await import("./semantic.js");
-
-    await semantic.clearSemanticStore();
-
-    console.info(
-        "Memora semantic store cleared. Transcripts were not affected."
-    );
-};
 
 // --------------------------------------------------
 // Source / destination
@@ -1600,10 +1545,6 @@ function setSearchBusy(busy) {
         searchSourceButton.disabled = busy;
     }
 
-    if (searchModelSelect) {
-        searchModelSelect.disabled = busy;
-    }
-
     if (searchQueryInput) {
         searchQueryInput.disabled = busy || !searchIndexReady;
     }
@@ -1735,7 +1676,6 @@ async function buildSearchIndexForSource(files) {
         const index =
             await search.buildSearchIndex(
                 files,
-                searchModelSelect?.value || "minilm",
                 message => {
                     if (token !== searchIndexBuildToken) {
                         return;
@@ -1923,7 +1863,8 @@ function renderSearchResults(payload) {
             group = {
                 filename: result.filename,
                 record: result.record,
-                passages: new Map()
+                passages: new Map(),
+                displayRank: 0
             };
 
             files.set(
@@ -1960,6 +1901,10 @@ function renderSearchResults(payload) {
         };
 
         group.passages.set(key, passage);
+        group.displayRank = Math.max(
+            group.displayRank,
+            result.relativeRank || 0
+        );
         chunkPassages.push({
             result,
             group,
@@ -1969,7 +1914,17 @@ function renderSearchResults(payload) {
 
     // Add sentence matches. If the sentence belongs to one of the displayed
     // contextual chunks, use it only to provide optional highlighting inside
-    // that chunk. Otherwise retain the sentence result as its own passage.
+    // that chunk. Sentence-only results are used only to fill the result set
+    // when fewer than 30 contextual transcripts were found.
+    const contextualFileNames =
+        new Set(
+            (payload.chunkResults || [])
+                .map(result => result.filename)
+        );
+    const sentenceOnlyFiles = new Set();
+    const sentenceOnlyLimit =
+        Math.max(0, 30 - contextualFileNames.size);
+
     for (const result of payload.sentenceResults || []) {
 
         const containingChunk =
@@ -1988,6 +1943,16 @@ function renderSearchResults(payload) {
                 result.score
             );
             continue;
+        }
+
+        if (
+            !contextualFileNames.has(result.filename) &&
+            !sentenceOnlyFiles.has(result.filename)
+        ) {
+            if (sentenceOnlyFiles.size >= sentenceOnlyLimit) {
+                continue;
+            }
+            sentenceOnlyFiles.add(result.filename);
         }
 
         const group =
@@ -2017,11 +1982,19 @@ function renderSearchResults(payload) {
             passage.bestScore,
             result.score
         );
+        if (group.displayRank === 0) {
+            group.displayRank =
+                Math.max(
+                    group.displayRank,
+                    1 / Math.max(1, result.rank || 1)
+                );
+        }
     }
 
     const groups =
         Array.from(files.values())
-            .filter(group => group.passages.size > 0);
+            .filter(group => group.passages.size > 0)
+            .sort((a, b) => b.displayRank - a.displayRank);
 
     const toolbar =
         document.createElement("div");
@@ -2302,7 +2275,7 @@ async function runSearchQuery() {
         const search =
             await getSearchModule();
 
-        const payload =
+        const sentencePayload =
             await search.search(
                 query,
                 30,
@@ -2314,12 +2287,40 @@ async function runSearchQuery() {
                 }
             );
 
+        const contextualPayload =
+            await search.searchStoredRepresentations(
+                query,
+                {
+                    maxResults: 30,
+                    records: search.getSearchIndexRecords()
+                }
+            );
+
+        const payload = {
+            results: sentencePayload.sentenceResults
+                .concat(contextualPayload.chunkResults)
+                .sort((a, b) => {
+                    const aRank =
+                        a.type === "chunk"
+                            ? a.relativeRank
+                            : 1 / Math.max(1, a.rank || 1);
+                    const bRank =
+                        b.type === "chunk"
+                            ? b.relativeRank
+                            : 1 / Math.max(1, b.rank || 1);
+                    return bRank - aRank;
+                }),
+            sentenceResults: sentencePayload.sentenceResults,
+            chunkResults: contextualPayload.chunkResults,
+            durationMs: sentencePayload.durationMs,
+            representations: contextualPayload.representations
+        };
+
         renderSearchResults(payload);
 
         setSearchQueryStatus(
-            `${payload.sentenceResults.length} sentence match${payload.sentenceResults.length === 1 ? "" : "es"} and ` +
-            `${payload.chunkResults.length} contextual chunk match${payload.chunkResults.length === 1 ? "" : "es"} found in ` +
-            `${formatElapsed(payload.durationMs / 1000)}.`
+            `${payload.chunkResults.length} contextual result${payload.chunkResults.length === 1 ? "" : "s"} from 3–2, 5–3 and 7–4 context` +
+            ` · ${formatElapsed(payload.durationMs / 1000)}.`
         );
 
     } catch (error) {
@@ -2337,141 +2338,6 @@ async function runSearchQuery() {
     if (searchButton) {
         searchButton.disabled = !searchIndexReady;
     }
-}
-
-
-function createSearchCombineTitle(query) {
-
-    let phrase =
-        String(query || "")
-            .replace(/\s+/g, " ")
-            .trim()
-            .replace(/[?!.]+$/g, "")
-            .trim();
-
-    if (!phrase) {
-        return "Memora — Combined Transcription";
-    }
-
-    // Remove common conversational framing while preserving the user's
-    // actual subject. This is intentionally conservative; it is a title
-    // normalization step, not a semantic rewriting model.
-    const framingPatterns = [
-        /^what did I say about\s+/i,
-        /^what have I said about\s+/i,
-        /^what was I saying about\s+/i,
-        /^tell me what I said about\s+/i,
-        /^tell me about what I said about\s+/i,
-        /^can you remind me what I said about\s+/i,
-        /^can you remind me about what I said about\s+/i,
-        /^when did I talk about\s+/i,
-        /^where did I talk about\s+/i,
-        /^did I say anything about\s+/i,
-        /^what do I say about\s+/i,
-        /^what have I said regarding\s+/i,
-        /^what did I say regarding\s+/i
-    ];
-
-    for (const pattern of framingPatterns) {
-        const stripped =
-            phrase.replace(pattern, "").trim();
-
-        if (stripped && stripped !== phrase) {
-            phrase = stripped;
-            break;
-        }
-    }
-
-    // Produce a readable title without changing words such as iPhone,
-    // Sanskrit names, acronyms, or other mixed-case terms already supplied
-    // by the user.
-    const smallWords = new Set([
-        "a", "an", "and", "as", "at", "by",
-        "for", "from", "in", "into", "of", "on",
-        "or", "the", "to", "with"
-    ]);
-
-    const words = phrase.split(" ");
-
-    phrase =
-        words.map((word, index) => {
-            if (!/^[a-z]+$/.test(word)) {
-                return word;
-            }
-
-            if (index > 0 && index < words.length - 1 && smallWords.has(word)) {
-                return word;
-            }
-
-            return word.charAt(0).toUpperCase() + word.slice(1);
-        }).join(" ");
-
-    return `Memora — Search: ${phrase}`;
-}
-
-
-async function useSearchSelectionInCombine(files, searchQuery) {
-
-    if (!files.length) {
-        return;
-    }
-
-    selectedTranscriptFiles =
-        files;
-
-    textSourceHandle =
-        searchSourceHandle;
-
-    combineDestinationHandle = null;
-    resetIPhoneCombineExportState();
-    setActiveCombineDestinationButton(null);
-
-    if (combineTitleInput) {
-        combineTitleInput.value =
-            createSearchCombineTitle(searchQuery);
-    }
-
-    if (textSourceHandle) {
-
-        const isFileInput =
-            textSourceHandle.kind === "file-input";
-
-        if (combineDestinationSection) {
-            combineDestinationSection.hidden = isFileInput;
-        }
-
-        if (combineTextButton) {
-            combineTextButton.hidden = isFileInput;
-        }
-
-        if (combineDOCXButton) {
-            combineDOCXButton.hidden = isFileInput;
-        }
-
-        if (combineHTMLButton) {
-            combineHTMLButton.hidden = isFileInput;
-        }
-
-        if (iphoneCombineDestinationOptions) {
-            iphoneCombineDestinationOptions.hidden = !isFileInput;
-            iphoneCombineDestinationOptions.style.display =
-                isFileInput ? "block" : "none";
-        }
-
-        if (!isFileInput) {
-            await updateCombineFolderButton();
-        }
-
-        textSourceButton.textContent =
-            `Text Source: ${textSourceHandle.name}`;
-    }
-
-    await displayTranscriptFiles(files);
-
-    combineStatus.textContent =
-        `${files.length} transcript${files.length === 1 ? "" : "s"} selected from Search.`;
-
-    combineTab.click();
 }
 
 
@@ -2548,37 +2414,6 @@ if (searchSourceButton) {
                         "Unable to read the search source folder."
                     );
                 }
-            }
-        }
-    );
-}
-
-
-if (searchModelSelect) {
-
-    searchModelSelect.addEventListener(
-        "change",
-        async () => {
-
-            if (!searchSourceHandle) {
-                return;
-            }
-
-            try {
-                const files =
-                    await getSearchSourceFiles(
-                        searchSourceHandle
-                    );
-
-                await buildSearchIndexForSource(
-                    files
-                );
-
-            } catch (error) {
-                console.error(
-                    "Search model change error:",
-                    error
-                );
             }
         }
     );
