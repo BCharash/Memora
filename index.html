@@ -15,6 +15,25 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
 
+    <style>
+        .settings-section { margin-top: 24px; }
+        .settings-section h3 { margin-bottom: 12px; }
+        .settings-storage, #settingsRuntime { display: grid; gap: 8px; }
+        .settings-row {
+            display: flex; justify-content: space-between; gap: 20px;
+            padding: 9px 0; border-bottom: 1px solid var(--border);
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-label { color: var(--muted); }
+        .settings-value { text-align: right; font-variant-numeric: tabular-nums; }
+        .settings-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+        .settings-subheading { margin: 18px 0 6px; font-size: 15px; }
+        .settings-model { padding: 9px 0; border-bottom: 1px solid var(--border); }
+        .settings-model:last-child { border-bottom: none; }
+        .settings-model-name { font-weight: 600; }
+        .settings-model-detail { margin-top: 3px; color: var(--muted); font-size: 13px; }
+    </style>
+
     <link rel="icon" type="image/png" href="icons/favicon-32.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
@@ -32,10 +51,21 @@
     <header class="app-header">
         <img id="appIcon" src="icons/transcribe.png" alt="Memora" class="app-icon">
 
-        <div>
+        <div class="app-header-title">
             <h1>Memora</h1>
             <p>Remember what you recorded.</p>
         </div>
+
+        <button
+            id="settingsButton"
+            class="settings-button"
+            type="button"
+            aria-label="Settings"
+            aria-expanded="false"
+            title="Settings"
+        >
+            ⚙
+        </button>
     </header>
 
     <main class="app-main">
@@ -467,31 +497,6 @@
 
                 </div>
 
-                <div class="search-controls">
-
-                    <div class="search-control">
-
-                        <label for="searchModelSelect">
-                            Search model
-                        </label>
-
-                        <select id="searchModelSelect">
-                            <option value="minilm" selected>
-                                MiniLM — fast, general
-                            </option>
-                            <option value="multilingualE5">
-                                Multilingual E5-small — multilingual
-                            </option>
-                        </select>
-
-                    </div>
-
-                    <p class="search-model-note">
-                        The selected model is downloaded once and reused from the browser cache.
-                    </p>
-
-                </div>
-
                 <div class="search-query-section">
 
                     <label for="searchQueryInput">
@@ -531,6 +536,50 @@
                     <p class="empty-message">
                         Select a transcript folder to begin.
                     </p>
+                </div>
+
+            </section>
+
+        </section>
+
+
+        <section
+            id="settingsPanel"
+            class="tab-panel"
+            hidden
+        >
+
+            <section class="panel">
+
+                <h2>Settings</h2>
+
+                <div class="settings-section">
+                    <h3>Storage &amp; Models</h3>
+
+                    <p id="settingsStorageStatus" class="transcription-status">
+                        Storage information has not been loaded.
+                    </p>
+
+                    <div id="settingsStorage" class="settings-storage" aria-live="polite">
+                        <p class="empty-message">
+                            Open Settings to inspect Memora storage.
+                        </p>
+                    </div>
+
+                    <div class="action-row">
+                        <button id="settingsRefreshButton" type="button">
+                            Refresh Storage Information
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Runtime</h3>
+                    <div id="settingsRuntime">
+                        <p class="empty-message">
+                            Runtime information has not been loaded.
+                        </p>
+                    </div>
                 </div>
 
             </section>

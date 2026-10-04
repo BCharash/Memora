@@ -1,4 +1,5 @@
 let storageModulePromise = import("./storage.js");
+let storageManagerModulePromise = import("./storageManager.js");
 
 const sourceButton = document.getElementById("sourceButton");
 const destinationButton = document.getElementById("destinationButton");
@@ -49,6 +50,27 @@ const combinePanel =
 
 const searchPanel =
     document.getElementById("searchPanel");
+
+const settingsPanel =
+    document.getElementById("settingsPanel");
+
+const settingsButton =
+    document.getElementById("settingsButton");
+
+const appTabs =
+    document.querySelector(".app-tabs");
+
+const settingsStorageStatus =
+    document.getElementById("settingsStorageStatus");
+
+const settingsStorage =
+    document.getElementById("settingsStorage");
+
+const settingsRuntime =
+    document.getElementById("settingsRuntime");
+
+const settingsRefreshButton =
+    document.getElementById("settingsRefreshButton");
 
 const searchSourceButton =
     document.getElementById("searchSourceButton");
@@ -262,6 +284,10 @@ async function getTranscriptionModule() {
 
 async function getStorageModule() {
     return await storageModulePromise;
+}
+
+async function getStorageManagerModule() {
+    return await storageManagerModulePromise;
 }
 
 
@@ -1460,78 +1486,233 @@ function setTranscriptionError(message) {
 // Combine Files
 // --------------------------------------------------
 
-if (transcriptionTab && combineTab && searchTab) {
+if (
+    transcriptionTab &&
+    combineTab &&
+    searchTab
+) {
+
+    const tabConfig = {
+        transcription: {
+            tab: transcriptionTab,
+            panel: transcriptionPanel,
+            icon: "icons/transcribe.png"
+        },
+        combine: {
+            tab: combineTab,
+            panel: combinePanel,
+            icon: "icons/combine.png"
+        },
+        search: {
+            tab: searchTab,
+            panel: searchPanel,
+            icon: "icons/search.png"
+        }
+    };
+
+    let activePrimaryTab = transcriptionTab;
+    let settingsOpen = false;
 
     function activateTab(activeTab) {
-
-        const tabConfig = {
-            transcription: {
-                tab: transcriptionTab,
-                panel: transcriptionPanel,
-                icon: "icons/transcribe.png"
-            },
-            combine: {
-                tab: combineTab,
-                panel: combinePanel,
-                icon: "icons/combine.png"
-            },
-            search: {
-                tab: searchTab,
-                panel: searchPanel,
-                icon: "icons/search.png"
-            }
-        };
+        activePrimaryTab = activeTab;
 
         Object.values(tabConfig).forEach(config => {
-            const isActive =
-                config.tab === activeTab;
-
-            config.tab.classList.toggle(
-                "active",
-                isActive
-            );
-
-            config.tab.setAttribute(
-                "aria-selected",
-                isActive ? "true" : "false"
-            );
-
+            const isActive = config.tab === activeTab;
+            config.tab.classList.toggle("active", isActive);
+            config.tab.setAttribute("aria-selected", isActive ? "true" : "false");
             config.panel.hidden = !isActive;
         });
 
-        const activeConfig =
-            Object.values(tabConfig).find(
+        if (appIcon) {
+            const activeConfig = Object.values(tabConfig).find(
                 config => config.tab === activeTab
             );
-
-        if (activeConfig && appIcon) {
-            appIcon.src = activeConfig.icon;
+            if (activeConfig?.icon) {
+                appIcon.src = activeConfig.icon;
+            }
         }
     }
 
+    function openSettings() {
+        if (settingsOpen) return;
 
-    transcriptionTab.addEventListener(
-        "click",
-        () => {
-            activateTab(transcriptionTab);
+        settingsOpen = true;
+        Object.values(tabConfig).forEach(config => {
+            config.panel.hidden = true;
+        });
+
+        if (appTabs) {
+            appTabs.hidden = true;
         }
-    );
 
-
-    combineTab.addEventListener(
-        "click",
-        () => {
-            activateTab(combineTab);
+        if (settingsPanel) {
+            settingsPanel.hidden = false;
         }
-    );
 
-
-    searchTab.addEventListener(
-        "click",
-        () => {
-            activateTab(searchTab);
+        if (settingsButton) {
+            settingsButton.setAttribute("aria-expanded", "true");
+            settingsButton.classList.add("active");
         }
-    );
+
+        refreshSettings();
+    }
+
+    function closeSettings() {
+        if (!settingsOpen) return;
+
+        settingsOpen = false;
+
+        if (settingsPanel) {
+            settingsPanel.hidden = true;
+        }
+
+        if (appTabs) {
+            appTabs.hidden = false;
+        }
+
+        if (settingsButton) {
+            settingsButton.setAttribute("aria-expanded", "false");
+            settingsButton.classList.remove("active");
+        }
+
+        activateTab(activePrimaryTab);
+    }
+
+    transcriptionTab.addEventListener("click", () => {
+        if (settingsOpen) closeSettings();
+        activateTab(transcriptionTab);
+    });
+
+    combineTab.addEventListener("click", () => {
+        if (settingsOpen) closeSettings();
+        activateTab(combineTab);
+    });
+
+    searchTab.addEventListener("click", () => {
+        if (settingsOpen) closeSettings();
+        activateTab(searchTab);
+    });
+
+    if (settingsButton) {
+        settingsButton.addEventListener("click", () => {
+            if (settingsOpen) {
+                closeSettings();
+            } else {
+                openSettings();
+            }
+        });
+    }
+}
+
+
+// --------------------------------------------------
+// Settings
+// --------------------------------------------------
+
+function formatStorageBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
+    if (bytes < 1024) return `${Math.round(bytes)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function renderSettingsRows(rows) {
+    return rows.map(row => `
+        <div class="settings-row">
+            <span class="settings-label">${row.label}</span>
+            <span class="settings-value">${row.value}</span>
+        </div>
+    `).join("");
+}
+
+function renderSettingsModel(model) {
+    return `
+        <div class="settings-model">
+            <div class="settings-model-name">${model.name}</div>
+            <div class="settings-model-detail">${model.detail}</div>
+        </div>
+    `;
+}
+
+function renderSettingsReport(report) {
+    if (!settingsStorage || !settingsRuntime) return;
+
+    const storageRows = [
+        { label: "Browser storage used", value: formatStorageBytes(report.browser.usage) },
+        { label: "Browser storage quota", value: formatStorageBytes(report.browser.quota) },
+        {
+            label: "Cached transcripts",
+            value: `${formatStorageBytes(report.indexedDB.transcripts.bytes)} · ${report.indexedDB.transcripts.count.toLocaleString()} files`
+        },
+        {
+            label: "Semantic index",
+            value: `${formatStorageBytes(report.indexedDB.semanticEntries.embeddingBytes)} · ${report.indexedDB.semanticEntries.count.toLocaleString()} entries`
+        },
+        {
+            label: "Other Memora IndexedDB data",
+            value: `${formatStorageBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries`
+        },
+        {
+            label: "Cached model files",
+            value: `${formatStorageBytes(report.modelCache.knownBytes)} · ${report.modelCache.modelEntryCount.toLocaleString()} files`
+        }
+    ];
+
+    settingsStorage.innerHTML =
+        renderSettingsRows(storageRows) +
+        `<h4 class="settings-subheading">Semantic index</h4>` +
+        report.indexedDB.semanticEntries.representations.map(item =>
+            renderSettingsModel({
+                name: item.name,
+                detail: `${formatStorageBytes(item.embeddingBytes)} · ${item.count.toLocaleString()} entries`
+            })
+        ).join("") +
+        `<h4 class="settings-subheading">Cached models</h4>` +
+        (
+            report.modelCache.models.length
+                ? report.modelCache.models.map(renderSettingsModel).join("")
+                : `<p class="settings-note">No cached model files were identified through the browser Cache API.</p>`
+        ) +
+        `<p class="settings-note">
+            Browser storage usage is the authoritative overall figure.
+            Category sizes are estimates or known byte counts and should not be expected to add exactly to the browser total.
+        </p>`;
+
+    settingsRuntime.innerHTML = renderSettingsRows([
+        { label: "Desktop Whisper", value: "Transformers.js 4.0.0 · WebGPU" },
+        { label: "iPhone/iPad Whisper", value: "Transformers.js 3.7.2 · worker" },
+        { label: "Semantic search", value: "Transformers.js 3.7.2 · browser cache" }
+    ]);
+}
+
+async function refreshSettings() {
+    if (!settingsStorageStatus) return;
+
+    settingsStorageStatus.innerHTML = `
+        <span class="transcription-spinner" aria-hidden="true"></span>
+        <span>Reading Memora storage information…</span>
+    `;
+
+    try {
+        const manager = await getStorageManagerModule();
+        const report = await manager.getStorageReport();
+        renderSettingsReport(report);
+        settingsStorageStatus.textContent =
+            `Updated ${new Intl.DateTimeFormat("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }).format(new Date())}.`;
+    } catch (error) {
+        console.error("Settings storage error:", error);
+        settingsStorageStatus.textContent =
+            "Unable to read Memora storage information.";
+    }
+}
+
+if (settingsRefreshButton) {
+    settingsRefreshButton.addEventListener("click", refreshSettings);
 }
 
 
