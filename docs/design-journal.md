@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 7  
+**Version:** 8  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -150,12 +150,23 @@ The application header contains:
 - Memora name
 - tagline: **“Remember what you recorded.”**
 
-The application is intended to have two principal tabs:
+The application has three principal operating tabs:
 
-- **Transcription**
-- **Combine Files**
+- **Transcribe**
+- **Combine**
+- **Search**
 
-The Transcription tab contains:
+**Settings** is not an operating tab. It is accessed through a settings gear in the application header and manages Memora rather than performing a recording/transcription/search operation.
+
+The header has a three-part visual arrangement:
+
+- the tab-specific Memora icon remains left-justified in its existing location;
+- the Memora title and tagline remain centered;
+- the Settings gear is right-justified.
+
+The tab-specific icon behavior is preserved: the icon changes with the active operating tab.
+
+The Transcribe tab contains:
 
 - Audio Source
 - Destination
@@ -981,6 +992,10 @@ The current implementation supports:
 - paragraphing applied consistently to combined TXT, DOCX, and HTML output
 - non-destructive Combine Files paragraphing that leaves individual transcript source files unchanged
 - safe reuse of paragraphing on transcripts that are already paragraphized
+- Settings area for read-only browser storage accounting
+- persistent semantic-index storage reporting
+- cached Whisper/MiniLM model storage reporting
+- refreshable storage information
 
 The Combine Files milestone has been tested and committed.
 
@@ -2486,7 +2501,7 @@ Not yet implemented:
 - keyword search;
 - reuse of paragraphing embeddings by Search;
 - automatic paragraphing during every transcription;
-- Settings/storage management for the persistent semantic index;
+- application-level controls for changing the Search retrieval architecture;
 - a revised retrieval architecture beyond the current multi-representation baseline.
 
 The current Search implementation should be treated as the experimental baseline for retrieval-quality testing. The next changes should be driven by observed behavior across real queries rather than by adding complexity speculatively.
@@ -2500,3 +2515,273 @@ The working project rule is:
 The current file supplied by the user is authoritative for subsequent modifications. Older versions, earlier generated ZIP contents, and prior conversation copies should not be assumed to be current.
 
 Search changes should continue to be made incrementally and should avoid disturbing the stable Transcribe and Combine workflows.
+
+# 41. Latest Development Milestone: Settings and Storage Management
+
+Settings was introduced as a management area rather than as another operating tab.
+
+The design principle is:
+
+    Operating tabs
+        ↓
+    perform Memora's work
+
+    Settings
+        ↓
+    manages Memora
+
+The initial Settings implementation is deliberately small and read-only. It provides visibility into browser-side storage without introducing destructive controls before the accounting has been tested.
+
+## 41.1 Settings access and navigation
+
+Settings is accessed through a gear button in the upper-right of the application header.
+
+It is not included as a fourth item in the main operating-tab navigation.
+
+The primary navigation therefore remains:
+
+    Transcribe | Combine | Search
+
+This avoids treating configuration and storage management as another stage in the recording/transcription workflow.
+
+The header layout is independently positioned so that:
+
+- the active tab's icon remains at the left;
+- the Memora title/tagline remain centered;
+- the Settings gear remains at the right.
+
+The refinement preserves the previously working behavior in which the header icon changes with the active tab.
+
+## 41.2 Initial Settings scope
+
+The first Settings milestone is intentionally limited to information that can be reported reliably from the browser.
+
+The initial scope is:
+
+- browser storage usage and quota;
+- IndexedDB usage;
+- semantic Search-index size and entry count;
+- other IndexedDB storage;
+- cached model storage;
+- cached model groups and file counts;
+- a refresh operation that rereads the current storage state.
+
+No deletion or cache-clearing operation was introduced in this milestone.
+
+This follows the project's incremental-development principle: first make the storage accounting visible and trustworthy, then consider management operations.
+
+## 41.3 Storage architecture
+
+A separate `storageManager.js` module was introduced rather than expanding the existing `storage.js`.
+
+The distinction is intentional.
+
+`storage.js` remains responsible for application file/folder operations and transcript persistence.
+
+`storageManager.js` is responsible for reporting browser-side application storage.
+
+The storage manager currently performs read-only inspection of:
+
+- IndexedDB stores;
+- the persistent semantic Search store;
+- the browser Cache API;
+- `navigator.storage.estimate()`.
+
+It does not delete, modify, or clear stored data.
+
+This preserves the existing storage abstraction while preventing management/reporting concerns from becoming entangled with ordinary file operations.
+
+## 41.4 Storage accounting presentation
+
+Settings presents storage quantities using a compact form:
+
+    size · count entries
+
+or, where the underlying item is a cached file:
+
+    size · count files
+
+This makes both the amount of storage and the number of stored objects visible at the same time.
+
+The semantic index is therefore reported as a storage size plus its number of entries.
+
+Cached model groups are reported as a storage size plus the number of cached files.
+
+IndexedDB transcript records are described as cached transcripts rather than as the user's transcript files. This distinction is important because the user's durable `.txt` transcripts remain external files; browser-side transcript records are a separate cache/safety layer.
+
+## 41.5 Browser storage versus transcript files
+
+The Settings display deliberately avoids implying that the browser's IndexedDB transcript store is the user's transcript library.
+
+The durable transcript files continue to be the primary external source material.
+
+The browser-side IndexedDB transcript store is a cache/safety layer used by the application, particularly for the iPhone workflow.
+
+Therefore a browser report such as:
+
+    Cached transcripts
+    0 B · 0 entries
+
+does not mean that the user has no transcript files. It means that no transcript records are currently present in that particular browser-side store.
+
+This distinction should remain explicit as Settings evolves.
+
+## 41.6 Semantic Search storage
+
+The persistent semantic Search index is derived data.
+
+Settings reports:
+
+- its storage size;
+- its total number of entries;
+- its representation breakdown.
+
+The active Search architecture uses:
+
+    3–2
+    5–3
+    7–4
+    sentence
+
+The current Search implementation does not read or regenerate older experimental representations that may still physically exist in IndexedDB.
+
+Settings therefore reports what is stored rather than assuming that every historical IndexedDB representation is active Search data.
+
+## 41.7 Cached model storage
+
+The browser Cache API can contain substantial local model data.
+
+The Settings implementation identifies recognized model groups including:
+
+- Whisper large-v3;
+- Whisper medium;
+- Whisper small;
+- Whisper base;
+- Whisper tiny;
+- all-MiniLM-L6-v2.
+
+Unrecognized model-like cached files are grouped as:
+
+    Other cached model files
+
+This category is intentionally descriptive rather than speculative. The storage manager does not guess which model a file belongs to merely because it is large or has a model-like URL.
+
+The current implementation counts and sizes the files but does not delete them.
+
+A future refinement may expose the exact URLs/file names represented by the "Other cached model files" group if that information is useful to the user. No such identification or deletion behavior is part of the current milestone.
+
+## 41.8 Refresh behavior
+
+The Settings **Refresh Storage Information** control performs a new storage report rather than merely revealing the values from the previous page load.
+
+The refresh operation:
+
+1. obtains the storage-manager module;
+2. rereads the IndexedDB stores;
+3. rereads the Cache API model assets;
+4. rereads browser storage estimates;
+5. rerenders the Settings report;
+6. updates the report timestamp.
+
+This makes the control useful after a model has been loaded, a cache has changed, or another application operation has altered browser storage.
+
+## 41.9 Current observed storage scale
+
+During initial Settings testing, the browser reported approximately:
+
+    Browser storage used: 9.02 GB
+    Browser quota:        19.02 GB
+
+The same report showed that model caching dominated the browser-side storage, while the persistent semantic Search index was comparatively small.
+
+The observed model-cache breakdown included approximately:
+
+    all-MiniLM-L6-v2       21.91 MB
+    Other cached files    133.47 MB
+    Whisper base          424.17 MB
+    Whisper large-v3        1.93 GB
+    Whisper medium          4.88 GB
+    Whisper small           1.37 GB
+    Whisper tiny          222.35 MB
+
+The semantic index was approximately:
+
+    7.64 MB
+    5,218 entries
+
+These values are observations from the development browser at the time of the Settings test, not fixed application constants.
+
+The significance of the result is architectural: local Whisper model caching can consume orders of magnitude more storage than the semantic Search index.
+
+## 41.10 Why deletion controls are deferred
+
+Settings could eventually provide controls for clearing:
+
+- selected Whisper model caches;
+- unused model caches;
+- the semantic Search index;
+- browser-side transcript safety records.
+
+Those operations are deliberately not part of this first Settings milestone.
+
+Deletion is materially different from reporting. A storage-management control must be precise about what will be removed, what can be rebuilt, what cannot be recovered, and whether a browser cache entry is shared by another application operation.
+
+The current milestone therefore establishes observability before introducing destructive management.
+
+## 41.11 Application language remains a separate Settings concern
+
+Application/UI language remains a planned Settings capability.
+
+It should not be confused with transcription language.
+
+Transcription language belongs to the Transcribe workflow because it determines how Whisper processes the selected recording.
+
+Application language belongs to Settings because it determines how Memora's own interface is presented.
+
+The first Settings milestone does not yet implement the application-language selector.
+
+## 41.12 Architectural rationale
+
+The Settings milestone reinforces several existing Memora principles:
+
+1. **Operating tabs perform work; Settings manages the application.**
+2. **Storage reporting is separated from ordinary file operations.**
+3. **The first management step is observation before deletion.**
+4. **Derived Search embeddings remain distinguishable from durable transcript files.**
+5. **Browser-side transcript records are described as cached records, not as the user's external transcript library.**
+6. **Model-cache storage is treated as a significant resource that deserves visibility.**
+7. **The existing tab-specific header icon behavior is preserved.**
+8. **The header title remains centered while the icon and Settings gear occupy independent left/right positions.**
+9. **Settings is kept small so that it does not become another operational workflow.**
+10. **Future destructive controls should be introduced only after the storage model has been tested and understood.**
+
+## 41.13 Current Settings status
+
+Implemented and tested:
+
+- Settings entry through the header gear;
+- Settings as a management area rather than a fourth operating tab;
+- centered Memora title/tagline;
+- left-justified tab-specific icon;
+- right-justified Settings gear;
+- read-only browser storage accounting;
+- IndexedDB accounting;
+- semantic Search-index accounting;
+- representation breakdown;
+- Cache API model accounting;
+- recognized Whisper/MiniLM model grouping;
+- "Other cached model files" grouping;
+- size plus entry/file-count presentation;
+- refreshable storage information;
+- no destructive storage controls.
+
+Not yet implemented:
+
+- application/UI language selector;
+- exact per-file identification of "Other cached model files" in the Settings interface;
+- selective model-cache deletion;
+- semantic-index clearing/rebuilding controls;
+- transcript-cache management controls.
+
+These remain future Settings work and should be introduced incrementally.
+
