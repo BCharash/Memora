@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 6  
+**Version:** 7  
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -2075,118 +2075,107 @@ The current iPhone Combine implementation and unified audio-reference model are 
 
 # 35. Latest Development Milestone: Semantic Search
 
-Semantic Search has now been added as a third top-level Memora function.
+Semantic Search is now the third top-level Memora function.
 
 The current navigation is:
 
     Transcribe | Combine | Search
 
-A future Record tab is planned for the eventual iMuse/Memora integration, but Record is not part of the current Memora implementation.
+A future Record tab remains planned for eventual iMuse/Memora integration, but Record is not part of the current Memora implementation.
 
 ## 35.1 Search purpose
 
-The Search function is intended to find transcript material by meaning rather than requiring an exact keyword match.
+Search is intended to find transcript material by meaning rather than requiring an exact keyword match.
 
-The initial target use case is a natural-language question such as:
+The goal is not maximum semantic precision at the expense of useful context. The current design aims to put the most likely answer first while preserving a useful semantic neighborhood around it.
 
-    What did I say about surrender and letting go?
+The search operates on transcript sentences but presents contextual multi-sentence passages so that the user can judge the meaning of a match in its surrounding context.
 
-The search operates at sentence level but displays the surrounding transcript paragraph so that the user can judge the context of a match.
+Search is therefore best understood as a retrieval aid rather than a claim that every result is an exact answer.
 
-## 35.2 Search module
+## 35.2 Search module and model
 
 Search logic is contained in:
 
     js/search.js
 
-The purpose of the separate module is to keep semantic search independent from the UI coordinator and from the paragraphing implementation.
+Semantic indexing and embedding work are separated from the main UI coordinator. The application uses the existing transcript parsing and duplicate-selection logic rather than creating a second transcript-processing system.
 
-The current search module:
+The current Search model is fixed to:
 
-- reads existing transcript files through the existing Combine transcript parser;
-- selects the highest available Whisper-model record for duplicate recordings;
-- splits transcript paragraphs into sentences;
-- associates each sentence with its transcript file, paragraph, paragraph position, and sentence position;
-- generates an embedding for each searchable sentence;
-- retains the resulting semantic index in memory for the current page session;
-- embeds the user's query;
-- ranks sentences by cosine similarity;
-- returns sentence-level matches together with paragraph and transcript metadata.
+    Xenova/all-MiniLM-L6-v2
 
-The current model choices are:
+The user no longer selects a Search embedding model in the interface. This decision was made to simplify the Search experiment and to make retrieval-quality comparisons meaningful by keeping the embedding model constant.
 
-    MiniLM — fast, general
-    Multilingual E5-small — multilingual
+The current implementation uses Transformers.js with q8 model weights.
 
-The current implementation uses Transformers.js 3.7.2 and q8 model weights.
+## 35.3 Search indexing and persistent semantic storage
 
-The initial Search implementation deliberately does not create a persistent semantic database or write embeddings into the individual transcript files.
+When a Search Source is selected, Memora reads the transcript collection and begins building the Search index immediately.
 
-## 35.3 Search indexing begins when the source is selected
+The semantic index is now persisted in an IndexedDB-backed semantic store rather than existing only for the current page session.
 
-After the user selects a Search Source, Memora immediately reads the transcript files and builds the semantic index.
+The individual transcript `.txt` files remain the durable source material. The semantic index is derived data and can be rebuilt if necessary.
 
-This behavior was chosen deliberately. The user is selecting the collection because it is intended to be searched, so delaying indexing until the first query would not provide a useful user experience.
+Search indexing is associated with the transcript/source identity and current transcript content so that changed transcript files can be recognized and re-indexed rather than blindly reusing stale embeddings.
 
-The Search status reports the collection size and the measured time for:
+This persistent approach was adopted because full semantic embedding is the dominant cost of indexing a collection. Reusing derived embeddings avoids paying that cost unnecessarily when the same transcripts are searched again.
 
-- reading transcript files;
-- sentence processing;
-- embeddings;
-- total indexing time.
+## 35.4 Context representations
 
-The search input remains blank until the user enters a query.
+A single sentence embedding was found to be useful for locating specific material but insufficient for reliably representing the broader context of a thought.
 
-## 35.4 Search Worker
+The current Search system therefore maintains three contextual representations:
 
-The expensive semantic-model operations were moved into:
+    3–2    three sentences, one-sentence overlap
+    5–3    five sentences, two-sentence overlap
+    7–4    seven sentences, three-sentence overlap
 
-    js/search-worker.js
+The 5–3 representation is the principal in-memory contextual representation. The 3–2 and 7–4 representations are also persisted so that Search can retrieve both narrower and broader semantic context.
 
-The main page starts the worker and receives progress messages while the worker loads the model and computes embeddings.
+The overlap is deliberate. It allows a concept that falls near a chunk boundary to be represented in more than one contextual window without requiring a separate paragraph-generation step.
 
-The UI uses the same visual spinner pattern already established for transcription.
+The previously tested 5–2 and 9–5 representations are no longer part of active Search indexing or retrieval. Existing IndexedDB records from those earlier experiments may remain physically stored until they are deliberately cleaned up; they are not read or regenerated by the current Search implementation.
 
-This change was made after desktop testing showed that indexing approximately 1,900 sentences could take tens of seconds and that the main browser thread became sufficiently busy to trigger repeated "page unresponsive" warnings, especially with the multilingual model.
+## 35.5 Query processing and combined retrieval
 
-Moving the semantic computation into a Web Worker resolved that responsiveness problem in testing.
+A Search query is embedded once and used to retrieve candidates from all three active contextual representations.
 
-The worker therefore exists primarily to keep the interface responsive during model loading and bulk embedding. It does not change the underlying semantic-search method.
+The current retrieval process is:
 
-## 35.5 Current search performance observations
+    query
+      ↓
+    MiniLM embedding
+      ↓
+    3–2 retrieval
+    5–3 retrieval
+    7–4 retrieval
+      ↓
+    combine candidates
+      ↓
+    deduplicate by transcript
+      ↓
+    rank transcripts
 
-A representative test of the current Search implementation produced approximately:
+The current ranking uses relative rank within each representation rather than attempting to normalize raw similarity scores across representations.
 
-    60 transcripts
-    1,922 sentences
-    MiniLM: about 52.5 seconds
-    reading: about 38 ms
-    sentence processing: about 3 ms
-    embeddings: about 52.5 seconds
+The strongest relative rank for a transcript contributes to its overall position, while evidence from the other representations is retained as supporting context.
 
-An earlier Multilingual E5-small test on a similar collection took approximately 110 seconds.
+The final Search results are capped at 30 unique transcripts. A transcript can therefore appear only once in the final displayed result set even when several of its contextual representations produce strong matches.
 
-The exact time is hardware/browser/model dependent.
+This design deliberately favors useful coverage and agreement across context sizes over treating a single raw cosine score as an absolute measure of relevance.
 
-The important observation is that embedding computation, rather than reading or sentence splitting, is the dominant cost of a full collection rebuild.
+## 35.6 Sentence-level retrieval remains useful
 
-This performance result motivated the later design discussion about persisting derived search indexes and reusing semantic work generated during transcription/paragraphing.
+Sentence-level semantic matches are still maintained.
 
-## 35.6 Search result ordering
+They are used primarily for:
 
-The current results are ranked by semantic association strength.
+- identifying the most directly matching sentence;
+- highlighting the relevant sentence in a contextual result;
+- providing fallback material when contextual retrieval does not fill the available result set.
 
-The search module sorts the sentence matches by descending cosine similarity.
-
-The UI then groups those ranked sentence hits by transcript file and, within each transcript, displays the strongest matching passages first.
-
-Therefore Search results are currently organized by relevance rather than by:
-
-- recording date;
-- filename;
-- alphabetical order.
-
-This is intentional for a semantic-search interface, but it remains a possible future UI option to allow Relevance, Date, or Name ordering.
+The contextual chunk is the primary displayed search result. The sentence match is supporting evidence rather than a separate transcript result.
 
 ## 35.7 Search result presentation
 
@@ -2195,30 +2184,43 @@ The current Search UI:
 - groups results by transcript file;
 - displays the original transcript filename;
 - displays the recording filename when available;
-- shows up to four strongest matching passages per represented transcript;
-- highlights the sentence that produced the semantic match;
-- allows the user to select or deselect transcript files;
+- presents contextual matching passages;
+- highlights the sentence associated with the semantic match when available;
+- allows transcript selection;
 - provides Select all behavior;
-- provides a **Use Selected in Combine** action.
+- provides Search → Combine handoff;
+- limits the final displayed results to 30 unique transcripts.
 
-The highlighted sentence exists in the live Search page DOM. It is not automatically carried into Combined TXT, DOCX, or HTML because those outputs are generated from the underlying transcript records rather than from the rendered Search-results page.
+A transcript represented by multiple matching chunks is still shown only once. This avoids filling the result list with repeated entries from the same recording.
 
-## 35.8 Search → Combine handoff
+The highlighted sentence exists in the live Search page DOM. It is not automatically inserted into Combined TXT, DOCX, or HTML because those outputs continue to be generated from the underlying transcript records.
+
+## 35.8 Search controls and collapse behavior
+
+Search now follows the same basic result-list usability pattern established in Transcribe and Combine.
+
+At the top of the returned results there are:
+
+- **Select all**, initially selected;
+- **Collapse all**, initially deselected.
+
+The controls are separated from the returned results by a double-line visual divider.
+
+A second **Collapse all** control appears at the bottom of the returned results.
+
+The two Collapse all controls operate on the same result cards. When results are expanded from the top control, the view remains positioned near the top controls. When results are expanded from the bottom control, the view remains positioned near the bottom controls.
+
+This is a UI refinement only; it does not alter Search indexing, retrieval, ranking, or the Search → Combine workflow.
+
+## 35.9 Search → Combine handoff
 
 Search does not implement a second combining system.
 
-When the user selects transcript files from Search and chooses:
+When the user selects transcript files and chooses:
 
     Use Selected in Combine
 
 Memora hands the actual transcript `File` objects to the existing Combine workflow.
-
-The handoff:
-
-- establishes those files as the Combine transcript selection;
-- establishes the Search source as the Combine text source;
-- displays the selected files in the existing Combine interface;
-- switches to the Combine tab.
 
 The normal Combine pipeline remains responsible for:
 
@@ -2232,165 +2234,163 @@ The normal Combine pipeline remains responsible for:
         ↓
     TXT / DOCX / HTML generation
 
-This preserves the architectural decision that Search finds material while Combine assembles it.
+Search finds material; Combine assembles it. No duplicate Combine implementation is introduced.
 
-No duplicate Combine implementation was introduced.
+## 35.10 Search-derived Combine title
 
-## 35.9 Search-derived Combine title — Option B
+Search can provide a title to the existing Combine document-title field.
 
-A first Search → Combine title handoff was implemented without changing the existing Combine generators.
-
-The current idea is:
-
-    search query:
-    What did I say about surrender and letting go?
-
-    ↓
-
-    Combine title:
-    Memora — Search: Surrender and Letting Go
-
-The title is placed into the existing Combine document-title field.
-
-The existing Combine workflow then handles the title exactly as it handles a title entered manually, including using it as the basis for the generated output filename.
-
-This approach deliberately leaves the existing default titles in:
-
-- `index.html`
-- `app.js`
-- `combine.js`
-- `docx.js`
-- `html.js`
-
-unchanged.
-
-The original Search query is not currently inserted separately into the combined document. That is a deliberate limitation of Option B.
-
-## 35.10 Search-title normalization is provisional
-
-The first title-normalization implementation uses conservative linguistic cleanup rather than introducing another generative AI model.
-
-Its purpose is to turn a conversational question into a usable document title.
-
-The approach worked for examples such as:
+For example:
 
     What did I say about surrender and letting go?
 
-    →
+may become:
 
     Memora — Search: Surrender and Letting Go
 
-However, testing exposed an important limitation.
+The existing Combine generators continue to handle the title normally, including using it as the basis for generated output filenames.
 
-Queries such as:
+Title normalization remains provisional. The Search system does not currently use a generative model to infer a semantic title.
 
-    When did I lucidly dream?
-    When were my lucid dreams?
-    What were my lucid dreams?
+## 35.11 Search-quality evaluation
 
-were not reduced to a common subject title. They remained too close to the original conversational wording.
+Search development has shifted from adding retrieval mechanisms indiscriminately to evaluating the current system against real questions and known answers.
 
-This indicates that a simple list of question-opening patterns is not sufficient for robust title generation.
+The principal objective is:
 
-The current title-normalization behavior should therefore be considered provisional and should not be expanded into a large collection of ad-hoc regular expressions without first deciding what the Search system itself is intended to understand.
+    put the most likely answer first
+    while retaining a useful semantic neighborhood.
 
-## 35.11 Early semantic-search quality testing
+Several query types are being used for calibration, including:
 
-The first substantive search-quality review exposed limitations that are more important than the current result formatting.
+- exact or nearly exact phrases;
+- concrete factual descriptions;
+- remembered events;
+- emotional descriptions;
+- conceptual questions;
+- spiritual/conceptual questions;
+- terminology;
+- ordinary conversational questions;
+- known-target queries.
 
-A test search for:
+This evaluation is intentionally empirical. Search changes should be made only after the current behavior is understood across several query types rather than being optimized around one unusual example.
 
-    samadhi
+## 35.12 Ganga / Samadhi benchmark
 
-produced results related to Samadhi and meditation across a number of transcript files, including passages in which the word "samadhi" was explicitly present.
-
-An important test case was:
+A particularly important benchmark is:
 
     2023-06-20 - Ganga first samadhi - medium.txt
 
-The user explained that the recording was made before he recognized that the experience was Samadhi. The filename/title was changed later to reflect that interpretation.
+The transcript describes an experience later understood by the user as Samadhi, but the recording itself was made before that interpretation had been attached to it. The later filename therefore contains information that was not present in the spoken transcript.
 
-Therefore the transcript text itself did not contain the later conceptual label "samadhi" that was assigned to the recording afterward.
+The relevant spoken passage includes the idea of feeling at the "center of it all," together with descriptions of profound loss of ordinary self-reference and an intense experience at the Ganga.
 
-The Search system also failed to retrieve this recording for indirect descriptions of the experience, including ideas corresponding to being at the center of everything, losing the ordinary sense of individual self, or being one with everything.
+The current semantic system does not reliably place this recording first for all of those indirect descriptions. In particular, the query:
 
-This is an important finding rather than merely a cosmetic defect.
+    center of it all
 
-It shows that the first sentence-embedding retrieval approach does not automatically supply later human interpretation, and it did not reliably connect some experiential/philosophical descriptions with the later concept "samadhi".
+was a useful calibration failure: the target material existed in the transcript, but retrieval was surprisingly weak.
 
-This case should be retained as a benchmark for future Search improvements.
+Other Ganga-related queries produced better but still variable results.
 
-## 35.12 Transcript-text quality matters
+This benchmark demonstrates that chunking alone does not solve every semantic retrieval problem. It should remain a regression test for future Search changes.
 
-The same review also exposed a transcription error in the Ganga first Samadhi transcript.
+## 35.13 Transcription quality versus retrieval quality
 
-The transcript contained:
+The Ganga benchmark also exposed a Whisper recognition error:
 
     delusion
 
-where the user reports that the intended word was:
+was corrected to:
 
     deluge
 
-The surrounding sentences make "deluge" the more coherent intended word.
+After the transcript was corrected and re-indexed, a query such as:
 
-This illustrates a broader interaction between transcription quality and semantic search quality: a retrieval system cannot reliably recover an intended concept from a transcription when the underlying transcript contains a recognition error.
+    heavy rain
 
-Future Search evaluation should therefore distinguish:
+successfully retrieved the Ganga recording at the top of the results.
 
-- search-retrieval failure;
-- transcription error;
-- insufficient conceptual representation;
-- missing metadata/context.
+This provides an important diagnostic distinction:
 
-## 35.13 Current boundary of Search
+- a retrieval failure can result from the embedding/retrieval method;
+- a transcription error can prevent the intended concept from being represented correctly in the first place.
 
-Search currently searches transcript sentence text.
+Search evaluation should therefore distinguish transcription errors from semantic-retrieval limitations.
 
-It does not yet use the semantic meaning of:
+## 35.14 Score calibration observations
+
+Similarity scores are useful for ranking but are not yet treated as a universal relevance threshold.
+
+Tests showed that the score distribution varies substantially by query. For example, `samadhi`, `center of it all`, and `lose my sense of self` produced different score ranges and different degrees of separation between strong and weak results.
+
+A conceptually relevant result can also occur surprisingly far down a raw ranking, which means that a fixed global score cutoff would be premature.
+
+Dynamic thresholding based on the score distribution remains an experiment for the future rather than part of the current algorithm.
+
+## 35.15 Current boundary of Search
+
+Search currently searches transcript sentence/context text.
+
+It does not yet incorporate semantic meaning from:
 
 - transcript filenames;
-- recording titles assigned later;
+- later user-assigned recording titles;
 - user-supplied tags;
-- combined documents;
-- external notes.
+- external notes;
+- other personal knowledge associated with a recording.
 
-This boundary was intentional for the first implementation because the goal was to establish whether sentence-level semantic retrieval was useful before adding more complex indexing concepts.
+The Ganga benchmark demonstrates why these additional information sources may eventually matter: the later human interpretation "samadhi" was present in the filename but not in the original spoken words.
 
-The Ganga first Samadhi test demonstrates that these additional information sources may eventually be important.
+No decision has yet been made to incorporate such metadata into the embedding corpus.
 
-# 36. Deferred Search Architecture: Persistent Indexing and Search Storage
+## 35.16 Smart lexical expansion — deferred
 
-The current Search index is deliberately in memory only.
+A deterministic local lexical-expansion layer was considered as a possible way to improve retrieval for queries whose wording differs from the wording used in the transcript.
 
-The user's actual timing results have now raised a strong case for storing derived semantic information rather than rebuilding the entire collection each time Search is opened or a source is selected.
+Several approaches were considered conceptually, including WordNet, BabelNet, ConceptNet, and corpus-aware phrase discovery.
 
-This has not yet been implemented.
+The conclusion for the current milestone is to defer lexical expansion rather than add a large new dependency or heuristic layer without evidence that it solves the observed failures.
 
-## 36.1 Candidate future architecture
+MiniLM can represent a supplied phrase semantically, but it does not itself generate reliable unknown paraphrases for the query. External lexical resources also have important limitations, particularly for multi-word experiential or philosophical concepts.
 
-A future search index could contain, conceptually:
+No lexical-expansion code has therefore been added to the current Search baseline.
 
-    transcript filename
-    recording filename
-    recording date
-    paragraph index
-    sentence index
-    sentence text
-    embedding
-    search-model identifier
-    model revision/version
-    source/transcript revision information
+# 36. Persistent Search Storage and Future Optimization
 
-The individual transcript `.txt` files would remain the durable source material.
+Persistent semantic storage is now implemented, but its long-term architecture remains an area for refinement.
 
-The search index would be derived data that could be deleted and rebuilt.
+The current design treats semantic embeddings as derived data. The transcript `.txt` files remain authoritative.
 
-## 36.2 Reuse of semantic work during paragraphing
+## 36.1 Current persistent representations
 
-The current paragraphing module already performs sentence splitting and MiniLM sentence embeddings as part of the semantic paragraphing algorithm.
+The active persistent Search store contains embeddings for:
 
-This creates a strong opportunity for a future optimization:
+    3–2 contextual representation
+    5–3 contextual representation
+    7–4 contextual representation
+    sentence representation
+
+Each derived record is associated with the source/transcript identity and the semantic representation used to create it.
+
+Older experimental representations may remain in IndexedDB, but the current application does not read or regenerate them.
+
+## 36.2 Why persistence matters
+
+The collection used during current testing contains approximately:
+
+    60 transcripts
+    1,922 sentences
+
+Embedding computation is much more expensive than reading the files or splitting them into sentences. Persisting embeddings therefore avoids unnecessary repeated work when the underlying transcript content has not changed.
+
+The current implementation also invalidates/rebuilds the relevant derived data when a transcript changes, as demonstrated by correcting the Ganga transcript and observing the updated retrieval behavior.
+
+## 36.3 Future reuse with paragraphing
+
+The paragraphing module and Search both use MiniLM sentence embeddings.
+
+This creates a potential future optimization:
 
     transcription
         ↓
@@ -2400,45 +2400,21 @@ This creates a strong opportunity for a future optimization:
         ├────────→ paragraphing
         └────────→ Search index
 
-If paragraphing becomes automatic for newly created transcripts, the same semantic computation could potentially serve both functions rather than being performed once for paragraphing and again later for Search.
+This is not yet implemented as a shared computation path. It remains a desirable future optimization because it could avoid performing the same embedding work twice.
 
-This is a proposed architecture, not yet implemented.
+## 36.4 Model/version awareness
 
-## 36.3 Model-specific indexes
+Future persistent indexes must remain aware of the semantic model and its version/revision.
 
-Search indexes should be associated with the semantic model that produced them.
+A change in the embedding model should not silently mix incompatible embeddings with an existing index.
 
-For example:
-
-    MiniLM index
-    Multilingual E5 index
-
-A future replacement model should be able to generate its own index without invalidating the transcript files or requiring the old index to be overwritten immediately.
-
-This makes the derived search index replaceable while keeping the original text stable.
-
-## 36.4 iPhone persistence and Settings
-
-Because a persistent search index on iPhone could grow over time, a future Settings area should expose Memora storage clearly.
-
-The proposed design is to distinguish at least:
-
-- transcript-related browser data;
-- search indexes;
-- search metadata;
-- AI model cache.
-
-Individual areas should be clearable independently.
-
-Storage information should distinguish logical Memora-managed data from browser-reported overall storage usage, because browsers do not necessarily expose exact physical storage accounting for every individual IndexedDB structure.
-
-This Settings/storage architecture is planned only. It has not yet been implemented.
+This keeps transcript files durable while allowing derived Search indexes to evolve independently.
 
 # 37. Future Search Modes
 
-A keyword-search mode is now planned alongside semantic search.
+A keyword-search mode remains a possible complementary retrieval method.
 
-The distinction should be explicit:
+The conceptual distinction is:
 
     Keyword search
         exact word/phrase retrieval
@@ -2448,68 +2424,72 @@ The distinction should be explicit:
         meaning/association retrieval
         relevance ordering
 
-Keyword search does not require an embedding model and should therefore be much faster than semantic indexing.
+Keyword search would not require an embedding model and should therefore be substantially faster for exact terminology.
 
-The two modes are intended to complement rather than replace one another.
-
-A future Search interface may therefore allow the user to choose:
-
-    Semantic
-    Keyword
-
-before entering the query.
+No keyword-search implementation is currently active.
 
 # 38. Search Development Principles Established So Far
 
-The Search work has established several provisional principles:
+The Search work has established these current principles:
 
 1. Search belongs in its own module rather than being folded into `combine.js` or paragraphing.
 2. Heavy semantic indexing belongs in a Web Worker so that the browser UI remains responsive.
-3. Selecting a Search Source should begin indexing immediately because the selected collection is the intended search corpus.
-4. The first implementation should keep the semantic index in memory while its usefulness is evaluated.
-5. Search should hand selected transcript files to the existing Combine workflow instead of duplicating Combine functionality.
-6. Individual transcript files remain the durable source; semantic indexes are derived data.
-7. Search results should be evaluated against real user questions rather than only synthetic examples.
-8. Filename knowledge and later human interpretation are currently outside the semantic search corpus and may need to become explicit indexed context in a future version.
-9. Semantic retrieval quality should be separated from transcription quality when diagnosing failed searches.
-10. Future persistent indexes must be model/version aware so that new semantic models can coexist with or replace older indexes without modifying the durable transcripts.
-11. Keyword search should be treated as a complementary retrieval mode.
-12. Future automatic paragraphing and Search indexing should reuse semantic computation where practical rather than repeating the same work.
+3. Selecting a Search Source begins indexing immediately because the selected collection is the intended search corpus.
+4. MiniLM is currently fixed as the Search embedding model so retrieval experiments are not confounded by model-selection changes.
+5. Semantic embeddings are derived data and may be persisted independently of the durable transcript files.
+6. Active contextual retrieval uses 3–2, 5–3, and 7–4 representations.
+7. The 5–3 representation is the principal contextual representation; 3–2 and 7–4 provide narrower and broader context.
+8. Search results are deduplicated at the transcript level so the same transcript is not repeatedly displayed.
+9. Search should hand selected transcript files to the existing Combine workflow rather than duplicating Combine functionality.
+10. Search results should be evaluated against real user questions and known answers rather than only synthetic examples.
+11. Retrieval quality should be separated from transcription quality when diagnosing failures.
+12. Fixed global score thresholds should not be introduced until score behavior is better understood across query types.
+13. Filename knowledge and later human interpretation are currently outside the semantic corpus.
+14. Deterministic lexical expansion is deferred until retrieval testing shows that it is worth the added complexity.
+15. Future Search changes should be incremental and should preserve the current stable baseline while each experiment is evaluated.
 
 # 39. Current Search Status
 
-Search is now a working prototype rather than a placeholder.
+Search is now a working experimental retrieval system rather than a placeholder.
 
 Implemented:
 
 - Search top-level tab;
 - Search source selection;
-- MiniLM and Multilingual E5-small model selection;
+- fixed MiniLM embedding model;
 - immediate source indexing;
+- persistent IndexedDB semantic storage;
 - sentence-level semantic indexing;
-- paragraph-aware result presentation;
-- live sentence highlighting;
-- semantic relevance ordering;
+- 3–2 contextual representation;
+- 5–3 contextual representation;
+- 7–4 contextual representation;
+- combined multi-representation retrieval;
+- transcript-level result deduplication;
+- maximum 30 unique transcript results;
+- paragraph/context-aware result presentation;
+- sentence highlighting/supporting matches;
+- semantic relevance ordering using relative rank across representations;
 - transcript-file selection;
 - Select all;
 - Search → Combine handoff;
 - Search-derived Combine title through the existing title field;
 - Search Worker for responsive bulk indexing;
-- progress spinner/status reporting;
-- in-memory index for the current page session.
+- progress/status reporting;
+- top and bottom Collapse all controls for Search results;
+- preservation of the user's approximate top/bottom viewport position when expanding from the corresponding Collapse all control.
 
 Not yet implemented:
 
-- persistent Search indexes;
+- dynamic score-distribution thresholding;
+- deterministic lexical expansion;
+- semantic indexing of filenames or later user-assigned concepts;
+- keyword search;
 - reuse of paragraphing embeddings by Search;
 - automatic paragraphing during every transcription;
-- Settings/storage management;
-- keyword search;
-- semantic use of filenames or later user-assigned concepts;
-- robust semantic title generation;
-- a revised retrieval architecture based on the results of the ongoing Search-quality review.
+- Settings/storage management for the persistent semantic index;
+- a revised retrieval architecture beyond the current multi-representation baseline.
 
-The Search prototype should now be treated as the current experimental baseline while its retrieval quality is evaluated with real questions and known answers.
+The current Search implementation should be treated as the experimental baseline for retrieval-quality testing. The next changes should be driven by observed behavior across real queries rather than by adding complexity speculatively.
 
 # 40. Development Process Reminder
 
@@ -2520,4 +2500,3 @@ The working project rule is:
 The current file supplied by the user is authoritative for subsequent modifications. Older versions, earlier generated ZIP contents, and prior conversation copies should not be assumed to be current.
 
 Search changes should continue to be made incrementally and should avoid disturbing the stable Transcribe and Combine workflows.
-
