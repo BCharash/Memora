@@ -2651,7 +2651,7 @@ async function runSearchQuery() {
         renderSearchResults(payload);
 
         setSearchQueryStatus(
-            `${payload.chunkResults.length} contextual result${payload.chunkResults.length === 1 ? "" : "s"} from 3–2, 5–3 and 7–4 context` +
+            `${payload.chunkResults.length} contextual result${payload.chunkResults.length === 1 ? "" : "s"} from 3–1, 5–2 and 7–3 context` +
             ` · ${formatElapsed(payload.durationMs / 1000)}.`
         );
 

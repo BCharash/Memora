@@ -23,9 +23,9 @@ import {
 const SEARCH_MODEL_ID = "minilm";
 
 const SEARCH_CONTEXTS = [
-    { chunkSize: 3, chunkOverlap: 1, label: "3–2" },
-    { chunkSize: 5, chunkOverlap: 2, label: "5–3" },
-    { chunkSize: 7, chunkOverlap: 3, label: "7–4" }
+    { chunkSize: 3, chunkOverlap: 1, label: "3–1" },
+    { chunkSize: 5, chunkOverlap: 2, label: "5–2" },
+    { chunkSize: 7, chunkOverlap: 3, label: "7–3" }
 ];
 
 let currentIndex = null;
@@ -385,7 +385,7 @@ export async function buildSearchIndex(
             items: chunkItems,
             modelId,
             statusCallback,
-            phaseLabel: `Chunks ${CHUNK_SIZE}–${CHUNK_SIZE - CHUNK_OVERLAP}`,
+            phaseLabel: `Chunks ${CHUNK_SIZE}–${CHUNK_OVERLAP}`,
             sourceRecords: records
         });
 
