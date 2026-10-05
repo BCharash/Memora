@@ -5,6 +5,7 @@ let getStorageModule;
 let getSearchModule;
 
 const searchSourceButton = document.getElementById("searchSourceButton");
+const searchIndexUpdateButton = document.getElementById("searchIndexUpdateButton");
 const searchQueryInput = document.getElementById("searchQueryInput");
 const searchButton = document.getElementById("searchButton");
 const searchIndexStatus = document.getElementById("searchIndexStatus");
@@ -15,6 +16,7 @@ let searchSourceHandle = null;
 let searchIndexBuildToken = 0;
 let searchIndexReady = false;
 let combineSelectionHandler = null;
+let currentSearchIndex = null;
 
 function setSearchBusy(busy) {
 
@@ -125,7 +127,12 @@ async function buildSearchIndexForSource(files) {
 
     const token = ++searchIndexBuildToken;
     searchIndexReady = false;
+    currentSearchIndex = null;
     setSearchBusy(true);
+
+    if (searchIndexUpdateButton) {
+        searchIndexUpdateButton.disabled = true;
+    }
 
     if (searchQueryStatus) {
         searchQueryStatus.hidden = true;
@@ -133,19 +140,45 @@ async function buildSearchIndexForSource(files) {
     }
 
     setSearchIndexStatus(
-        "Building the semantic index…",
+        "Loading the Search Index…",
         true
     );
 
     if (searchResults) {
         searchResults.innerHTML = `
             <p class="empty-message">
-                Building the semantic index…
+                Loading the Search Index…
             </p>
         `;
     }
 
     try {
+
+        const storage =
+            await getStorageModule();
+
+        let archive = null;
+
+        try {
+            const archiveText =
+                await storage.readTextFile(
+                    searchSourceHandle,
+                    "search-embeddings.json"
+                );
+
+            if (archiveText) {
+                archive = JSON.parse(archiveText);
+            }
+        } catch (error) {
+            console.warn(
+                "Search Index could not be loaded. A new index will be generated.",
+                error
+            );
+        }
+
+        if (token !== searchIndexBuildToken) {
+            return;
+        }
 
         const search =
             await getSearchModule();
@@ -162,13 +195,15 @@ async function buildSearchIndexForSource(files) {
                         message,
                         true
                     );
-                }
+                },
+                archive
             );
 
         if (token !== searchIndexBuildToken) {
             return;
         }
 
+        currentSearchIndex = index;
         searchIndexReady =
             index.sentences > 0;
 
@@ -184,16 +219,26 @@ async function buildSearchIndexForSource(files) {
                     `chunks ${formatElapsed(index.chunkProcessingDurationMs / 1000)} · ` +
                     `embeddings ${formatElapsed(index.embeddingDurationMs / 1000)}`;
 
+                const archiveMessage =
+                    index.archiveNeedsUpdate
+                        ? " · Search Index update available"
+                        : " · Search Index current";
+
                 setSearchIndexStatus(
                     `Search ready — ${index.records.length} transcript${index.records.length === 1 ? "" : "s"}, ` +
                     `${index.sentences.toLocaleString()} sentences + ${index.chunkCount.toLocaleString()} contextual chunks indexed in ${formatElapsed(elapsedSeconds)} ` +
-                    `(${timingDetails}).`
+                    `(${timingDetails})${archiveMessage}.`
                 );
             } else {
                 setSearchIndexStatus(
                     "No searchable sentences were found in the selected transcripts."
                 );
             }
+        }
+
+        if (searchIndexUpdateButton) {
+            searchIndexUpdateButton.disabled =
+                !index.archiveNeedsUpdate;
         }
 
         setSearchBusy(false);
@@ -210,7 +255,12 @@ async function buildSearchIndexForSource(files) {
         );
 
         searchIndexReady = false;
+        currentSearchIndex = null;
         setSearchBusy(false);
+
+        if (searchIndexUpdateButton) {
+            searchIndexUpdateButton.disabled = true;
+        }
 
         if (searchIndexStatus) {
             setSearchIndexStatus(
@@ -226,6 +276,52 @@ async function buildSearchIndexForSource(files) {
             `;
         }
     }
+}
+
+
+async function updateSearchIndexArchive() {
+
+    if (!currentSearchIndex || !searchSourceHandle) {
+        return;
+    }
+
+    const search =
+        await getSearchModule();
+
+    const storage =
+        await getStorageModule();
+
+    const archiveText =
+        search.serializeSearchEmbeddingsArchive(
+            currentSearchIndex
+        );
+
+    if (searchSourceHandle.kind === "file-input") {
+        const file =
+            new File(
+                [archiveText],
+                "search-embeddings.json",
+                { type: "application/json" }
+            );
+
+        await storage.shareFile(file);
+    } else {
+        await storage.writeTextFile(
+            searchSourceHandle,
+            "search-embeddings.json",
+            archiveText
+        );
+    }
+
+    currentSearchIndex.archiveNeedsUpdate = false;
+
+    if (searchIndexUpdateButton) {
+        searchIndexUpdateButton.disabled = true;
+    }
+
+    setSearchIndexStatus(
+        "Search Index updated."
+    );
 }
 
 
@@ -1052,6 +1148,39 @@ export function initSearchUI({
                             "Unable to read the search source folder."
                         );
                     }
+                }
+            }
+        );
+    }
+
+
+    if (searchIndexUpdateButton) {
+        searchIndexUpdateButton.addEventListener(
+            "click",
+            async () => {
+                if (searchIndexUpdateButton.disabled) {
+                    return;
+                }
+
+                searchIndexUpdateButton.disabled = true;
+                setSearchIndexStatus(
+                    "Updating the Search Index…",
+                    true
+                );
+
+                try {
+                    await updateSearchIndexArchive();
+                } catch (error) {
+                    console.error(
+                        "Search Index update error:",
+                        error
+                    );
+
+                    searchIndexUpdateButton.disabled = false;
+                    setSearchIndexStatus(
+                        error.message ||
+                        "Unable to update the Search Index."
+                    );
                 }
             }
         );

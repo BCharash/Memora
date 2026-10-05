@@ -293,6 +293,57 @@ export async function writeTextFile(
 }
 
 
+
+
+export async function readTextFile(directoryHandle, filename) {
+    if (directoryHandle?.kind === "file-input") {
+        const file =
+            directoryHandle.files.find(
+                candidate => candidate.name === filename
+            );
+
+        return file ? await file.text() : null;
+    }
+
+    try {
+        const fileHandle =
+            await directoryHandle.getFileHandle(filename);
+
+        const file =
+            await fileHandle.getFile();
+
+        return await file.text();
+    } catch (error) {
+        if (error?.name === "NotFoundError") {
+            return null;
+        }
+        throw error;
+    }
+}
+
+
+export async function shareFile(file) {
+    if (!navigator.share) {
+        throw new Error(
+            "This browser cannot share files to the Files app."
+        );
+    }
+
+    if (
+        navigator.canShare &&
+        !navigator.canShare({ files: [file] })
+    ) {
+        throw new Error(
+            "This browser cannot share this file to the Files app."
+        );
+    }
+
+    await navigator.share({
+        files: [file]
+    });
+}
+
+
 export async function writeBinaryFile(
     directoryHandle,
     filename,
