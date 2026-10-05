@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 8  
+**Version:** 9
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -220,11 +220,14 @@ The UI coordinator/orchestrator.
 It should:
 
 - connect UI controls to application operations
-- maintain UI state
+- maintain cross-feature UI state
 - call the appropriate modules
 - update status and results
+- coordinate handoffs between Search and Combine
 
 It should not contain the detailed implementation of every subsystem.
+
+Feature-specific rendering and event wiring should live in their UI modules.
 
 ## audioProcessor.js
 
@@ -372,7 +375,9 @@ The module exposes two conceptual operations:
 
 The current transcription workflow uses `paragraphize()` after Whisper has produced the raw transcript. Combine Files also uses `paragraphize()` when its **Create paragraphs** option is selected.
 
-The semantic model is loaded lazily and cached for reuse. This keeps paragraphing optional: a normal transcription or combine operation does not incur the additional model-loading and embedding work unless paragraphing is requested.
+Paragraph embeddings are requested through `semantic.js`, which runs inference in the existing `semantic-worker.js`. Paragraphing therefore reuses the same MiniLM worker/model as Search where it is already loaded, and model inference no longer blocks the page's main thread. The model remains lazy: ordinary transcription and Combine operations do not load it unless paragraphing is requested.
+
+Paragraphing preserves input that already contains blank-line paragraph breaks and skips embedding it again. This avoids unnecessary model work when Combine receives transcripts that were paragraphized during transcription.
 
 ## html.js
 
@@ -2784,4 +2789,54 @@ Not yet implemented:
 - transcript-cache management controls.
 
 These remain future Settings work and should be introduced incrementally.
+
+---
+
+# 42. Incremental UI Module Extraction and Paragraphing Responsiveness
+
+This milestone records the first staged reduction of `app.js`. The goal is to make future edits easier to reason about by keeping feature-specific UI and state near each feature, while preserving `app.js` as the application coordinator.
+
+## 42.1 ES module entry point
+
+`index.html` loads `app.js` with `type="module"`. This enables explicit imports between UI modules. The application continues to initialize after the document has been parsed.
+
+## 42.2 Search UI extraction
+
+Search-specific state, status rendering, index-building interaction, query handling, result rendering, selection controls, and Search event listeners live in `searchUI.js`.
+
+`app.js` initializes Search UI with the existing lazy storage/Search loaders and an explicit callback for the Search-to-Combine handoff. Combine state remains in the coordinator at that boundary; Search UI does not reach into Combine's private variables.
+
+The domain/search-index implementation in `search.js` was not changed as part of the UI extraction.
+
+## 42.3 Transcription recording-list extraction
+
+`transcriptionUI.js` owns the audio recording list, metadata display, sort and collapse controls, checkbox state, empty state, and selected-recording lookup.
+
+`app.js` retains source-folder selection and transcription orchestration. It passes metadata-reading and formatting functions into the UI module so the module does not rely on names that are private to `app.js`.
+
+Audio capture is a separate future feature. It should use a dedicated recording module rather than expanding `transcriptionUI.js`, which is responsible for displaying and selecting existing files.
+
+## 42.4 Combine transcript-list extraction
+
+`combineUI.js` owns the transcript list, sort order, selection controls, collapse controls, and selected transcript state. Its API provides the selected files, sort order, and list count to `app.js`.
+
+The module receives the existing lazy Combine loader and an explicit callback for resetting iPhone export state when the list or selection changes. File generation for TXT, DOCX, and HTML remains in `app.js` for now. Search results populate the list through the same display API.
+
+## 42.5 Combine progress visibility
+
+Combine status messages now identify the current stage, including loading tools, reading transcripts, generating an output format, and writing to the selected destination. This was added to identify pending operations during a reported Combine stall.
+
+Investigation showed that the long operation occurred when **Create paragraphs** was enabled, before Combine used the output folder. The destination folder was not the cause of the delay.
+
+## 42.6 Paragraphing worker and existing paragraphs
+
+Paragraphing now requests MiniLM embeddings through `semantic.js` and the existing `semantic-worker.js`, rather than loading a separate Transformers.js pipeline on the main thread. The paragraph-boundary algorithm remains unchanged. Worker progress is visible while the page stays responsive.
+
+The paragraphing function now preserves transcripts that already contain blank-line paragraph breaks and skips model inference for them. This avoids re-embedding transcripts that were already paragraphized during transcription.
+
+## 42.7 Refactoring method and current status
+
+The UI extractions are performed one at a time. After each extraction, the code boundary and cross-feature calls are reviewed, then the application is checked in the browser before moving to another module. The Search, recording-list, and Combine transcript-list flows have been reported working by the user.
+
+The current direction is to keep `app.js` focused on application startup, cross-feature coordination, and processing workflows. Additional large extractions should retain explicit APIs and avoid moving domain algorithms as part of UI-only changes.
 
