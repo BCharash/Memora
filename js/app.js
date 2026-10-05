@@ -9,6 +9,8 @@ import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptio
 import { initSearchUI } from "./searchUI.js";
 import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
 
+const DEFAULT_COMBINE_TITLE = "Memora — Combined Transcription";
+
 let storageModulePromise = import("./storage.js");
 let storageManagerModulePromise = import("./storageManager.js");
 
@@ -1130,7 +1132,7 @@ function createSearchCombineTitle(query) {
             .trim();
 
     if (!phrase) {
-        return "Memora — Combined Transcription";
+        return DEFAULT_COMBINE_TITLE;
     }
 
     const framingPatterns = [
@@ -1285,6 +1287,11 @@ if (textSourceButton) {
                         : await storage.listTextFiles(
                             textSourceHandle
                         );
+
+                if (combineTitleInput) {
+                    combineTitleInput.value =
+                        DEFAULT_COMBINE_TITLE;
+                }
 
                 combineDestinationHandle = null;
                 setActiveCombineDestinationButton(null);
@@ -1473,14 +1480,14 @@ async function combineSelectedFiles(
 
     const combineTitle =
         combineTitleInput?.value.trim() ||
-        "Memora — Combined Transcription";
+        DEFAULT_COMBINE_TITLE;
 
     const safeFilenameBase =
         combineTitle
             .replace(/[<>:"/\\|?*]/g, "-")
             .replace(/[. ]+$/g, "")
             .trim() ||
-        "Memora — Combined Transcription";
+        DEFAULT_COMBINE_TITLE;
 
     if (files.length === 0) {
 
