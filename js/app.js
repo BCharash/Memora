@@ -2672,6 +2672,143 @@ async function runSearchQuery() {
     }
 }
 
+function createSearchCombineTitle(query) {
+
+    let phrase =
+        String(query || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/[?!.]+$/g, "")
+            .trim();
+
+    if (!phrase) {
+        return "Memora — Combined Transcription";
+    }
+
+    const framingPatterns = [
+        /^what did I say about\s+/i,
+        /^what have I said about\s+/i,
+        /^what was I saying about\s+/i,
+        /^tell me what I said about\s+/i,
+        /^tell me about what I said about\s+/i,
+        /^can you remind me what I said about\s+/i,
+        /^can you remind me about what I said about\s+/i,
+        /^when did I talk about\s+/i,
+        /^where did I talk about\s+/i,
+        /^did I say anything about\s+/i,
+        /^what do I say about\s+/i,
+        /^what have I said regarding\s+/i,
+        /^what did I say regarding\s+/i
+    ];
+
+    for (const pattern of framingPatterns) {
+        const stripped =
+            phrase.replace(pattern, "").trim();
+
+        if (stripped && stripped !== phrase) {
+            phrase = stripped;
+            break;
+        }
+    }
+
+    const smallWords = new Set([
+        "a", "an", "and", "as", "at", "by",
+        "for", "from", "in", "into", "of", "on",
+        "or", "the", "to", "with"
+    ]);
+
+    const words = phrase.split(" ");
+
+    phrase =
+        words.map((word, index) => {
+            if (!/^[a-z]+$/.test(word)) {
+                return word;
+            }
+
+            if (
+                index > 0 &&
+                index < words.length - 1 &&
+                smallWords.has(word)
+            ) {
+                return word;
+            }
+
+            return (
+                word.charAt(0).toUpperCase() +
+                word.slice(1)
+            );
+        }).join(" ");
+
+    return `Memora — Search: ${phrase}`;
+}
+
+
+async function useSearchSelectionInCombine(files, searchQuery) {
+
+    if (!files.length) {
+        return;
+    }
+
+    selectedTranscriptFiles =
+        files;
+
+    textSourceHandle =
+        searchSourceHandle;
+
+    combineDestinationHandle = null;
+    resetIPhoneCombineExportState();
+    setActiveCombineDestinationButton(null);
+
+    if (combineTitleInput) {
+        combineTitleInput.value =
+            createSearchCombineTitle(searchQuery);
+    }
+
+    if (textSourceHandle) {
+
+        const isFileInput =
+            textSourceHandle.kind === "file-input";
+
+        if (combineDestinationSection) {
+            combineDestinationSection.hidden = isFileInput;
+        }
+
+        if (combineTextButton) {
+            combineTextButton.hidden = isFileInput;
+        }
+
+        if (combineDOCXButton) {
+            combineDOCXButton.hidden = isFileInput;
+        }
+
+        if (combineHTMLButton) {
+            combineHTMLButton.hidden = isFileInput;
+        }
+
+        if (iphoneCombineDestinationOptions) {
+            iphoneCombineDestinationOptions.hidden =
+                !isFileInput;
+
+            iphoneCombineDestinationOptions.style.display =
+                isFileInput ? "block" : "none";
+        }
+
+        if (!isFileInput) {
+            await updateCombineFolderButton();
+        }
+
+        textSourceButton.textContent =
+            `Text Source: ${textSourceHandle.name}`;
+    }
+
+    await displayTranscriptFiles(files);
+
+    combineStatus.textContent =
+        `${files.length} transcript${files.length === 1 ? "" : "s"} selected from Search.`;
+
+    combineTab.click();
+}
+
 
 if (searchSourceButton) {
 
