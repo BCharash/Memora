@@ -7,6 +7,7 @@ import {
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
 import { initSearchUI } from "./searchUI.js";
+import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
 
 let storageModulePromise = import("./storage.js");
 let storageManagerModulePromise = import("./storageManager.js");
@@ -106,13 +107,6 @@ const combineDOCXButton =
     document.getElementById("combineDOCXButton");
 const iphoneCombineDestinationOptions =
     document.getElementById("iphoneCombineDestinationOptions");
-const iphoneCombineFormatSelect =
-    document.getElementById("iphoneCombineFormatSelect");
-const iphoneCombineExportButton =
-    document.getElementById("iphoneCombineExportButton");
-const iphoneCombineExportStatus =
-    document.getElementById("iphoneCombineExportStatus");
-
 const combineStatus =
     document.getElementById("combineStatus");
 
@@ -129,11 +123,6 @@ let pendingIPhoneExports = [];
 
 let textSourceHandle = null;
 let combineDestinationHandle = null;
-
-let pendingIPhoneCombineExport = null;
-
-
-
 
 function setActiveDestinationButton(button) {
 
@@ -1437,128 +1426,10 @@ if (combineDestinationButton) {
 }
 
 
-function getIPhoneCombineFormatLabel() {
-    if (!iphoneCombineFormatSelect) {
-        return "TXT";
-    }
-
-    const labels = {
-        text: "TXT",
-        docx: "DOCX",
-        html: "HTML"
-    };
-
-    return labels[iphoneCombineFormatSelect.value] || "TXT";
-}
-
-
-function updateIPhoneCombineButton() {
-    if (!iphoneCombineExportButton) {
-        return;
-    }
-
-    iphoneCombineExportButton.textContent =
-        `Save ${getIPhoneCombineFormatLabel()} to Files`;
-
-    iphoneCombineExportButton.disabled =
-        getTranscriptFileCount() === 0;
-}
-
-
-function resetIPhoneCombineExportState() {
-    pendingIPhoneCombineExport = null;
-
-    const formatLabel =
-        getIPhoneCombineFormatLabel();
-
-    if (iphoneCombineExportButton) {
-        iphoneCombineExportButton.disabled =
-            getTranscriptFileCount() === 0;
-        iphoneCombineExportButton.textContent =
-            `Save ${formatLabel} to Files`;
-    }
-
-    if (iphoneCombineExportStatus) {
-        iphoneCombineExportStatus.textContent =
-            `Ready to share ${formatLabel}`;
-    }
-}
-
-
-async function exportIPhoneCombinedFile(file) {
-    if (!file) {
-        return;
-    }
-
-    pendingIPhoneCombineExport = file;
-    const formatLabel = getIPhoneCombineFormatLabel();
-
-    updateIPhoneCombineButton(true);
-
-    if (!navigator.share) {
-        if (iphoneCombineExportStatus) {
-            iphoneCombineExportStatus.textContent =
-                "This iPhone browser cannot share files.";
-        }
-        return;
-    }
-
-    const shareData = {
-        files: [file]
-    };
-
-    if (navigator.canShare && !navigator.canShare(shareData)) {
-        if (iphoneCombineExportStatus) {
-            iphoneCombineExportStatus.textContent =
-                `This browser cannot share the ${formatLabel} file.`;
-        }
-        return;
-    }
-
-    try {
-        await navigator.share(shareData);
-
-        if (iphoneCombineExportStatus) {
-            iphoneCombineExportStatus.textContent =
-                `${formatLabel} shared`;
-        }
-
-        updateIPhoneCombineButton(true);
-
-    } catch (error) {
-        if (error.name === "AbortError") {
-            if (iphoneCombineExportStatus) {
-                iphoneCombineExportStatus.textContent =
-                    `${formatLabel} ready to save`;
-            }
-
-            updateIPhoneCombineButton(true);
-            return;
-        }
-
-        console.error(
-            "iPhone combined file export error:",
-            error
-        );
-
-        if (iphoneCombineExportStatus) {
-            iphoneCombineExportStatus.textContent =
-                `Unable to share the ${formatLabel} file.`;
-        }
-
-        updateIPhoneCombineButton(true);
-    }
-}
-
-
-if (iphoneCombineFormatSelect) {
-    iphoneCombineFormatSelect.addEventListener(
-        "change",
-        () => {
-            resetIPhoneCombineExportState();
-        }
-    );
-}
+const iphoneCombineExportUI = initIPhoneCombineExportUI({
+    getTranscriptFileCount,
+    onExportRequested: outputType => combineSelectedFiles(outputType)
+});
 
 
 if (combineTitleInput) {
@@ -1566,7 +1437,7 @@ if (combineTitleInput) {
         "input",
         () => {
             if (textSourceHandle?.kind === "file-input") {
-                resetIPhoneCombineExportState();
+                iphoneCombineExportUI.reset();
             }
         }
     );
@@ -1578,19 +1449,16 @@ if (combineParagraphingCheckbox) {
         "change",
         () => {
             if (textSourceHandle?.kind === "file-input") {
-                resetIPhoneCombineExportState();
+                iphoneCombineExportUI.reset();
             }
         }
     );
 }
 
 
-resetIPhoneCombineExportState();
-
-
 initCombineUI({
     getCombineModule,
-    onSelectionChanged: resetIPhoneCombineExportState
+    onSelectionChanged: iphoneCombineExportUI.reset
 });
 
 async function combineSelectedFiles(
@@ -1633,9 +1501,7 @@ async function combineSelectedFiles(
     try {
 
         if (isIPhoneSource) {
-            if (iphoneCombineExportButton) {
-                iphoneCombineExportButton.disabled = true;
-            }
+            iphoneCombineExportUI.setBusy(true);
         } else {
             combineTextButton.disabled = true;
             combineDOCXButton.disabled = true;
@@ -1732,7 +1598,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined TXT…";
 
-                await exportIPhoneCombinedFile(file);
+                await iphoneCombineExportUI.exportFile(file);
                 combineStatus.textContent = "";
 
             } else if (outputType === "docx") {
@@ -1759,7 +1625,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined DOCX…";
 
-                await exportIPhoneCombinedFile(file);
+                await iphoneCombineExportUI.exportFile(file);
                 combineStatus.textContent = "";
 
             } else {
@@ -1789,7 +1655,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined HTML…";
 
-                await exportIPhoneCombinedFile(file);
+                await iphoneCombineExportUI.exportFile(file);
                 combineStatus.textContent = "";
             }
 
@@ -1915,20 +1781,10 @@ async function combineSelectedFiles(
             error.message ||
             "Unable to create the combined file.";
 
-        if (isIPhoneSource) {
-            updateIPhoneCombineButton(
-                pendingIPhoneCombineExport !== null
-            );
-        }
-
     } finally {
 
         if (isIPhoneSource) {
-            if (iphoneCombineExportButton) {
-                updateIPhoneCombineButton(
-                    pendingIPhoneCombineExport !== null
-                );
-            }
+            iphoneCombineExportUI.setBusy(false);
         } else {
             combineTextButton.disabled = false;
             combineDOCXButton.disabled = false;
@@ -1963,21 +1819,6 @@ if (combineHTMLButton) {
         () => combineSelectedFiles("html")
     );
 }
-
-if (iphoneCombineExportButton) {
-
-    iphoneCombineExportButton.addEventListener(
-        "click",
-        () => {
-            const outputType =
-                iphoneCombineFormatSelect?.value ||
-                "text";
-
-            combineSelectedFiles(outputType);
-        }
-    );
-}
-
 
 // --------------------------------------------------
 // Whisper model

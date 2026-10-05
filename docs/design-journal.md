@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 9
+**Version:** 10
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -2839,4 +2839,10 @@ The paragraphing function now preserves transcripts that already contain blank-l
 The UI extractions are performed one at a time. After each extraction, the code boundary and cross-feature calls are reviewed, then the application is checked in the browser before moving to another module. The Search, recording-list, and Combine transcript-list flows have been reported working by the user.
 
 The current direction is to keep `app.js` focused on application startup, cross-feature coordination, and processing workflows. Additional large extractions should retain explicit APIs and avoid moving domain algorithms as part of UI-only changes.
+
+## 42.8 iPhone Combine export extraction
+
+The iPhone Combine share workflow now lives in `iphoneCombineExport.js`. The module owns its format selector, share button and status display, format labels, Web Share API checks, and share error handling. `app.js` supplies the transcript count and a callback that starts Combine generation for the selected format.
+
+Combine generation and format creation remain in `app.js`; once a generated file is ready, the coordinator passes it to the export module. The module exposes a small API for sharing, resetting UI state, and reflecting whether Combine is busy. This keeps iPhone-specific delivery separate from file generation and desktop folder writing.
 
