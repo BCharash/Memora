@@ -8,31 +8,7 @@
 // It does not rewrite transcript words; it inserts paragraph breaks.
 // --------------------------------------------------
 
-import { pipeline, env } from
-    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
-
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-
-let model = null;
-
-async function getModel(statusCallback) {
-    if (model) return model;
-
-    if (statusCallback) {
-        statusCallback(
-            "Loading the local semantic model. The first run may take a little while…"
-        );
-    }
-
-    model = await pipeline(
-        "feature-extraction",
-        "Xenova/all-MiniLM-L6-v2",
-        { dtype: "q8" }
-    );
-
-    return model;
-}
+import { getSemanticEmbeddings } from "./semantic.js";
 
 function sentences(text) {
     text = text
@@ -57,23 +33,13 @@ function sentences(text) {
 }
 
 async function embed(S, statusCallback) {
-    const semanticModel = await getModel(statusCallback);
-    const embeddings = [];
-
-    for (let i = 0; i < S.length; i++) {
-        if (statusCallback) {
-            statusCallback(`Analyzing sentence ${i + 1} of ${S.length}…`);
-        }
-
-        const result = await semanticModel(S[i], {
-            pooling: "mean",
-            normalize: true
-        });
-
-        embeddings.push(Array.from(result.data));
-    }
-
-    return embeddings;
+    return getSemanticEmbeddings({
+        texts: S,
+        modelId: "minilm",
+        statusCallback,
+        phaseLabel: "Paragraphing sentences",
+        persist: false
+    });
 }
 
 function cosine(a, b) {
@@ -245,7 +211,15 @@ function formatParagraphs(S, breaks) {
 export async function paragraphize(text, statusCallback) {
     if (!text || !text.trim()) return "";
 
-    const S = sentences(text.trim());
+    const normalizedText = text.replace(/\r\n?/g, "\n").trim();
+
+    // Preserve transcripts that already have paragraph breaks. Re-embedding
+    // them would add a long model pass without improving their formatting.
+    if (/\n\s*\n/.test(normalizedText)) {
+        return normalizedText;
+    }
+
+    const S = sentences(normalizedText);
 
     // Match the reference implementation: short text is not
     // semantically paragraphized.

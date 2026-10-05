@@ -3698,8 +3698,14 @@ async function combineSelectedFiles(
         combineStatus.textContent =
             `Reading ${files.length} transcript${files.length === 1 ? "" : "s"}…`;
 
+        combineStatus.textContent =
+            "Loading combine tools…";
+
         const combineModule =
             await getCombineModule();
+
+        combineStatus.textContent =
+            `Reading ${files.length} transcript${files.length === 1 ? "" : "s"}…`;
 
         const records =
             await combineModule.readTranscriptFiles(
@@ -3716,6 +3722,9 @@ async function combineSelectedFiles(
             combineModule.selectHighestModelRecords(
                 sortedRecords
             );
+
+        combineStatus.textContent =
+            `Preparing ${selectedRecords.length} transcript${selectedRecords.length === 1 ? "" : "s"}…`;
 
         let outputRecords =
             selectedRecords;
@@ -3840,16 +3849,25 @@ async function combineSelectedFiles(
             return;
         }
 
+        combineStatus.textContent =
+            "Loading output storage…";
+
         const storage =
             await getStorageModule();
 
         if (outputType === "text") {
+
+            combineStatus.textContent =
+                "Creating combined TXT…";
 
             const combinedText =
                 combineModule.combineTranscriptRecords(
                     outputRecords,
                     combineTitle
                 );
+
+            combineStatus.textContent =
+                `Writing combined TXT to “${combineDestinationHandle.name}”…`;
 
             await storage.writeTextFile(
                 combineDestinationHandle,
@@ -3862,14 +3880,23 @@ async function combineSelectedFiles(
 
         } else if (outputType === "docx") {
 
+            combineStatus.textContent =
+                "Loading DOCX tools…";
+
             const docx =
                 await getDOCXModule();
+
+            combineStatus.textContent =
+                "Creating combined DOCX…";
 
             const combinedDOCX =
                 await docx.createCombinedDOCX(
                     outputRecords,
                     combineTitle
                 );
+
+            combineStatus.textContent =
+                `Writing combined DOCX to “${combineDestinationHandle.name}”…`;
 
             await storage.writeBinaryFile(
                 combineDestinationHandle,
@@ -3882,8 +3909,14 @@ async function combineSelectedFiles(
 
         } else {
 
+            combineStatus.textContent =
+                "Loading HTML tools…";
+
             const html =
                 await getHTMLModule();
+
+            combineStatus.textContent =
+                "Preparing combined HTML…";
 
             const htmlAudioPathPrefix =
                 await getCombinedAudioPathPrefix(
@@ -3902,11 +3935,17 @@ async function combineSelectedFiles(
                             : null
                 }));
 
+            combineStatus.textContent =
+                "Creating combined HTML…";
+
             const combinedHTML =
                 html.createCombinedHTML(
                     htmlRecords,
                     combineTitle
                 );
+
+            combineStatus.textContent =
+                `Writing combined HTML to “${combineDestinationHandle.name}”…`;
 
             await storage.writeTextFile(
                 combineDestinationHandle,
