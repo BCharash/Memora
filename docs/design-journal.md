@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 10
+**Version:** 11
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -375,7 +375,7 @@ The module exposes two conceptual operations:
 
 The current transcription workflow uses `paragraphize()` after Whisper has produced the raw transcript. Combine Files also uses `paragraphize()` when its **Create paragraphs** option is selected.
 
-Paragraph embeddings are requested through `semantic.js`, which runs inference in the existing `semantic-worker.js`. Paragraphing therefore reuses the same MiniLM worker/model as Search where it is already loaded, and model inference no longer blocks the page's main thread. The model remains lazy: ordinary transcription and Combine operations do not load it unless paragraphing is requested.
+Paragraph embeddings run in the dedicated `paragraphing-worker.js`. This keeps inference off the main thread while keeping paragraphing independent from Search's `semantic.js` and `semantic-worker.js` pipeline. The model remains lazy: ordinary transcription and Combine operations do not load it unless paragraphing is requested.
 
 Paragraphing preserves input that already contains blank-line paragraph breaks and skips embedding it again. This avoids unnecessary model work when Combine receives transcripts that were paragraphized during transcription.
 
@@ -2830,9 +2830,9 @@ Investigation showed that the long operation occurred when **Create paragraphs**
 
 ## 42.6 Paragraphing worker and existing paragraphs
 
-Paragraphing now requests MiniLM embeddings through `semantic.js` and the existing `semantic-worker.js`, rather than loading a separate Transformers.js pipeline on the main thread. The paragraph-boundary algorithm remains unchanged. Worker progress is visible while the page stays responsive.
+Paragraphing uses its dedicated `paragraphing-worker.js` to load MiniLM and embed sentences one at a time, matching the original paragraphing inference flow while keeping model work off the page's main thread. `paragraphing.js` retains the paragraph-boundary algorithm and public `paragraphize()` API used by both Transcribe and Combine. It no longer routes paragraphing through Search's `semantic.js` or `semantic-worker.js` pipeline.
 
-The paragraphing function now preserves transcripts that already contain blank-line paragraph breaks and skips model inference for them. This avoids re-embedding transcripts that were already paragraphized during transcription.
+The paragraphing function preserves transcripts that already contain blank-line paragraph breaks and skips model inference for them. This avoids re-embedding transcripts that were already paragraphized during transcription. Search continues to use its existing semantic worker independently.
 
 ## 42.7 Refactoring method and current status
 
@@ -2845,4 +2845,8 @@ The current direction is to keep `app.js` focused on application startup, cross-
 The iPhone Combine share workflow now lives in `iphoneCombineExport.js`. The module owns its format selector, share button and status display, format labels, Web Share API checks, and share error handling. `app.js` supplies the transcript count and a callback that starts Combine generation for the selected format.
 
 Combine generation and format creation remain in `app.js`; once a generated file is ready, the coordinator passes it to the export module. The module exposes a small API for sharing, resetting UI state, and reflecting whether Combine is busy. This keeps iPhone-specific delivery separate from file generation and desktop folder writing.
+
+## 42.9 Dedicated paragraphing worker
+
+Paragraphing inference is isolated in `paragraphing-worker.js`. The worker uses the same MiniLM model and Transformers.js version as the original paragraphing path and processes one sentence per inference call. `paragraphing.js` communicates with that worker and keeps its existing API, so Transcribe and Combine orchestration do not change. Search remains on `semantic-worker.js` and does not share paragraphing's worker or inference requests.
 

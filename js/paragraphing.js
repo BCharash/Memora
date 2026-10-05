@@ -8,7 +8,74 @@
 // It does not rewrite transcript words; it inserts paragraph breaks.
 // --------------------------------------------------
 
-import { getSemanticEmbeddings } from "./semantic.js";
+let paragraphingWorker = null;
+let nextEmbeddingRequestId = 1;
+const pendingEmbeddingRequests = new Map();
+
+function getParagraphingWorker() {
+    if (paragraphingWorker) {
+        return paragraphingWorker;
+    }
+
+    const worker = new Worker(
+        new URL("./paragraphing-worker.js", import.meta.url),
+        { type: "module" }
+    );
+
+    worker.addEventListener("message", event => {
+        const message = event.data || {};
+        const request =
+            pendingEmbeddingRequests.get(message.requestId);
+
+        if (!request) {
+            return;
+        }
+
+        if (message.type === "status") {
+            request.statusCallback?.(message.message);
+            return;
+        }
+
+        pendingEmbeddingRequests.delete(message.requestId);
+
+        if (message.type === "complete") {
+            request.resolve(message.embeddings || []);
+        } else if (message.type === "error") {
+            const error = new Error(
+                message.message || "Paragraphing worker failed."
+            );
+            if (message.stack) {
+                error.stack = message.stack;
+            }
+            request.reject(error);
+        }
+    });
+
+    const rejectPendingRequests = message => {
+        const error = new Error(message);
+        for (const request of pendingEmbeddingRequests.values()) {
+            request.reject(error);
+        }
+        pendingEmbeddingRequests.clear();
+        worker.terminate();
+        paragraphingWorker = null;
+    };
+
+    worker.addEventListener("error", event => {
+        rejectPendingRequests(
+            event.message || "Paragraphing worker stopped unexpectedly."
+        );
+    });
+
+    worker.addEventListener("messageerror", () => {
+        rejectPendingRequests(
+            "Could not read a message from the paragraphing worker."
+        );
+    });
+
+    paragraphingWorker = worker;
+    return worker;
+}
 
 function sentences(text) {
     text = text
@@ -33,12 +100,21 @@ function sentences(text) {
 }
 
 async function embed(S, statusCallback) {
-    return getSemanticEmbeddings({
-        texts: S,
-        modelId: "minilm",
-        statusCallback,
-        phaseLabel: "Paragraphing sentences",
-        persist: false
+    const worker = getParagraphingWorker();
+    const requestId = nextEmbeddingRequestId++;
+
+    return new Promise((resolve, reject) => {
+        pendingEmbeddingRequests.set(requestId, {
+            resolve,
+            reject,
+            statusCallback
+        });
+
+        worker.postMessage({
+            type: "embed-sentences",
+            requestId,
+            sentences: S
+        });
     });
 }
 
