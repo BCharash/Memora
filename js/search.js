@@ -28,7 +28,247 @@ const SEARCH_CONTEXTS = [
     { chunkSize: 7, chunkOverlap: 3, label: "7–3" }
 ];
 
+export const SEARCH_EMBEDDINGS_FILENAME = "search-embeddings.json";
+const SEARCH_ARCHIVE_FORMAT = "search-embeddings";
+const SEARCH_ARCHIVE_VERSION = 1;
+const SEARCH_MODEL_VERSION = "transformers.js-3.7.2";
+
 let currentIndex = null;
+
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 0x8000;
+
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        const chunk = bytes.subarray(offset, offset + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+
+    return btoa(binary);
+}
+
+function base64ToFloat32(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index++) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+
+    return new Float32Array(
+        bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength
+        )
+    );
+}
+
+async function digestText(text) {
+    const bytes = new TextEncoder().encode(String(text || ""));
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+    return Array.from(new Uint8Array(digest))
+        .map(byte => byte.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+async function getTranscriptHash(record) {
+    return digestText(JSON.stringify({
+        source: {
+            voiceMemoId: record.voiceMemoId || null,
+            recordingFilename: record.recordingFilename || null,
+            recordingDate: record.recordingDate || null,
+            operation: record.operation || "transcribe"
+        },
+        transcript: String(record.transcript || "")
+    }));
+}
+
+function getArchiveTranscriptMap(archive) {
+    const map = new Map();
+
+    for (const transcript of archive?.transcripts || []) {
+        map.set(
+            `${transcript.filename}|${transcript.transcriptHash}`,
+            transcript
+        );
+    }
+
+    return map;
+}
+
+function getArchiveRepresentationKey(type, chunkSize = null, chunkOverlap = null) {
+    return type === "sentence"
+        ? "sentence"
+        : `${chunkSize}-${chunkOverlap}`;
+}
+
+async function prepareArchiveRecords(records) {
+    return Promise.all(
+        records.map(async record => ({
+            filename: record.filename,
+            transcriptHash: await getTranscriptHash(record)
+        }))
+    );
+}
+
+function getArchiveEmbedding(
+    archiveTranscript,
+    representationKey,
+    ordinal,
+    text
+) {
+    if (!archiveTranscript) {
+        return null;
+    }
+
+    const collection =
+        representationKey === "sentence"
+            ? archiveTranscript.sentences
+            : archiveTranscript.chunks?.[representationKey];
+
+    const item = collection?.find(
+        candidate =>
+            candidate.ordinal === ordinal &&
+            candidate.text === text &&
+            typeof candidate.embedding === "string"
+    );
+
+    return item ? base64ToFloat32(item.embedding) : null;
+}
+
+function archiveRepresentationComplete(
+    archiveTranscript,
+    representationKey,
+    items
+) {
+    if (!archiveTranscript) return false;
+
+    const collection =
+        representationKey === "sentence"
+            ? archiveTranscript.sentences
+            : archiveTranscript.chunks?.[representationKey];
+
+    if (!Array.isArray(collection) || collection.length !== items.length) {
+        return false;
+    }
+
+    return items.every(item =>
+        collection.some(candidate =>
+            candidate.ordinal === item.ordinal &&
+            candidate.text === item.text &&
+            typeof candidate.embedding === "string"
+        )
+    );
+}
+
+export function createSearchEmbeddingsArchive(index) {
+    const transcripts = [];
+    const byRecord = new Map();
+
+    for (const record of index.records) {
+        const transcript = {
+            filename: record.filename,
+            transcriptHash: record.transcriptHash,
+            sourceKey: record.sourceKey,
+            sentences: [],
+            chunks: {}
+        };
+
+        transcripts.push(transcript);
+        byRecord.set(record, transcript);
+    }
+
+    const addRepresentation = (items, embeddings, key) => {
+        const target = key === "sentence"
+            ? "sentences"
+            : null;
+
+        if (target) {
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                const transcript = byRecord.get(item.record);
+                transcript.sentences.push({
+                    ordinal: item.ordinal,
+                    text: item.text,
+                    embedding: arrayBufferToBase64(
+                        embeddings[index].buffer
+                    )
+                });
+            }
+            return;
+        }
+
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            const transcript = byRecord.get(item.record);
+            transcript.chunks[key] ||= [];
+            transcript.chunks[key].push({
+                ordinal: item.ordinal,
+                text: item.text,
+                embedding: arrayBufferToBase64(
+                    embeddings[index].buffer
+                )
+            });
+        }
+    };
+
+    addRepresentation(
+        index.sentenceItems,
+        index.sentenceEmbeddings,
+        "sentence"
+    );
+
+    addRepresentation(
+        index.chunkItems,
+        index.chunkEmbeddings,
+        getArchiveRepresentationKey(
+            "chunk",
+            CHUNK_SIZE,
+            CHUNK_OVERLAP
+        )
+    );
+
+    for (const contextual of index.contextualRepresentations) {
+        addRepresentation(
+            contextual.items,
+            contextual.embeddings,
+            getArchiveRepresentationKey(
+                "chunk",
+                contextual.chunkSize,
+                contextual.chunkOverlap
+            )
+        );
+    }
+
+    return {
+        format: SEARCH_ARCHIVE_FORMAT,
+        version: SEARCH_ARCHIVE_VERSION,
+        embeddingModel: {
+            id: SEARCH_MODEL_ID,
+            modelId: "Xenova/all-MiniLM-L6-v2",
+            modelVersion: SEARCH_MODEL_VERSION,
+            dimension: 384,
+            dtype: "float32"
+        },
+        representations: [
+            { type: "sentence" },
+            ...SEARCH_CONTEXTS.map(config => ({
+                type: "chunk",
+                chunkSize: config.chunkSize,
+                chunkOverlap: config.chunkOverlap
+            }))
+        ],
+        transcripts
+    };
+}
+
+export function serializeSearchEmbeddingsArchive(index) {
+    return JSON.stringify(
+        createSearchEmbeddingsArchive(index)
+    );
+}
 
 let searchWorker = null;
 let nextWorkerRequestId = 1;
@@ -234,7 +474,8 @@ function cosine(a, b) {
 
 export async function buildSearchIndex(
     files,
-    statusCallback
+    statusCallback,
+    archive = null
 ) {
 
     const modelId = SEARCH_MODEL_ID;
@@ -323,16 +564,34 @@ export async function buildSearchIndex(
 
     const embeddingStart = performance.now();
 
-    // Sentence and chunk embeddings are generated in the same worker/model
-    // request. This avoids loading or initializing the embedding model twice.
-    const sentenceTexts =
-        entries.map(entry => entry.sentence);
+    const archiveTranscriptInfo =
+        await prepareArchiveRecords(records);
 
-    const chunkTexts =
-        chunks.map(chunk => chunk.text);
+    for (let index = 0; index < records.length; index++) {
+        records[index].transcriptHash =
+            archiveTranscriptInfo[index].transcriptHash;
+        records[index].sourceKey =
+            await digestText(JSON.stringify({
+                voiceMemoId: records[index].voiceMemoId || null,
+                recordingFilename: records[index].recordingFilename || null,
+                recordingDate: records[index].recordingDate || null,
+                operation: records[index].operation || "transcribe"
+            }));
+    }
 
-    // Persistent semantic identities are local to each transcript so Search
-    // results remain stable regardless of source-file order.
+    const archiveUsable =
+        archive?.format === SEARCH_ARCHIVE_FORMAT &&
+        archive?.version === SEARCH_ARCHIVE_VERSION &&
+        archive?.embeddingModel?.id === SEARCH_MODEL_ID &&
+        archive?.embeddingModel?.modelVersion === SEARCH_MODEL_VERSION &&
+        archive?.embeddingModel?.dimension === 384 &&
+        archive?.embeddingModel?.dtype === "float32";
+
+    const archiveTranscriptMap =
+        archiveUsable
+            ? getArchiveTranscriptMap(archive)
+            : new Map();
+
     const sentenceItems = [];
     const sentenceOrdinals = new Map();
 
@@ -345,26 +604,17 @@ export async function buildSearchIndex(
             representationType: "sentence",
             ordinal,
             record,
-            text: sentenceTexts[i],
+            text: entries[i].sentence,
             paragraphIndex: entries[i].paragraphIndex,
             sentenceIndex: entries[i].sentenceIndex
         });
     }
 
-    const sentenceEmbeddings =
-        await getSemanticEmbeddings({
-            items: sentenceItems,
-            modelId,
-            statusCallback,
-            phaseLabel: "Sentences",
-            sourceRecords: records
-        });
-
     const chunkItems = [];
     const chunkOrdinals = new Map();
 
-    for (let i = 0; i < chunks.length; i++) {
-        const record = chunks[i].record;
+    for (const chunk of chunks) {
+        const record = chunk.record;
         const ordinal = chunkOrdinals.get(record) || 0;
         chunkOrdinals.set(record, ordinal + 1);
 
@@ -372,54 +622,137 @@ export async function buildSearchIndex(
             representationType: "chunk",
             ordinal,
             record,
-            text: chunkTexts[i],
-            firstSentenceGlobalIndex: chunks[i].firstSentenceGlobalIndex,
-            lastSentenceGlobalIndex: chunks[i].lastSentenceGlobalIndex,
+            text: chunk.text,
+            firstSentenceGlobalIndex: chunk.firstSentenceGlobalIndex,
+            lastSentenceGlobalIndex: chunk.lastSentenceGlobalIndex,
             chunkSize: CHUNK_SIZE,
             chunkOverlap: CHUNK_OVERLAP
         });
     }
 
-    const chunkEmbeddings =
-        await getSemanticEmbeddings({
-            items: chunkItems,
-            modelId,
-            statusCallback,
-            phaseLabel: `Chunks ${CHUNK_SIZE}–${CHUNK_OVERLAP}`,
-            sourceRecords: records
-        });
-
+    const contextualRepresentations = [];
     for (const config of contextualConfigs) {
-        const contextualChunkItems = [];
-        const contextualChunkOrdinals = new Map();
+        const items = [];
+        const ordinals = new Map();
 
         for (const chunk of config.chunks) {
             const record = chunk.record;
-            const ordinal = contextualChunkOrdinals.get(record) || 0;
-            contextualChunkOrdinals.set(record, ordinal + 1);
+            const ordinal = ordinals.get(record) || 0;
+            ordinals.set(record, ordinal + 1);
 
-            contextualChunkItems.push({
+            items.push({
                 representationType: "chunk",
                 ordinal,
                 record,
                 text: chunk.text,
-                firstSentenceGlobalIndex:
-                    chunk.firstSentenceGlobalIndex,
-                lastSentenceGlobalIndex:
-                    chunk.lastSentenceGlobalIndex,
+                firstSentenceGlobalIndex: chunk.firstSentenceGlobalIndex,
+                lastSentenceGlobalIndex: chunk.lastSentenceGlobalIndex,
                 chunkSize: config.chunkSize,
                 chunkOverlap: config.chunkOverlap
             });
         }
 
-        await getSemanticEmbeddings({
-            items: contextualChunkItems,
-            modelId,
-            statusCallback,
-            phaseLabel: `Chunks ${config.label}`,
-            sourceRecords: records
+        contextualRepresentations.push({
+            chunkSize: config.chunkSize,
+            chunkOverlap: config.chunkOverlap,
+            label: config.label,
+            items,
+            embeddings: []
         });
     }
+
+    const getArchiveEmbeddingSet = async (items, representationKey, phaseLabel) => {
+        const embeddings = new Array(items.length);
+        const missing = [];
+
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            const transcript = archiveTranscriptMap.get(
+                `${item.record.filename}|${item.record.transcriptHash}`
+            );
+
+            const embedding = getArchiveEmbedding(
+                transcript,
+                representationKey,
+                item.ordinal,
+                item.text
+            );
+
+            if (embedding) {
+                embeddings[index] = embedding;
+            } else {
+                missing.push({ item, index });
+            }
+        }
+
+        if (missing.length) {
+            if (statusCallback) {
+                statusCallback(
+                    `${phaseLabel}: analyzing ${missing.length} new item${missing.length === 1 ? "" : "s"}…`
+                );
+            }
+
+            const generated =
+                await getSemanticEmbeddings({
+                    items: missing.map(entry => entry.item),
+                    modelId,
+                    statusCallback,
+                    phaseLabel,
+                    sourceRecords: records
+                });
+
+            for (let index = 0; index < missing.length; index++) {
+                embeddings[missing[index].index] =
+                    generated[index];
+            }
+        }
+
+        return {
+            embeddings,
+            missingCount: missing.length
+        };
+    };
+
+    const sentenceSet =
+        await getArchiveEmbeddingSet(
+            sentenceItems,
+            "sentence",
+            "Sentences"
+        );
+
+    const chunkSet =
+        await getArchiveEmbeddingSet(
+            chunkItems,
+            getArchiveRepresentationKey(
+                "chunk",
+                CHUNK_SIZE,
+                CHUNK_OVERLAP
+            ),
+            `Chunks ${CHUNK_SIZE}–${CHUNK_OVERLAP}`
+        );
+
+    let archiveMissingCount =
+        sentenceSet.missingCount +
+        chunkSet.missingCount;
+
+    for (const contextual of contextualRepresentations) {
+        const result =
+            await getArchiveEmbeddingSet(
+                contextual.items,
+                getArchiveRepresentationKey(
+                    "chunk",
+                    contextual.chunkSize,
+                    contextual.chunkOverlap
+                ),
+                `Chunks ${contextual.label}`
+            );
+
+        contextual.embeddings = result.embeddings;
+        archiveMissingCount += result.missingCount;
+    }
+
+    const sentenceEmbeddings = sentenceSet.embeddings;
+    const chunkEmbeddings = chunkSet.embeddings;
 
     const embeddingDurationMs =
         performance.now() - embeddingStart;
@@ -439,6 +772,16 @@ export async function buildSearchIndex(
         chunks,
         sentences: entries.length,
         chunkCount: chunks.length,
+        sentenceItems,
+        sentenceEmbeddings,
+        chunkItems,
+        chunkEmbeddings,
+        contextualRepresentations,
+        archiveMissingCount,
+        archiveNeedsUpdate: archiveMissingCount > 0 ||
+            !archive ||
+            archive.format !== SEARCH_ARCHIVE_FORMAT ||
+            archive.version !== SEARCH_ARCHIVE_VERSION,
         readDurationMs,
         sentenceProcessingDurationMs,
         chunkProcessingDurationMs,
