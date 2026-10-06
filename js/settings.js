@@ -50,7 +50,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Whisper Models</span>
-                <span id="settingsWhisperModelsSummary">${modelAvailability ? `${modelAvailability.length} checked` : "Not checked"}</span>
+                <span id="settingsWhisperModelsSummary">${formatBytes(models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).length} models</span>
                 ${button("View", "toggle-whisper-models")}
             </div>
             <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
@@ -246,7 +246,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         });
 
         const summary = document.getElementById("settingsWhisperModelsSummary");
-        if (summary) summary.textContent = `${modelAvailability.length} checked`;
+        if (summary) {
+                const whisperModels = currentReport.modelCache.models.filter(
+                    item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)
+                );
+                summary.textContent = `${formatBytes(whisperModels.reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${whisperModels.length} models`;
+            }
         const toggle = storage.querySelector('[data-settings-action="toggle-whisper-models"]');
         if (toggle) toggle.textContent = "Hide";
     }
@@ -371,7 +376,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             modelAvailability = await checkAllModels();
 
             const summary = document.getElementById("settingsWhisperModelsSummary");
-            if (summary) summary.textContent = `${modelAvailability.length} checked`;
+            if (summary) {
+                const whisperModels = currentReport.modelCache.models.filter(
+                    item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)
+                );
+                summary.textContent = `${formatBytes(whisperModels.reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${whisperModels.length} models`;
+            }
 
             status.textContent = `Updated ${new Intl.DateTimeFormat("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(new Date())}.`;
         } catch (error) {
