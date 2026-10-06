@@ -252,6 +252,86 @@ function entryToEmbedding(entry) {
     return new Float32Array(entry.embedding);
 }
 
+export async function persistSemanticEmbeddings({
+    items = [],
+    embeddings = [],
+    modelId = "minilm",
+    sourceRecords = []
+}) {
+    if (!items.length) return;
+    if (items.length !== embeddings.length) {
+        throw new Error("Semantic embedding count does not match item count.");
+    }
+
+    const db = await openDatabase();
+    const sourceInfo = [];
+
+    for (const record of sourceRecords) {
+        sourceInfo.push({
+            record,
+            sourceKey: await getSourceKey(record),
+            transcriptHash: await getTranscriptHash(record)
+        });
+    }
+
+    const sourceMap = new Map(
+        sourceInfo.map(info => [info.record, info])
+    );
+
+    const itemsWithKeys = [];
+    for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        const record = findRecordForItem(item, sourceInfo);
+        const info = sourceMap.get(record);
+
+        if (!info) {
+            db.close();
+            throw new Error("Could not associate a semantic item with its transcript.");
+        }
+
+        const representationKey = makeRepresentationKey({
+            sourceKey: info.sourceKey,
+            transcriptHash: info.transcriptHash,
+            modelId,
+            representationType: item.representationType,
+            chunkSize: item.chunkSize,
+            chunkOverlap: item.chunkOverlap
+        });
+
+        itemsWithKeys.push({
+            item,
+            embedding: embeddings[index],
+            sourceKey: info.sourceKey,
+            transcriptHash: info.transcriptHash,
+            representationKey
+        });
+    }
+
+    const existing = await loadExistingEntries(
+        db,
+        [...new Set(itemsWithKeys.map(item => item.representationKey))]
+    );
+
+    const existingIds = new Set(existing.map(entry => entry.id));
+
+    const entriesToWrite = itemsWithKeys
+        .filter(item => !existingIds.has(
+            makeEntryId(item.representationKey, item.item.ordinal)
+        ))
+        .map(item => makeStoredEntry({
+            item: item.item,
+            embedding: item.embedding,
+            sourceKey: item.sourceKey,
+            transcriptHash: item.transcriptHash,
+            modelId,
+            representationKey: item.representationKey
+        }));
+
+    await writeEntries(db, entriesToWrite);
+    db.close();
+}
+
+
 export async function getSemanticEmbeddings({
     items = [],
     texts = null,

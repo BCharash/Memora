@@ -2,9 +2,7 @@
 // Memora Storage Manager
 // --------------------------------------------------
 //
-// Read-only accounting for browser storage used by Memora.
-// This module deliberately does not mutate transcripts, semantic data,
-// browser caches, or model data.
+// Storage accounting and management for Memora.
 //
 
 const DB_NAME = "Memora";
@@ -149,6 +147,10 @@ async function readIndexedDBReport() {
                         const group =
                             groups.get(key) || {
                                 name: "Semantic representation",
+                                modelId: value.modelId || "unknown model",
+                                representationType: value.representationType || "unknown representation",
+                                chunkSize: value.chunkSize ?? null,
+                                chunkOverlap: value.chunkOverlap ?? null,
                                 count: 0,
                                 embeddingBytes: 0
                             };
@@ -399,4 +401,158 @@ export async function getStorageReport() {
         indexedDB: indexedDBReport,
         modelCache
     };
+}
+
+
+function openReadWriteStore(storeName) {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME);
+        request.onsuccess = () => {
+            const database = request.result;
+            if (!database.objectStoreNames.contains(storeName)) {
+                database.close();
+                resolve(null);
+                return;
+            }
+            resolve(database);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+export async function listCachedTranscripts() {
+    const database = await openReadWriteStore("transcripts");
+    if (!database) return [];
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("transcripts", "readonly");
+        const request = transaction.objectStore("transcripts").getAll();
+        request.onsuccess = () => {
+            const records = (request.result || []).map(record => ({
+                filename: record.filename,
+                bytes: estimateValueBytes(record.transcript || ""),
+                model: record.model || "",
+                operation: record.operation || "transcribe",
+                savedAt: record.savedAt || null
+            }));
+            resolve(records.sort((a, b) => String(a.filename).localeCompare(String(b.filename))));
+        };
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => database.close();
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+export async function readCachedTranscripts() {
+    const database = await openReadWriteStore("transcripts");
+    if (!database) return [];
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("transcripts", "readonly");
+        const request = transaction.objectStore("transcripts").getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => database.close();
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+export async function clearCachedTranscript(filename) {
+    const database = await openReadWriteStore("transcripts");
+    if (!database) return;
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("transcripts", "readwrite");
+        transaction.objectStore("transcripts").delete(filename);
+        transaction.oncomplete = () => { database.close(); resolve(); };
+        transaction.onerror = () => { database.close(); reject(transaction.error); };
+        transaction.onabort = () => { database.close(); reject(transaction.error); };
+    });
+}
+
+export async function clearAllCachedTranscripts() {
+    const database = await openReadWriteStore("transcripts");
+    if (!database) return;
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("transcripts", "readwrite");
+        transaction.objectStore("transcripts").clear();
+        transaction.oncomplete = () => { database.close(); resolve(); };
+        transaction.onerror = () => { database.close(); reject(transaction.error); };
+        transaction.onabort = () => { database.close(); reject(transaction.error); };
+    });
+}
+
+function representationMatches(value, representation) {
+    return (
+        (value.modelId || "unknown model") === representation.modelId &&
+        (value.representationType || "unknown representation") === representation.representationType &&
+        (value.chunkSize ?? null) === (representation.chunkSize ?? null) &&
+        (value.chunkOverlap ?? null) === (representation.chunkOverlap ?? null)
+    );
+}
+
+export async function clearSemanticRepresentation(representation) {
+    const database = await openReadWriteStore("semanticEntries");
+    if (!database) return;
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("semanticEntries", "readwrite");
+        const store = transaction.objectStore("semanticEntries");
+        const request = store.openCursor();
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) return;
+            if (representationMatches(cursor.value, representation)) cursor.delete();
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => { database.close(); resolve(); };
+        transaction.onerror = () => { database.close(); reject(transaction.error); };
+        transaction.onabort = () => { database.close(); reject(transaction.error); };
+    });
+}
+
+export async function clearAllSemanticEntries() {
+    const database = await openReadWriteStore("semanticEntries");
+    if (!database) return;
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction("semanticEntries", "readwrite");
+        transaction.objectStore("semanticEntries").clear();
+        transaction.oncomplete = () => { database.close(); resolve(); };
+        transaction.onerror = () => { database.close(); reject(transaction.error); };
+        transaction.onabort = () => { database.close(); reject(transaction.error); };
+    });
+}
+
+async function modelRequestsByName(modelName) {
+    const matches = [];
+    if (!window.caches) return matches;
+    for (const cacheName of await caches.keys()) {
+        let cache;
+        try { cache = await caches.open(cacheName); } catch { continue; }
+        let requests;
+        try { requests = await cache.keys(); } catch { continue; }
+        for (const request of requests) {
+            if (!isLikelyModelAsset(request.url)) continue;
+            if (modelNameFromUrl(request.url) === modelName) {
+                matches.push({ cache, request });
+            }
+        }
+    }
+    return matches;
+}
+
+export async function clearCachedModel(modelName) {
+    for (const { cache, request } of await modelRequestsByName(modelName)) {
+        await cache.delete(request);
+    }
+}
+
+export async function clearAllCachedModels() {
+    if (!window.caches) return;
+    for (const cacheName of await caches.keys()) {
+        let cache;
+        try { cache = await caches.open(cacheName); } catch { continue; }
+        for (const request of await cache.keys()) {
+            if (isLikelyModelAsset(request.url)) await cache.delete(request);
+        }
+    }
 }

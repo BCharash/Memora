@@ -8,6 +8,7 @@ import {
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
 import { initSearchUI } from "./searchUI.js";
 import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
+import { initSettingsUI } from "./settings.js";
 
 const DEFAULT_COMBINE_TITLE = "Memora — Combined Transcription";
 
@@ -68,18 +69,6 @@ const settingsButton =
 
 const appTabs =
     document.querySelector(".app-tabs");
-
-const settingsStorageStatus =
-    document.getElementById("settingsStorageStatus");
-
-const settingsStorage =
-    document.getElementById("settingsStorage");
-
-const settingsRuntime =
-    document.getElementById("settingsRuntime");
-
-const settingsRefreshButton =
-    document.getElementById("settingsRefreshButton");
 
 const appIcon =
     document.getElementById("appIcon");
@@ -960,7 +949,7 @@ if (
             settingsButton.classList.add("active");
         }
 
-        refreshSettings();
+        settingsUI.refresh();
     }
 
     function closeSettings() {
@@ -1015,111 +1004,10 @@ if (
 // Settings
 // --------------------------------------------------
 
-function formatStorageBytes(bytes) {
-    if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
-    if (bytes < 1024) return `${Math.round(bytes)} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-function renderSettingsRows(rows) {
-    return rows.map(row => `
-        <div class="settings-row">
-            <span class="settings-label">${row.label}</span>
-            <span class="settings-value">${row.value}</span>
-        </div>
-    `).join("");
-}
-
-function renderSettingsModel(model) {
-    return `
-        <div class="settings-model">
-            <div class="settings-model-name">${model.name}</div>
-            <div class="settings-model-detail">${model.detail}</div>
-        </div>
-    `;
-}
-
-function renderSettingsReport(report) {
-    if (!settingsStorage || !settingsRuntime) return;
-
-    const storageRows = [
-        { label: "Browser storage used", value: formatStorageBytes(report.browser.usage) },
-        { label: "Browser storage quota", value: formatStorageBytes(report.browser.quota) },
-        {
-            label: "Cached transcripts",
-            value: `${formatStorageBytes(report.indexedDB.transcripts.bytes)} · ${report.indexedDB.transcripts.count.toLocaleString()} files`
-        },
-        {
-            label: "Semantic index",
-            value: `${formatStorageBytes(report.indexedDB.semanticEntries.embeddingBytes)} · ${report.indexedDB.semanticEntries.count.toLocaleString()} entries`
-        },
-        {
-            label: "Other Memora IndexedDB data",
-            value: `${formatStorageBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries`
-        },
-        {
-            label: "Cached model files",
-            value: `${formatStorageBytes(report.modelCache.knownBytes)} · ${report.modelCache.modelEntryCount.toLocaleString()} files`
-        }
-    ];
-
-    settingsStorage.innerHTML =
-        renderSettingsRows(storageRows) +
-        `<h4 class="settings-subheading">Semantic index</h4>` +
-        report.indexedDB.semanticEntries.representations.map(item =>
-            renderSettingsModel({
-                name: item.name,
-                detail: `${formatStorageBytes(item.embeddingBytes)} · ${item.count.toLocaleString()} entries`
-            })
-        ).join("") +
-        `<h4 class="settings-subheading">Cached models</h4>` +
-        (
-            report.modelCache.models.length
-                ? report.modelCache.models.map(renderSettingsModel).join("")
-                : `<p class="settings-note">No cached model files were identified through the browser Cache API.</p>`
-        ) +
-        `<p class="settings-note">
-            Browser storage usage is the authoritative overall figure.
-            Category sizes are estimates or known byte counts and should not be expected to add exactly to the browser total.
-        </p>`;
-
-    settingsRuntime.innerHTML = renderSettingsRows([
-        { label: "Desktop Whisper", value: "Transformers.js 4.0.0 · WebGPU" },
-        { label: "iPhone/iPad Whisper", value: "Transformers.js 3.7.2 · worker" },
-        { label: "Semantic search", value: "Transformers.js 3.7.2 · browser cache" }
-    ]);
-}
-
-async function refreshSettings() {
-    if (!settingsStorageStatus) return;
-
-    settingsStorageStatus.innerHTML = `
-        <span class="transcription-spinner" aria-hidden="true"></span>
-        <span>Reading Memora storage information…</span>
-    `;
-
-    try {
-        const manager = await getStorageManagerModule();
-        const report = await manager.getStorageReport();
-        renderSettingsReport(report);
-        settingsStorageStatus.textContent =
-            `Updated ${new Intl.DateTimeFormat("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit"
-            }).format(new Date())}.`;
-    } catch (error) {
-        console.error("Settings storage error:", error);
-        settingsStorageStatus.textContent =
-            "Unable to read Memora storage information.";
-    }
-}
-
-if (settingsRefreshButton) {
-    settingsRefreshButton.addEventListener("click", refreshSettings);
-}
+const settingsUI = initSettingsUI({
+    getStorageManager: getStorageManagerModule,
+    getStorage: getStorageModule
+});
 
 
 function createSearchCombineTitle(query) {

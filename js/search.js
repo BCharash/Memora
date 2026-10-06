@@ -17,7 +17,8 @@ import {
 
 import {
     getSemanticEmbeddings,
-    getStoredSemanticEntries
+    getStoredSemanticEntries,
+    persistSemanticEmbeddings
 } from "./semantic.js";
 
 const SEARCH_MODEL_ID = "minilm";
@@ -664,6 +665,7 @@ export async function buildSearchIndex(
     const getArchiveEmbeddingSet = async (items, representationKey, phaseLabel) => {
         const embeddings = new Array(items.length);
         const missing = [];
+        const archived = [];
 
         for (let index = 0; index < items.length; index++) {
             const item = items[index];
@@ -680,8 +682,27 @@ export async function buildSearchIndex(
 
             if (embedding) {
                 embeddings[index] = embedding;
+                archived.push({ item, embedding });
             } else {
                 missing.push({ item, index });
+            }
+        }
+
+        // The JSON archive is the durable Search Index. When it supplies an
+        // embedding, also restore that embedding into the local IndexedDB
+        // cache so the cache remains useful after it has been cleared.
+        if (archived.length) {
+            try {
+                await persistSemanticEmbeddings({
+                    items: archived.map(entry => entry.item),
+                    embeddings: archived.map(entry => entry.embedding),
+                    modelId,
+                    sourceRecords: records
+                });
+            } catch (error) {
+                // Search can still proceed from the JSON archive if the local
+                // cache cannot be updated (for example, because storage is full).
+                statusCallback?.(`Semantic cache update skipped: ${error?.message || String(error)}`);
             }
         }
 
