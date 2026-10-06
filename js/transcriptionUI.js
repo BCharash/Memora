@@ -215,33 +215,46 @@ export async function displayFiles(
     }
 
     function toggleRecordingCollapse() {
-        recordingsCollapsed = !recordingsCollapsed;
-        updateRecordingCollapseUI();
-    }
+        const destinationSection =
+            document.getElementById("transcriptionDestinationSection");
 
-    function expandRecordingsFromBottom() {
-        const bottomTopBefore =
-            recordingCollapseBottom
-                ? recordingCollapseBottom.getBoundingClientRect().top
+        const destinationTopBefore =
+            destinationSection
+                ? destinationSection.getBoundingClientRect().top
                 : null;
 
-        recordingsCollapsed = false;
+        recordingsCollapsed = !recordingsCollapsed;
         updateRecordingCollapseUI();
 
-        if (bottomTopBefore !== null && recordingCollapseBottom) {
+        if (destinationTopBefore !== null && destinationSection) {
             requestAnimationFrame(() => {
-                const bottomTopAfter =
-                    recordingCollapseBottom.getBoundingClientRect().top;
+                const destinationTopAfter =
+                    destinationSection.getBoundingClientRect().top;
 
                 window.scrollBy(
                     0,
-                    bottomTopAfter - bottomTopBefore
+                    destinationTopAfter - destinationTopBefore
                 );
             });
         }
     }
 
-    collapseCheckboxTop.onchange = toggleRecordingCollapse;
+    function expandRecordingsFromBottom() {
+        toggleRecordingCollapse();
+    }
+
+    collapseCheckboxTop.onchange = () => {
+        if (recordingsCollapsed) {
+            const scrollYBefore = window.scrollY;
+            recordingsCollapsed = false;
+            updateRecordingCollapseUI();
+            requestAnimationFrame(() => {
+                window.scrollTo(0, scrollYBefore);
+            });
+        } else {
+            toggleRecordingCollapse();
+        }
+    };
 
     collapseCheckboxBottom.onchange = () => {
         if (recordingsCollapsed) {
