@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Memora WebGPU Test</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
+  h1 { margin-bottom: 8px; }
+  #status { white-space: pre-wrap; font-family: ui-monospace, monospace; background: #f3f3f3; padding: 16px; border-radius: 8px; }
+  .ok { color: #176b2c; }
+  .fail { color: #a11; }
+</style>
+</head>
+<body>
+<h1>WebGPU Test</h1>
+<p>This test does <strong>not</strong> use Whisper, Transformers.js, ONNX, or any external library.</p>
+<div id="status">Starting…</div>
+
+<script>
+(async () => {
+  const out = document.getElementById("status");
+  const lines = [];
+  const log = (s) => {
+    lines.push(s);
+    out.textContent = lines.join("\\n");
+  };
+
+  try {
+    if (!navigator.gpu) {
+      log("FAIL: navigator.gpu is not available.");
+      return;
+    }
+
+    log("PASS: navigator.gpu is available.");
+    const adapter = await navigator.gpu.requestAdapter();
+
+    if (!adapter) {
+      log("FAIL: WebGPU adapter could not be obtained.");
+      return;
+    }
+
+    log("PASS: WebGPU adapter obtained.");
+
+    const info = adapter.info || {};
+    if (info.vendor) log("Vendor: " + info.vendor);
+    if (info.architecture) log("Architecture: " + info.architecture);
+    if (info.device) log("Device: " + info.device);
+    if (info.description) log("Description: " + info.description);
+
+    const device = await adapter.requestDevice();
+    log("PASS: GPU device created.");
+
+    device.lost.then((reason) => {
+      log("GPU DEVICE LOST: " + (reason.message || "unknown reason"));
+    });
+
+    // A deliberately tiny compute shader. It writes 42 into one GPU buffer.
+    const shader = device.createShaderModule({
+      code: `
+        @group(0) @binding(0)
+        var<storage, read_write> result: array<u32>;
+
+        @compute @workgroup_size(1)
+        fn main() {
+          result[0] = 42u;
+        }
+      `
+    });
+
+    const storageBuffer = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+
+    const readbackBuffer = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
+
+    const bindGroupLayout = device.createBindGroupLayout({
+      entries: [{
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" }
+      }]
+    });
+
+    const pipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [bindGroupLayout]
+      }),
+      compute: {
+        module: shader,
+        entryPoint: "main"
+      }
+    });
+
+    const bindGroup = device.createBindGroup({
+      layout: bindGroupLayout,
+      entries: [{
+        binding: 0,
+        resource: { buffer: storageBuffer }
+      }]
+    });
+
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.dispatchWorkgroups(1);
+    pass.end();
+
+    encoder.copyBufferToBuffer(storageBuffer, 0, readbackBuffer, 0, 4);
+    device.queue.submit([encoder.finish()]);
+
+    await readbackBuffer.mapAsync(GPUMapMode.READ);
+    const result = new Uint32Array(readbackBuffer.getMappedRange().slice(0));
+    readbackBuffer.unmap();
+
+    if (result[0] === 42) {
+      log("PASS: WebGPU compute shader executed successfully.");
+      log("PASS: GPU returned the expected result: 42.");
+      log("");
+      log("CONCLUSION: Basic WebGPU is working on this device/browser.");
+      log("A Whisper/WebGPU crash would therefore be specific to the ML/Transformers/ONNX path, not basic WebGPU availability.");
+    } else {
+      log("FAIL: GPU returned " + result[0] + " instead of 42.");
+    }
+
+    storageBuffer.destroy();
+    readbackBuffer.destroy();
+    device.destroy?.();
+
+  } catch (error) {
+    log("FAIL: WebGPU test threw an exception.");
+    log("");
+    log(error?.stack || error?.message || String(error));
+  }
+})();
+</script>
+</body>
+</html>
