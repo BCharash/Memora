@@ -37,17 +37,15 @@ const MODEL_CATALOG = {
 };
 
 const MODEL_API_BASE = "https://huggingface.co/api/models/";
-const TRANSFORMERS_URL =
-    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0";
 
-let transformersModule = null;
-
-async function loadTransformers() {
-    if (!transformersModule) {
-        transformersModule = await import(TRANSFORMERS_URL);
-    }
-    return transformersModule;
-}
+/*
+ * Availability follows the way whisper.js actually loads each family.
+ * Tiny/Base/Small pass only the repository to Transformers.js.
+ * Medium passes dtype: "q4".
+ * Large passes encoder fp16 + merged decoder q4.
+ *
+ * Cache status is reported separately from repository availability.
+ */
 
 async function getRepositoryFiles(repository) {
     const response = await fetch(
@@ -60,32 +58,74 @@ async function getRepositoryFiles(repository) {
     }
 
     const entries = await response.json();
+
     return entries
         .filter(entry => entry.type === "file")
         .map(entry => entry.path);
 }
 
-function requiredModelFiles(definition, files) {
-    const required = [
+function hasCoreFiles(files) {
+    return [
         "config.json",
         "tokenizer.json",
         "tokenizer_config.json",
         "preprocessor_config.json"
-    ];
+    ].every(path => files.includes(path));
+}
 
+function hasAnyWhisperOnnxPair(files) {
+    const encoders = files
+        .filter(path => /^onnx\/encoder_model.*\.onnx$/.test(path))
+        .map(path => path.replace(/^onnx\/encoder_model(.*)\.onnx$/, "$1"));
+
+    const decoders = new Set(
+        files
+            .filter(path => /^onnx\/decoder_model_merged.*\.onnx$/.test(path))
+            .map(path => path.replace(/^onnx\/decoder_model_merged(.*)\.onnx$/, "$1"))
+    );
+
+    return encoders.some(suffix => decoders.has(suffix));
+}
+
+function getConfiguredMissingFiles(definition, files) {
     if (definition.dtype && typeof definition.dtype === "object") {
-        required.push(
+        return [
             `onnx/encoder_model_${definition.dtype.encoder_model}.onnx`,
             `onnx/decoder_model_merged_${definition.dtype.decoder_model_merged}.onnx`
-        );
-    } else if (definition.preferredDtype) {
-        required.push(
-            `onnx/encoder_model_${definition.preferredDtype}.onnx`,
-            `onnx/decoder_model_merged_${definition.preferredDtype}.onnx`
-        );
+        ].filter(path => !files.includes(path));
     }
 
-    return required;
+    if (typeof definition.dtype === "string") {
+        return [
+            `onnx/encoder_model_${definition.dtype}.onnx`,
+            `onnx/decoder_model_merged_${definition.dtype}.onnx`
+        ].filter(path => !files.includes(path));
+    }
+
+    // Tiny/Base/Small do not pass a dtype in whisper.js.
+    return [];
+}
+
+async function getCachedModelInfo(repository) {
+    if (!("caches" in window)) {
+        return { cached: false, files: 0 };
+    }
+
+    const cacheNames = await caches.keys();
+    let files = 0;
+
+    for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName);
+        const requests = await cache.keys();
+
+        for (const request of requests) {
+            if (request.url.includes(repository)) {
+                files++;
+            }
+        }
+    }
+
+    return { cached: files > 0, files };
 }
 
 export function getModelCatalog() {
@@ -94,14 +134,17 @@ export function getModelCatalog() {
 
 export function getModelDefinition(model) {
     const definition = MODEL_CATALOG[model];
+
     if (!definition) {
         throw new Error(`Unknown Whisper model: ${model}`);
     }
+
     return definition;
 }
 
 export async function checkModelAvailability(model) {
     const definition = getModelDefinition(model);
+
     const response = await fetch(
         `${MODEL_API_BASE}${definition.repository}`,
         { cache: "no-store" }
@@ -113,6 +156,7 @@ export async function checkModelAvailability(model) {
             label: definition.label,
             repository: definition.repository,
             available: false,
+            cached: false,
             status: "Unavailable",
             error: `Hugging Face returned HTTP ${response.status}.`
         };
@@ -120,41 +164,38 @@ export async function checkModelAvailability(model) {
 
     const data = await response.json();
     const files = await getRepositoryFiles(definition.repository);
-    const required = requiredModelFiles(definition, files);
-    const missing = required.filter(path => !files.includes(path));
+    const cached = await getCachedModelInfo(definition.repository);
 
-    // Transformers.js 4.0.0 also exposes ModelRegistry, which can verify
-    // that the repository contains a complete ONNX configuration for a dtype.
-    // This is a repository/configuration check, not a multi-gigabyte download.
-    let registryDtypes = null;
-    let registryError = null;
-    try {
-        const { ModelRegistry } = await loadTransformers();
-        registryDtypes = await ModelRegistry.get_available_dtypes(
-            definition.repository
-        );
-    } catch (error) {
-        registryError = error?.message || String(error);
+    const coreReady = hasCoreFiles(files);
+    const onnxReady = hasAnyWhisperOnnxPair(files);
+    const configuredMissing = getConfiguredMissingFiles(definition, files);
+
+    const available =
+        coreReady &&
+        onnxReady &&
+        configuredMissing.length === 0;
+
+    let status = "Unavailable";
+
+    if (available && cached.cached) {
+        status = "Cached";
+    } else if (available) {
+        status = "Available";
+    } else if (response.ok) {
+        status = "Incomplete";
     }
-
-    const dtypeReady = definition.dtype && typeof definition.dtype === "object"
-        ? required.every(path => files.includes(path))
-        : !definition.preferredDtype ||
-          (registryDtypes ? registryDtypes.includes(definition.preferredDtype) : missing.length === 0);
-
-    const ready = missing.length === 0 && dtypeReady;
 
     return {
         model,
         label: definition.label,
         repository: definition.repository,
-        available: ready,
-        status: ready ? "Ready" : "Incomplete",
+        available,
+        cached: cached.cached,
+        cachedFiles: cached.files,
+        status,
         revision: data.sha || null,
         lastModified: data.lastModified || null,
-        availableDtypes: registryDtypes,
-        missingFiles: missing,
-        error: registryError || null
+        missingFiles: configuredMissing
     };
 }
 

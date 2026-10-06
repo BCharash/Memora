@@ -361,6 +361,3 @@ export async function transcribeAudio(
 }
 
 
-export function getModelCatalog() {
-    return getModelCatalog();
-}
