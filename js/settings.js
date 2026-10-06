@@ -39,6 +39,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             ${row("Browser storage used", formatBytes(report.browser.usage))}
             ${row("Browser storage quota", formatBytes(report.browser.quota))}
 
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Semantic Index</span>
                 <span>${formatBytes(semantic.embeddingBytes)} · ${semantic.count.toLocaleString()} entries</span>
@@ -46,13 +47,23 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsSemanticDetail" class="settings-detail" hidden></div>
 
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Cached Models</span>
-                <span>${formatBytes(models.knownBytes)} · ${models.modelEntryCount.toLocaleString()} files</span>
-                ${button("View", "toggle-models")}
+                <span class="settings-disclosure-title">Whisper Models</span>
+                <span id="settingsWhisperModelsSummary">${modelAvailability ? `${modelAvailability.length} checked` : "Not checked"}</span>
+                ${button("View", "toggle-whisper-models")}
             </div>
-            <div id="settingsModelsDetail" class="settings-detail" hidden></div>
+            <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
 
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Other Cached Models</span>
+                <span>${formatBytes(models.models.filter(item => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${models.models.filter(item => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.count || 0), 0).toLocaleString()} files</span>
+                ${button("View", "toggle-other-models")}
+            </div>
+            <div id="settingsOtherModelsDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Cached Transcripts</span>
                 <span>${formatBytes(transcripts.bytes)} · ${transcripts.count.toLocaleString()} files</span>
@@ -60,13 +71,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsTranscriptsDetail" class="settings-detail" hidden></div>
 
-            <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Whisper Models</span>
-                <span>${modelAvailability ? `${modelAvailability.length} checked` : "Not checked"}</span>
-                ${button("Check", "check-models")}
-            </div>
-            <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
-
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             ${row("Other Memora IndexedDB data", `${formatBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries`)}
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
@@ -122,59 +127,128 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         });
     }
 
-    async function showModels() {
-        const detail = document.getElementById("settingsModelsDetail");
-        if (!detail) return;
-        detail.hidden = !detail.hidden;
-        const toggle = storage.querySelector('[data-settings-action="toggle-models"]');
-        if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
-        if (detail.hidden) return;
-        const models = currentReport.modelCache.models;
-        detail.innerHTML = models.length ? models.map((model, i) => `
-            <div class="settings-item">
-                <div class="settings-item-info"><div class="settings-item-name">${model.name}</div><div class="settings-item-detail">${model.detail}</div></div>
-                <div class="settings-item-actions">${button("Clear", "clear-model", false)}</div>
-            </div>
-        `).join("") + button("Clear All Cached Models", "clear-all-models") : `<p class="settings-note">No cached model files were identified.</p>`;
-        detail.querySelectorAll('[data-settings-action="clear-model"]').forEach((b, i) => b.dataset.index = String(i));
-    }
-
-    function renderModelAvailability() {
-        const detail = document.getElementById("settingsWhisperModelsDetail");
-        if (!detail) return;
-        detail.hidden = false;
-        const toggle = storage.querySelector('[data-settings-action="check-models"]');
-        const summary = toggle?.previousElementSibling;
-        if (!modelAvailability) {
-            if (summary) summary.textContent = "Not checked";
-            detail.innerHTML = `<p class="settings-note">Model availability has not been checked.</p>`;
-            return;
-        }
-        if (summary) summary.textContent = `${modelAvailability.length} checked`;
-        detail.innerHTML = modelAvailability.map(item => {
-            const status = item.status || (item.available ? "Ready" : "Unavailable");
-            const detailText = item.error
-                || (item.missingFiles?.length
-                    ? `Missing ${item.missingFiles.join(", ")}`
-                    : (item.lastModified ? `Updated ${new Date(item.lastModified).toLocaleDateString("en-GB")}` : "Model files found"));
-            return `<div class="settings-item">
-                <div class="settings-item-info">
-                    <div class="settings-item-name">${item.label}</div>
-                    <div class="settings-item-detail">${status} · ${detailText}</div>
-                </div>
-            </div>`;
-        }).join("");
-        if (toggle) toggle.textContent = "Check again";
-    }
-
     async function checkModels() {
         const detail = document.getElementById("settingsWhisperModelsDetail");
         if (detail) {
             detail.hidden = false;
             detail.innerHTML = `<p class="settings-note">Checking Whisper models…</p>`;
         }
+
         modelAvailability = await checkAllModels();
         renderModelAvailability();
+    }
+
+    async function showWhisperModels() {
+        const detail = document.getElementById("settingsWhisperModelsDetail");
+        if (!detail) return;
+
+        detail.hidden = !detail.hidden;
+        const toggle = storage.querySelector('[data-settings-action="toggle-whisper-models"]');
+        if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
+        if (detail.hidden) return;
+
+        if (!modelAvailability) {
+            await checkModels();
+            return;
+        }
+
+        renderModelAvailability();
+    }
+
+    async function showOtherModels() {
+        const detail = document.getElementById("settingsOtherModelsDetail");
+        if (!detail) return;
+
+        detail.hidden = !detail.hidden;
+        const toggle = storage.querySelector('[data-settings-action="toggle-other-models"]');
+        if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
+        if (detail.hidden) return;
+
+        const otherModels = currentReport.modelCache.models.filter(
+            model => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(model.name)
+        );
+
+        detail.innerHTML = otherModels.length
+            ? otherModels.map((model, i) => `
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <div class="settings-item-name">${model.name}</div>
+                        <div class="settings-item-detail">${model.detail}</div>
+                    </div>
+                    <div class="settings-item-actions">${button("Clear", "clear-other-model", false)}</div>
+                </div>
+            `).join("") + button("Clear All Other Cached Models", "clear-all-other-models")
+            : `<p class="settings-note">No other cached model files were identified.</p>`;
+
+        detail._otherModels = otherModels;
+        detail.querySelectorAll('[data-settings-action="clear-other-model"]').forEach(
+            (b, i) => b.dataset.index = String(i)
+        );
+    }
+
+    function renderModelAvailability() {
+        const detail = document.getElementById("settingsWhisperModelsDetail");
+        if (!detail) return;
+
+        if (!modelAvailability) {
+            detail.innerHTML = `<p class="settings-note">Model availability has not been checked.</p>`;
+            return;
+        }
+
+        const whisperCacheNames = {
+            tiny: "whisper-tiny",
+            base: "whisper-base",
+            small: "whisper-small",
+            medium: "whisper-medium",
+            large: "whisper-large-v3"
+        };
+
+        const runtime = getRuntimeInfo();
+        const runtimeText =
+            `Transformers.js ${runtime.whisper.transformersVersion} · ` +
+            `${runtime.whisper.execution} · ${runtime.whisper.acceleration}`;
+
+        detail.innerHTML = modelAvailability.map(item => {
+            const cachedName = whisperCacheNames[item.model];
+            const cached = currentReport.modelCache.models.find(
+                model => model.name.toLowerCase() === cachedName
+            );
+
+            const status = item.status || (item.available ? "Available" : "Unavailable");
+            const cacheText = cached ? ` · ${cached.detail}` : "";
+            const updatedText = item.lastModified
+                ? `Updated ${new Date(item.lastModified).toLocaleDateString("en-GB")}`
+                : "";
+
+            const detailText = item.error
+                || (item.missingFiles?.length
+                    ? `Missing ${item.missingFiles.join(", ")}`
+                    : updatedText || "Model files found");
+
+            return `
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <div class="settings-item-name">${item.label}</div>
+                        <div class="settings-item-detail">${status}${cacheText}</div>
+                        <div class="settings-item-detail">${detailText}</div>
+                        <div class="settings-item-detail">Runtime: ${runtimeText}</div>
+                    </div>
+                    <div class="settings-item-actions">
+                        ${cached ? button("Clear", "clear-whisper-model", false) : ""}
+                    </div>
+                </div>
+            `;
+        }).join("") + button("Clear All Whisper Models", "clear-all-whisper-models");
+
+        detail.querySelectorAll('[data-settings-action="clear-whisper-model"]').forEach((b, i) => {
+            b.dataset.model = modelAvailability[i].model;
+            b.dataset.cacheName = whisperCacheNames[modelAvailability[i].model];
+        });
+
+        const summary = document.getElementById("settingsWhisperModelsSummary");
+        if (summary) summary.textContent = `${modelAvailability.length} checked`;
+        const toggle = storage.querySelector('[data-settings-action="toggle-whisper-models"]');
+        if (toggle) toggle.textContent = "Hide";
     }
 
     async function showTranscripts() {
@@ -202,10 +276,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (!target) return;
         const action = target.dataset.settingsAction;
         try {
-            if (action === "toggle-semantic") return showSemantic();
-            if (action === "toggle-models") return showModels();
-            if (action === "toggle-transcripts") return showTranscripts();
-            if (action === "check-models") return checkModels();
+            if (action === "toggle-semantic") return await showSemantic();
+            if (action === "toggle-whisper-models") return await showWhisperModels();
+            if (action === "toggle-other-models") return await showOtherModels();
+            if (action === "toggle-transcripts") return await showTranscripts();
             const manager = await getStorageManager();
             if (action === "clear-semantic") {
                 const item = currentReport.indexedDB.semanticEntries.representations[Number(target.dataset.index)];
@@ -214,13 +288,27 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             } else if (action === "clear-all-semantic") {
                 if (!confirm("Clear all semantic indexes? They will be regenerated when needed.")) return;
                 await manager.clearAllSemanticEntries();
-            } else if (action === "clear-model") {
-                const item = currentReport.modelCache.models[Number(target.dataset.index)];
+            } else if (action === "clear-other-model") {
+                const items = document.getElementById("settingsOtherModelsDetail")?._otherModels || [];
+                const item = items[Number(target.dataset.index)];
                 if (!item || !confirm(`Clear cached ${item.name}? The model will be downloaded again when needed.`)) return;
                 await manager.clearCachedModel(item.name);
-            } else if (action === "clear-all-models") {
-                if (!confirm("Clear all cached model files? Models will be downloaded again when needed.")) return;
-                await manager.clearAllCachedModels();
+            } else if (action === "clear-whisper-model") {
+                const cacheName = target.dataset.cacheName;
+                if (!cacheName || !confirm(`Clear cached ${cacheName}? The model will be downloaded again when needed.`)) return;
+                await manager.clearCachedModel(cacheName);
+            } else if (action === "clear-all-whisper-models") {
+                const whisperModels = currentReport.modelCache.models.filter(
+                    item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)
+                );
+                if (!whisperModels.length) return;
+                if (!confirm("Clear all cached Whisper models? They will be downloaded again when needed.")) return;
+                for (const item of whisperModels) await manager.clearCachedModel(item.name);
+            } else if (action === "clear-all-other-models") {
+                const items = currentReport.modelCache.models.filter(item => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name));
+                if (!items.length) return;
+                if (!confirm("Clear all other cached model files? Models will be downloaded again when needed.")) return;
+                for (const item of items) await manager.clearCachedModel(item.name);
             } else if (action === "clear-transcript") {
                 const items = document.getElementById("settingsTranscriptsDetail")?._items || [];
                 const item = items[Number(target.dataset.index)];
@@ -272,11 +360,19 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
     async function refresh() {
         if (!status) return;
+
         status.innerHTML = `<span class="transcription-spinner" aria-hidden="true"></span><span>Reading Memora storage information…</span>`;
+
         try {
             const manager = await getStorageManager();
             const report = await manager.getStorageReport();
             render(report);
+
+            modelAvailability = await checkAllModels();
+
+            const summary = document.getElementById("settingsWhisperModelsSummary");
+            if (summary) summary.textContent = `${modelAvailability.length} checked`;
+
             status.textContent = `Updated ${new Intl.DateTimeFormat("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(new Date())}.`;
         } catch (error) {
             console.error("Settings storage error:", error);

@@ -784,3 +784,30 @@ button:disabled {
         margin-left: 28px;
     }
 }
+
+
+/* --------------------------------------------------
+   Settings disclosure buttons
+   -------------------------------------------------- */
+
+#settingsStorage button[data-settings-action^="toggle-"] {
+    width: auto;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+#settingsStorage button[data-settings-action^="toggle-"]:hover {
+    background: #F4F5F8;
+    color: var(--text);
+    opacity: 1;
+}
+
+#settingsStorage button[data-settings-action^="toggle-"]:active {
+    transform: translateY(1px);
+}
