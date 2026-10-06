@@ -517,6 +517,11 @@ button:disabled {
     button {
         width: 100%;
     }
+
+    /* Settings buttons stay compact on mobile. */
+    .settings-section button {
+        width: auto;
+    }
 }
 
 
