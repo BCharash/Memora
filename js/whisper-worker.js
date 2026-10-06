@@ -1,5 +1,5 @@
 import { pipeline } from
-    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0";
+    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
 let transcriber = null;
 let loadedModel = null;
@@ -27,14 +27,13 @@ self.onmessage = async event => {
             self.postMessage({
                 type: "status",
                 message:
-                    `Loading Whisper ${message.model} on iPhone/iPad using WebGPU…`
+                    `Loading Whisper ${message.model} on iPhone/iPad…`
             });
 
             transcriber =
                 await pipeline(
                     "automatic-speech-recognition",
-                    message.repository,
-                    { device: "webgpu" }
+                    message.repository
                 );
 
             loadedModel =
