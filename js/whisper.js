@@ -1,34 +1,7 @@
-// --------------------------------------------------
-// Whisper model catalog
-// --------------------------------------------------
-
-const MODEL_CATALOG = {
-    tiny: {
-        label: "Tiny",
-        repository: "onnx-community/whisper-tiny"
-    },
-    base: {
-        label: "Base",
-        repository: "onnx-community/whisper-base"
-    },
-    small: {
-        label: "Small",
-        repository: "onnx-community/whisper-small"
-    },
-    medium: {
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        dtype: "q4"
-    },
-    "large-v3": {
-        label: "Large-v3",
-        repository: "Xenova/whisper-large-v3",
-        dtype: {
-            encoder_model: "fp16",
-            decoder_model_merged: "q4"
-        }
-    }
-};
+import {
+    getModelCatalog,
+    getModelDefinition
+} from "./modelManager.js";
 
 
 // --------------------------------------------------
@@ -225,7 +198,7 @@ export async function loadTranscriber(
     }
 
     const modelInfo =
-        MODEL_CATALOG[model];
+        getModelDefinition(model);
 
     if (!modelInfo) {
         throw new Error(
@@ -389,5 +362,5 @@ export async function transcribeAudio(
 
 
 export function getModelCatalog() {
-    return MODEL_CATALOG;
+    return getModelCatalog();
 }

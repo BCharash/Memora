@@ -2,12 +2,16 @@
 // Memora Settings UI
 // --------------------------------------------------
 
+import { checkAllModels } from "./modelManager.js";
+import { getRuntimeInfo } from "./runtime.js";
+
 export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
     const storage = document.getElementById("settingsStorage");
     const refreshButton = document.getElementById("settingsRefreshButton");
 
     let currentReport = null;
+    let modelAvailability = null;
 
     function formatBytes(bytes) {
         if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
@@ -56,6 +60,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsTranscriptsDetail" class="settings-detail" hidden></div>
 
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Whisper Models</span>
+                <span>${modelAvailability ? `${modelAvailability.length} checked` : "Not checked"}</span>
+                ${button("Check", "check-models")}
+            </div>
+            <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
+
             ${row("Other Memora IndexedDB data", `${formatBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries`)}
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
@@ -67,10 +78,25 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     function renderRuntime() {
         const runtime = document.getElementById("settingsRuntime");
         if (!runtime) return;
+
+        const info = getRuntimeInfo();
+
         runtime.innerHTML = [
-            row("Desktop Whisper", "Transformers.js 4.0.0 · WebGPU"),
-            row("iPhone/iPad Whisper", "Transformers.js 3.7.2 · worker"),
-            row("Semantic search", "Transformers.js 3.7.2 · browser cache")
+            row("Platform", info.platform),
+            row("Browser", info.browser),
+            row("Device", info.deviceType),
+            row(
+                "Whisper",
+                `Transformers.js ${info.whisper.transformersVersion} · ${info.whisper.execution} · ${info.whisper.acceleration}`
+            ),
+            row(
+                "WebGPU",
+                info.webgpu ? "Available" : "Not available"
+            ),
+            row(
+                "Semantic search",
+                "Transformers.js 3.7.2 · browser cache"
+            )
         ].join("");
     }
 
@@ -113,6 +139,44 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         detail.querySelectorAll('[data-settings-action="clear-model"]').forEach((b, i) => b.dataset.index = String(i));
     }
 
+    function renderModelAvailability() {
+        const detail = document.getElementById("settingsWhisperModelsDetail");
+        if (!detail) return;
+        detail.hidden = false;
+        const toggle = storage.querySelector('[data-settings-action="check-models"]');
+        const summary = toggle?.previousElementSibling;
+        if (!modelAvailability) {
+            if (summary) summary.textContent = "Not checked";
+            detail.innerHTML = `<p class="settings-note">Model availability has not been checked.</p>`;
+            return;
+        }
+        if (summary) summary.textContent = `${modelAvailability.length} checked`;
+        detail.innerHTML = modelAvailability.map(item => {
+            const status = item.status || (item.available ? "Ready" : "Unavailable");
+            const detailText = item.error
+                || (item.missingFiles?.length
+                    ? `Missing ${item.missingFiles.join(", ")}`
+                    : (item.lastModified ? `Updated ${new Date(item.lastModified).toLocaleDateString("en-GB")}` : "Model files found"));
+            return `<div class="settings-item">
+                <div class="settings-item-info">
+                    <div class="settings-item-name">${item.label}</div>
+                    <div class="settings-item-detail">${status} · ${detailText}</div>
+                </div>
+            </div>`;
+        }).join("");
+        if (toggle) toggle.textContent = "Check again";
+    }
+
+    async function checkModels() {
+        const detail = document.getElementById("settingsWhisperModelsDetail");
+        if (detail) {
+            detail.hidden = false;
+            detail.innerHTML = `<p class="settings-note">Checking Whisper models…</p>`;
+        }
+        modelAvailability = await checkAllModels();
+        renderModelAvailability();
+    }
+
     async function showTranscripts() {
         const detail = document.getElementById("settingsTranscriptsDetail");
         if (!detail) return;
@@ -141,6 +205,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-semantic") return showSemantic();
             if (action === "toggle-models") return showModels();
             if (action === "toggle-transcripts") return showTranscripts();
+            if (action === "check-models") return checkModels();
             const manager = await getStorageManager();
             if (action === "clear-semantic") {
                 const item = currentReport.indexedDB.semanticEntries.representations[Number(target.dataset.index)];
