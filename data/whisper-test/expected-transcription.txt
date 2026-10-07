@@ -1,0 +1,7 @@
+This is a Memora model test.
+
+I am speaking naturally to test speech recognition on this device.
+
+The test includes three numbers: twelve, forty-seven, and one hundred and twenty-three.
+
+Memora should transcribe this recording accurately.

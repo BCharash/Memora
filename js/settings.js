@@ -2,7 +2,11 @@
 // Memora Settings UI
 // --------------------------------------------------
 
-import { checkAllModels } from "./modelManager.js";
+import {
+    checkAllModels,
+    getModelRegistry,
+    rebuildModelRegistry
+} from "./modelManager.js";
 import { getRuntimeInfo } from "./runtime.js";
 
 export function initSettingsUI({ getStorageManager, getStorage }) {
@@ -27,6 +31,26 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
     function button(label, action, disabled = false) {
         return `<button type="button" data-settings-action="${action}" ${disabled ? "disabled" : ""}>${label}</button>`;
+    }
+
+    function formatRegistryDtype(dtype) {
+        if (!dtype) return "Default";
+        if (typeof dtype === "string") return dtype;
+        return Object.entries(dtype)
+            .map(([key, value]) => `${key.replace("_model", "")}: ${value}`)
+            .join(" · ");
+    }
+
+    function formatValidation(validation) {
+        const status = validation?.status || "not-tested";
+        if (status === "passed") {
+            return validation.seconds != null
+                ? `✓ Validated · ${validation.seconds}s`
+                : "✓ Validated";
+        }
+        if (status === "failed") return "⚠ Validation failed";
+        if (status === "slow") return "⚠ Slow";
+        return "Not tested";
     }
 
     function render(report) {
@@ -275,6 +299,126 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             }
         const toggle = storage.querySelector('[data-settings-action="toggle-whisper-models"]');
         if (toggle) toggle.textContent = "Hide";
+
+        renderModelRegistry();
+    }
+
+    function getCurrentRegistryTarget() {
+        const isIOS =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+        return isIOS
+            ? { platform: "ios", runtime: "wasm", label: "WASM" }
+            : { platform: "desktop", runtime: "webgpu", label: "WebGPU" };
+    }
+
+    function formatRegistryRuntime(runtime) {
+        if (runtime === "webgpu") return "WebGPU";
+        if (runtime === "wasm") return "WASM";
+        return runtime || "Unknown";
+    }
+
+    async function renderModelRegistry(mode = "current") {
+        const detail = document.getElementById("settingsWhisperModelsDetail");
+        if (!detail) return;
+
+        const registry = await getModelRegistry();
+        const families = ["tiny", "base", "small", "medium", "large"];
+        const currentTarget = getCurrentRegistryTarget();
+
+        const matchesCurrentDevice = record =>
+            record.platform === currentTarget.platform &&
+            record.runtime === currentTarget.runtime;
+
+        const filteredRegistry =
+            mode === "current"
+                ? registry.filter(matchesCurrentDevice)
+                : registry;
+
+        const registryHtml = families.map(family => {
+            const records = filteredRegistry.filter(record => record.family === family);
+            if (!records.length) return "";
+
+            const label = records[0].label;
+
+            return `
+                <div class="settings-item" style="display:block;">
+                    <div class="settings-item-name">${label}</div>
+                    ${records.map(record => {
+                        const isCurrent =
+                            mode === "all" &&
+                            matchesCurrentDevice(record);
+
+                        return `
+                            <div class="settings-item-detail" style="margin-top:8px;${isCurrent ? "font-weight:700;" : ""}">
+                                ${formatRegistryRuntime(record.runtime)} · ${formatRegistryDtype(record.configuration?.dtype)} · ${formatValidation(record.validation)}
+                            </div>
+                            <div class="settings-item-detail" style="margin-bottom:8px;${isCurrent ? "font-weight:700;" : ""}">
+                                ${record.repository}
+                            </div>
+                        `;
+                    }).join("")}
+                </div>
+            `;
+        }).join("");
+
+        const knownCount = filteredRegistry.length;
+        const targetLabel =
+            mode === "current"
+                ? `This device · ${currentTarget.label}`
+                : "All devices";
+
+        let registryContainer = document.getElementById("settingsModelRegistryContainer");
+
+        if (!registryContainer) {
+            detail.insertAdjacentHTML("beforeend", `
+                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:14px 0 10px;"></div>
+                <div id="settingsModelRegistryContainer"></div>
+            `);
+            registryContainer = document.getElementById("settingsModelRegistryContainer");
+        }
+
+        registryContainer.innerHTML = `
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Model Registry</span>
+                <span>${knownCount} known configurations</span>
+            </div>
+
+            <div class="model-registry-mode" role="radiogroup" aria-label="Model registry scope">
+                <label class="model-registry-radio">
+                    <input
+                        type="radio"
+                        name="model-registry-scope"
+                        value="current"
+                        data-settings-action="model-registry-mode"
+                        ${mode === "current" ? "checked" : ""}
+                    >
+                    <span>This device</span>
+                </label>
+                <label class="model-registry-radio">
+                    <input
+                        type="radio"
+                        name="model-registry-scope"
+                        value="all"
+                        data-settings-action="model-registry-mode"
+                        ${mode === "all" ? "checked" : ""}
+                    >
+                    <span>All devices</span>
+                </label>
+            </div>
+
+            <div class="settings-note" style="margin-bottom:10px;">
+                Showing ${targetLabel}.
+            </div>
+
+            <div class="settings-detail" style="display:block;">
+                ${registryHtml}
+                <div class="action-row" style="margin-top:10px;">
+                    ${button("Rebuild Registry", "rebuild-model-registry")}
+                </div>
+            </div>
+        `;
     }
 
     async function showTranscripts() {
@@ -298,7 +442,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     async function handleAction(event) {
-        const target = event.target.closest("button[data-settings-action]");
+        const target = event.target.closest("[data-settings-action]");
         if (!target) return;
         const action = target.dataset.settingsAction;
         try {
@@ -307,6 +451,17 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
             if (action === "toggle-transcripts") return await showTranscripts();
+            if (action === "model-registry-mode") {
+                return await renderModelRegistry(
+                    target.value === "all" ? "all" : "current"
+                );
+            }
+            if (action === "rebuild-model-registry") {
+                if (!confirm("Rebuild the Whisper Model Registry from Memora's built-in defaults? Validation results and discovered registry changes will be reset.")) return;
+                await rebuildModelRegistry();
+                await checkModels();
+                return;
+            }
             const manager = await getStorageManager();
             if (action === "clear-semantic") {
                 const item = currentReport.indexedDB.semanticEntries.representations[Number(target.dataset.index)];

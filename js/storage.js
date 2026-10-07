@@ -64,8 +64,9 @@ export async function selectFolder() {
 
 
 const TRANSCRIPT_DB_NAME = "Memora";
-const TRANSCRIPT_DB_VERSION = 3;
+const TRANSCRIPT_DB_VERSION = 4;
 const TRANSCRIPT_STORE_NAME = "transcripts";
+const MODEL_REGISTRY_STORE_NAME = "modelRegistry";
 
 function openTranscriptDatabase() {
     return new Promise((resolve, reject) => {
@@ -99,6 +100,10 @@ function openTranscriptDatabase() {
 
             if (!database.objectStoreNames.contains("semanticMetadata")) {
                 database.createObjectStore("semanticMetadata", { keyPath: "key" });
+            }
+
+            if (!database.objectStoreNames.contains(MODEL_REGISTRY_STORE_NAME)) {
+                database.createObjectStore(MODEL_REGISTRY_STORE_NAME, { keyPath: "id" });
             }
         };
 
@@ -392,3 +397,80 @@ export async function fileExists(
         throw error;
     }
 }
+
+// --------------------------------------------------
+// Model Registry
+// --------------------------------------------------
+
+export async function listModelRegistryRecords() {
+    const database = await openTranscriptDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction(
+            MODEL_REGISTRY_STORE_NAME,
+            "readonly"
+        );
+        const store = transaction.objectStore(MODEL_REGISTRY_STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => database.close();
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+export async function saveModelRegistryRecords(records) {
+    const database = await openTranscriptDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction(
+            MODEL_REGISTRY_STORE_NAME,
+            "readwrite"
+        );
+        const store = transaction.objectStore(MODEL_REGISTRY_STORE_NAME);
+
+        for (const record of records) {
+            store.put(record);
+        }
+
+        transaction.oncomplete = () => {
+            database.close();
+            resolve();
+        };
+        transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+        };
+        transaction.onabort = () => {
+            database.close();
+            reject(transaction.error);
+        };
+    });
+}
+
+export async function clearModelRegistry() {
+    const database = await openTranscriptDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction(
+            MODEL_REGISTRY_STORE_NAME,
+            "readwrite"
+        );
+        transaction.objectStore(MODEL_REGISTRY_STORE_NAME).clear();
+
+        transaction.oncomplete = () => {
+            database.close();
+            resolve();
+        };
+        transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+        };
+        transaction.onabort = () => {
+            database.close();
+            reject(transaction.error);
+        };
+    });
+}
+
