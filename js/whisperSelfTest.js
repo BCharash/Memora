@@ -20,12 +20,11 @@ const DESKTOP_TEST_SEQUENCE = [
     "large-webgpu-fp16-q4"
 ];
 
+// iPhone/iPad tests only one model at a time because Safari/WASM
+// memory is much more constrained than the desktop WebGPU runtime.
+// Small is currently the most useful diagnostic target.
 const IOS_TEST_SEQUENCE = [
-    "tiny-iphone-default",
-    "base-iphone-default",
-    "small-iphone-default",
-    "medium-iphone-default",
-    "large-iphone-default"
+    "small-iphone-default"
 ];
 
 function normalizeText(text) {
@@ -170,7 +169,7 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
         type: "test-plan",
         message:
             environment.platform === "iOS"
-                ? "Each iPhone/iPad WASM configuration uses the normal iPhone Whisper worker. The worker is released before the next configuration is started."
+                ? "The iPhone/iPad self-test tests one WASM configuration at a time using the normal iPhone Whisper worker. The worker is terminated when the test finishes so the device can be tested without accumulating multiple model runtimes."
                 : "Each desktop WebGPU configuration runs in a brand-new disposable Web Worker. The worker is terminated before the next configuration is started. This isolates each model test from the previous model."
     });
 
