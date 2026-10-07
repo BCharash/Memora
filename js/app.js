@@ -407,6 +407,10 @@ if (transcriptionDestinationSection) {
 
 // Keep Combine output controls hidden until a text source is selected.
 // The source selection will reveal the appropriate desktop or iPhone controls.
+if (combineDestinationSection) {
+    combineDestinationSection.hidden = true;
+}
+
 if (combineTextButton) {
     combineTextButton.hidden = true;
 }
