@@ -858,6 +858,64 @@ button:disabled {
    Whisper self-test
    -------------------------------------------------- */
 
+.whisper-self-test-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.whisper-self-test-controls label {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.whisper-self-test-controls select {
+    min-width: 0;
+    max-width: 100%;
+    width: auto;
+    padding: 10px 34px 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+}
+
+.whisper-self-test-controls button {
+    margin-left: auto;
+    width: auto;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+    .whisper-self-test-controls {
+        align-items: center;
+        gap: 8px;
+    }
+
+    .whisper-self-test-controls label {
+        flex: 0 0 auto;
+    }
+
+    .whisper-self-test-controls select {
+        flex: 1 1 auto;
+        width: 1px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .whisper-self-test-controls button {
+        flex: 0 0 auto;
+        width: auto;
+        margin-left: auto;
+    }
+}
+
 .whisper-self-test-output {
     margin-top: 10px;
 }

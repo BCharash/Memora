@@ -113,7 +113,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Whisper Self-Test</span>
-                <span>Test one model configuration at a time</span>
             </div>
             <div class="whisper-self-test-controls">
                 <label for="settingsWhisperSelfTestModel">Model</label>
@@ -233,10 +232,22 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     function formatSelfTestOption(configuration) {
-        const dtype = formatSelfTestDtype(configuration.configuration?.dtype);
-        return dtype === "default"
-            ? configuration.label
-            : `${configuration.label} · ${dtype}`;
+        const dtype = configuration.configuration?.dtype;
+
+        if (!dtype) return configuration.label;
+
+        if (typeof dtype === "string") {
+            return `${configuration.label} · ${dtype}`;
+        }
+
+        const encoder = dtype.encoder_model;
+        const decoder = dtype.decoder_model_merged;
+
+        if (encoder && decoder) {
+            return `${configuration.label} · ${encoder}/${decoder}`;
+        }
+
+        return `${configuration.label} · ${Object.values(dtype).join("/")}`;
     }
 
     function renderSelfTestEvent(detail, event) {
