@@ -24,7 +24,7 @@ const MODEL_CATALOG = {
     medium: {
         label: "Medium",
         repository: "Xenova/whisper-medium",
-        preferredDtype: "q4"
+        dtype: "q4"
     },
     large: {
         label: "Large",

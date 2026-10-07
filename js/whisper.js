@@ -206,6 +206,15 @@ export async function loadTranscriber(
         );
     }
 
+    // Diagnostic only: report the exact model configuration selected before loading.
+    console.log("[Whisper diagnostic] Resolved model configuration:", {
+        requestedModel: model,
+        repository: modelInfo.repository,
+        dtype: modelInfo.dtype ?? modelInfo.preferredDtype ?? null,
+        transformersVersion: "4.0.0",
+        runtime: isIOSDevice() ? "iphone-worker" : "webgpu",
+    });
+
     const isIOS =
         isIOSDevice();
 
