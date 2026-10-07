@@ -72,7 +72,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div id="settingsTranscriptsDetail" class="settings-detail" hidden></div>
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
-            ${row("Other Memora IndexedDB data", `${formatBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries`)}
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Other Memora IndexedDB data</span>
+                <span>${formatBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries</span>
+                ${button("View", "toggle-other-indexeddb")}
+            </div>
+            <div id="settingsOtherIndexedDBDetail" class="settings-detail" hidden></div>
+
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
 
@@ -153,6 +159,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
 
         renderModelAvailability();
+    }
+
+    async function showOtherIndexedDB() {
+        const detail = document.getElementById("settingsOtherIndexedDBDetail");
+        if (!detail) return;
+
+        detail.hidden = !detail.hidden;
+        const toggle = storage.querySelector('[data-settings-action="toggle-other-indexeddb"]');
+        if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
+        if (detail.hidden) return;
+
+        const count = currentReport?.indexedDB?.otherCount || 0;
+        detail.innerHTML = count
+            ? `<p class="settings-note">${count.toLocaleString()} other IndexedDB ${count === 1 ? "entry" : "entries"} are present.</p>`
+            : `<p class="settings-note">No other IndexedDB files.</p>`;
     }
 
     async function showOtherModels() {
@@ -284,6 +305,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
+            if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
             if (action === "toggle-transcripts") return await showTranscripts();
             const manager = await getStorageManager();
             if (action === "clear-semantic") {
