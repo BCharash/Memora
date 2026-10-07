@@ -9,7 +9,7 @@ import {
 } from "./modelManager.js";
 import { getRuntimeInfo } from "./runtime.js";
 import { clearWhisperResources } from "./whisper.js";
-import { runWhisperSelfTest } from "./whisperSelfTest.js";
+import { getWhisperSelfTestOptions, runWhisperSelfTest } from "./whisperSelfTest.js";
 
 export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
@@ -113,7 +113,17 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Whisper Self-Test</span>
-                <span>Test the current transcription path</span>
+                <span>Test one model configuration at a time</span>
+            </div>
+            <div class="whisper-self-test-controls">
+                <label for="settingsWhisperSelfTestModel">Model</label>
+                <select id="settingsWhisperSelfTestModel">
+                    ${getWhisperSelfTestOptions().map(configuration => `
+                        <option value="${escapeHtml(configuration.id)}">
+                            ${escapeHtml(formatSelfTestOption(configuration))}
+                        </option>
+                    `).join("")}
+                </select>
                 ${button("Run test", "run-whisper-self-test")}
             </div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
@@ -222,6 +232,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         return Object.entries(dtype).map(([key, value]) => `${key}: ${value}`).join(" · ");
     }
 
+    function formatSelfTestOption(configuration) {
+        const dtype = formatSelfTestDtype(configuration.configuration?.dtype);
+        return dtype === "default"
+            ? configuration.label
+            : `${configuration.label} · ${dtype}`;
+    }
+
     function renderSelfTestEvent(detail, event) {
         if (!detail) return;
 
@@ -285,7 +302,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (runButton) runButton.disabled = true;
 
         try {
+            const modelSelect = storage.querySelector("#settingsWhisperSelfTestModel");
             await runWhisperSelfTest({
+                modelId: modelSelect?.value,
                 onEvent: event => renderSelfTestEvent(detail, event)
             });
         } catch (error) {

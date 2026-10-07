@@ -7,9 +7,9 @@ import { getModelRegistryBaseline } from "./modelManager.js";
 
 const TEST_AUDIO_URL = "./data/whisper-test/test-audio.m4a";
 const EXPECTED_TEXT_URL = "./data/whisper-test/expected-transcription.txt";
-// Desktop tests use the explicit WebGPU configurations.
-// iPhone/iPad tests use the platform-specific WASM configurations from
-// the same model registry.
+// These are the registry configurations that can be selected for
+// self-testing on each platform. iPhone/iPad deliberately excludes Large
+// because it is not a realistic test target for the current WASM runtime.
 const DESKTOP_TEST_SEQUENCE = [
     "tiny-webgpu-default",
     "base-webgpu-default",
@@ -20,11 +20,11 @@ const DESKTOP_TEST_SEQUENCE = [
     "large-webgpu-fp16-q4"
 ];
 
-// iPhone/iPad tests only one model at a time because Safari/WASM
-// memory is much more constrained than the desktop WebGPU runtime.
-// Small is currently the most useful diagnostic target.
 const IOS_TEST_SEQUENCE = [
-    "small-iphone-default"
+    "tiny-iphone-default",
+    "base-iphone-default",
+    "small-iphone-default",
+    "medium-iphone-default"
 ];
 
 function normalizeText(text) {
@@ -105,7 +105,20 @@ function getEnvironment() {
     };
 }
 
-export async function runWhisperSelfTest({ onEvent } = {}) {
+export function getWhisperSelfTestOptions() {
+    const environment = getEnvironment();
+    const registry = getModelRegistryBaseline();
+    const sequence =
+        environment.platform === "iOS"
+            ? IOS_TEST_SEQUENCE
+            : DESKTOP_TEST_SEQUENCE;
+
+    return sequence
+        .map(id => registry.find(record => record.id === id))
+        .filter(Boolean);
+}
+
+export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
     const emit = event => {
         onEvent?.(event);
     };
@@ -113,12 +126,23 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
     const startedAt = performance.now();
     const environment = getEnvironment();
 
-    const testSequence =
-        environment.platform === "iOS"
-            ? IOS_TEST_SEQUENCE
-            : DESKTOP_TEST_SEQUENCE;
+    const options = getWhisperSelfTestOptions();
+    const selected =
+        options.find(configuration => configuration.id === modelId) ||
+        options[0];
 
-    emit({ type: "run-start", environment, sequence: [...testSequence] });
+    if (!selected) {
+        throw new Error("No Whisper self-test configurations are available for this device.");
+    }
+
+    const testSequence = [selected.id];
+
+    emit({
+        type: "run-start",
+        environment,
+        sequence: [...testSequence],
+        selectedModel: selected.id
+    });
 
     let audioFile;
     let expectedText;
@@ -169,8 +193,8 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
         type: "test-plan",
         message:
             environment.platform === "iOS"
-                ? "The iPhone/iPad self-test tests one WASM configuration at a time using the normal iPhone Whisper worker. The worker is terminated when the test finishes so the device can be tested without accumulating multiple model runtimes."
-                : "Each desktop WebGPU configuration runs in a brand-new disposable Web Worker. The worker is terminated before the next configuration is started. This isolates each model test from the previous model."
+                ? "The selected iPhone/iPad WASM configuration runs alone using the normal iPhone Whisper worker. The worker is terminated when the test finishes."
+                : "The selected desktop WebGPU configuration runs in a brand-new disposable Web Worker. The worker is terminated when the test finishes to isolate the model test from other runtime state."
     });
 
     for (let index = 0; index < configurations.length; index++) {
