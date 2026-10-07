@@ -8,7 +8,7 @@
 // --------------------------------------------------
 
 const DB_NAME = "Memora";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const ENTRY_STORE = "semanticEntries";
 const META_STORE = "semanticMetadata";
 const MODEL_VERSION = "transformers.js-3.7.2";
