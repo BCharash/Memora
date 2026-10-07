@@ -7,11 +7,10 @@ import { getModelRegistryBaseline } from "./modelManager.js";
 
 const TEST_AUDIO_URL = "./data/whisper-test/test-audio.m4a";
 const EXPECTED_TEXT_URL = "./data/whisper-test/expected-transcription.txt";
-// Test the normal desktop model set, followed by the explicit Medium
-// variants. Every configuration is released before the next one is loaded.
-// Large remains last so the Medium configurations are tested before the
-// largest model and are not exposed to Large's resource footprint.
-const TEST_SEQUENCE = [
+// Desktop tests use the explicit WebGPU configurations.
+// iPhone/iPad tests use the platform-specific WASM configurations from
+// the same model registry.
+const DESKTOP_TEST_SEQUENCE = [
     "tiny-webgpu-default",
     "base-webgpu-default",
     "small-webgpu-default",
@@ -19,6 +18,14 @@ const TEST_SEQUENCE = [
     "medium-webgpu-q4f16",
     "medium-webgpu-q4",
     "large-webgpu-fp16-q4"
+];
+
+const IOS_TEST_SEQUENCE = [
+    "tiny-iphone-default",
+    "base-iphone-default",
+    "small-iphone-default",
+    "medium-iphone-default",
+    "large-iphone-default"
 ];
 
 function normalizeText(text) {
@@ -107,7 +114,12 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
     const startedAt = performance.now();
     const environment = getEnvironment();
 
-    emit({ type: "run-start", environment, sequence: [...TEST_SEQUENCE] });
+    const testSequence =
+        environment.platform === "iOS"
+            ? IOS_TEST_SEQUENCE
+            : DESKTOP_TEST_SEQUENCE;
+
+    emit({ type: "run-start", environment, sequence: [...testSequence] });
 
     let audioFile;
     let expectedText;
@@ -146,7 +158,7 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
     });
 
     const registry = getModelRegistryBaseline();
-    const configurations = TEST_SEQUENCE.map(id =>
+    const configurations = testSequence.map(id =>
         registry.find(record => record.id === id)
     );
 
@@ -154,28 +166,12 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
         throw new Error("One or more Whisper self-test configurations are missing from the model registry.");
     }
 
-    if (environment.platform === "iOS") {
-        emit({
-            type: "run-error",
-            phase: "unsupported",
-            error: {
-                name: "UnsupportedPlatform",
-                message: "The Medium desktop configurations are not tested on iPhone/iPad."
-            }
-        });
-        return {
-            elapsedMs: performance.now() - startedAt,
-            decodeMs,
-            passed: 0,
-            failed: 0,
-            skipped: configurations.length,
-            results: []
-        };
-    }
-
     emit({
         type: "test-plan",
-        message: "Each desktop configuration runs in a brand-new disposable Web Worker. The worker is terminated before the next configuration is started. This isolates each model test from the previous model."
+        message:
+            environment.platform === "iOS"
+                ? "Each iPhone/iPad WASM configuration uses the normal iPhone Whisper worker. The worker is released before the next configuration is started."
+                : "Each desktop WebGPU configuration runs in a brand-new disposable Web Worker. The worker is terminated before the next configuration is started. This isolates each model test from the previous model."
     });
 
     for (let index = 0; index < configurations.length; index++) {
@@ -186,7 +182,9 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
             configurationId: configuration.id,
             label: configuration.label,
             repository: configuration.repository,
-            dtype: configuration.configuration?.dtype ?? "repository default",
+            dtype:
+                configuration.configuration?.dtype ??
+                (environment.platform === "iOS" ? "repository default" : "repository default"),
             loadMs: null,
             transcriptionMs: null,
             releaseMs: null,
@@ -207,9 +205,12 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
         const testStartedAt = performance.now();
 
         try {
-            worker = new Worker("./js/whisper-test-worker.js", {
-                type: "module"
-            });
+            worker = new Worker(
+                environment.platform === "iOS"
+                    ? "./js/whisper-worker.js"
+                    : "./js/whisper-test-worker.js",
+                { type: "module" }
+            );
 
             await new Promise((resolve, reject) => {
                 let settled = false;
@@ -245,7 +246,10 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
                         return;
                     }
 
-                    if (message.type === "loaded") {
+                    if (
+                        message.type === "loaded" ||
+                        (environment.platform === "iOS" && message.type === "ready")
+                    ) {
                         result.loadMs = performance.now() - testStartedAt;
                         result.loadStatus = "passed";
 
@@ -256,10 +260,18 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
                             loadMs: result.loadMs
                         });
 
-                        worker.postMessage({
-                            type: "transcribe",
-                            audio
-                        });
+                        if (environment.platform === "iOS") {
+                            worker.postMessage({
+                                type: "transcribe",
+                                audioData: audio,
+                                language: null
+                            });
+                        } else {
+                            worker.postMessage({
+                                type: "transcribe",
+                                audio
+                            });
+                        }
                         return;
                     }
 
@@ -292,12 +304,20 @@ export async function runWhisperSelfTest({ onEvent } = {}) {
                     ));
                 };
 
-                worker.postMessage({
-                    type: "load",
-                    model: configuration.id,
-                    repository: configuration.repository,
-                    dtype: configuration.configuration?.dtype ?? null
-                });
+                worker.postMessage(
+                    environment.platform === "iOS"
+                        ? {
+                            type: "load",
+                            model: configuration.id,
+                            repository: configuration.repository
+                        }
+                        : {
+                            type: "load",
+                            model: configuration.id,
+                            repository: configuration.repository,
+                            dtype: configuration.configuration?.dtype ?? null
+                        }
+                );
             });
         } catch (error) {
             result.error = getErrorDetails(error);
