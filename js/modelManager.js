@@ -30,7 +30,9 @@ const MODEL_CATALOG = {
     medium: {
         label: "Medium",
         repository: "Xenova/whisper-medium",
-        dtype: "q4"
+        // Preserve the pre-registry behavior: no explicit dtype is passed
+        // to Transformers.js. The repository/runtime chooses its default.
+        preferredDtype: "q4"
     },
     large: {
         label: "Large",
@@ -74,6 +76,17 @@ const MODEL_REGISTRY_BASELINE = [
         family: "small",
         label: "Small",
         repository: "onnx-community/whisper-small",
+        runtime: "webgpu",
+        platform: "desktop",
+        configuration: { dtype: null },
+        status: "known",
+        validation: { status: "not-tested" }
+    },
+    {
+        id: "medium-webgpu-default",
+        family: "medium",
+        label: "Medium",
+        repository: "Xenova/whisper-medium",
         runtime: "webgpu",
         platform: "desktop",
         configuration: { dtype: null },
@@ -157,7 +170,7 @@ const MODEL_REGISTRY_BASELINE = [
 /*
  * Availability follows the way whisper.js actually loads each family.
  * Tiny/Base/Small pass only the repository to Transformers.js.
- * Medium passes dtype: "q4".
+ * Medium preserves the pre-registry behavior and passes no explicit dtype.
  * Large passes encoder fp16 + merged decoder q4.
  *
  * Cache status is reported separately from repository availability.

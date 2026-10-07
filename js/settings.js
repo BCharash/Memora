@@ -8,6 +8,8 @@ import {
     rebuildModelRegistry
 } from "./modelManager.js";
 import { getRuntimeInfo } from "./runtime.js";
+import { clearWhisperResources } from "./whisper.js";
+import { runWhisperSelfTest } from "./whisperSelfTest.js";
 
 export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
@@ -23,6 +25,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
         if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+
+    function formatSeconds(ms) {
+        return `${(ms / 1000).toFixed(1)} s`;
     }
 
     function row(label, value) {
@@ -73,14 +79,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Whisper Models</span>
-                <span id="settingsWhisperModelsSummary">${formatBytes(models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).length} models</span>
-                ${button("View", "toggle-whisper-models")}
-            </div>
-            <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
-
-            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
-            <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Other Cached Models</span>
                 <span>${formatBytes(models.models.filter(item => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${models.models.filter(item => !/^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.count || 0), 0).toLocaleString()} files</span>
                 ${button("View", "toggle-other-models")}
@@ -95,6 +93,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsTranscriptsDetail" class="settings-detail" hidden></div>
 
+
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Other Memora IndexedDB data</span>
@@ -102,6 +101,29 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ${button("View", "toggle-other-indexeddb")}
             </div>
             <div id="settingsOtherIndexedDBDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Whisper Models</span>
+                <span id="settingsWhisperModelsSummary">${formatBytes(models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${models.models.filter(item => /^whisper-(tiny|base|small|medium|large-v3)$/i.test(item.name)).length} models</span>
+                ${button("View", "toggle-whisper-models")}
+            </div>
+            <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Whisper Self-Test</span>
+                <span>Test the current transcription path</span>
+                ${button("Run test", "run-whisper-self-test")}
+            </div>
+            <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Whisper Resources</span>
+                <span>Unload the active Whisper model and runtime resources</span>
+                ${button("Clear resources", "clear-whisper-resources")}
+            </div>
 
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
@@ -183,6 +205,97 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
 
         renderModelAvailability();
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function formatSelfTestDtype(dtype) {
+        if (!dtype) return "default";
+        if (typeof dtype === "string") return dtype;
+        return Object.entries(dtype).map(([key, value]) => `${key}: ${value}`).join(" · ");
+    }
+
+    function renderSelfTestEvent(detail, event) {
+        if (!detail) return;
+
+        if (event.type === "run-start") {
+            detail.hidden = false;
+            detail.innerHTML = `
+                <div class="whisper-self-test-output">
+                    <div class="settings-note">Running ${event.sequence.length} tests: ${event.sequence.map(escapeHtml).join(" → ")}</div>
+                    <div id="settingsWhisperSelfTestResults"></div>
+                </div>`;
+            return;
+        }
+
+        const results = detail.querySelector("#settingsWhisperSelfTestResults");
+        if (!results) return;
+
+        if (event.type === "preparing") {
+            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">${escapeHtml(event.message)}</div>`);
+        } else if (event.type === "audio-ready") {
+            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">Test audio ready · decode ${formatSeconds(event.decodeMs)}</div>`);
+        } else if (event.type === "model-start") {
+            const r = event.result;
+            results.insertAdjacentHTML("beforeend", `
+                <div class="whisper-self-test-result" id="whisper-self-test-${r.index}">
+                    <div class="settings-item-name">${r.index}. ${escapeHtml(r.label)}</div>
+                    <div class="settings-item-detail">${escapeHtml(r.repository)} · ${escapeHtml(formatSelfTestDtype(r.dtype))}</div>
+                    <div class="whisper-self-test-status">Loading…</div>
+                </div>`);
+        } else if (event.type === "load-complete") {
+            const card = detail.querySelector(`#whisper-self-test-${event.index}`);
+            if (card) card.querySelector(".whisper-self-test-status").textContent = `Load PASS · ${formatSeconds(event.loadMs)} · transcribing…`;
+        } else if (event.type === "model-complete") {
+            const r = event.result;
+            const card = detail.querySelector(`#whisper-self-test-${r.index}`);
+            if (!card) return;
+            const status = r.status === "passed"
+                ? `PASS · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${(r.wer * 100).toFixed(1)}%`
+                : `FAIL · ${escapeHtml(r.error?.name || "Error")}: ${escapeHtml(r.error?.message || "Unknown error")}`;
+            card.querySelector(".whisper-self-test-status").textContent = status;
+            if (r.status === "passed") {
+                card.insertAdjacentHTML("beforeend", `<details><summary>Transcript</summary><pre>${escapeHtml(r.transcript)}</pre></details>`);
+            } else if (r.error?.stack) {
+                card.insertAdjacentHTML("beforeend", `<details><summary>Error details</summary><pre>${escapeHtml(r.error.stack)}</pre></details>`);
+            }
+        } else if (event.type === "run-complete") {
+            const s = event.summary;
+            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-summary"><strong>Complete:</strong> ${s.passed} passed · ${s.failed} failed · total ${formatSeconds(s.elapsedMs)}</div>`);
+        } else if (event.type === "run-error") {
+            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-error">Self-test stopped: ${escapeHtml(event.error?.message || "Unknown error")}</div>`);
+        }
+    }
+
+    async function showWhisperSelfTest() {
+        const detail = document.getElementById("settingsWhisperSelfTestDetail");
+        if (!detail) return;
+
+        detail.hidden = false;
+        detail.innerHTML = `<p class="settings-note">Starting Whisper self-test…</p>`;
+
+        const runButton = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
+        if (runButton) runButton.disabled = true;
+
+        try {
+            await runWhisperSelfTest({
+                onEvent: event => renderSelfTestEvent(detail, event)
+            });
+        } catch (error) {
+            console.error("Whisper self-test error:", error);
+            if (!detail.querySelector(".whisper-self-test-error")) {
+                detail.innerHTML = `<div class="whisper-self-test-error">${escapeHtml(error?.message || String(error))}</div>`;
+            }
+        } finally {
+            if (runButton) runButton.disabled = false;
+        }
     }
 
     async function showOtherIndexedDB() {
@@ -451,6 +564,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
             if (action === "toggle-transcripts") return await showTranscripts();
+            if (action === "run-whisper-self-test") return await showWhisperSelfTest();
+            if (action === "clear-whisper-resources") {
+                if (!confirm("Clear the active Whisper model and runtime resources? Cached Whisper model files will not be deleted. Do not use this while a transcription is in progress.")) return;
+                await clearWhisperResources();
+                status.textContent = "Whisper resources cleared.";
+                return;
+            }
             if (action === "model-registry-mode") {
                 return await renderModelRegistry(
                     target.value === "all" ? "all" : "current"

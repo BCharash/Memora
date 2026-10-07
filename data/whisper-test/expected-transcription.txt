@@ -1,7 +1,5 @@
-This is a Memora model test.
+This is a Whisper Model test. 
 
-I am speaking naturally to test speech recognition on this device.
+Each model should be able to transcribe naturally spoken text, including numbers like 287. 
 
-The test includes three numbers: twelve, forty-seven, and one hundred and twenty-three.
-
-Memora should transcribe this recording accurately.
+Transcription failure needs to be recognized and characterized.

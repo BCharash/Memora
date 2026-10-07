@@ -853,3 +853,59 @@ button:disabled {
         gap: 16px;
     }
 }
+
+/* --------------------------------------------------
+   Whisper self-test
+   -------------------------------------------------- */
+
+.whisper-self-test-output {
+    margin-top: 10px;
+}
+
+.whisper-self-test-log,
+.whisper-self-test-summary,
+.whisper-self-test-error {
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.whisper-self-test-error {
+    color: #8A2D2D;
+}
+
+.whisper-self-test-result {
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+}
+
+.whisper-self-test-status {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.whisper-self-test-result details {
+    margin-top: 8px;
+}
+
+.whisper-self-test-result summary {
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.whisper-self-test-result pre {
+    margin: 8px 0 0;
+    padding: 10px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #FAFAFC;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}

@@ -1,6 +1,6 @@
 import {
-    getModelCatalog,
-    getModelDefinition
+    getModelDefinition,
+    getModelRegistryBaseline
 } from "./modelManager.js";
 
 
@@ -36,6 +36,90 @@ function isIOSDevice() {
 let whisperWorker = null;
 let workerLoadPromise = null;
 let workerTranscriptionPromise = null;
+
+let desktopWhisperWorker = null;
+let desktopWorkerLoadPromise = null;
+let desktopWorkerTranscriptionPromise = null;
+
+
+function createDesktopWhisperWorker() {
+    if (desktopWhisperWorker) {
+        return desktopWhisperWorker;
+    }
+
+    desktopWhisperWorker = new Worker(
+        "./js/whisper-desktop-worker.js",
+        { type: "module" }
+    );
+
+    desktopWhisperWorker.onmessage = event => {
+        const message = event.data;
+
+        if (message.type === "status") {
+            desktopWorkerLoadPromise?.statusCallback?.(message.message);
+            return;
+        }
+
+        if (message.type === "loaded") {
+            if (desktopWorkerLoadPromise) {
+                const resolve = desktopWorkerLoadPromise.resolve;
+                desktopWorkerLoadPromise = null;
+                loadedModel = message.model;
+                resolve();
+            }
+            return;
+        }
+
+        if (message.type === "transcription") {
+            if (desktopWorkerTranscriptionPromise) {
+                const resolve = desktopWorkerTranscriptionPromise.resolve;
+                desktopWorkerTranscriptionPromise = null;
+                resolve({ text: message.text });
+            }
+            return;
+        }
+
+        if (message.type === "error") {
+            const error = new Error(
+                message.message || "Desktop Whisper worker error."
+            );
+
+            if (desktopWorkerLoadPromise) {
+                const reject = desktopWorkerLoadPromise.reject;
+                desktopWorkerLoadPromise = null;
+                reject(error);
+                return;
+            }
+
+            if (desktopWorkerTranscriptionPromise) {
+                const reject = desktopWorkerTranscriptionPromise.reject;
+                desktopWorkerTranscriptionPromise = null;
+                reject(error);
+            }
+        }
+    };
+
+    desktopWhisperWorker.onerror = error => {
+        const workerError = new Error(
+            error?.message || "Desktop Whisper worker error."
+        );
+
+        if (desktopWorkerLoadPromise) {
+            const reject = desktopWorkerLoadPromise.reject;
+            desktopWorkerLoadPromise = null;
+            reject(workerError);
+            return;
+        }
+
+        if (desktopWorkerTranscriptionPromise) {
+            const reject = desktopWorkerTranscriptionPromise.reject;
+            desktopWorkerTranscriptionPromise = null;
+            reject(workerError);
+        }
+    };
+
+    return desktopWhisperWorker;
+}
 
 
 function createWhisperWorker() {
@@ -185,32 +269,30 @@ let transcriber = null;
 let loadedModel = null;
 
 
-export async function loadTranscriber(
-    model,
+async function loadTranscriberDefinition(
+    definition,
+    identity,
     statusCallback
 ) {
 
-    if (
-        transcriber &&
-        loadedModel === model
-    ) {
+    if (!definition) {
+        throw new Error("Whisper model definition is required.");
+    }
+
+    // Keep the currently loaded model for repeated transcriptions. Only
+    // replace it when the requested implementation actually changes.
+    if (transcriber && loadedModel === identity) {
         return transcriber;
     }
 
-    const modelInfo =
-        getModelDefinition(model);
-
-    if (!modelInfo) {
-        throw new Error(
-            `Unknown Whisper model: ${model}`
-        );
+    if (transcriber) {
+        await releaseTranscriber();
     }
 
-    // Diagnostic only: report the exact model configuration selected before loading.
     console.log("[Whisper diagnostic] Resolved model configuration:", {
-        requestedModel: model,
-        repository: modelInfo.repository,
-        dtype: modelInfo.dtype ?? modelInfo.preferredDtype ?? null,
+        requestedModel: identity,
+        repository: definition.repository,
+        dtype: definition.dtype ?? definition.preferredDtype ?? null,
         transformersVersion: "4.0.0",
         runtime: isIOSDevice() ? "iphone-worker" : "webgpu",
     });
@@ -221,8 +303,8 @@ export async function loadTranscriber(
     if (statusCallback) {
         statusCallback(
             isIOS
-                ? `Loading Whisper ${modelInfo.label} on iPhone/iPad…`
-                : `Loading Whisper ${modelInfo.label} using WebGPU…`
+                ? `Loading Whisper ${definition.label} on iPhone/iPad…`
+                : `Loading Whisper ${definition.label} using WebGPU…`
         );
     }
 
@@ -253,9 +335,9 @@ export async function loadTranscriber(
 
             worker.postMessage({
                 type: "load",
-                model,
+                model: identity,
                 repository:
-                    modelInfo.repository
+                    definition.repository
             });
 
             await workerLoadPromise.promise;
@@ -265,25 +347,32 @@ export async function loadTranscriber(
 
         } else {
 
-            const {
-                pipeline
-            } = await loadTransformers();
+            const worker =
+                createDesktopWhisperWorker();
 
-            const pipelineOptions = {
-                device: "webgpu"
-            };
+            desktopWorkerLoadPromise = {};
 
-            if (modelInfo.dtype) {
-                pipelineOptions.dtype =
-                    modelInfo.dtype;
-            }
+            desktopWorkerLoadPromise.promise =
+                new Promise(
+                    (resolve, reject) => {
+                        desktopWorkerLoadPromise.resolve = resolve;
+                        desktopWorkerLoadPromise.reject = reject;
+                        desktopWorkerLoadPromise.statusCallback =
+                            statusCallback;
+                    }
+                );
+
+            worker.postMessage({
+                type: "load",
+                model: identity,
+                repository: definition.repository,
+                dtype: definition.dtype ?? null
+            });
+
+            await desktopWorkerLoadPromise.promise;
 
             transcriber =
-                await pipeline(
-                    "automatic-speech-recognition",
-                    modelInfo.repository,
-                    pipelineOptions
-                );
+                "desktop-worker";
         }
 
     } catch (error) {
@@ -293,28 +382,158 @@ export async function loadTranscriber(
             error?.message ||
             String(error);
 
+        // A failed load can leave a partially-created pipeline behind.
+        // Terminate the worker explicitly because transcriber is only assigned
+        // after the worker reports a successful load.
+        if (isIOSDevice()) {
+            if (whisperWorker) {
+                whisperWorker.terminate();
+                whisperWorker = null;
+            }
+            workerLoadPromise = null;
+            workerTranscriptionPromise = null;
+        } else {
+            if (desktopWhisperWorker) {
+                desktopWhisperWorker.terminate();
+                desktopWhisperWorker = null;
+            }
+            desktopWorkerLoadPromise = null;
+            desktopWorkerTranscriptionPromise = null;
+        }
+
+        transcriber = null;
+        loadedModel = null;
+
         if (statusCallback) {
             statusCallback(
-                `Whisper ${modelInfo.label} failed to load:\n${details}`
+                `Whisper ${definition.label} failed to load:\n${details}`
             );
         }
 
         throw new Error(details);
     }
 
-    loadedModel = model;
+    loadedModel = identity;
 
     if (statusCallback) {
         statusCallback(
             isIOSDevice()
-                ? `Whisper ${model} loaded on iPhone/iPad.`
-                : `Whisper ${model} loaded using WebGPU.`
+                ? `Whisper ${identity} loaded on iPhone/iPad.`
+                : `Whisper ${identity} loaded using WebGPU.`
         );
     }
 
     return transcriber;
 }
 
+
+export async function loadTranscriber(
+    model,
+    statusCallback
+) {
+
+    // Diagnostic: Medium is loaded from the exact registry record used by
+    // whisperSelfTest.js, rather than reconstructed from the model catalog.
+    // This isolates whether the production path is changing the selected
+    // implementation before it reaches the desktop worker.
+    if (model === "medium") {
+        const registryConfiguration =
+            getModelRegistryBaseline().find(
+                record => record.id === "medium-webgpu-q4"
+            );
+
+        if (!registryConfiguration) {
+            throw new Error(
+                "The medium-webgpu-q4 registry configuration was not found."
+            );
+        }
+
+        console.log(
+            "[Whisper diagnostic] Using exact registry configuration for Medium:",
+            registryConfiguration
+        );
+
+        return loadTranscriberConfiguration(
+            registryConfiguration,
+            statusCallback
+        );
+    }
+
+    const modelInfo =
+        getModelDefinition(model);
+
+    return loadTranscriberDefinition(
+        modelInfo,
+        model,
+        statusCallback
+    );
+}
+
+
+// Load an exact model-registry implementation.  This is used by diagnostics
+// and, eventually, by the model resolver when it selects a validated variant.
+export async function loadTranscriberConfiguration(
+    configuration,
+    statusCallback
+) {
+
+    return loadTranscriberDefinition(
+        {
+            label: configuration.label || configuration.family || "Whisper",
+            repository: configuration.repository,
+            dtype: configuration.configuration?.dtype ?? null
+        },
+        configuration.id || configuration.family || configuration.repository,
+        statusCallback
+    );
+}
+
+
+export async function releaseTranscriber() {
+
+    const current = transcriber;
+
+    // Clear our references first so a failed disposal cannot accidentally be
+    // reused by a subsequent load.
+    transcriber = null;
+    loadedModel = null;
+
+    if (!current) {
+        return;
+    }
+
+    if (current === "worker") {
+        if (whisperWorker) {
+            whisperWorker.terminate();
+            whisperWorker = null;
+        }
+        workerLoadPromise = null;
+        workerTranscriptionPromise = null;
+        return;
+    }
+
+    if (current === "desktop-worker") {
+        if (desktopWhisperWorker) {
+            desktopWhisperWorker.terminate();
+            desktopWhisperWorker = null;
+        }
+        desktopWorkerLoadPromise = null;
+        desktopWorkerTranscriptionPromise = null;
+        return;
+    }
+
+    if (typeof current.dispose === "function") {
+        await current.dispose();
+    }
+}
+
+
+// Clear the active Whisper model and its runtime environment.
+// For desktop this terminates the dedicated WebGPU worker, which provides
+// a stronger resource reset than disposing the pipeline alone.
+export async function clearWhisperResources() {
+    await releaseTranscriber();
+}
 
 export async function transcribeAudio(
     audio,
@@ -357,6 +576,37 @@ export async function transcribeAudio(
         });
 
         return workerTranscriptionPromise.promise;
+    }
+
+    if (transcriber === "desktop-worker") {
+        if (!desktopWhisperWorker) {
+            throw new Error(
+                "Desktop Whisper worker has not been created."
+            );
+        }
+
+        desktopWorkerTranscriptionPromise = {};
+
+        desktopWorkerTranscriptionPromise.promise =
+            new Promise(
+                (resolve, reject) => {
+                    desktopWorkerTranscriptionPromise.resolve = resolve;
+                    desktopWorkerTranscriptionPromise.reject = reject;
+                }
+            );
+
+        desktopWhisperWorker.postMessage({
+            type: "transcribe",
+            audio: audio,
+            options: {
+                task: options.task || "transcribe",
+                language: options.language || null,
+                chunk_length_s: 30,
+                stride_length_s: 5
+            }
+        });
+
+        return desktopWorkerTranscriptionPromise.promise;
     }
 
     return transcriber(
