@@ -77,7 +77,8 @@ async function readIndexedDBReport() {
             representations: []
         },
         otherBytes: 0,
-        otherCount: 0
+        otherCount: 0,
+        otherStores: []
     };
 
     if (!database) {
@@ -85,6 +86,18 @@ async function readIndexedDBReport() {
     }
 
     const stores = Array.from(database.objectStoreNames);
+
+    // Opening a database without a version can create an empty database if
+    // its data was cleared or it has not yet been initialized. Do not attempt
+    // an IndexedDB transaction with an empty store list.
+    if (stores.length === 0) {
+        console.warn(
+            'Memora storage report: the IndexedDB database has no object stores. ' +
+            'Returning an empty report without changing stored data.'
+        );
+        database.close();
+        return empty;
+    }
 
     const result = await new Promise((resolve, reject) => {
         const transaction =
@@ -105,7 +118,8 @@ async function readIndexedDBReport() {
                 representations: []
             },
             otherBytes: 0,
-            otherCount: 0
+            otherCount: 0,
+            otherStores: []
         };
 
         for (const storeName of stores) {
@@ -174,17 +188,25 @@ async function readIndexedDBReport() {
                     return;
                 }
 
+                const bytes = values.reduce(
+                    (total, value) => total + estimateValueBytes(value),
+                    0
+                );
+
                 output.otherCount += values.length;
-                output.otherBytes +=
-                    values.reduce(
-                        (total, value) =>
-                            total + estimateValueBytes(value),
-                        0
-                    );
+                output.otherBytes += bytes;
+                output.otherStores.push({
+                    name: storeName,
+                    count: values.length,
+                    bytes
+                });
             };
         }
 
-        transaction.oncomplete = () => resolve(output);
+        transaction.oncomplete = () => {
+            output.otherStores.sort((a, b) => a.name.localeCompare(b.name));
+            resolve(output);
+        };
         transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () => reject(transaction.error);
     });

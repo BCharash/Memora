@@ -337,10 +337,28 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
         if (detail.hidden) return;
 
+        const otherStores = currentReport?.indexedDB?.otherStores || [];
         const count = currentReport?.indexedDB?.otherCount || 0;
-        detail.innerHTML = count
-            ? `<p class="settings-note">${count.toLocaleString()} other IndexedDB ${count === 1 ? "entry" : "entries"} are present.</p>`
-            : `<p class="settings-note">No other IndexedDB files.</p>`;
+
+        if (!count) {
+            detail.innerHTML = `<p class="settings-note">No other IndexedDB records are present.</p>`;
+            return;
+        }
+
+        const descriptions = {
+            semanticMetadata: "Semantic search metadata and index bookkeeping.",
+            modelRegistry: "Whisper model definitions and validation records."
+        };
+
+        detail.innerHTML = `
+            <p class="settings-note">${count.toLocaleString()} records across ${otherStores.length} other IndexedDB ${otherStores.length === 1 ? "store" : "stores"}. No data has been changed.</p>
+            ${otherStores.map(store => `
+                <div class="settings-row">
+                    <span class="settings-label">${escapeHtml(store.name)}<span class="settings-note">${escapeHtml(descriptions[store.name] || "Other stored Memora data; purpose not classified here.")}</span></span>
+                    <span class="settings-value">${store.count.toLocaleString()} · ${formatBytes(store.bytes)}</span>
+                </div>
+            `).join("")}
+        `;
     }
 
     async function showOtherModels() {
