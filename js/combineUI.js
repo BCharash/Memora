@@ -156,6 +156,11 @@ export async function displayTranscriptFiles(files) {
     let transcriptListItems = null;
     let transcriptsCollapsed = false;
 
+    // Preserve each file's selection across list rebuilds caused by sorting.
+    // The first render defaults to selecting every file.
+    let hasRenderedTranscriptList = false;
+    let selectedFilenames = new Set();
+
     const collapseCheckboxBottom =
         document.createElement("input");
 
@@ -285,6 +290,19 @@ export async function displayTranscriptFiles(files) {
 
         const checkboxes = [];
 
+        // Capture the current selections before rebuilding the list.
+        // On the initial render, selectedFilenames is intentionally empty
+        // and every checkbox defaults to checked.
+        if (hasRenderedTranscriptList) {
+            selectedFilenames = new Set(
+                Array.from(
+                    transcripts.querySelectorAll(".recording-checkbox")
+                )
+                    .filter(checkbox => checkbox.checked)
+                    .map(checkbox => checkbox.dataset.filename)
+            );
+        }
+
         for (const record of sorted) {
 
             const item =
@@ -297,7 +315,8 @@ export async function displayTranscriptFiles(files) {
                 document.createElement("input");
 
             checkbox.type = "checkbox";
-            checkbox.checked = true;
+            checkbox.checked = !hasRenderedTranscriptList ||
+                selectedFilenames.has(record.filename);
             checkbox.className =
                 "recording-checkbox";
             checkbox.dataset.filename =
@@ -355,7 +374,10 @@ export async function displayTranscriptFiles(files) {
         );
 
         selectAllCheckbox.checked =
-            checkboxes.length > 0;
+            checkboxes.length > 0 &&
+            checkboxes.every(checkbox => checkbox.checked);
+
+        hasRenderedTranscriptList = true;
 
         selectAllCheckbox.onchange =
             () => {
