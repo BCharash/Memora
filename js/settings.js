@@ -354,8 +354,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <p class="settings-note">${count.toLocaleString()} records across ${otherStores.length} other IndexedDB ${otherStores.length === 1 ? "store" : "stores"}. No data has been changed.</p>
             ${otherStores.map(store => `
                 <div class="settings-row">
-                    <span class="settings-label">${escapeHtml(store.name)}<span class="settings-note">${escapeHtml(descriptions[store.name] || "Other stored Memora data; purpose not classified here.")}</span></span>
-                    <span class="settings-value">${store.count.toLocaleString()} · ${formatBytes(store.bytes)}</span>
+                    <span class="settings-label">
+                        <span class="settings-item-name">${escapeHtml(store.name)}</span>
+                        <span class="settings-note">${escapeHtml(descriptions[store.name] || "Other stored Memora data; purpose not classified here.")}</span>
+                    </span>
+                    <span class="settings-value">${formatBytes(store.bytes)} · ${store.count.toLocaleString()} entries</span>
                 </div>
             `).join("")}
         `;
