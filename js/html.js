@@ -12,10 +12,12 @@ export function createCombinedHTML(
     title = "Memora — Combined Transcription"
 ) {
 
+    const defaultSort = inferDefaultSort(records);
+
     const sections =
         records
-            .map(record =>
-                createTranscriptSection(record)
+            .map((record, index) =>
+                createTranscriptSection(record, index)
             )
             .join("\n");
 
@@ -141,6 +143,69 @@ export function createCombinedHTML(
         .reader-controls .js-controls input[type="range"] {
             width: auto;
             min-width: 120px;
+        }
+
+        .sort-controls {
+            display: none;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid #E1E4E8;
+            color: #707782;
+        }
+
+        .sort-row + .sort-row {
+            margin-top: 10px;
+        }
+
+        .sort-row-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #707782;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        .sort-options {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sort-options input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sort-options label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            padding: 0 10px;
+            box-sizing: border-box;
+            border: 1px solid #D5D9DE;
+            border-radius: 6px;
+            background: #FFFFFF;
+            color: #20242C;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sort-options input:checked + label {
+            border-color: #707782;
+            background: #E9ECF0;
+        }
+
+        .sort-options input:focus-visible + label {
+            outline: 2px solid #526A91;
+            outline-offset: 2px;
+        }
+
+        .sort-options [hidden] {
+            display: none !important;
         }
 
         .reader-size-value {
@@ -286,15 +351,123 @@ export function createCombinedHTML(
                     </div>
                     <span aria-hidden="true">A</span>
                 </div>
+
+                <div class="sort-controls" aria-label="Transcript sorting">
+                    <div class="sort-row">
+                        <span class="sort-row-label" id="sortByLabel">Sort by</span>
+                        <div class="sort-options" role="radiogroup" aria-labelledby="sortByLabel">
+                            <input id="sortByDate" type="radio" name="sortBy" value="date" ${defaultSort.type === "date" ? "checked" : ""}>
+                            <label for="sortByDate">Date</label>
+                            <input id="sortByAlpha" type="radio" name="sortBy" value="alpha" ${defaultSort.type === "alpha" ? "checked" : ""}>
+                            <label for="sortByAlpha">Alphabetical</label>
+                        </div>
+                    </div>
+
+                    <div class="sort-row">
+                        <span class="sort-row-label" id="sortOrderLabel">Order</span>
+                        <div class="sort-options" role="radiogroup" aria-labelledby="sortOrderLabel">
+                            <div class="sort-order-options" id="dateOrderOptions">
+                                <input id="sortOldest" type="radio" name="dateOrder" value="oldest" ${defaultSort.type !== "date" || defaultSort.direction === "oldest" ? "checked" : ""}>
+                                <label for="sortOldest">Oldest first</label>
+                                <input id="sortNewest" type="radio" name="dateOrder" value="newest" ${defaultSort.type === "date" && defaultSort.direction === "newest" ? "checked" : ""}>
+                                <label for="sortNewest">Newest first</label>
+                            </div>
+                            <div class="sort-order-options" id="alphaOrderOptions" hidden>
+                                <input id="sortAZ" type="radio" name="alphaOrder" value="az" ${defaultSort.type !== "alpha" || defaultSort.direction === "az" ? "checked" : ""}>
+                                <label for="sortAZ">A–Z</label>
+                                <input id="sortZA" type="radio" name="alphaOrder" value="za" ${defaultSort.type === "alpha" && defaultSort.direction === "za" ? "checked" : ""}>
+                                <label for="sortZA">Z–A</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            ${sections}
+            <div class="records">
+                ${sections}
+            </div>
         </div>
     </main>
 
     <script>
         document.querySelector(".js-controls").style.display = "grid";
         document.querySelector(".fallback").style.display = "none";
+
+        const sortControls = document.querySelector(".sort-controls");
+        const recordsContainer = document.querySelector(".records");
+        const sortByInputs = document.querySelectorAll('input[name="sortBy"]');
+        const dateOrderOptions = document.getElementById("dateOrderOptions");
+        const alphaOrderOptions = document.getElementById("alphaOrderOptions");
+
+        function getSelectedValue(name) {
+            return document.querySelector('input[name="' + name + '"]:checked')?.value;
+        }
+
+        function sortRecords() {
+            const type = getSelectedValue("sortBy") || "date";
+            const direction = type === "date"
+                ? (getSelectedValue("dateOrder") || "oldest")
+                : (getSelectedValue("alphaOrder") || "az");
+
+            const records = Array.from(recordsContainer.querySelectorAll(".record"));
+
+            records.sort((a, b) => {
+                if (type === "alpha") {
+                    const comparison = (a.dataset.sortName || "").localeCompare(
+                        b.dataset.sortName || "",
+                        undefined,
+                        { numeric: true, sensitivity: "base" }
+                    );
+                    return (direction === "za" ? -comparison : comparison)
+                        || Number(a.dataset.originalIndex) - Number(b.dataset.originalIndex);
+                }
+
+                const aDate = a.dataset.sortDate === "" ? null : Number(a.dataset.sortDate);
+                const bDate = b.dataset.sortDate === "" ? null : Number(b.dataset.sortDate);
+
+                // Put records with known dates before records without dates.
+                // Reverse the unknown-date group too, so changing direction is
+                // observable even when some or all dates cannot be parsed.
+                if (aDate === null && bDate !== null) return 1;
+                if (aDate !== null && bDate === null) return -1;
+
+                if (aDate !== null && bDate !== null && aDate !== bDate) {
+                    const comparison = aDate - bDate;
+                    return direction === "newest" ? -comparison : comparison;
+                }
+
+                // Equal or unavailable dates: keep a stable order for Oldest,
+                // and reverse it for Newest. Previously this tie-breaker always
+                // used original order, making Newest appear to do nothing when
+                // all dates were unavailable (or identical).
+                const originalOrder =
+                    Number(a.dataset.originalIndex) - Number(b.dataset.originalIndex);
+                return direction === "newest" ? -originalOrder : originalOrder;
+            });
+
+            records.forEach(record => recordsContainer.appendChild(record));
+        }
+
+        function updateSortControls(shouldSort = true) {
+            const type = getSelectedValue("sortBy") || "date";
+            dateOrderOptions.hidden = type !== "date";
+            alphaOrderOptions.hidden = type !== "alpha";
+            if (shouldSort) sortRecords();
+        }
+
+        sortByInputs.forEach(input => input.addEventListener("change", () => updateSortControls(true)));
+        document.querySelectorAll('input[name="dateOrder"], input[name="alphaOrder"]')
+            .forEach(input => {
+                // A click must also apply the sort when the chosen radio is
+                // already checked: in that case, browsers do not fire change.
+                input.addEventListener("click", sortRecords);
+                input.addEventListener("change", sortRecords);
+            });
+
+        // Preserve the creation-time HTML order on initial load. The checked
+        // controls describe that order; reordering begins only after user input.
+        updateSortControls(false);
+        sortControls.style.display = "block";
 
         document
             .querySelectorAll('.fallback input[type="radio"]')
@@ -380,12 +553,108 @@ export function createCombinedHTML(
 }
 
 
-function createTranscriptSection(record) {
+function getRecordingSortDate(record) {
+    const value = record.recordingDate;
+
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+
+    const text = String(value).trim();
+    if (!text || text.toLowerCase() === "date unknown") {
+        return null;
+    }
+
+    // Parse common day-first dates first, so a date such as 05/06/2025
+    // is interpreted consistently as 5 June rather than depending on locale.
+    const dayFirst = text.match(
+        /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+
+    if (dayFirst) {
+        const [, day, month, year, hour = "0", minute = "0", second = "0"] = dayFirst;
+        const date = new Date(
+            Number(year), Number(month) - 1, Number(day),
+            Number(hour), Number(minute), Number(second)
+        );
+
+        if (
+            date.getFullYear() === Number(year) &&
+            date.getMonth() === Number(month) - 1 &&
+            date.getDate() === Number(day)
+        ) {
+            return date.getTime();
+        }
+    }
+
+    // ISO dates and other unambiguous date strings are handled consistently
+    // by the standard parser.
+    const parsed = Date.parse(text);
+    if (Number.isFinite(parsed)) {
+        return parsed;
+    }
+
+    return null;
+}
+
+function inferDefaultSort(records) {
+    const headings = records.map(record =>
+        record.recordingFilename || record.filename || "Untitled recording"
+    );
+    const dates = records.map(getRecordingSortDate);
+
+    const isSorted = compare => records.every((record, index) =>
+        index === 0 || compare(index - 1, index) <= 0
+    );
+
+    const compareAlpha = (a, b) => headings[a].localeCompare(
+        headings[b], undefined, { numeric: true, sensitivity: "base" }
+    );
+
+    const compareDate = (a, b) => {
+        if (dates[a] === null && dates[b] !== null) return 1;
+        if (dates[a] !== null && dates[b] === null) return -1;
+        if (dates[a] === null && dates[b] === null) return 0;
+        return dates[a] - dates[b];
+    };
+
+    const ascendingDatesAvailable = dates.filter(date => date !== null).length >= 2;
+
+    if (ascendingDatesAvailable) {
+        const oldest = isSorted(compareDate);
+        const newest = isSorted((a, b) => compareDate(b, a));
+        if (oldest && !newest) return { type: "date", direction: "oldest" };
+        if (newest && !oldest) return { type: "date", direction: "newest" };
+    }
+
+    const alphabetical = isSorted(compareAlpha);
+    const reverseAlphabetical = isSorted((a, b) => compareAlpha(b, a));
+
+    if (alphabetical && !reverseAlphabetical) {
+        return { type: "alpha", direction: "az" };
+    }
+    if (reverseAlphabetical && !alphabetical) {
+        return { type: "alpha", direction: "za" };
+    }
+
+    // If the input order is ambiguous (for example, all dates are identical),
+    // choose the common chronological default without changing the HTML order
+    // until the user explicitly selects a sort option.
+    return { type: "date", direction: "oldest" };
+}
+
+function createTranscriptSection(record, index) {
 
     const heading =
         record.recordingFilename ||
         record.filename ||
         "Untitled recording";
+
+    const sortDate = getRecordingSortDate(record);
 
     const recordingDate =
         record.recordingDate ||
@@ -408,7 +677,12 @@ function createTranscriptSection(record) {
         "";
 
     return `
-        <section class="record">
+        <section
+            class="record"
+            data-sort-name="${escapeHTML(heading)}"
+            data-sort-date="${sortDate === null ? "" : sortDate}"
+            data-original-index="${index}"
+        >
             <h2>${escapeHTML(heading)}</h2>
 
             <div class="metadata">
