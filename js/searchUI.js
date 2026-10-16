@@ -563,6 +563,9 @@ function appendColoredTranscript(container, group) {
 }
 
 let searchAudioRootHandle = null;
+// Files chosen in iPhone Safari remain available for matching during this page
+// session. Keep File references, not copies of the audio data.
+const searchAudioFileCache = new Map();
 
 async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
     if (!directoryHandle || depth > 2 || !filename) return null;
@@ -596,6 +599,17 @@ async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
 
 async function resolveSearchAudioFile(relativePath, recordingFilename) {
     const candidates = [...new Set([relativePath, recordingFilename].filter(Boolean))];
+    const wantedNames = candidates
+        .map(value => value.split(/[\\/]/).pop().toLocaleLowerCase());
+
+    // On iPhone, a recording selected once can be reused by later results.
+    // Match by basename because transcript metadata may contain relative paths.
+    for (const name of wantedNames) {
+        if (searchAudioFileCache.has(name)) {
+            return searchAudioFileCache.get(name);
+        }
+    }
+
     const handle = searchSourceHandle;
     if (!handle) return null;
 
@@ -681,6 +695,8 @@ function appendSearchAudioControl(section, group) {
     const audioFileInput = document.createElement("input");
     audioFileInput.type = "file";
     audioFileInput.accept = "audio/*,.m4a,.mp3,.wav,.aac,.caf,.mp4";
+    // Select a batch of recordings once instead of revisiting Files for each result.
+    audioFileInput.multiple = true;
     audioFileInput.hidden = true;
     audioFileInput.setAttribute("aria-label", "Choose an audio recording");
 
@@ -705,14 +721,35 @@ function appendSearchAudioControl(section, group) {
     }
 
     audioFileInput.addEventListener("change", async () => {
-        const file = audioFileInput.files?.[0];
-        if (!file) return;
+        const selectedFiles = Array.from(audioFileInput.files || []);
+        // Dismissing the iOS picker without choosing files leaves the result alone.
+        if (!selectedFiles.length) return;
+
+        for (const file of selectedFiles) {
+            searchAudioFileCache.set(file.name.toLocaleLowerCase(), file);
+        }
+
+        const wantedNames = new Set(
+            [relativePath, recordingFilename]
+                .filter(Boolean)
+                .map(value => value.split(/[\\/]/).pop().toLocaleLowerCase())
+        );
+        const matchingFile = selectedFiles.find(file =>
+            wantedNames.has(file.name.toLocaleLowerCase())
+        ) || [...searchAudioFileCache.entries()]
+            .find(([name]) => wantedNames.has(name))?.[1];
+
+        if (!matchingFile) {
+            errorMessage.textContent = `Added ${selectedFiles.length} recording${selectedFiles.length === 1 ? "" : "s"} for this session, but the matching file “${recordingFilename || wantedNames.values().next().value || ""}” was not among them. Tap Play and select a batch containing that recording.`;
+            errorMessage.hidden = false;
+            return;
+        }
+
         try {
-            showLoadedPlayer(file);
+            showLoadedPlayer(matchingFile);
             await audio.play();
         } catch (error) {
-            // The native controls remain visible so playback can be started by
-            // tapping Play in Safari if automatic playback is blocked.
+            // The native controls remain visible if Safari blocks auto-play.
             errorMessage.textContent = "Recording loaded. Tap Play in the audio controls to start playback.";
             errorMessage.hidden = false;
         }
@@ -723,6 +760,17 @@ function appendSearchAudioControl(section, group) {
         // directory picker is not available there, and the share sheet cannot
         // be opened until an actual File object has been obtained.
         if (onIPhone) {
+            const cachedFile = await resolveSearchAudioFile(relativePath, recordingFilename);
+            if (cachedFile) {
+                showLoadedPlayer(cachedFile);
+                try {
+                    await audio.play();
+                } catch (_) {
+                    errorMessage.textContent = "Audio is loaded. Tap Play in the audio controls to start playback.";
+                    errorMessage.hidden = false;
+                }
+                return;
+            }
             audioFileInput.click();
             return;
         }
@@ -791,6 +839,13 @@ function renderSearchResults(payload) {
         return { files: [], displayedChunkCount: 0 };
     }
 
+    // Release object URLs belonging to players from the previous result set.
+    searchResults.querySelectorAll("audio[data-object-url]").forEach(audio => {
+        try { URL.revokeObjectURL(audio.dataset.objectUrl); } catch (_) {}
+        delete audio.dataset.objectUrl;
+        audio.removeAttribute("src");
+        audio.load();
+    });
     searchResults.innerHTML = "";
     const rawResults = payload?.results || [];
     if (rawResults.length === 0) {
