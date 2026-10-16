@@ -647,6 +647,7 @@ function appendSearchAudioControl(section, group) {
     const recordingFilename = group.record?.recordingFilename || "";
     if (!relativePath && !recordingFilename) return;
 
+    const onIPhone = isIPhoneBrowser();
     const control = document.createElement("div");
     control.className = "search-result-audio-control";
 
@@ -662,8 +663,10 @@ function appendSearchAudioControl(section, group) {
     audio.preload = "none";
     audio.hidden = true;
     audio.className = "search-result-audio";
-    if (isIPhoneBrowser()) {
-        audio.controls = false;
+    if (onIPhone) {
+        // iPhone Safari needs its native audio controls; do not hide the player
+        // after loading a file selected through the iOS document picker.
+        audio.controls = true;
         audio.classList.add("search-audio-no-controls");
     }
 
@@ -672,9 +675,62 @@ function appendSearchAudioControl(section, group) {
     errorMessage.hidden = true;
     errorMessage.setAttribute("role", "status");
 
+    // iOS Safari cannot use showDirectoryPicker and cannot browse upward from a
+    // selected directory. If the audio is not already available, let the user
+    // choose the individual recording with the native Files picker instead.
+    const audioFileInput = document.createElement("input");
+    audioFileInput.type = "file";
+    audioFileInput.accept = "audio/*,.m4a,.mp3,.wav,.aac,.caf,.mp4";
+    audioFileInput.hidden = true;
+    audioFileInput.setAttribute("aria-label", "Choose an audio recording");
+
+    function showLoadedPlayer(file) {
+        if (audio.dataset.objectUrl) {
+            URL.revokeObjectURL(audio.dataset.objectUrl);
+        }
+        const objectUrl = URL.createObjectURL(file);
+        audio.dataset.objectUrl = objectUrl;
+        audio.src = objectUrl;
+        audio.controls = true;
+        audio.hidden = false;
+        audio.style.display = "inline-block";
+        audio.style.maxWidth = "100%";
+        // Once the full player is visible, the compact play button is redundant.
+        // Use inline display as well as the hidden attribute because site CSS
+        // can override the browser's default [hidden] styling for buttons.
+        playButton.textContent = "▶";
+        playButton.hidden = true;
+        playButton.style.display = "none";
+        errorMessage.hidden = true;
+    }
+
+    audioFileInput.addEventListener("change", async () => {
+        const file = audioFileInput.files?.[0];
+        if (!file) return;
+        try {
+            showLoadedPlayer(file);
+            await audio.play();
+        } catch (error) {
+            // The native controls remain visible so playback can be started by
+            // tapping Play in Safari if automatic playback is blocked.
+            errorMessage.textContent = "Recording loaded. Tap Play in the audio controls to start playback.";
+            errorMessage.hidden = false;
+        }
+    });
+
     playButton.addEventListener("click", async () => {
+        // On iPhone, open the native file chooser directly from the tap. A
+        // directory picker is not available there, and the share sheet cannot
+        // be opened until an actual File object has been obtained.
+        if (onIPhone) {
+            audioFileInput.click();
+            return;
+        }
+
         if (audio.src) {
-            if (!isIPhoneBrowser()) audio.hidden = false;
+            audio.hidden = false;
+            playButton.hidden = true;
+            playButton.style.display = "none";
             try {
                 await audio.play();
             } catch (error) {
@@ -690,10 +746,9 @@ function appendSearchAudioControl(section, group) {
         try {
             let file = await resolveSearchAudioFile(relativePath, recordingFilename);
 
-            // The browser does not allow a selected directory handle to walk upward
-            // to its parent. If the audio is in the parent of the selected Combine
-            // folder (for example, ../ inside audio/transcription/combine), ask once
-            // for the audio-containing folder and reuse that handle for later results.
+            // A selected directory handle cannot navigate upward to its parent.
+            // Ask for the audio-containing parent once, then reuse that handle
+            // for subsequent search results and searches in this page session.
             if (!file && searchSourceHandle?.kind !== "file-input" && window.showDirectoryPicker) {
                 errorMessage.textContent = "The recording wasn't in the selected folder. Select the parent folder that contains the audio.";
                 errorMessage.hidden = false;
@@ -703,29 +758,15 @@ function appendSearchAudioControl(section, group) {
             }
 
             if (!file) {
-                throw new Error("Recording not found. Check the selected folder and its parent/grandparent.");
+                throw new Error("Recording not found. Select the parent folder that contains the audio files.");
             }
 
-            const objectUrl = URL.createObjectURL(file);
-            audio.src = objectUrl;
-            audio.hidden = isIPhoneBrowser();
-            if (!isIPhoneBrowser()) {
-                audio.controls = true;
-            }
-            playButton.textContent = "▶";
-            playButton.title = "Play recording";
-            errorMessage.hidden = true;
-
+            showLoadedPlayer(file);
             try {
                 await audio.play();
             } catch (playError) {
-                // Some browsers require a second direct tap after file selection.
-                if (!isIPhoneBrowser()) {
-                    errorMessage.textContent = "Audio is loaded. Use the player controls to start playback.";
-                    errorMessage.hidden = false;
-                } else {
-                    throw playError;
-                }
+                errorMessage.textContent = "Audio is loaded. Use the player controls to start playback.";
+                errorMessage.hidden = false;
             }
         } catch (error) {
             if (error?.name !== "AbortError") {
@@ -740,6 +781,7 @@ function appendSearchAudioControl(section, group) {
 
     control.appendChild(playButton);
     control.appendChild(audio);
+    control.appendChild(audioFileInput);
     control.appendChild(errorMessage);
     section.appendChild(control);
 }
