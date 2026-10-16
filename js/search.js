@@ -897,8 +897,9 @@ export async function search(
     const sentenceResults =
         scoredSentences
             .slice(0, sentenceLimit)
-            .map(({ entry, score }) => ({
+            .map(({ entry, score }, index) => ({
                 type: "sentence",
+                rank: index + 1,
                 record: entry.record,
                 filename: entry.record.filename,
                 recordingFilename: entry.record.recordingFilename,
@@ -978,7 +979,7 @@ export async function searchStoredRepresentations(
         }))[0];
 
     const allSentenceEntries = buildSentenceEntries(records);
-    const candidates = new Map();
+    const candidates = [];
     const representationResults = [];
 
     for (const context of SEARCH_CONTEXTS) {
@@ -1027,47 +1028,28 @@ export async function searchStoredRepresentations(
             results
         });
 
-        for (const result of results) {
-            const existing = candidates.get(result.filename);
-
-            if (!existing) {
-                candidates.set(result.filename, {
-                    ...result,
-                    representations: [result.representation]
-                });
-                continue;
-            }
-
-            existing.representations.push(result.representation);
-
-            if (
-                result.relativeRank > existing.relativeRank ||
-                (
-                    result.relativeRank === existing.relativeRank &&
-                    result.score > existing.score
-                )
-            ) {
-                const representations = existing.representations;
-                Object.assign(existing, result);
-                existing.representations = representations;
-            }
-        }
+        candidates.push(...results);
     }
 
+    // Keep the complete candidate set from all three chunk sizes. The UI
+    // applies the agreed specificity hierarchy and suppresses overlapping
+    // broader chunks, while retaining non-overlapping passages.
     const chunkResults =
-        Array.from(candidates.values())
+        candidates
             .sort((a, b) => {
+                const sizeA = Number(a.representation.split("–")[0]);
+                const sizeB = Number(b.representation.split("–")[0]);
+
+                if (sizeA !== sizeB) {
+                    return sizeA - sizeB;
+                }
+
                 if (b.relativeRank !== a.relativeRank) {
                     return b.relativeRank - a.relativeRank;
                 }
 
-                if (b.representations.length !== a.representations.length) {
-                    return b.representations.length - a.representations.length;
-                }
-
                 return b.score - a.score;
             })
-            .slice(0, Math.max(1, maxResults))
             .map((result, index) => ({
                 ...result,
                 rank: index + 1
@@ -1084,19 +1066,56 @@ function buildStoredChunkSentenceRefs(
     entry,
     allSentenceEntries
 ) {
-    const first =
-        entry.firstSentenceGlobalIndex ?? 0;
-    const last =
-        entry.lastSentenceGlobalIndex ?? first;
+    const filename = entry.record?.filename;
 
-    return allSentenceEntries
-        .slice(first, last + 1)
-        .filter(item => item.record === entry.record)
-        .map(item => ({
-            sentence: item.sentence,
-            sentenceIndex: item.sentenceIndex,
-            paragraphIndex: item.paragraphIndex
-        }));
+    // Chunk ordinals are local to each transcript, whereas the stored
+    // first/lastSentenceGlobalIndex values refer to the complete collection
+    // in the order used when the index was built. That global order can differ
+    // from the current search-source order. Reconstruct the chunk in the
+    // transcript's own sentence sequence instead.
+    const transcriptSentences = allSentenceEntries.filter(
+        item => item.record?.filename === filename
+    );
+
+    const chunkSize = Number(entry.chunkSize);
+    const chunkOverlap = Number(entry.chunkOverlap);
+    const ordinal = Number(entry.ordinal);
+
+    if (
+        Number.isInteger(chunkSize) &&
+        chunkSize > 0 &&
+        Number.isInteger(chunkOverlap) &&
+        chunkOverlap >= 0 &&
+        chunkOverlap < chunkSize &&
+        Number.isInteger(ordinal) &&
+        ordinal >= 0
+    ) {
+        const step = chunkSize - chunkOverlap;
+        const first = ordinal * step;
+
+        return transcriptSentences
+            .slice(first, first + chunkSize)
+            .map(item => ({
+                sentence: item.sentence,
+                sentenceIndex: item.sentenceIndex,
+                paragraphIndex: item.paragraphIndex
+            }));
+    }
+
+    // Compatibility fallback for older stored entries that lack the
+    // per-transcript chunk metadata. Prefer the transcript-local range when
+    // it can be inferred from the stored global indices.
+    const firstGlobal = entry.firstSentenceGlobalIndex ?? 0;
+    const lastGlobal = entry.lastSentenceGlobalIndex ?? firstGlobal;
+    const globalSlice = allSentenceEntries
+        .slice(firstGlobal, lastGlobal + 1)
+        .filter(item => item.record?.filename === filename);
+
+    return globalSlice.map(item => ({
+        sentence: item.sentence,
+        sentenceIndex: item.sentenceIndex,
+        paragraphIndex: item.paragraphIndex
+    }));
 }
 
 
