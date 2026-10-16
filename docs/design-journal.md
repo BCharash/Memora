@@ -3622,3 +3622,108 @@ This separation gives Memora a clearer architecture:
     ONNX implementation
 
 This architecture avoids hiding important implementation choices inside scattered model-name conditionals and provides a controlled foundation for future automatic model selection, validation, caching, and resource management.
+
+---
+
+# 51. Latest Development Milestone: Search Transcript Presentation, Audio Playback, and Context Highlighting
+
+This milestone refines how Search results are presented and how a user can inspect the source recording. The goal is to make the several semantic retrieval representations useful together without showing the same transcript repeatedly or losing the direct sentence match.
+
+## 51.1 One complete transcript per search result
+
+Search retrieves candidates through multiple semantic representations: sentence-level matches and contextual chunks of different sizes. These representations serve different purposes. A short match can identify a precise statement, while a larger contextual chunk can show the surrounding thought.
+
+The result display now brings these signals together under one transcript result rather than presenting every retrieval representation as a separate copy of the same transcript.
+
+The intended presentation is:
+
+- one result group per transcript file;
+- the original transcript text displayed once in that group;
+- sentence-level and contextual retrieval matches represented by color within that text;
+- unmatched text retained in its normal appearance;
+- the transcript's recording/audio metadata retained where available.
+
+This keeps the full narrative readable while showing why different parts of it were retrieved. A transcript found through several representations should not appear several times merely because several indexed items matched the query.
+
+## 51.2 Highlight colors and priority
+
+The transcript display uses four colors to distinguish the direct sentence match from contextual matches:
+
+| Color | Meaning |
+|---|---|
+| Yellow | Direct positive sentence match |
+| Pale blue | Narrow 3–1 contextual chunk |
+| Pale orange | Medium 5–2 contextual chunk |
+| Pale green | Broad 7–3 contextual chunk |
+
+Yellow is the highest-priority signal. A sentence that directly matches the query remains yellow even when it is also part of one or more contextual chunks.
+
+Contextual highlighting follows the overlap-suppression hierarchy:
+
+1. Keep positive sentence matches in yellow.
+2. Suppress a 3–1 blue chunk if it overlaps any positive sentence match.
+3. Suppress a 5–2 orange chunk if it overlaps a sentence match or an accepted 3–1 chunk.
+4. Suppress a 7–3 green chunk if it overlaps a sentence match, an accepted 3–1 chunk, or an accepted 5–2 chunk.
+
+For this rule, overlap means sharing at least one sentence. If a broad chunk overlaps a narrower accepted match, the entire broad chunk is suppressed; it is not clipped to show only the non-overlapping remainder. Chunks of the same size do not suppress one another.
+
+This hierarchy favors the most specific available evidence and avoids layering several colors over the same passage. It does not change semantic retrieval thresholds or sentence rankings: it is a presentation rule applied after retrieval.
+
+## 51.3 Preserve direct sentence matches
+
+An earlier highlighting problem showed that contextual coloring could cause the original yellow sentence matches to disappear. The design rule is therefore explicit: contextual presentation must never override a valid yellow sentence match.
+
+The renderer resolves color assignments with yellow taking precedence. It uses both positional references and normalized sentence text as a fallback because sentence boundaries and punctuation can differ slightly between indexing and displayed transcript text.
+
+Sentence matching for this display normalizes Unicode, letter case, and punctuation while preserving the underlying transcript wording. The highlighting is visual only; it does not rewrite the source transcript.
+
+## 51.4 Hide/show full transcript
+
+Search results include a compact Hide/Show Transcript control so that the user can choose whether to inspect the full transcript immediately.
+
+The control is intended to reduce the vertical space occupied by long transcripts while keeping the retrieval evidence and the result's identity available. Expanding a transcript reveals the same complete transcript with the color-coded matches; collapsing it hides that full-text section rather than removing or changing the underlying result.
+
+This complements the existing Collapse all controls for the overall Search result list. The two levels serve different purposes:
+
+- **Hide/Show Transcript** controls the full text within an individual result.
+- **Collapse all** controls the expanded result sections across the Search result list.
+
+The interaction is a presentation preference, not a change to indexing, retrieval, or stored transcript content.
+
+## 51.5 Search-result audio control
+
+Search results now provide an audio-playback control when the transcript record contains an audio-relative path or original recording filename.
+
+On desktop, Memora first attempts to resolve the audio file from the selected Search source and any previously selected audio root. It can search within the permitted directory tree for a matching filename. If the recording is outside the selected Search directory, the application can ask the user to select the relevant parent folder; the selected root can then be reused for other results in the current page session.
+
+When the recording is loaded, the compact play button is replaced by the browser's full native audio controls. This avoids leaving a redundant small play button beside a visible player.
+
+The audio player is loaded on demand. Memora does not preload the entire collection of audio recordings. When Search results are replaced, existing object URLs are revoked and old audio sources are released so that obsolete players do not unnecessarily retain resources.
+
+## 51.6 iPhone audio selection and session reuse
+
+The browser File System Access API used by the desktop workflow is not available in the same way in iPhone Safari. In particular, a directory handle cannot be used to browse upward to a parent directory, and `showDirectoryPicker()` is not available on iPhone.
+
+For iPhone, the Search audio control therefore uses the native file picker to select audio files. The picker supports selecting multiple recordings. Selected `File` objects are retained in a page-session cache, indexed by lower-cased filename, so later Search results can reuse a recording already selected without asking the user to select it again.
+
+The cache stores file references, not copies of the audio data. The actual audio player is created for the recording currently requested. If the selected batch does not contain the recording associated with the current result, Search reports that the matching file was not selected and allows the user to try another batch.
+
+After a file is loaded, the full native audio controls remain visible. If Safari blocks automatic playback, the user can start playback through those controls.
+
+This is a browser-session convenience, not persistent audio storage. Reloading or closing the page may require selecting the recordings again. The iPhone file-picker workflow is separate from the iOS share-sheet workflow used to save exported files.
+
+## 51.7 Scope and implementation boundaries
+
+The milestone is confined to Search-result presentation and access to source audio. It does not alter the durable `.txt` transcript files, the semantic embedding model, the indexing representations, or the existing Search → Combine handoff.
+
+The principal changes are in `searchUI.js`. The Search index and storage modules remain responsible for their existing indexing and persistence duties.
+
+The current implementation has passed a JavaScript syntax check. That check does not substitute for end-to-end testing in desktop browsers and iPhone Safari. In particular, selecting multiple audio files and playing them through iPhone Safari still requires practical device validation.
+
+## 51.8 Design conclusions
+
+The Search result should be a readable transcript, not a stack of competing copies of the same transcript. Semantic representations contribute evidence to that single view, and color communicates the relative specificity of the evidence without changing the underlying retrieval scores.
+
+Direct sentence matches remain visually authoritative. Context chunks add surrounding meaning only when they do not duplicate a narrower accepted match. Audio playback is optional and on demand, with desktop folder resolution and iPhone file selection kept separate to respect their different browser capabilities.
+
+These rules preserve the central Memora principle that the individual transcript remains durable source material, while Search provides a derived, navigable view over that material.
