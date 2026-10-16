@@ -562,39 +562,84 @@ function appendColoredTranscript(container, group) {
     });
 }
 
+let searchAudioRootHandle = null;
+
+async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
+    if (!directoryHandle || depth > 2 || !filename) return null;
+
+    try {
+        const direct = await directoryHandle.getFileHandle(filename);
+        return await direct.getFile();
+    } catch (_) {
+        // Try matching files in this directory and then its subfolders.
+    }
+
+    const wanted = filename.toLocaleLowerCase();
+    try {
+        for await (const [name, entry] of directoryHandle.entries()) {
+            if (entry.kind === "file" && name.toLocaleLowerCase() === wanted) {
+                return await entry.getFile();
+            }
+        }
+        if (depth < 2) {
+            for await (const [, entry] of directoryHandle.entries()) {
+                if (entry.kind !== "directory") continue;
+                const found = await findAudioInDirectory(entry, filename, depth + 1);
+                if (found) return found;
+            }
+        }
+    } catch (error) {
+        console.warn("Could not search audio folder:", error);
+    }
+    return null;
+}
+
 async function resolveSearchAudioFile(relativePath, recordingFilename) {
     const candidates = [...new Set([relativePath, recordingFilename].filter(Boolean))];
     const handle = searchSourceHandle;
-
     if (!handle) return null;
 
     if (handle.kind === "file-input") {
-        const wanted = new Set(candidates.map(value => value.split("/").pop().toLocaleLowerCase()));
+        const wanted = new Set(candidates.map(value => value.split(/[\\/]/).pop().toLocaleLowerCase()));
         return handle.files.find(file => wanted.has(file.name.toLocaleLowerCase())) || null;
     }
 
-    for (const candidate of candidates) {
-        try {
-            let currentHandle = handle;
-            const parts = candidate.replace(/\\/g, "/").split("/").filter(Boolean);
-            let fileHandle = null;
-
-            for (let index = 0; index < parts.length; index++) {
-                const part = parts[index];
-                if (index === parts.length - 1) {
-                    fileHandle = await currentHandle.getFileHandle(part);
-                } else {
-                    currentHandle = await currentHandle.getDirectoryHandle(part);
+    const roots = [...new Set([handle, searchAudioRootHandle].filter(Boolean))];
+    for (const root of roots) {
+        for (const candidate of candidates) {
+            try {
+                let currentHandle = root;
+                const parts = candidate.replace(/\\/g, "/").split("/").filter(Boolean);
+                let fileHandle = null;
+                for (let index = 0; index < parts.length; index++) {
+                    const part = parts[index];
+                    if (part === "." || part === "..") {
+                        // File System Access handles cannot navigate to a parent.
+                        fileHandle = null;
+                        break;
+                    }
+                    if (index === parts.length - 1) {
+                        fileHandle = await currentHandle.getFileHandle(part);
+                    } else {
+                        currentHandle = await currentHandle.getDirectoryHandle(part);
+                    }
                 }
+                if (fileHandle) return await fileHandle.getFile();
+            } catch (_) {
+                // Try the next candidate/root.
             }
-
-            if (fileHandle) return await fileHandle.getFile();
-        } catch (_) {
-            // Try the next known path or filename.
         }
-    }
 
+        const filename = recordingFilename || candidates[0]?.split(/[\\/]/).pop();
+        const found = await findAudioInDirectory(root, filename, 0);
+        if (found) return found;
+    }
     return null;
+}
+
+function isIPhoneBrowser() {
+    return /iPhone|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 function appendSearchAudioControl(section, group) {
@@ -605,38 +650,97 @@ function appendSearchAudioControl(section, group) {
     const control = document.createElement("div");
     control.className = "search-result-audio-control";
 
-    const loadButton = document.createElement("button");
-    loadButton.type = "button";
-    loadButton.textContent = "Load audio";
-    loadButton.setAttribute("aria-label", "Load recording audio");
+    const playButton = document.createElement("button");
+    playButton.type = "button";
+    playButton.className = "search-audio-play";
+    playButton.textContent = "▶";
+    playButton.setAttribute("aria-label", "Play recording audio");
+    playButton.title = "Play recording";
 
     const audio = document.createElement("audio");
     audio.controls = true;
     audio.preload = "none";
     audio.hidden = true;
+    audio.className = "search-result-audio";
+    if (isIPhoneBrowser()) {
+        audio.controls = false;
+        audio.classList.add("search-audio-no-controls");
+    }
 
-    loadButton.addEventListener("click", async () => {
-        loadButton.disabled = true;
-        loadButton.textContent = "Loading audio…";
+    const errorMessage = document.createElement("span");
+    errorMessage.className = "search-audio-error";
+    errorMessage.hidden = true;
+    errorMessage.setAttribute("role", "status");
+
+    playButton.addEventListener("click", async () => {
+        if (audio.src) {
+            if (!isIPhoneBrowser()) audio.hidden = false;
+            try {
+                await audio.play();
+            } catch (error) {
+                errorMessage.textContent = error?.message || "Could not play this recording.";
+                errorMessage.hidden = false;
+            }
+            return;
+        }
+
+        playButton.disabled = true;
+        playButton.textContent = "…";
+        errorMessage.hidden = true;
         try {
-            const file = await resolveSearchAudioFile(relativePath, recordingFilename);
-            if (!file) throw new Error("Recording file not found in the selected Search Source folder.");
-            if (audio.dataset.objectUrl) URL.revokeObjectURL(audio.dataset.objectUrl);
+            let file = await resolveSearchAudioFile(relativePath, recordingFilename);
+
+            // The browser does not allow a selected directory handle to walk upward
+            // to its parent. If the audio is in the parent of the selected Combine
+            // folder (for example, ../ inside audio/transcription/combine), ask once
+            // for the audio-containing folder and reuse that handle for later results.
+            if (!file && searchSourceHandle?.kind !== "file-input" && window.showDirectoryPicker) {
+                errorMessage.textContent = "The recording wasn't in the selected folder. Select the parent folder that contains the audio.";
+                errorMessage.hidden = false;
+                const chosenRoot = await window.showDirectoryPicker({ mode: "read" });
+                searchAudioRootHandle = chosenRoot;
+                file = await resolveSearchAudioFile(relativePath, recordingFilename);
+            }
+
+            if (!file) {
+                throw new Error("Recording not found. Check the selected folder and its parent/grandparent.");
+            }
+
             const objectUrl = URL.createObjectURL(file);
-            audio.dataset.objectUrl = objectUrl;
             audio.src = objectUrl;
-            audio.hidden = false;
-            loadButton.textContent = "Audio loaded";
-            loadButton.disabled = false;
+            audio.hidden = isIPhoneBrowser();
+            if (!isIPhoneBrowser()) {
+                audio.controls = true;
+            }
+            playButton.textContent = "▶";
+            playButton.title = "Play recording";
+            errorMessage.hidden = true;
+
+            try {
+                await audio.play();
+            } catch (playError) {
+                // Some browsers require a second direct tap after file selection.
+                if (!isIPhoneBrowser()) {
+                    errorMessage.textContent = "Audio is loaded. Use the player controls to start playback.";
+                    errorMessage.hidden = false;
+                } else {
+                    throw playError;
+                }
+            }
         } catch (error) {
-            loadButton.textContent = "Audio unavailable";
-            loadButton.title = error?.message || "Could not load the recording.";
-            loadButton.disabled = false;
+            if (error?.name !== "AbortError") {
+                errorMessage.textContent = error?.message || "Could not load the recording.";
+                errorMessage.hidden = false;
+            }
+        } finally {
+            playButton.disabled = false;
+            playButton.textContent = "▶";
         }
     });
 
-    control.appendChild(loadButton);
+    control.appendChild(playButton);
     control.appendChild(audio);
+    control.appendChild(errorMessage);
     section.appendChild(control);
 }
 
@@ -803,21 +907,43 @@ function renderSearchResults(payload) {
         fileName.className = "search-result-file-name";
         fileName.textContent = group.filename;
         fileText.appendChild(fileName);
-        if (group.record?.recordingFilename) {
-            const details = document.createElement("div");
-            details.className = "search-result-file-details";
-            details.textContent = group.record.recordingFilename;
-            fileText.appendChild(details);
-        }
+        // The result header stays minimal when its transcript is collapsed:
+        // show the transcript name and selection checkbox only.
         header.appendChild(checkbox);
         header.appendChild(fileText);
+
+        // Keep the filename, selection checkbox and text toggle visible.
+        // Audio controls and transcript text belong to the collapsible body.
+        const transcriptToggle = document.createElement("button");
+        transcriptToggle.type = "button";
+        transcriptToggle.className = "search-transcript-toggle";
+        transcriptToggle.textContent = "Hide transcript";
+        transcriptToggle.title = "Hide transcript";
+        transcriptToggle.setAttribute("aria-label", "Hide transcript");
+        transcriptToggle.setAttribute("aria-expanded", "true");
+        transcriptToggle.style.marginLeft = "auto";
+        transcriptToggle.style.flexShrink = "0";
+        header.appendChild(transcriptToggle);
         section.appendChild(header);
 
-        appendSearchAudioControl(section, group);
         const transcriptElement = document.createElement("div");
         transcriptElement.className = "search-result-full-transcript";
-        appendColoredTranscript(transcriptElement, group);
+
+        appendSearchAudioControl(transcriptElement, group);
+        const transcriptTextElement = document.createElement("div");
+        transcriptTextElement.className = "search-transcript-text";
+        appendColoredTranscript(transcriptTextElement, group);
+        transcriptElement.appendChild(transcriptTextElement);
         section.appendChild(transcriptElement);
+
+        transcriptToggle.addEventListener("click", () => {
+            const willHide = !transcriptElement.hidden;
+            transcriptElement.hidden = willHide;
+            transcriptToggle.textContent = willHide ? "Show transcript" : "Hide transcript";
+            transcriptToggle.title = transcriptToggle.textContent;
+            transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
+            transcriptToggle.setAttribute("aria-expanded", String(!willHide));
+        });
 
         searchResults.appendChild(section);
         searchResultListItems.push(section);
