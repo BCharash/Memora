@@ -686,7 +686,7 @@ button:disabled {
     margin-bottom: 8px;
 }
 
-'.lexical-fuzzy-control {
+.lexical-fuzzy-control {
     margin: 0 0 14px;
     padding: 11px 12px 9px;
     border: 1px solid var(--border);
@@ -724,6 +724,68 @@ button:disabled {
 }
 
 .lexical-fuzzy-help {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.semantic-fraction-control {
+    margin: 0 0 14px;
+    padding: 11px 12px 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #FAFBFD;
+}
+
+.semantic-fraction-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 5px;
+}
+
+.semantic-fraction-heading label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+#semanticFractionValue {
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+#semanticFractionSlider {
+    display: block;
+    width: 100%;
+    margin: 5px 0 3px;
+    accent-color: var(--navy);
+    cursor: pointer;
+}
+
+
+.semantic-fraction-scale {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 1px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.semantic-fraction-scale span:nth-child(2) {
+    text-align: center;
+}
+
+.semantic-fraction-scale span:last-child {
+    text-align: right;
+}
+
+.semantic-fraction-help {
     margin: 4px 0 0;
     color: var(--muted);
     font-size: 12px;
