@@ -7,6 +7,13 @@ let getSearchModule;
 const searchSourceButton = document.getElementById("searchSourceButton");
 const searchIndexUpdateButton = document.getElementById("searchIndexUpdateButton");
 const searchQueryInput = document.getElementById("searchQueryInput");
+const lexicalFuzzySlider = document.getElementById("lexicalFuzzySlider");
+const lexicalFuzzyValue = document.getElementById("lexicalFuzzyValue");
+const LEXICAL_FUZZY_STORAGE_KEY = "memoraLexicalFuzzyThreshold";
+const DEFAULT_LEXICAL_FUZZY_PERCENT = 80;
+const MIN_LEXICAL_FUZZY_PERCENT = 70;
+const MAX_LEXICAL_FUZZY_PERCENT = 100;
+const LEXICAL_FUZZY_STEP = 5;
 const searchButton = document.getElementById("searchButton");
 const searchIndexStatus = document.getElementById("searchIndexStatus");
 const searchQueryStatus = document.getElementById("searchQueryStatus");
@@ -17,6 +24,39 @@ let searchIndexBuildToken = 0;
 let searchIndexReady = false;
 let combineSelectionHandler = null;
 let currentSearchIndex = null;
+
+function getLexicalFuzzyPercent() {
+    const value = Number(lexicalFuzzySlider?.value);
+    return Number.isFinite(value)
+        ? Math.min(MAX_LEXICAL_FUZZY_PERCENT, Math.max(MIN_LEXICAL_FUZZY_PERCENT, value))
+        : DEFAULT_LEXICAL_FUZZY_PERCENT;
+}
+
+function updateLexicalFuzzyValue() {
+    if (lexicalFuzzySlider && lexicalFuzzyValue) {
+        lexicalFuzzyValue.textContent = `${getLexicalFuzzyPercent()}%`;
+    }
+}
+
+if (lexicalFuzzySlider) {
+    // Set the range here as well as in the HTML so the control remains correct
+    // even if an older cached index.html still specifies a 50% minimum.
+    lexicalFuzzySlider.min = String(MIN_LEXICAL_FUZZY_PERCENT);
+    lexicalFuzzySlider.max = String(MAX_LEXICAL_FUZZY_PERCENT);
+    lexicalFuzzySlider.step = String(LEXICAL_FUZZY_STEP);
+}
+
+try {
+    const savedThreshold = Number(localStorage.getItem(LEXICAL_FUZZY_STORAGE_KEY));
+    if (lexicalFuzzySlider && Number.isFinite(savedThreshold) && savedThreshold >= MIN_LEXICAL_FUZZY_PERCENT && savedThreshold <= MAX_LEXICAL_FUZZY_PERCENT) {
+        lexicalFuzzySlider.value = String(Math.round(savedThreshold / LEXICAL_FUZZY_STEP) * LEXICAL_FUZZY_STEP);
+    } else if (lexicalFuzzySlider) {
+        lexicalFuzzySlider.value = String(DEFAULT_LEXICAL_FUZZY_PERCENT);
+    }
+} catch (_) {
+    // Use the default when browser storage is unavailable.
+}
+updateLexicalFuzzyValue();
 
 function setSearchBusy(busy) {
 
@@ -456,6 +496,37 @@ function setSentenceColor(group, paragraphIndex, sentenceIndex, color, priority,
     }
 }
 
+function appendLexicallyBoldText(container, text, matchRanges) {
+    const ranges = (Array.isArray(matchRanges) ? matchRanges : [])
+        .filter(range => Number.isFinite(range.start) && Number.isFinite(range.end) &&
+            range.start >= 0 && range.end > range.start && range.end <= text.length)
+        .sort((a, b) => a.start - b.start || a.end - b.end);
+    if (!ranges.length) {
+        container.appendChild(document.createTextNode(text));
+        return;
+    }
+
+    let cursor = 0;
+    for (const range of ranges) {
+        // Merge overlapping ranges so repeated/overlapping query hits do not
+        // duplicate text or create nested <strong> elements.
+        const start = Math.max(cursor, range.start);
+        if (start > cursor) {
+            container.appendChild(document.createTextNode(text.slice(cursor, start)));
+        }
+        const end = Math.max(start, range.end);
+        if (end > start) {
+            const strong = document.createElement("strong");
+            strong.textContent = text.slice(start, end);
+            container.appendChild(strong);
+            cursor = end;
+        }
+    }
+    if (cursor < text.length) {
+        container.appendChild(document.createTextNode(text.slice(cursor)));
+    }
+}
+
 function appendColoredTranscript(container, group) {
     const transcript = String(group.record?.transcript || "").trim();
     if (!transcript) {
@@ -527,7 +598,20 @@ function appendColoredTranscript(container, group) {
             mark.style.setProperty("-webkit-box-decoration-break", "clone");
             mark.style.setProperty("box-decoration-break", "clone");
             mark.style.borderRadius = "2px";
-            mark.textContent = run.text;
+            // Preserve the existing continuous colored background, but apply
+            // lexical bolding sentence by sentence inside that background.
+            const runSentences = splitTranscriptSentences(run.text);
+            if (!runSentences.length) {
+                mark.textContent = run.text;
+            } else {
+                runSentences.forEach((sentence, index) => {
+                    if (index > 0) mark.appendChild(document.createTextNode(" "));
+                    const lexicalWords = group.lexicalMatchesBySentence?.get(
+                        normalizeSentenceMatchKey(sentence)
+                    );
+                    appendLexicallyBoldText(mark, sentence, lexicalWords);
+                });
+            }
             paragraphElement.appendChild(mark);
             run = null;
         };
@@ -553,7 +637,10 @@ function appendColoredTranscript(container, group) {
                 }
             } else {
                 flushRun();
-                paragraphElement.appendChild(document.createTextNode(piece.sentence));
+                const lexicalWords = group.lexicalMatchesBySentence?.get(
+                    normalizeSentenceMatchKey(piece.sentence)
+                );
+                appendLexicallyBoldText(paragraphElement, piece.sentence, lexicalWords);
             }
         });
 
@@ -847,9 +934,9 @@ function renderSearchResults(payload) {
         audio.load();
     });
     searchResults.innerHTML = "";
-    const rawResults = payload?.results || [];
+    const rawResults = (payload?.results || []).concat(payload?.lexicalResults || []);
     if (rawResults.length === 0) {
-        searchResults.innerHTML = '<p class="empty-message">No semantic matches were found.</p>';
+        searchResults.innerHTML = '<p class="empty-message">No lexical or semantic matches were found.</p>';
         return { files: [], displayedChunkCount: 0 };
     }
 
@@ -862,7 +949,9 @@ function renderSearchResults(payload) {
                 record: result.record,
                 sentenceColors: new Map(),
                 yellowSentences: new Set(),
-                displayRank: 0
+                lexicalMatchesBySentence: new Map(),
+                displayCategory: Number.POSITIVE_INFINITY,
+                displayRelevance: 0
             };
             files.set(result.filename, group);
         }
@@ -896,7 +985,35 @@ function renderSearchResults(payload) {
             0,
             yellowText
         );
-        group.displayRank = Math.max(group.displayRank, 1 / Math.max(1, result.rank || 1));
+        if (group.displayCategory > 1) {
+            group.displayCategory = 1;
+            group.displayRelevance = 0;
+        }
+        if (group.displayCategory === 1) {
+            group.displayRelevance = Math.max(
+                group.displayRelevance,
+                1 / Math.max(1, result.rank || 1)
+            );
+        }
+    }
+
+    // Lexical matches are independent of semantic matches, so lexical-only
+    // transcripts are included and their matching words can be bolded.
+    for (const result of payload.lexicalResults || []) {
+        const group = getFileGroup(result);
+        const key = normalizeSentenceMatchKey(result.sentence || "");
+        if (key && Number.isFinite(result.matchStart) && Number.isFinite(result.matchEnd)) {
+            const ranges = group.lexicalMatchesBySentence.get(key) || [];
+            ranges.push({ start: result.matchStart, end: result.matchEnd });
+            group.lexicalMatchesBySentence.set(key, ranges);
+        }
+        if (group.displayCategory > 0) {
+            group.displayCategory = 0;
+            group.displayRelevance = 0;
+        }
+        if (group.displayCategory === 0) {
+            group.displayRelevance = Math.max(group.displayRelevance, result.score || 0);
+        }
     }
 
     const orderedChunks = [...(payload.chunkResults || [])].sort((a, b) => {
@@ -937,11 +1054,28 @@ function renderSearchResults(payload) {
 
         acceptedChunks.push({ chunkSize, keys: new Set(keys) });
         acceptedChunksByFile.set(result.filename, acceptedChunks);
-        group.displayRank = Math.max(group.displayRank, result.relativeRank || 0);
+        const categoryByRepresentation = { "3–1": 2, "5–2": 3, "7–3": 4 };
+        const category = categoryByRepresentation[result.representation] ?? 4;
+        if (category < group.displayCategory) {
+            group.displayCategory = category;
+            group.displayRelevance = result.relativeRank || result.score || 0;
+        } else if (category === group.displayCategory) {
+            group.displayRelevance = Math.max(
+                group.displayRelevance,
+                result.relativeRank || result.score || 0
+            );
+        }
         displayedChunkCount++;
     }
 
-    const groups = Array.from(files.values()).sort((a, b) => b.displayRank - a.displayRank);
+    // Transcript order is categorical first, relevance second:
+    // lexical > sentence > contextual 3–1 > 5–2 > 7–3.
+    // A transcript appears only once, at its strongest available match category.
+    const groups = Array.from(files.values()).sort((a, b) =>
+        a.displayCategory - b.displayCategory ||
+        b.displayRelevance - a.displayRelevance ||
+        a.filename.localeCompare(b.filename)
+    );
 
     const toolbar = document.createElement("div");
     toolbar.className = "search-results-toolbar";
@@ -1210,6 +1344,9 @@ async function runSearchQuery() {
                 }
             );
 
+        const lexicalResults =
+            search.searchLexical(query, { threshold: getLexicalFuzzyPercent() / 100 });
+
         const contextualPayload =
             await search.searchStoredRepresentations(
                 query,
@@ -1222,6 +1359,7 @@ async function runSearchQuery() {
         const payload = {
             results: sentencePayload.sentenceResults
                 .concat(contextualPayload.chunkResults)
+                .concat(lexicalResults)
                 .sort((a, b) => {
                     const aRank =
                         a.type === "chunk"
@@ -1235,6 +1373,7 @@ async function runSearchQuery() {
                 }),
             sentenceResults: sentencePayload.sentenceResults,
             chunkResults: contextualPayload.chunkResults,
+            lexicalResults,
             durationMs: sentencePayload.durationMs,
             representations: contextualPayload.representations
         };
@@ -1242,7 +1381,9 @@ async function runSearchQuery() {
         const displaySummary = renderSearchResults(payload);
 
         setSearchQueryStatus(
-            `${displaySummary.displayedChunkCount} contextual result${displaySummary.displayedChunkCount === 1 ? "" : "s"} shown after overlap filtering` +
+            `${lexicalResults.length} lexical sentence match${lexicalResults.length === 1 ? "" : "es"}` +
+            ` · ${(sentencePayload.sentenceResults || []).length} semantic sentence matches` +
+            ` · ${displaySummary.displayedChunkCount} contextual results after overlap filtering` +
             ` · ${formatElapsed(payload.durationMs / 1000)}.`
         );
 
@@ -1384,6 +1525,22 @@ export function initSearchUI({
         );
     }
 
+
+    if (lexicalFuzzySlider) {
+        lexicalFuzzySlider.addEventListener("input", updateLexicalFuzzyValue);
+        lexicalFuzzySlider.addEventListener("change", () => {
+            try {
+                localStorage.setItem(LEXICAL_FUZZY_STORAGE_KEY, String(getLexicalFuzzyPercent()));
+            } catch (_) {
+                // The current setting still applies for this page session.
+            }
+            // Re-run the current query after the user releases the slider.
+            // This avoids launching repeated semantic searches during dragging.
+            if (searchIndexReady && searchQueryInput?.value.trim()) {
+                runSearchQuery();
+            }
+        });
+    }
 
     if (searchButton) {
         searchButton.addEventListener(

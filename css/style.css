@@ -686,6 +686,50 @@ button:disabled {
     margin-bottom: 8px;
 }
 
+'.lexical-fuzzy-control {
+    margin: 0 0 14px;
+    padding: 11px 12px 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #FAFBFD;
+}
+
+.lexical-fuzzy-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 5px;
+}
+
+.lexical-fuzzy-heading label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+#lexicalFuzzyValue {
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+#lexicalFuzzySlider {
+    display: block;
+    width: 100%;
+    margin: 5px 0 3px;
+    accent-color: var(--navy);
+    cursor: pointer;
+}
+
+.lexical-fuzzy-help {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 .search-query-row {
     display: flex;
     gap: 10px;

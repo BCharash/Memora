@@ -513,6 +513,25 @@
                         Search your transcripts
                     </label>
 
+                    <div class="lexical-fuzzy-control">
+                        <div class="lexical-fuzzy-heading">
+                            <label for="lexicalFuzzySlider">Lexical fuzzy matching</label>
+                            <output id="lexicalFuzzyValue" for="lexicalFuzzySlider">80%</output>
+                        </div>
+                        <input
+                            id="lexicalFuzzySlider"
+                            type="range"
+                            min="50"
+                            max="100"
+                            step="5"
+                            value="80"
+                            aria-describedby="lexicalFuzzyHelp"
+                        >
+                        <p id="lexicalFuzzyHelp" class="lexical-fuzzy-help">
+                            Controls how closely each word must match. Lower values allow more variations in spelling.
+                        </p>
+                    </div>
+
                     <div class="search-query-row">
                         <input
                             id="searchQueryInput"

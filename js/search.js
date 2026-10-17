@@ -816,6 +816,146 @@ export async function buildSearchIndex(
 }
 
 
+// --------------------------------------------------
+// Lexical phrase search
+// --------------------------------------------------
+// First-pass default: average character similarity across the query's words.
+// This is deliberately fixed in code; a Settings control can be added later.
+const LEXICAL_SIMILARITY_THRESHOLD = 0.80;
+
+function tokenizeLexicalWords(text) {
+    const source = String(text || "");
+    const tokens = [];
+    const pattern = /[\p{L}\p{N}]+/gu;
+    for (const match of source.matchAll(pattern)) {
+        tokens.push({
+            word: match[0].normalize("NFKC").toLocaleLowerCase(),
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+    return tokens;
+}
+
+function normalizeLexicalWords(text) {
+    return tokenizeLexicalWords(text).map(token => token.word);
+}
+
+function lexicalEditDistance(a, b) {
+    const previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+        let diagonal = previous[0];
+        previous[0] = i;
+        for (let j = 1; j <= b.length; j++) {
+            const old = previous[j];
+            previous[j] = Math.min(
+                previous[j] + 1,
+                previous[j - 1] + 1,
+                diagonal + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+            diagonal = old;
+        }
+    }
+    return previous[b.length];
+}
+
+function lexicalSingularForm(word) {
+    // Normalize common English inflections before measuring spelling distance.
+    // This lets a query for "agents" match "agent" even at a strict threshold.
+    if (word.length > 4 && word.endsWith("ies")) {
+        return `${word.slice(0, -3)}y`;
+    }
+    if (word.length > 4 && /(ches|shes|sses|xes|zes)$/.test(word)) {
+        return word.slice(0, -2);
+    }
+    if (word.length > 3 && word.endsWith("s") && !/(ss|us|is)$/.test(word)) {
+        return word.slice(0, -1);
+    }
+    return word;
+}
+
+function lexicalWordSimilarity(a, b) {
+    if (a === b) return 1;
+    if (!a || !b) return 0;
+
+    // Inflectional variants are not spelling errors and should not be penalized
+    // by the user's fuzzy-matching threshold.
+    if (lexicalSingularForm(a) === lexicalSingularForm(b)) return 1;
+
+    return Math.max(0, 1 - lexicalEditDistance(a, b) / Math.max(a.length, b.length));
+}
+
+function scoreLexicalWindow(queryWords, sentenceTokens, start) {
+    let total = 0;
+    const matchedWords = [];
+    for (let i = 0; i < queryWords.length; i++) {
+        const actual = sentenceTokens[start + i];
+        total += lexicalWordSimilarity(queryWords[i], actual.word);
+        matchedWords.push(actual.word);
+    }
+    const wordSimilarities = queryWords.map((word, index) =>
+        lexicalWordSimilarity(word, sentenceTokens[start + index].word)
+    );
+    return {
+        score: total / queryWords.length,
+        wordSimilarities,
+        matchedWords,
+        matchStart: sentenceTokens[start].start,
+        matchEnd: sentenceTokens[start + queryWords.length - 1].end
+    };
+}
+
+/**
+ * Find literal/near-literal phrase matches in indexed sentences.
+ * Results are independent of semantic ranking so lexical matches can surface
+ * transcripts even when semantic scores are weak.
+ */
+export function searchLexical(query, { threshold = LEXICAL_SIMILARITY_THRESHOLD } = {}) {
+    if (!currentIndex) {
+        throw new Error("A search index has not been built yet.");
+    }
+    const queryWords = normalizeLexicalWords(query);
+    if (!queryWords.length) return [];
+
+    const results = [];
+    for (const entry of currentIndex.entries || []) {
+        const sentenceTokens = tokenizeLexicalWords(entry.sentence);
+        if (sentenceTokens.length < queryWords.length) continue;
+
+        let best = null;
+        for (let start = 0; start <= sentenceTokens.length - queryWords.length; start++) {
+            const candidate = scoreLexicalWindow(queryWords, sentenceTokens, start);
+            if (!best || candidate.score > best.score) best = { ...candidate, start };
+            if (candidate.score === 1) break;
+        }
+        // Apply the fuzzy threshold to every word, not only to the average.
+        // Otherwise exact common words such as "the" and "of" can compensate
+        // for a completely different middle word (e.g. "center" vs "sense").
+        if (
+            !best ||
+            best.wordSimilarities.some(similarity => similarity < threshold)
+        ) continue;
+
+        results.push({
+            type: "lexical",
+            record: entry.record,
+            filename: entry.record.filename,
+            recordingFilename: entry.record.recordingFilename,
+            recordingDate: entry.record.recordingDate,
+            audioRelativePath: entry.record.audioRelativePath,
+            paragraph: entry.paragraph,
+            paragraphIndex: entry.paragraphIndex,
+            sentence: entry.sentence,
+            sentenceIndex: entry.sentenceIndex,
+            score: best.score,
+            matchedWords: best.matchedWords,
+            matchStart: best.matchStart,
+            matchEnd: best.matchEnd
+        });
+    }
+    return results.sort((a, b) => b.score - a.score);
+}
+
 export async function search(
     query,
     maxResults = 30,
