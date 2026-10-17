@@ -419,3 +419,55 @@ The Search result should be a readable transcript, not a stack of competing copi
 Direct sentence matches remain visually authoritative. Context chunks add surrounding meaning only when they do not duplicate a narrower accepted match. Audio playback is optional and on demand, with desktop folder resolution and iPhone file selection kept separate to respect their different browser capabilities.
 
 These rules preserve the central Memora principle that the individual transcript remains durable source material, while Search provides a derived, navigable view over that material.
+
+---
+
+# 52. Search Controls: Lexical Fuzzy Matching and Semantic Filtering Sliders
+
+The Search tab now has two adjustable controls positioned above the search query box. They let the user tune lexical matching and semantic result filtering while working through searches, without changing the underlying transcript files or the semantic index.
+
+## 52.1 Lexical fuzzy-matching slider
+
+The **Lexical fuzzy matching** slider controls how closely each query word must match a word in the transcript for a lexical match to qualify.
+
+- The default is **80%**.
+- The range is **70%–100%**, in five-percentage-point increments in the current UI logic.
+- Lower settings allow more spelling variation; higher settings demand closer matches.
+- At **100%**, lexical matching requires exact word matches.
+- The threshold is applied to each word individually. A strong match for one word cannot compensate for a weak match for another word in the query.
+- When a lexical match is displayed, bolding is limited to the actual matched text span rather than every occurrence of the same query word elsewhere in the transcript.
+
+The setting is saved on the current device. When the user changes it with a query already entered, Memora reruns that query after the slider change is committed. This avoids repeatedly rerunning the full search while the user is dragging the control.
+
+## 52.2 Continuous semantic-filtering slider
+
+The **Semantic filtering** slider controls how many of the highest-ranked semantic candidates are retained for display. Unlike the lexical control, it is not a similarity threshold and does not change the semantic scores themselves.
+
+The slider is continuous, with **Low**, **Medium**, and **High** shown as guide labels rather than as the only selectable positions:
+
+- **Low** retains all candidates returned by semantic retrieval.
+- Moving right progressively retains a smaller fraction of the candidates.
+- **Medium** is a visual midpoint, not a separate mode.
+- **High** retains fewer of the highest-ranked candidates.
+- The experimental range retains between **100% and 50%** of the available semantic candidates.
+
+The filtering is applied separately to sentence-level results and to each contextual-window family. This is intended to avoid allowing one representation family to eliminate another merely because their result counts or score distributions differ. Lexical matches are not filtered by this control.
+
+This is a result-count experiment, not a calibrated relevance cutoff. Retaining fewer candidates can remove useful results, and the proportion retained does not necessarily translate into the same proportion of unique transcript files shown because different candidates can refer to the same transcript or overlapping passages.
+
+The semantic setting is saved on the current device. Existing saved settings from the earlier three-level version are mapped to the nearest position when the continuous slider is initialized.
+
+## 52.3 How the two controls work together
+
+The controls serve different purposes:
+
+- **Lexical fuzzy matching** adjusts tolerance for word-level textual differences.
+- **Semantic filtering** adjusts how many of the highest-ranked semantic candidates are retained.
+
+Both lexical and semantic search still run. Lexical matches remain prioritized in result ordering and are not removed by semantic filtering. Existing semantic highlighting, contextual-overlap suppression, transcript deduplication, and audio controls remain separate from these slider settings.
+
+The sliders are deliberately placed above the query box so that they can be adjusted as part of an active search rather than buried in Settings. Their preferences are local to the current browser/device.
+
+## 52.4 Validation status and limitations
+
+The JavaScript implementation passed a syntax check. This does not establish end-to-end behavior in every browser. The continuous semantic slider should be checked in the running app to confirm that intermediate positions update the retained fraction smoothly and that saved preferences are restored as expected. Search relevance should also be evaluated against real transcript queries before treating any setting as a recommended default beyond the current experimental defaults.
