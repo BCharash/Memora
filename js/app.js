@@ -10,6 +10,37 @@ import { initSearchUI } from "./searchUI.js";
 import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
 import { initSettingsUI } from "./settings.js";
 
+// --------------------------------------------------
+// Display text-size preference
+// --------------------------------------------------
+
+const TEXT_SIZE_STORAGE_KEY = "memoraTextSizePx";
+const DEFAULT_TEXT_SIZE_PX = 16;
+
+function applyTextSizePreference(value) {
+    const size = Math.max(14, Math.min(26, Number(value) || DEFAULT_TEXT_SIZE_PX));
+    const root = document.documentElement;
+    root.style.setProperty("--memora-file-heading-size", `${size}px`);
+    root.style.setProperty("--memora-transcript-heading-size", `${Math.round(size * 0.9375)}px`);
+    root.style.setProperty("--memora-transcript-body-size", `${size}px`);
+    root.style.setProperty("--memora-search-body-size", `${size}px`);
+    root.style.setProperty("--memora-settings-help-size", `${size}px`);
+
+    const slider = document.getElementById("textSizeSlider");
+    const valueLabel = document.getElementById("textSizeValue");
+    if (slider && slider.value !== String(size)) slider.value = String(size);
+    if (valueLabel) valueLabel.textContent = `${size} px`;
+}
+
+let savedTextSize = DEFAULT_TEXT_SIZE_PX;
+try {
+    const storedTextSize = localStorage.getItem(TEXT_SIZE_STORAGE_KEY);
+    if (storedTextSize !== null) savedTextSize = Number(storedTextSize);
+} catch (error) {
+    // Continue with the default if browser storage is unavailable.
+}
+applyTextSizePreference(savedTextSize);
+
 const DEFAULT_COMBINE_TITLE = "Memora — Combined Transcription";
 
 let storageModulePromise = import("./storage.js");
@@ -1011,6 +1042,17 @@ if (
 const settingsUI = initSettingsUI({
     getStorageManager: getStorageManagerModule,
     getStorage: getStorageModule
+});
+
+const textSizeSlider = document.getElementById("textSizeSlider");
+textSizeSlider?.addEventListener("input", () => {
+    const size = Number(textSizeSlider.value);
+    applyTextSizePreference(size);
+    try {
+        localStorage.setItem(TEXT_SIZE_STORAGE_KEY, String(size));
+    } catch (error) {
+        // The current page still updates even if the preference cannot be saved.
+    }
 });
 
 

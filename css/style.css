@@ -6,6 +6,12 @@
     --surface: #FFFFFF;
     --border: #E1E4E8;
     --tab-active: #5B4B8A;
+
+    --memora-file-heading-size: 16px;
+    --memora-transcript-heading-size: 15px;
+    --memora-transcript-body-size: 16px;
+    --memora-search-body-size: 16px;
+    --memora-settings-help-size: 16px;
 }
 
 * {
@@ -295,7 +301,7 @@ button:disabled {
 }
 
 .recording-name {
-    font-size: 16px;
+    font-size: var(--memora-file-heading-size);
     font-weight: 500;
     line-height: 1.4;
 }
@@ -435,12 +441,13 @@ button:disabled {
 
 .transcription-block h3 {
     margin: 0 0 8px;
-    font-size: 15px;
+    font-size: var(--memora-transcript-heading-size);
     font-weight: 600;
 }
 
 .transcription-block p {
     margin: 0;
+    font-size: var(--memora-transcript-body-size);
     white-space: pre-wrap;
     line-height: 1.6;
 }
@@ -528,6 +535,41 @@ button:disabled {
 /* --------------------------------------------------
    Settings
    -------------------------------------------------- */
+
+.settings-display-section .text-size-setting {
+    max-width: 560px;
+}
+
+.text-size-setting > label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.text-size-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.text-size-slider-row input[type="range"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    accent-color: var(--navy);
+}
+
+.text-size-slider-row output {
+    min-width: 48px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.settings-help {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: var(--memora-settings-help-size);
+    line-height: 1.5;
+}
 
 .settings-section {
     margin-top: 24px;
@@ -725,7 +767,7 @@ button:disabled {
 }
 
 .search-result-file-name {
-    font-size: 16px;
+    font-size: var(--memora-file-heading-size);
     font-weight: 600;
     line-height: 1.4;
 }
@@ -756,6 +798,7 @@ button:disabled {
 }
 
 .search-result-passage-text {
+    font-size: var(--memora-search-body-size);
     white-space: pre-wrap;
 }
 
@@ -1038,4 +1081,5 @@ button:disabled {
 }
 .search-transcript-text {
     margin-top: 12px;
+    font-size: var(--memora-search-body-size);
 }
