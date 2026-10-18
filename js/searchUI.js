@@ -712,8 +712,10 @@ function appendColoredTranscript(container, group) {
                     run.text += " ";
                 } else {
                     flushRun();
-                    if (color) run = { color, text: " " };
-                    else paragraphElement.appendChild(document.createTextNode(" "));
+                    // Keep the separator outside a newly starting highlight.
+                    // flushRun() splits run.text into sentences and trims them,
+                    // so putting this space inside run.text would discard it.
+                    paragraphElement.appendChild(document.createTextNode(" "));
                 }
             }
 
