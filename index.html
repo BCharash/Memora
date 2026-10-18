@@ -555,12 +555,23 @@
                     </div>
 
                     <div class="search-query-row">
-                        <input
-                            id="searchQueryInput"
-                            type="search"
-                            autocomplete="off"
-                            disabled
-                        >
+                        <div class="search-input-wrap">
+                            <input
+                                id="searchQueryInput"
+                                type="search"
+                                autocomplete="off"
+                                aria-label="Search your transcripts"
+                                disabled
+                            >
+                            <button
+                                id="clearSearchButton"
+                                class="search-clear-button"
+                                type="button"
+                                aria-label="Clear search and results"
+                                title="Clear search and results"
+                                disabled
+                            >×</button>
+                        </div>
 
                         <button
                             id="searchButton"

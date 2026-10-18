@@ -7,6 +7,7 @@ let getSearchModule;
 const searchSourceButton = document.getElementById("searchSourceButton");
 const searchIndexUpdateButton = document.getElementById("searchIndexUpdateButton");
 const searchQueryInput = document.getElementById("searchQueryInput");
+const clearSearchButton = document.getElementById("clearSearchButton");
 const lexicalFuzzySlider = document.getElementById("lexicalFuzzySlider");
 const lexicalFuzzyValue = document.getElementById("lexicalFuzzyValue");
 const semanticFractionSlider = document.getElementById("semanticFractionSlider");
@@ -31,6 +32,7 @@ let searchIndexBuildToken = 0;
 let searchIndexReady = false;
 let combineSelectionHandler = null;
 let currentSearchIndex = null;
+let searchQueryToken = 0;
 
 function getLexicalFuzzyPercent() {
     const value = Number(lexicalFuzzySlider?.value);
@@ -152,6 +154,7 @@ function setSearchBusy(busy) {
     if (searchQueryInput) {
         searchQueryInput.disabled = busy || !searchIndexReady;
     }
+    updateClearSearchButton();
 
     if (searchButton) {
         searchButton.disabled = busy || !searchIndexReady;
@@ -1389,6 +1392,50 @@ function appendHighlightedChunk(
 }
 
 
+function updateClearSearchButton() {
+    if (!clearSearchButton) return;
+
+    const hasQuery = Boolean(searchQueryInput?.value);
+    // Clearing must remain available even while an index/search operation is busy.
+    clearSearchButton.disabled = !hasQuery;
+    clearSearchButton.setAttribute("aria-disabled", String(clearSearchButton.disabled));
+}
+
+function clearSearchQueryAndResults() {
+    // Invalidate any search still in progress so it cannot repopulate cleared results.
+    searchQueryToken++;
+
+    if (searchQueryInput) {
+        searchQueryInput.value = "";
+    }
+
+    if (searchResults) {
+        searchResults.querySelectorAll("audio[data-object-url]").forEach(audio => {
+            try {
+                URL.revokeObjectURL(audio.dataset.objectUrl);
+            } catch (_) {}
+            delete audio.dataset.objectUrl;
+            audio.removeAttribute("src");
+            audio.load();
+        });
+        searchResults.innerHTML = "";
+    }
+
+    if (searchQueryStatus) {
+        searchQueryStatus.hidden = true;
+        searchQueryStatus.innerHTML = "";
+    }
+
+    if (searchButton) {
+        searchButton.disabled = !searchIndexReady;
+    }
+
+    updateClearSearchButton();
+
+    // Do not move focus during a pointer event. On some browsers, focusing
+    // the input here can interfere with completing the button's click gesture.
+}
+
 async function runSearchQuery() {
 
     if (!searchIndexReady || !searchQueryInput) {
@@ -1402,6 +1449,8 @@ async function runSearchQuery() {
         searchQueryInput.focus();
         return;
     }
+
+    const requestToken = ++searchQueryToken;
 
     if (searchButton) {
         searchButton.disabled = true;
@@ -1422,12 +1471,15 @@ async function runSearchQuery() {
                 query,
                 30,
                 message => {
+                    if (requestToken !== searchQueryToken) return;
                     setSearchQueryStatus(
                         message,
                         true
                     );
                 }
             );
+
+        if (requestToken !== searchQueryToken) return;
 
         const lexicalResults =
             search.searchLexical(query, { threshold: getLexicalFuzzyPercent() / 100 });
@@ -1446,6 +1498,8 @@ async function runSearchQuery() {
                     records: search.getSearchIndexRecords()
                 }
             );
+
+        if (requestToken !== searchQueryToken) return;
 
         const semanticChunkResults = retainSemanticFraction(
             contextualPayload.chunkResults,
@@ -1486,6 +1540,8 @@ async function runSearchQuery() {
 
     } catch (error) {
 
+        if (requestToken !== searchQueryToken) return;
+
         console.error(
             "Search error:",
             error
@@ -1496,7 +1552,7 @@ async function runSearchQuery() {
         );
     }
 
-    if (searchButton) {
+    if (requestToken === searchQueryToken && searchButton) {
         searchButton.disabled = !searchIndexReady;
     }
 }
@@ -1540,6 +1596,7 @@ export function initSearchUI({
                     if (searchQueryInput) {
                         searchQueryInput.value = "";
                     }
+                    updateClearSearchButton();
 
                     if (searchButton) {
                         searchButton.disabled = true;
@@ -1651,6 +1708,34 @@ export function initSearchUI({
                 runSearchQuery();
             }
         });
+    }
+
+    if (clearSearchButton) {
+        // Clear on pointer-down so a single mouse/touch press is sufficient.
+        // Prevent the default focus transition and stop propagation so the
+        // gesture cannot activate another control or trigger page navigation.
+        clearSearchButton.addEventListener("pointerdown", event => {
+            if (clearSearchButton.disabled) return;
+            event.preventDefault();
+            event.stopPropagation();
+            clearSearchQueryAndResults();
+        }, true);
+
+        // Keep keyboard activation accessible. The pointer handler may already
+        // have cleared the query before the browser emits click, so this is safe
+        // to call again.
+        clearSearchButton.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (searchQueryInput?.value || searchResults?.childElementCount) {
+                clearSearchQueryAndResults();
+            }
+        }, true);
+    }
+
+    if (searchQueryInput) {
+        searchQueryInput.addEventListener("input", updateClearSearchButton);
+        updateClearSearchButton();
     }
 
     if (searchButton) {

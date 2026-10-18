@@ -798,24 +798,78 @@ button:disabled {
     align-items: stretch;
 }
 
-.search-query-row input {
-    flex: 1;
+.search-input-wrap {
+    position: relative;
+    flex: 1 1 auto;
     min-width: 0;
-    padding: 11px 12px;
-    border: 1px solid var(--border);
+}
+
+.search-input-wrap input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 11px 42px 11px 12px;
+    border: 1.5px solid #9AA3B2;
     border-radius: 8px;
-    background: white;
+    background: #F8FAFD;
     color: var(--text);
     font: inherit;
     font-size: 15px;
+    box-shadow: inset 0 1px 2px rgb(20 30 50 / 7%);
+    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
-.search-query-row input:focus {
-    outline: 2px solid #C9C3DD;
+.search-input-wrap input:focus {
+    outline: 3px solid #D8D0EC;
     outline-offset: 1px;
+    border-color: #5B4B8A;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 1px #5B4B8A;
 }
 
-.search-query-row button {
+.search-input-wrap input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.search-clear-button {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    border: 1px solid #AEB6C3;
+    border-radius: 50%;
+    background: #E9EDF4;
+    color: #303847;
+    font: inherit;
+    font-size: 21px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.search-clear-button:hover:not(:disabled) {
+    background: #DCE2EC;
+    border-color: #6F7888;
+    opacity: 1;
+}
+
+.search-clear-button:disabled {
+    background: #EEF1F5;
+    border-color: #D4D9E1;
+    color: #929AA7;
+    opacity: 1;
+    cursor: default;
+}
+
+.search-query-row > #searchButton {
     flex: 0 0 auto;
 }
 
@@ -914,7 +968,7 @@ button:disabled {
         flex-direction: column;
     }
 
-    .search-query-row button {
+    .search-query-row > #searchButton {
         width: 100%;
     }
 
