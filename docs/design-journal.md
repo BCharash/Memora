@@ -3779,3 +3779,185 @@ The sliders are deliberately placed above the query box so that they can be adju
 ## 52.4 Validation status and limitations
 
 The JavaScript implementation passed a syntax check. This does not establish end-to-end behavior in every browser. The continuous semantic slider should be checked in the running app to confirm that intermediate positions update the retained fraction smoothly and that saved preferences are restored as expected. Search relevance should also be evaluated against real transcript queries before treating any setting as a recommended default beyond the current experimental defaults.
+
+---
+
+# 53. Paragraphing Revision 4: Production Implementation and Decision Record
+
+**Date:** 18 October 2026  
+**Status:** Revision 4 is the selected paragraphing implementation. The algorithm-selection decision is documented; any future production edits must use the current project files supplied at the time of implementation.
+
+## 53.1 Decision: retain Revision 4 rather than reopen the algorithm search
+
+The full-archive comparison and editorial review support keeping Revision 4 (R4) as the preferred paragraphing method rather than switching to Revision 5 (R5). This is a practical editorial decision based on the available archive, not a claim of objective correctness at every boundary.
+
+The reviewed disagreements were:
+
+- Of 110 boundaries proposed by R4 but not R5, 67 were judged useful or defensible, 40 unnecessary or fragmenting, and 3 borderline.
+- Of 45 boundaries proposed by R5 but not R4, 18 were judged useful or defensible, 21 unnecessary or fragmenting, and 6 borderline.
+
+These labels are subjective editorial judgments. They do not constitute ground-truth labels or a formal statistical test. Nevertheless, the unique R4 boundaries were more often judged helpful than the unique R5 boundaries. The R5 persistence test appeared to remove useful breaks as well as some poor ones.
+
+The decision is to avoid another broad algorithm-design cycle by default. Keep R4 as the current implementation and preserve R5 as a comparison candidate. Reopen the decision only if a specific, repeatable defect or meaningful new evidence warrants it.
+
+## 53.2 What Revision 5 changed, and why it was not selected
+
+R5 added a persistence check intended to require a semantic shift to remain evident beyond the immediate boundary. The motivation was reasonable: avoid separating an idea from its example, explanation, or continuation merely because adjacent sentences differ semantically.
+
+The comparison did not establish that this extra persistence condition reliably distinguishes the editorial cases that matter. Paragraph boundaries can mark a new example, a personal application, a story, a subtopic, or a pause after a completed idea even when the language remains semantically related. R5's more conservative output therefore did not automatically mean better paragraphing.
+
+Counts were treated as supporting evidence, not as the decision criterion. The manual review of unique boundaries was more informative than paragraph totals alone.
+
+## 53.3 Production Revision 4 configuration
+
+The supplied production `paragraphing.js` identifies itself as Revision 4 and uses the following configuration:
+
+```js
+const REV4_CONFIG = {
+    reprocessAboveWords: 120,
+    minSegmentWords: 42,
+    minSegmentSentences: 2,
+    shortWindow: 2,
+    longWindow: 4,
+    minimumScore: 0.058,
+    quantile: 0.62,
+    localRadius: 1,
+    minBoundaryGapSentences: 2,
+    softReviewWords: 165,
+    pressureCap: 0.035
+};
+```
+
+The algorithm's established principles remain:
+
+- Semantic change is the primary signal.
+- Length is a soft readability preference; length alone never forces a break.
+- No transition-word, discourse-marker, or phrase lists are used.
+- The algorithm preserves the spoken wording and inserts paragraph boundaries.
+- Existing blank-line paragraphing is treated as intentional and is preserved.
+- Paragraphing runs in the dedicated `paragraphing-worker.js`, keeping inference off the main application thread.
+- The worker uses Transformers.js 3.7.2 and `Xenova/all-MiniLM-L6-v2` with `q8` weights.
+
+The worker serializes embedding requests through a queue and returns sentence embeddings to `paragraphing.js`, which computes boundary scores and applies the selected R4 logic. Paragraphing remains lazy: the model is loaded only when paragraphing is actually requested.
+
+## 53.4 Safe implementation and validation sequence
+
+The next implementation step previously organized for the paragraphing work is to create a standalone HTML utility that accepts a ZIP of transcript files, applies the exact R4 implementation, and downloads a new ZIP with the original filenames preserved. The input archive must remain unchanged. Where practical, relative folder paths should also be preserved.
+
+After that utility is available, production changes should be made only after the current production source files have been supplied again. The current user-supplied files are authoritative; older project ZIPs and copies from earlier conversations must not be substituted for them.
+
+The implementation should be validated on representative transcripts and compared with the standalone R4 output. The goal is faithful transfer of the selected algorithm, not another algorithm redesign.
+
+## 53.5 Limits of the decision
+
+R4 is the selected current approach, not a claim that every proposed boundary is desirable. The reviewed classifications are editorial and specific to the evaluated archive. They do not prove that R4 will behave identically on all future speech, model/runtime versions, or transcript styles.
+
+The correct response to a future problem is to identify and reproduce the specific failure, inspect its context, and make a controlled change only if the evidence warrants it. Do not restart broad revision experimentation simply because the algorithm is imperfect.
+
+---
+
+# 54. Semantic Search Embedding Model Decision: Keep MiniLM, Do Not Add E5 Yet
+
+**Date:** 18 October 2026  
+**Status:** MiniLM remains the production/default semantic-search embedding model. E5-small was evaluated experimentally but is not adopted.
+
+## 54.1 Evaluation question
+
+The benchmark compared the existing `Xenova/all-MiniLM-L6-v2` model with `Xenova/multilingual-e5-small` for semantic retrieval over a representative collection of 91 transcripts and 28 queries. It tested sentence representations and overlapping contextual chunks with window/overlap settings 3–1, 5–2, and 7–3.
+
+The purpose was to determine whether E5's multilingual model would improve practical retrieval enough to justify adding another model and its operational cost.
+
+## 54.2 Benchmark results
+
+The reported results favored MiniLM overall:
+
+| Measure | MiniLM | E5-small |
+|---|---:|---:|
+| Mean reciprocal rank (MRR) | 0.7777 | 0.7347 |
+| Queries with a relevant result in top 5 | 26/28 | 23/28 |
+| Queries with a relevant result in top 30 | 28/28 | 28/28 |
+| Approximate benchmark duration | 10 min 23 sec | 18 min 45 sec |
+
+These results are specific to this benchmark dataset and its query judgments; they are not a universal ranking of the two models. For the current Memora use case, however, E5 did not improve the overall ranking measures and took substantially longer to run.
+
+## 54.3 Manual review of difficult queries
+
+Focused inspection of Q16, Q24, and Q25 exposed potential ranking/aggregation issues that should be investigated separately from the choice of embedding model.
+
+- **Q16 — ordinary service/cleaning as spiritual practice:** MiniLM retrieved “Deep kitchen cleaning” at useful individual chunk ranks in the 5–2 and 7–3 representations, but the final result rank fell to 23. E5's final result for “Seva Groundhog Day” ranked 10, while it did not retrieve “Deep kitchen cleaning” in the observed results.
+- **Q24 — Ganga and samadhi:** MiniLM ranked “Magical temple” at 3, while E5 ranked it at 16, although E5 also returned other relevant results.
+- **Q25 — control of mind:** MiniLM ranked “Can't control the mind” first in the final results. E5 placed it at 23 even though some of its individual chunk representations ranked it first.
+
+The discrepancy between strong individual representation ranks and weaker final ranks suggests that the aggregation or ranking stage may be losing useful evidence. That is a separate problem from whether E5 produces better embeddings.
+
+## 54.4 Decision and rationale
+
+Keep MiniLM as the default and do not add E5 as a selectable production model at this stage.
+
+Reasons:
+
+1. MiniLM achieved better overall MRR and top-five retrieval on the current benchmark.
+2. Both models found at least one relevant result within the top 30 for all 28 queries, so E5 did not improve that coverage measure.
+3. E5 took approximately 18 minutes 45 seconds compared with MiniLM's 10 minutes 23 seconds for the benchmark.
+4. Adding another model would increase implementation, testing, caching, and maintenance complexity without demonstrated overall benefit.
+5. The difficult-query inspection points to a possible final-ranking/aggregation issue worth investigating before replacing or expanding the embedding model.
+
+This decision does not establish that E5 is intrinsically inferior or that it could never help a different language/query distribution. It means that the evidence from this test does not justify adding it to Memora now.
+
+## 54.5 Follow-up direction
+
+If semantic retrieval is improved next, first inspect how sentence and chunk candidates are combined into final transcript rankings. In particular, test whether a very strong match from one representation is being diluted or demoted when the different representation families are aggregated.
+
+Keep the embedding-model choice fixed during that work so ranking changes can be evaluated without confounding them with a model change. Reconsider E5 only if a clearly defined later test shows a meaningful benefit for the intended corpus and user queries.
+
+---
+
+# 55. Proposed Future Integration: Semantic Search Embeddings During Transcription
+
+**Date:** 18 October 2026  
+**Status:** Design decision and implementation plan only; this feature has not yet been implemented.
+
+## 55.1 Goal
+
+Add a **Generate semantic embeddings** checkbox to the Transcribe interface, checked by default. When enabled, Memora should create or update `search-embeddings.json` as part of transcription. When disabled, transcription and paragraphing should proceed without the additional search-index generation.
+
+This feature should use the existing search-index implementation and archive format. It should not introduce a second semantic-search model or a parallel archive schema.
+
+## 55.2 Desktop workflow
+
+Desktop can write each completed transcript directly to the destination folder. The intended sequence is:
+
+1. Transcribe a recording.
+2. Apply optional R4 paragraphing.
+3. Save the individual transcript.
+4. If semantic embedding generation is enabled, update `search-embeddings.json` in the destination folder.
+
+The existing search-index builder should be reused. When an archive is already available, unchanged transcript embeddings should be reused where the existing hash-based archive logic permits it. The index must still contain all required sentence and contextual-chunk representations for the transcripts included in the search folder.
+
+## 55.3 iPhone workflow
+
+The iPhone workflow accumulates the batch, then offers the generated files individually through the Share Sheet. A test confirmed that the iPhone workflow can create a JSON file and overwrite an existing one without reading it first.
+
+The intended sequence is therefore:
+
+1. Transcribe and paragraphize the selected recordings.
+2. If enabled, generate the semantic-search archive for the complete set of transcripts that will be available together for searching.
+3. Offer `search-embeddings.json` alongside the individual transcript files through the existing Share Sheet flow.
+
+The iPhone does not need to read and merge the previous JSON. The archive can be regenerated and overwrite an older one. The key requirement is that the archive corresponds to the full set of transcripts intended for the search folder; it must not accidentally contain only a subset if older transcripts are also part of that folder.
+
+## 55.4 Do not assume paragraphing supplies the search embeddings
+
+Paragraphing and Search use the same MiniLM model family, but paragraphing does not always invoke the model. Short transcripts and transcripts that already contain blank-line paragraph breaks can bypass paragraphing inference. Paragraphing also currently uses sentence embeddings to score boundaries and does not itself produce the complete Search archive.
+
+Therefore, Search indexing must remain complete independently of paragraphing. The initial implementation should call the existing Search index builder, rather than rely on paragraphing having produced all necessary vectors. Reusing compatible sentence vectors could be explored later as a performance optimization, but it should not complicate the first reliable implementation.
+
+## 55.5 Error handling and status
+
+Embedding-generation errors must be reported separately from transcription errors. A failure to create or save the search archive must not discard completed transcript files or imply that the archive was successfully updated. Progress should make clear when the semantic model is loading, when embedding generation is underway, and whether the archive was saved.
+
+## 55.6 Files and implementation discipline
+
+Likely integration points include `index.html`, `app.js`, `search.js`, `searchUI.js`, `transcription.js`, `transcriptionUI.js`, `storage.js`, and possibly the paragraphing modules if a later vector-reuse optimization is chosen. Not every file necessarily needs to change.
+
+Before implementation, obtain the current versions of the relevant project files again. Inspect the actual desktop save path, iPhone batch/export path, and storage APIs before editing. Preserve the existing R4 algorithm and the current MiniLM search configuration. The first implementation should favor correctness and reuse of the existing index builder over a premature refactor to share paragraphing vectors.
