@@ -138,6 +138,16 @@ const combineTitleInput =
 const combineParagraphingCheckbox =
     document.getElementById("combineParagraphingCheckbox");
 
+// Paragraphing defaults: enabled for new transcriptions, disabled for Combine.
+// Existing transcripts that already contain blank-line paragraph breaks are
+// left untouched by paragraphing.js.
+if (paragraphingCheckbox) {
+    paragraphingCheckbox.checked = true;
+}
+if (combineParagraphingCheckbox) {
+    combineParagraphingCheckbox.checked = false;
+}
+
 let sourceHandle = null;
 let destinationHandle = null;
 

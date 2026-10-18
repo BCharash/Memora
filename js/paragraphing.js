@@ -1,10 +1,10 @@
 // --------------------------------------------------
 // Memora paragraphing
-// Hybrid Paragraph Test 2
+// Revision 4 — semantic paragraphing
 // --------------------------------------------------
 //
 // Standalone production module for the paragraphing algorithm
-// from "Memora — Hybrid Paragraph Test 2".
+// from the selected Revision 4 implementation.
 // It does not rewrite transcript words; it inserts paragraph breaks.
 // --------------------------------------------------
 
@@ -77,29 +77,9 @@ function getParagraphingWorker() {
     return worker;
 }
 
-function sentences(text) {
-    text = text
-        .replace(/\n+/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
 
-    text = text
-        .replace(/\bMr\./g, "Mr§")
-        .replace(/\bMrs\./g, "Mrs§")
-        .replace(/\bDr\./g, "Dr§")
-        .replace(/\bMs\./g, "Ms§")
-        .replace(/\be\.g\./gi, "eg§")
-        .replace(/\bi\.e\./gi, "ie§");
 
-    const result =
-        text.match(/[^.!?]+(?:[.!?]+["'’”)]*)?(?=\s+|$)/g) || [text];
-
-    return result
-        .map(x => x.replace(/§/g, ".").trim())
-        .filter(Boolean);
-}
-
-async function embed(S, statusCallback) {
+async function embed(sentences, statusCallback) {
     const worker = getParagraphingWorker();
     const requestId = nextEmbeddingRequestId++;
 
@@ -113,230 +93,334 @@ async function embed(S, statusCallback) {
         worker.postMessage({
             type: "embed-sentences",
             requestId,
-            sentences: S
+            sentences
         });
     });
 }
 
+function sentenceSplit(text) {
+    text = text
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\bMr\./g, "Mr§")
+        .replace(/\bMrs\./g, "Mrs§")
+        .replace(/\bDr\./g, "Dr§")
+        .replace(/\bMs\./g, "Ms§")
+        .replace(/\be\.g\./gi, "eg§")
+        .replace(/\bi\.e\./gi, "ie§");
+
+    const result =
+        text.match(/[^.!?]+(?:[.!?]+["'’”)]*)?(?=\s+|$)/g) || [text];
+
+    return result
+        .map(sentence => sentence.replace(/§/g, ".").trim())
+        .filter(Boolean);
+}
+
+function words(text) {
+    return (text.match(/[\p{L}\p{N}’'-]+/gu) || []).length;
+}
+
 function cosine(a, b) {
-    let d = 0, aa = 0, bb = 0;
+    let dot = 0;
+    let aa = 0;
+    let bb = 0;
+
     for (let i = 0; i < a.length; i++) {
-        d += a[i] * b[i];
+        dot += a[i] * b[i];
         aa += a[i] * a[i];
         bb += b[i] * b[i];
     }
-    return d / (Math.sqrt(aa) * Math.sqrt(bb) || 1);
+
+    return dot / (Math.sqrt(aa) * Math.sqrt(bb) || 1);
 }
 
-function mean(E, a, b) {
-    if (b <= a) return null;
-    const n = E[0].length;
-    const r = new Array(n).fill(0);
-    for (let i = a; i < b; i++) {
-        for (let j = 0; j < n; j++) {
-            r[j] += E[i][j] / (b - a);
+function mean(embeddings, start, end) {
+    if (end <= start || !embeddings.length) return null;
+
+    const dimensions = embeddings[0].length;
+    const result = new Array(dimensions).fill(0);
+
+    for (let i = start; i < end; i++) {
+        for (let j = 0; j < dimensions; j++) {
+            result[j] += embeddings[i][j] / (end - start);
         }
     }
-    return r;
+
+    return result;
 }
 
-function cueScore(s) {
-    const x = s.toLowerCase()
-        .replace(/^[\s"'“”‘’(\[]+/, "")
-        .trim();
-
-    const strong = [
-        ["on the other hand", 1.00], ["another approach", .95],
-        ["but then", .90], ["number two", .88], ["number three", .88],
-        ["one is", .82], ["another thing", .78], ["another point", .78],
-        ["the other", .70], ["in fact", .68], ["the reality is", .68],
-        ["the reality", .62], ["anyway", .60], ["now", .48], ["so my", .48]
-    ];
-
-    for (const [p, w] of strong) {
-        if (x === p || x.startsWith(p + " ")) return w;
-    }
-
-    // Continuation / elaboration openings resist a paragraph break unless
-    // other evidence strongly indicates a new rhetorical move.
-    const elaboration = [
-        "i remember", "i had", "i was", "there was", "there were", "like i",
-        "and", "so", "because", "which", "that", "also", "then", "therefore", "thus"
-    ];
-
-    for (const p of elaboration) {
-        if (x === p || x.startsWith(p + " ")) return -.22;
-    }
-
-    return 0;
+function meanRange(embeddings, start, end) {
+    return mean(
+        embeddings,
+        Math.max(0, start),
+        Math.min(embeddings.length, end)
+    );
 }
 
-function boundarySignals(S, E) {
-    const out = [];
-    let start = 0;
+function quantile(values, percentile) {
+    if (!values.length) return 0;
+    return values[Math.floor((values.length - 1) * percentile)];
+}
 
-    // The center is the center of the actual developing paragraph.
-    for (let i = 1; i < S.length; i++) {
-        const paragraphCenter = mean(E, start, i);
-        const previous = E[i - 1];
-        const current = E[i];
-        const immediateGap = 1 - cosine(previous, current);
-        const currentFit = cosine(current, paragraphCenter);
-        const forwardEnd = Math.min(S.length, i + 3);
-        const forward = forwardEnd > i + 1
-            ? mean(E, i + 1, forwardEnd)
-            : current;
-        const forwardFit = cosine(current, forward);
-        const direction = Math.max(0, forwardFit - currentFit);
-        const cue = cueScore(S[i]);
-        const len = i - start;
-        const lengthPressure = len <= 8
-            ? 0
-            : Math.min(.32, (len - 8) * .045);
+function sentenceOffsets(sentences) {
+    const offsets = [];
+    let total = 0;
 
-        const raw =
-            immediateGap * .32 +
-            direction * .62 +
-            Math.max(0, cue) * .30 -
-            Math.max(0, -cue) * .72 +
-            lengthPressure;
+    for (const sentence of sentences) {
+        offsets.push(total);
+        total += words(sentence);
+    }
 
-        out.push({
-            i, start, len, immediateGap, currentFit,
-            forwardFit, direction, cue, raw
+    offsets.push(total);
+    return offsets;
+}
+
+// Revision 4 configuration selected after the full-archive comparison.
+// Length is a soft priority only; it never forces a paragraph break.
+// No transition-word or discourse-marker lists are used.
+const REV4_CONFIG = {
+    reprocessAboveWords: 120,
+    minSegmentWords: 42,
+    minSegmentSentences: 2,
+    shortWindow: 2,
+    longWindow: 4,
+    minimumScore: 0.058,
+    quantile: 0.62,
+    localRadius: 1,
+    minBoundaryGapSentences: 2,
+    softReviewWords: 165,
+    pressureCap: 0.035
+};
+
+function revision4BoundaryScores(sentences, embeddings) {
+    const offsets = sentenceOffsets(sentences);
+    const scores = [];
+
+    for (let i = 1; i < sentences.length; i++) {
+        const leftShort = meanRange(
+            embeddings, i - REV4_CONFIG.shortWindow, i
+        );
+        const rightShort = meanRange(
+            embeddings, i, i + REV4_CONFIG.shortWindow
+        );
+        const leftLong = meanRange(
+            embeddings, i - REV4_CONFIG.longWindow, i
+        );
+        const rightLong = meanRange(
+            embeddings, i, i + REV4_CONFIG.longWindow
+        );
+
+        if (!leftShort || !rightShort || !leftLong || !rightLong) {
+            continue;
+        }
+
+        const shortShift = 1 - cosine(leftShort, rightShort);
+        const longShift = 1 - cosine(leftLong, rightLong);
+        const localGap = 1 - cosine(embeddings[i - 1], embeddings[i]);
+        const semanticShift =
+            shortShift * 0.55 +
+            longShift * 0.30 +
+            localGap * 0.15;
+
+        scores.push({
+            i,
+            semanticShift,
+            shortShift,
+            longShift,
+            localGap,
+            wordsBefore: offsets[i],
+            wordsAfter: offsets[sentences.length] - offsets[i]
         });
     }
 
-    const values = out.map(x => x.raw).sort((a, b) => a - b);
-    const q = pct => {
-        if (!values.length) return 0;
-        return values[Math.floor((values.length - 1) * pct)];
-    };
-    const median = q(.50);
-    const iqr = Math.max(.0001, q(.75) - q(.25));
-
-    for (const b of out) b.z = (b.raw - median) / iqr;
-    return out;
+    return scores;
 }
 
-function chooseBreaks(S, B) {
-    const breaks = [];
-    let start = 0;
+function chooseRevision4Breaks(sentences, scores) {
+    if (!scores.length) return [];
 
-    for (let k = 0; k < B.length; k++) {
-        const b = B[k], i = b.i;
+    const shifts = scores
+        .map(score => score.semanticShift)
+        .sort((a, b) => a - b);
 
-        if (i - start < 4) continue;
+    const adaptiveThreshold = Math.max(
+        REV4_CONFIG.minimumScore,
+        quantile(shifts, REV4_CONFIG.quantile)
+    );
 
-        const local = B.slice(
-            Math.max(0, k - 2),
-            Math.min(B.length, k + 3)
-        );
-        if (b.raw < Math.max(...local.map(x => x.raw)) - .025) continue;
+    const candidates = scores
+        .map((score, index) => {
+            const pressure = Math.min(
+                REV4_CONFIG.pressureCap,
+                Math.max(
+                    0,
+                    score.wordsBefore - REV4_CONFIG.softReviewWords
+                ) * 0.00012
+            );
 
-        const next = B[k + 1];
-        const persistent = next &&
-            next.forwardFit > next.currentFit &&
-            next.direction > .012;
+            return {
+                ...score,
+                pressure,
+                rankScore: score.semanticShift + pressure,
+                index
+            };
+        })
+        .filter(candidate => {
+            if (candidate.semanticShift < adaptiveThreshold) return false;
 
-        const strongCue = b.cue >= .78;
-        const moderateCue = b.cue >= .45;
+            const nearby = scores
+                .slice(
+                    Math.max(0, candidate.index - REV4_CONFIG.localRadius),
+                    candidate.index
+                )
+                .concat(
+                    scores.slice(
+                        candidate.index + 1,
+                        Math.min(
+                            scores.length,
+                            candidate.index + 1 + REV4_CONFIG.localRadius
+                        )
+                    )
+                );
 
-        let evidence = b.z;
-        if (persistent) evidence += .38;
-        if (strongCue) evidence += .34;
-        else if (moderateCue) evidence += .12;
-        if (b.direction > .075) evidence += .18;
+            return nearby.every(
+                other => candidate.semanticShift >= other.semanticShift - 0.012
+            );
+        })
+        .sort((a, b) => b.rankScore - a.rankScore);
 
-        const minLen =
-            (strongCue && b.direction > .035) ? 4 : 5;
+    const chosen = [];
 
-        if (i - start < minLen) continue;
-        if (breaks.length && i - breaks[breaks.length - 1] < 4) continue;
+    for (const candidate of candidates) {
+        const boundary = candidate.i;
+        const prior = chosen
+            .filter(index => index < boundary)
+            .sort((a, b) => b - a)[0] || 0;
+        const next = chosen
+            .filter(index => index > boundary)
+            .sort((a, b) => a - b)[0] || sentences.length;
 
-        if (evidence >= .92) {
-            breaks.push(i);
-            start = i;
+        const offsets = sentenceOffsets(sentences);
+        const beforeWords = offsets[boundary] - offsets[prior];
+        const afterWords = offsets[next] - offsets[boundary];
+
+        if (
+            boundary - prior < REV4_CONFIG.minSegmentSentences ||
+            next - boundary < REV4_CONFIG.minSegmentSentences
+        ) {
+            continue;
         }
+
+        if (
+            beforeWords < REV4_CONFIG.minSegmentWords ||
+            afterWords < REV4_CONFIG.minSegmentWords
+        ) {
+            continue;
+        }
+
+        if (
+            chosen.some(
+                index => Math.abs(index - boundary) <
+                    REV4_CONFIG.minBoundaryGapSentences
+            )
+        ) {
+            continue;
+        }
+
+        chosen.push(boundary);
     }
 
-    return breaks;
+    return chosen.sort((a, b) => a - b);
 }
 
-function formatParagraphs(S, breaks) {
+function applyBreaks(sentences, breaks) {
     const paragraphs = [];
     let start = 0;
 
-    for (const boundary of [...breaks, S.length]) {
+    for (const boundary of [...breaks, sentences.length]) {
         if (boundary > start) {
-            paragraphs.push(S.slice(start, boundary).join(" "));
+            paragraphs.push(sentences.slice(start, boundary).join(" "));
         }
         start = boundary;
     }
 
-    return paragraphs.join("\n\n");
+    return paragraphs;
 }
 
 /**
- * Paragraphize raw Whisper transcript text.
+ * Apply Revision 4 to raw transcript text.
  *
- * Returns the same spoken words with blank lines inserted between
- * semantic paragraphs. The model is loaded once and reused for the
- * lifetime of the page/module.
+ * Existing blank-line paragraphing is treated as intentional: if the input
+ * contains a blank line, return it unchanged and do not run the model.
  */
 export async function paragraphize(text, statusCallback) {
-    if (!text || !text.trim()) return "";
+    if (typeof text !== "string" || !text.length) return "";
 
-    const normalizedText = text.replace(/\r\n?/g, "\n").trim();
+    // Do not alter a file that already contains any blank-line paragraph break.
+    if (/\n[ \t]*\n/.test(text.replace(/\r\n?/g, "\n"))) {
+        return text;
+    }
 
-    // Preserve transcripts that already have paragraph breaks. Re-embedding
-    // them would add a long model pass without improving their formatting.
-    if (/\n\s*\n/.test(normalizedText)) {
+    const normalizedText = text
+        .replace(/\r\n?/g, "\n")
+        .replace(/\n+/g, " ")
+        .replace(/[ \t]+/g, " ")
+        .trim();
+
+    if (!normalizedText) return "";
+
+    const sentences = sentenceSplit(normalizedText);
+
+    // R4 only reprocesses existing paragraphs longer than 120 words.
+    // Raw Whisper transcripts normally arrive as one paragraph.
+    if (
+        words(normalizedText) <= REV4_CONFIG.reprocessAboveWords ||
+        sentences.length < REV4_CONFIG.minSegmentSentences * 2
+    ) {
         return normalizedText;
     }
 
-    const S = sentences(normalizedText);
+    const embeddings = await embed(sentences, statusCallback);
+    const scores = revision4BoundaryScores(sentences, embeddings);
+    const breaks = chooseRevision4Breaks(sentences, scores);
 
-    // Match the reference implementation: short text is not
-    // semantically paragraphized.
-    if (S.length < 7) return S.join(" ");
-
-    const E = await embed(S, statusCallback);
-    const B = boundarySignals(S, E);
-    const breaks = chooseBreaks(S, B);
-
-    return formatParagraphs(S, breaks);
+    return applyBreaks(sentences, breaks).join("\n\n");
 }
 
 /**
- * Paragraphize a complete Memora transcript while preserving its
- * metadata block and separator. This is intended for the future
- * "paragraph existing transcripts" workflow.
+ * Paragraphize the spoken section of a complete Memora transcript.
+ * Metadata and the original separator are retained verbatim. If the spoken
+ * section already has blank lines, the complete input is returned unchanged.
  */
 export async function paragraphizeTranscript(text, statusCallback) {
-    if (!text || !text.trim()) return "";
+    if (typeof text !== "string" || !text.length) return "";
 
     const normalized = text.replace(/\r\n?/g, "\n");
-    const marker = /^-{10,}\s*$/m;
-    const match = normalized.match(marker);
+    const marker = /^-{10,}[ \t]*$/m;
+    const match = marker.exec(normalized);
 
     if (!match) {
-        return paragraphize(normalized, statusCallback);
+        return await paragraphize(text, statusCallback);
     }
 
-    const metadata = normalized.slice(0, match.index).trimEnd();
-    const recording = normalized
-        .slice(match.index + match[0].length)
-        .trim();
+    const separatorStart = match.index;
+    const separatorEnd = match.index + match[0].length;
+    const afterSeparator = normalized.slice(separatorEnd);
+    const leadingLineBreaks = afterSeparator.match(/^(?:[ \t]*\n)+/);
+    const bodyPrefix = leadingLineBreaks ? leadingLineBreaks[0] : "";
+    const spoken = afterSeparator.slice(bodyPrefix.length);
 
-    const paragraphized = await paragraphize(
-        recording,
-        statusCallback
-    );
+    if (/\n[ \t]*\n/.test(spoken)) {
+        return text;
+    }
+
+    const paragraphized = await paragraphize(spoken, statusCallback);
 
     return (
-        metadata +
-        "\n\n--------------------\n\n" +
+        normalized.slice(0, separatorEnd) +
+        bodyPrefix +
         paragraphized
     );
 }
