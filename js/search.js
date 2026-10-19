@@ -291,6 +291,9 @@ function splitSentences(text) {
     // paragraphing implementation so Search and paragraphing agree about
     // where sentences begin and end.
     normalized = normalized
+        // Protect decimal points so values such as 99.9% remain one sentence.
+        // The same placeholder is restored after sentence splitting.
+        .replace(/(\d)\.(?=\d)/g, "$1§")
         .replace(/\bMr\./g, "Mr§")
         .replace(/\bMrs\./g, "Mrs§")
         .replace(/\bDr\./g, "Dr§")

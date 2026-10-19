@@ -552,6 +552,9 @@ function splitTranscriptSentences(text) {
     if (!normalized) return [];
 
     normalized = normalized
+        // Match the indexer's sentence splitting: decimal points are not
+        // sentence boundaries, so values such as 99.9% stay together.
+        .replace(/(\d)\.(?=\d)/g, "$1§")
         .replace(/\bMr\./g, "Mr§")
         .replace(/\bMrs\./g, "Mrs§")
         .replace(/\bDr\./g, "Dr§")
