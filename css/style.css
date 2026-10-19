@@ -368,6 +368,39 @@ button:disabled {
 
 .recording-content {
     min-width: 0;
+    flex: 1 1 auto;
+}
+
+.combine-recording-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+}
+
+.combine-recording-header .recording-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    flex: 0 1 auto;
+}
+
+.combine-recording-header .search-transcript-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.combine-recording-header + .search-transcript-text[hidden] {
+    display: none !important;
+}
+
+.search-transcript-text .search-full-transcript-paragraph {
+    margin: 0 0 0.85em;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.search-transcript-text .search-full-transcript-paragraph:last-child {
+    margin-bottom: 0;
 }
 
 .transcription-controls {

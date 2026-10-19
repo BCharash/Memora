@@ -332,6 +332,12 @@ export async function displayTranscriptFiles(files) {
             content.className =
                 "recording-content";
 
+            const header =
+                document.createElement("div");
+
+            header.className =
+                "combine-recording-header";
+
             const name =
                 document.createElement("div");
 
@@ -341,7 +347,59 @@ export async function displayTranscriptFiles(files) {
             name.textContent =
                 record.filename;
 
-            content.appendChild(name);
+            const transcriptToggle =
+                document.createElement("button");
+
+            transcriptToggle.type = "button";
+            transcriptToggle.className = "search-transcript-toggle";
+            transcriptToggle.textContent = "Show transcript";
+            transcriptToggle.title = "Show transcript";
+            transcriptToggle.setAttribute("aria-label", "Show transcript");
+            transcriptToggle.setAttribute("aria-expanded", "false");
+
+            const transcriptContent =
+                document.createElement("div");
+
+            transcriptContent.className = "search-transcript-text";
+            transcriptContent.hidden = true;
+
+            const transcript = String(record.transcript || "").trim();
+
+            if (transcript) {
+                const paragraphs = transcript
+                    .replace(/\r\n?/g, "\n")
+                    .split(/\n\s*\n+/)
+                    .map(paragraph => paragraph.trim())
+                    .filter(Boolean);
+
+                for (const paragraph of paragraphs) {
+                    const paragraphElement =
+                        document.createElement("p");
+
+                    paragraphElement.className = "search-full-transcript-paragraph";
+                    paragraphElement.textContent = paragraph;
+                    transcriptContent.appendChild(paragraphElement);
+                }
+            } else {
+                const fallback = document.createElement("p");
+                fallback.className = "empty-message";
+                fallback.textContent = "The transcript text is unavailable for this file.";
+                transcriptContent.appendChild(fallback);
+            }
+
+            header.appendChild(name);
+            header.appendChild(transcriptToggle);
+            content.appendChild(header);
+            content.appendChild(transcriptContent);
+
+            transcriptToggle.addEventListener("click", () => {
+                const willShow = transcriptContent.hidden;
+                transcriptContent.hidden = !willShow;
+                transcriptToggle.textContent = willShow ? "Hide transcript" : "Show transcript";
+                transcriptToggle.title = transcriptToggle.textContent;
+                transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
+                transcriptToggle.setAttribute("aria-expanded", String(willShow));
+            });
 
             item.appendChild(checkbox);
             item.appendChild(content);
