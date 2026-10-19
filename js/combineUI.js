@@ -10,6 +10,7 @@ let selectedTranscriptFiles = [];
 let combineSortOrder = "date-desc";
 let getCombineModule;
 let onSelectionChanged;
+let saveTranscriptEdits;
 export async function displayTranscriptFiles(files) {
 
     selectedTranscriptFiles = files;
@@ -363,6 +364,39 @@ export async function displayTranscriptFiles(files) {
             transcriptContent.className = "search-transcript-text";
             transcriptContent.hidden = true;
 
+            const editToggle = document.createElement("button");
+            editToggle.type = "button";
+            editToggle.className = "search-transcript-toggle combine-edit-toggle";
+            editToggle.textContent = "Edit";
+            editToggle.title = "Edit transcript";
+            editToggle.setAttribute("aria-label", `Edit ${record.filename}`);
+
+            const editPanel = document.createElement("div");
+            editPanel.className = "combine-transcript-editor";
+            editPanel.hidden = true;
+
+            const editor = document.createElement("textarea");
+            editor.className = "combine-transcript-editor-input";
+            editor.setAttribute("aria-label", `Edit transcript text for ${record.filename}`);
+            editor.spellcheck = true;
+
+            const editActions = document.createElement("div");
+            editActions.className = "combine-transcript-editor-actions";
+
+            const cancelEdit = document.createElement("button");
+            cancelEdit.type = "button";
+            cancelEdit.className = "combine-transcript-secondary-button";
+            cancelEdit.textContent = "Cancel";
+
+            const saveEdit = document.createElement("button");
+            saveEdit.type = "button";
+            saveEdit.textContent = "Save changes";
+
+            editActions.appendChild(cancelEdit);
+            editActions.appendChild(saveEdit);
+            editPanel.appendChild(editor);
+            editPanel.appendChild(editActions);
+
             const transcript = String(record.transcript || "").trim();
 
             if (transcript) {
@@ -388,9 +422,11 @@ export async function displayTranscriptFiles(files) {
             }
 
             header.appendChild(name);
+            header.appendChild(editToggle);
             header.appendChild(transcriptToggle);
             content.appendChild(header);
             content.appendChild(transcriptContent);
+            content.appendChild(editPanel);
 
             transcriptToggle.addEventListener("click", () => {
                 const willShow = transcriptContent.hidden;
@@ -399,6 +435,105 @@ export async function displayTranscriptFiles(files) {
                 transcriptToggle.title = transcriptToggle.textContent;
                 transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
                 transcriptToggle.setAttribute("aria-expanded", String(willShow));
+            });
+
+            editToggle.addEventListener("click", () => {
+                if (editPanel.hidden) {
+                    editor.value = String(record.transcript || "");
+                    editPanel.hidden = false;
+                    transcriptContent.hidden = true;
+                    transcriptToggle.textContent = "Show transcript";
+                    transcriptToggle.title = "Show transcript";
+                    transcriptToggle.setAttribute("aria-label", "Show transcript");
+                    transcriptToggle.setAttribute("aria-expanded", "false");
+                    editToggle.textContent = "Close editor";
+                    editor.focus();
+                } else {
+                    if (editor.value !== String(record.transcript || "") &&
+                        !confirm("Discard the unsaved transcript edits?")) {
+                        return;
+                    }
+                    editPanel.hidden = true;
+                    editToggle.textContent = "Edit";
+                    editor.value = String(record.transcript || "");
+                }
+            });
+
+            cancelEdit.addEventListener("click", () => {
+                editPanel.hidden = true;
+                editToggle.textContent = "Edit";
+                editor.value = String(record.transcript || "");
+            });
+
+            saveEdit.addEventListener("click", async () => {
+                if (saveEdit.disabled) return;
+                saveEdit.disabled = true;
+                cancelEdit.disabled = true;
+                editToggle.disabled = true;
+                const originalLabel = saveEdit.textContent;
+                saveEdit.textContent = "Saving…";
+
+                try {
+                    const originalText = await record.file.text();
+                    const lines = originalText.split(/\r?\n/);
+                    const separatorIndex = lines.findIndex(
+                        line => line.trim() === "--------------------------------------------------"
+                    );
+                    if (separatorIndex === -1) {
+                        throw new Error("The transcript separator was not found; the file was not changed.");
+                    }
+                    const headerText = lines.slice(0, separatorIndex + 1).join("\n");
+                    const editedBody = editor.value.replace(/\r\n?/g, "\n").replace(/^\n+|\n+$/g, "");
+                    const updatedText = `${headerText}\n${editedBody}\n`;
+                    const updatedFile = await saveTranscriptEdits(record, updatedText);
+
+                    record.file = updatedFile || new File([updatedText], record.filename, {
+                        type: "text/plain",
+                        lastModified: Date.now()
+                    });
+                    record.transcript = editedBody;
+                    const selectedIndex = selectedTranscriptFiles.findIndex(
+                        file => file.name === record.filename
+                    );
+                    if (selectedIndex !== -1) {
+                        selectedTranscriptFiles[selectedIndex] = record.file;
+                    }
+
+                    transcriptContent.innerHTML = "";
+                    const paragraphs = editedBody
+                        .split(/\n\s*\n+/)
+                        .map(paragraph => paragraph.trim())
+                        .filter(Boolean);
+                    if (paragraphs.length) {
+                        for (const paragraph of paragraphs) {
+                            const paragraphElement = document.createElement("p");
+                            paragraphElement.className = "search-full-transcript-paragraph";
+                            paragraphElement.textContent = paragraph;
+                            transcriptContent.appendChild(paragraphElement);
+                        }
+                    } else {
+                        const empty = document.createElement("p");
+                        empty.className = "empty-message";
+                        empty.textContent = "This transcript is empty.";
+                        transcriptContent.appendChild(empty);
+                    }
+
+                    editPanel.hidden = true;
+                    editToggle.textContent = "Edit";
+                    transcriptContent.hidden = false;
+                    transcriptToggle.textContent = "Hide transcript";
+                    transcriptToggle.title = "Hide transcript";
+                    transcriptToggle.setAttribute("aria-label", "Hide transcript");
+                    transcriptToggle.setAttribute("aria-expanded", "true");
+                } catch (error) {
+                    console.error("Unable to save transcript edits:", error);
+                    alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
+                } finally {
+                    saveEdit.disabled = false;
+                    cancelEdit.disabled = false;
+                    editToggle.disabled = false;
+                    saveEdit.textContent = "Save changes";
+                }
             });
 
             item.appendChild(checkbox);
@@ -519,8 +654,10 @@ export function getCombineSortOrder() {
 
 export function initCombineUI({
     getCombineModule: loadCombineModule,
-    onSelectionChanged: resetExportState
+    onSelectionChanged: resetExportState,
+    onSaveTranscriptEdits
 }) {
     getCombineModule = loadCombineModule;
     onSelectionChanged = resetExportState;
+    saveTranscriptEdits = onSaveTranscriptEdits;
 }

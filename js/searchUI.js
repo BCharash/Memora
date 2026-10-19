@@ -1560,6 +1560,39 @@ async function runSearchQuery() {
 }
 
 
+// A transcript edit makes the current Search session potentially stale.
+// Require a fresh source selection so files are reread before the next index build.
+export function invalidateSearchAfterTranscriptEdit() {
+    searchIndexBuildToken++;
+    searchQueryToken++;
+    searchSourceHandle = null;
+    currentSearchIndex = null;
+    searchIndexReady = false;
+
+    if (searchQueryInput) searchQueryInput.value = "";
+    if (searchSourceButton) {
+        searchSourceButton.textContent = "Select Transcript Folder";
+        searchSourceButton.disabled = false;
+    }
+    if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+    if (searchResults) {
+        searchResults.querySelectorAll("audio[data-object-url]").forEach(audio => {
+            try { URL.revokeObjectURL(audio.dataset.objectUrl); } catch (_) {}
+            audio.removeAttribute("src");
+            audio.load();
+        });
+        searchResults.innerHTML = '<p class="empty-message">Select the source folder again to search the latest transcript files.</p>';
+    }
+    if (searchQueryStatus) {
+        searchQueryStatus.hidden = true;
+        searchQueryStatus.innerHTML = "";
+    }
+    setSearchIndexStatus("Transcript edited. Select the source folder again to rebuild Search.");
+    setSearchBusy(false);
+    updateClearSearchButton();
+}
+
+
 export function initSearchUI({
     getStorageModule: loadStorageModule,
     getSearchModule: loadSearchModule,

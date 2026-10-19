@@ -1276,3 +1276,55 @@ button:disabled {
     margin-top: 12px;
     font-size: var(--memora-search-body-size);
 }
+
+
+/* Transcript editing in Combine */
+.combine-recording-header .combine-edit-toggle {
+    flex-shrink: 0;
+}
+
+.combine-transcript-editor {
+    margin-top: 12px;
+}
+
+.combine-transcript-editor[hidden] {
+    display: none !important;
+}
+
+.combine-transcript-editor-input {
+    display: block;
+    width: 100%;
+    min-height: 220px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--memora-search-body-size);
+    line-height: 1.65;
+    resize: vertical;
+}
+
+.combine-transcript-editor-input:focus {
+    outline: 2px solid #C9C3DD;
+    outline-offset: 1px;
+}
+
+.combine-transcript-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.combine-transcript-editor-actions button {
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.combine-transcript-editor-actions .combine-transcript-secondary-button {
+    background: var(--surface);
+    color: var(--navy);
+    border: 1px solid var(--border);
+}

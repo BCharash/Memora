@@ -6,7 +6,7 @@ import {
     initCombineUI
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
-import { initSearchUI } from "./searchUI.js";
+import { initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
 import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
 import { initSettingsUI } from "./settings.js";
 
@@ -1409,7 +1409,32 @@ if (combineParagraphingCheckbox) {
 
 initCombineUI({
     getCombineModule,
-    onSelectionChanged: iphoneCombineExportUI.reset
+    onSelectionChanged: iphoneCombineExportUI.reset,
+    onSaveTranscriptEdits: async (record, updatedText) => {
+        const storage = await getStorageModule();
+        const sourceHandle = textSourceHandle;
+        if (!sourceHandle) {
+            throw new Error("Select the transcript source again before editing.");
+        }
+
+        const updatedFile = new File([updatedText], record.filename, {
+            type: "text/plain",
+            lastModified: Date.now()
+        });
+
+        if (sourceHandle.kind === "file-input") {
+            // iPhone/iPad cannot write into the selected File object. Hand the
+            // edited transcript to the existing Files Share Sheet workflow.
+            await storage.shareFile(updatedFile);
+        } else {
+            await storage.writeTextFile(sourceHandle, record.filename, updatedText);
+        }
+
+        // A saved edit invalidates the active Search index. The next Search
+        // session must select its source again and read current file contents.
+        invalidateSearchAfterTranscriptEdit();
+        return updatedFile;
+    }
 });
 
 async function combineSelectedFiles(
