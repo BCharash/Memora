@@ -457,6 +457,9 @@ export async function displayTranscriptFiles(files) {
                     editToggle.hidden = true;
                     editToggle.textContent = "Edit";
                     editor.focus();
+                    // Start editing at the beginning of the transcript, not at its end.
+                    editor.setSelectionRange(0, 0);
+                    editor.scrollTop = 0;
                 } else {
                     if (editor.value !== String(record.transcript || "") &&
                         !confirm("Discard the unsaved transcript edits?")) {
