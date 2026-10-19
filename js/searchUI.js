@@ -774,7 +774,7 @@ async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
     return null;
 }
 
-async function resolveSearchAudioFile(relativePath, recordingFilename) {
+async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride = null) {
     const candidates = [...new Set([relativePath, recordingFilename].filter(Boolean))];
     const wantedNames = candidates
         .map(value => value.split(/[\\/]/).pop().toLocaleLowerCase());
@@ -787,7 +787,7 @@ async function resolveSearchAudioFile(relativePath, recordingFilename) {
         }
     }
 
-    const handle = searchSourceHandle;
+    const handle = sourceHandleOverride || searchSourceHandle;
     if (!handle) return null;
 
     if (handle.kind === "file-input") {
@@ -833,7 +833,7 @@ function isIPhoneBrowser() {
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
-function appendSearchAudioControl(section, group) {
+export function appendSearchAudioControl(section, group, sourceHandleOverride = null) {
     const relativePath = group.record?.audioRelativePath || "";
     const recordingFilename = group.record?.recordingFilename || "";
     if (!relativePath && !recordingFilename) return;
@@ -937,7 +937,7 @@ function appendSearchAudioControl(section, group) {
         // directory picker is not available there, and the share sheet cannot
         // be opened until an actual File object has been obtained.
         if (onIPhone) {
-            const cachedFile = await resolveSearchAudioFile(relativePath, recordingFilename);
+            const cachedFile = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
             if (cachedFile) {
                 showLoadedPlayer(cachedFile);
                 try {
@@ -969,17 +969,17 @@ function appendSearchAudioControl(section, group) {
         playButton.textContent = "…";
         errorMessage.hidden = true;
         try {
-            let file = await resolveSearchAudioFile(relativePath, recordingFilename);
+            let file = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
 
             // A selected directory handle cannot navigate upward to its parent.
             // Ask for the audio-containing parent once, then reuse that handle
             // for subsequent search results and searches in this page session.
-            if (!file && searchSourceHandle?.kind !== "file-input" && window.showDirectoryPicker) {
+            if (!file && (sourceHandleOverride || searchSourceHandle)?.kind !== "file-input" && window.showDirectoryPicker) {
                 errorMessage.textContent = "The recording wasn't in the selected folder. Select the parent folder that contains the audio.";
                 errorMessage.hidden = false;
                 const chosenRoot = await window.showDirectoryPicker({ mode: "read" });
                 searchAudioRootHandle = chosenRoot;
-                file = await resolveSearchAudioFile(relativePath, recordingFilename);
+                file = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
             }
 
             if (!file) {

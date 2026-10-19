@@ -11,6 +11,8 @@ let combineSortOrder = "date-desc";
 let getCombineModule;
 let onSelectionChanged;
 let saveTranscriptEdits;
+let appendAudioControl;
+let getAudioSourceHandle;
 export async function displayTranscriptFiles(files) {
 
     selectedTranscriptFiles = files;
@@ -407,6 +409,16 @@ export async function displayTranscriptFiles(files) {
 
             const transcript = String(record.transcript || "").trim();
 
+            // Use the same audio player as Search, bound to Combine's current
+            // text-source folder (or the folder passed over from Search).
+            if (appendAudioControl && (record.audioRelativePath || record.recordingFilename)) {
+                appendAudioControl(
+                    transcriptContent,
+                    { record },
+                    getAudioSourceHandle?.() || null
+                );
+            }
+
             if (transcript) {
                 const paragraphs = transcript
                     .replace(/\r\n?/g, "\n")
@@ -675,9 +687,13 @@ export function getCombineSortOrder() {
 export function initCombineUI({
     getCombineModule: loadCombineModule,
     onSelectionChanged: resetExportState,
-    onSaveTranscriptEdits
+    onSaveTranscriptEdits,
+    onAppendAudioControl,
+    getAudioSourceHandle: readAudioSourceHandle
 }) {
     getCombineModule = loadCombineModule;
     onSelectionChanged = resetExportState;
     saveTranscriptEdits = onSaveTranscriptEdits;
+    appendAudioControl = onAppendAudioControl;
+    getAudioSourceHandle = readAudioSourceHandle;
 }

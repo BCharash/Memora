@@ -6,7 +6,7 @@ import {
     initCombineUI
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
-import { initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
+import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
 import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
 import { initSettingsUI } from "./settings.js";
 
@@ -1410,6 +1410,8 @@ if (combineParagraphingCheckbox) {
 initCombineUI({
     getCombineModule,
     onSelectionChanged: iphoneCombineExportUI.reset,
+    onAppendAudioControl: appendSearchAudioControl,
+    getAudioSourceHandle: () => textSourceHandle,
     onSaveTranscriptEdits: async (record, updatedText) => {
         const storage = await getStorageModule();
         const sourceHandle = textSourceHandle;
