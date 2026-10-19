@@ -378,6 +378,21 @@ button:disabled {
     width: 100%;
 }
 
+.combine-transcript-actions {
+    display: inline-flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.combine-transcript-actions .search-transcript-toggle {
+    width: auto !important;
+    flex: 0 0 auto;
+    margin-left: 0;
+}
+
 .combine-recording-header .recording-name {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -385,8 +400,11 @@ button:disabled {
 }
 
 .combine-recording-header .search-transcript-toggle {
-    margin-left: auto;
     flex-shrink: 0;
+}
+
+.combine-transcript-actions [hidden] {
+    display: none !important;
 }
 
 .combine-recording-header + .search-transcript-text[hidden] {

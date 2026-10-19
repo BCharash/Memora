@@ -370,6 +370,14 @@ export async function displayTranscriptFiles(files) {
             editToggle.textContent = "Edit";
             editToggle.title = "Edit transcript";
             editToggle.setAttribute("aria-label", `Edit ${record.filename}`);
+            editToggle.hidden = true;
+
+            const transcriptActions = document.createElement("div");
+            transcriptActions.className = "combine-transcript-actions";
+            // Keep Show/Hide in its established rightmost position;
+            // place Edit immediately to its left when it is visible.
+            transcriptActions.appendChild(editToggle);
+            transcriptActions.appendChild(transcriptToggle);
 
             const editPanel = document.createElement("div");
             editPanel.className = "combine-transcript-editor";
@@ -422,8 +430,7 @@ export async function displayTranscriptFiles(files) {
             }
 
             header.appendChild(name);
-            header.appendChild(editToggle);
-            header.appendChild(transcriptToggle);
+            header.appendChild(transcriptActions);
             content.appendChild(header);
             content.appendChild(transcriptContent);
             content.appendChild(editPanel);
@@ -435,6 +442,7 @@ export async function displayTranscriptFiles(files) {
                 transcriptToggle.title = transcriptToggle.textContent;
                 transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
                 transcriptToggle.setAttribute("aria-expanded", String(willShow));
+                editToggle.hidden = !willShow;
             });
 
             editToggle.addEventListener("click", () => {
@@ -446,7 +454,8 @@ export async function displayTranscriptFiles(files) {
                     transcriptToggle.title = "Show transcript";
                     transcriptToggle.setAttribute("aria-label", "Show transcript");
                     transcriptToggle.setAttribute("aria-expanded", "false");
-                    editToggle.textContent = "Close editor";
+                    editToggle.hidden = true;
+                    editToggle.textContent = "Edit";
                     editor.focus();
                 } else {
                     if (editor.value !== String(record.transcript || "") &&
@@ -455,6 +464,7 @@ export async function displayTranscriptFiles(files) {
                     }
                     editPanel.hidden = true;
                     editToggle.textContent = "Edit";
+                    editToggle.hidden = transcriptContent.hidden;
                     editor.value = String(record.transcript || "");
                 }
             });
@@ -462,6 +472,12 @@ export async function displayTranscriptFiles(files) {
             cancelEdit.addEventListener("click", () => {
                 editPanel.hidden = true;
                 editToggle.textContent = "Edit";
+                transcriptContent.hidden = false;
+                transcriptToggle.textContent = "Hide transcript";
+                transcriptToggle.title = "Hide transcript";
+                transcriptToggle.setAttribute("aria-label", "Hide transcript");
+                transcriptToggle.setAttribute("aria-expanded", "true");
+                editToggle.hidden = false;
                 editor.value = String(record.transcript || "");
             });
 
@@ -525,6 +541,7 @@ export async function displayTranscriptFiles(files) {
                     transcriptToggle.title = "Hide transcript";
                     transcriptToggle.setAttribute("aria-label", "Hide transcript");
                     transcriptToggle.setAttribute("aria-expanded", "true");
+                    editToggle.hidden = false;
                 } catch (error) {
                     console.error("Unable to save transcript edits:", error);
                     alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
