@@ -819,9 +819,9 @@ export async function buildSearchIndex(
 // --------------------------------------------------
 // Lexical phrase search
 // --------------------------------------------------
-// First-pass default: average character similarity across the query's words.
-// This is deliberately fixed in code; a Settings control can be added later.
-const LEXICAL_SIMILARITY_THRESHOLD = 0.80;
+// Default lexical threshold when a caller does not provide a setting.
+// The Search UI supplies its persisted user-selected threshold when available.
+const LEXICAL_SIMILARITY_THRESHOLD = 0.70;
 
 function tokenizeLexicalWords(text) {
     const source = String(text || "");

@@ -14,8 +14,8 @@ const semanticFractionSlider = document.getElementById("semanticFractionSlider")
 const semanticFractionValue = document.getElementById("semanticFractionValue");
 const LEXICAL_FUZZY_STORAGE_KEY = "memoraLexicalFuzzyThreshold";
 const SEMANTIC_FRACTION_STORAGE_KEY = "memoraSemanticResultsFraction";
-const DEFAULT_LEXICAL_FUZZY_PERCENT = 80;
-const MIN_LEXICAL_FUZZY_PERCENT = 70;
+const DEFAULT_LEXICAL_FUZZY_PERCENT = 70;
+const MIN_LEXICAL_FUZZY_PERCENT = 50;
 const MAX_LEXICAL_FUZZY_PERCENT = 100;
 const LEXICAL_FUZZY_STEP = 5;
 const DEFAULT_SEMANTIC_SLIDER_POSITION = 0;
@@ -49,7 +49,7 @@ function updateLexicalFuzzyValue() {
 
 if (lexicalFuzzySlider) {
     // Set the range here as well as in the HTML so the control remains correct
-    // even if an older cached index.html still specifies a 50% minimum.
+    // even when an older cached index.html specifies a different minimum.
     lexicalFuzzySlider.min = String(MIN_LEXICAL_FUZZY_PERCENT);
     lexicalFuzzySlider.max = String(MAX_LEXICAL_FUZZY_PERCENT);
     lexicalFuzzySlider.step = String(LEXICAL_FUZZY_STEP);
