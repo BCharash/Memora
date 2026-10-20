@@ -1312,7 +1312,7 @@ button:disabled {
 .combine-transcript-editor-input {
     display: block;
     width: 100%;
-    min-height: 220px;
+    min-height: 275px;
     padding: 12px;
     border: 1px solid var(--border);
     border-radius: 8px;

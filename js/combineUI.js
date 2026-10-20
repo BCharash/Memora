@@ -407,58 +407,90 @@ export async function displayTranscriptFiles(files) {
             editPanel.appendChild(editor);
             editPanel.appendChild(editActions);
 
-            const transcript = String(record.transcript || "").trim();
+            // Keep audio outside the transcript text container so it remains
+            // available while the transcript is being edited.
+            const audioContainer = document.createElement("div");
+            audioContainer.hidden = true;
+            let audioControlCreated = false;
+            let transcriptRendered = false;
 
-            // Use the same audio player as Search, bound to Combine's current
-            // text-source folder (or the folder passed over from Search).
-            if (appendAudioControl && (record.audioRelativePath || record.recordingFilename)) {
-                appendAudioControl(
-                    transcriptContent,
-                    { record },
-                    getAudioSourceHandle?.() || null
-                );
-            }
-
-            if (transcript) {
-                const paragraphs = transcript
+            function renderTranscriptText() {
+                transcriptContent.innerHTML = "";
+                const currentTranscript = String(record.transcript || "").trim();
+                const paragraphs = currentTranscript
                     .replace(/\r\n?/g, "\n")
                     .split(/\n\s*\n+/)
                     .map(paragraph => paragraph.trim())
                     .filter(Boolean);
 
-                for (const paragraph of paragraphs) {
-                    const paragraphElement =
-                        document.createElement("p");
-
-                    paragraphElement.className = "search-full-transcript-paragraph";
-                    paragraphElement.textContent = paragraph;
-                    transcriptContent.appendChild(paragraphElement);
+                if (paragraphs.length) {
+                    for (const paragraph of paragraphs) {
+                        const paragraphElement = document.createElement("p");
+                        paragraphElement.className = "search-full-transcript-paragraph";
+                        paragraphElement.textContent = paragraph;
+                        transcriptContent.appendChild(paragraphElement);
+                    }
+                } else {
+                    const fallback = document.createElement("p");
+                    fallback.className = "empty-message";
+                    fallback.textContent = currentTranscript
+                        ? "This transcript is empty."
+                        : "The transcript text is unavailable for this file.";
+                    transcriptContent.appendChild(fallback);
                 }
-            } else {
-                const fallback = document.createElement("p");
-                fallback.className = "empty-message";
-                fallback.textContent = "The transcript text is unavailable for this file.";
-                transcriptContent.appendChild(fallback);
+                transcriptRendered = true;
+            }
+
+            function ensureAudioControl() {
+                if (audioControlCreated) return;
+                if (appendAudioControl && (record.audioRelativePath || record.recordingFilename)) {
+                    appendAudioControl(
+                        audioContainer,
+                        { record },
+                        getAudioSourceHandle?.() || null
+                    );
+                }
+                audioControlCreated = true;
+            }
+
+            function showTranscript() {
+                if (!transcriptRendered) renderTranscriptText();
+                ensureAudioControl();
+                audioContainer.hidden = false;
+                transcriptContent.hidden = false;
+                editPanel.hidden = true;
+                transcriptToggle.textContent = "Hide transcript";
+                transcriptToggle.title = "Hide transcript";
+                transcriptToggle.setAttribute("aria-label", "Hide transcript");
+                transcriptToggle.setAttribute("aria-expanded", "true");
+                editToggle.hidden = false;
             }
 
             header.appendChild(name);
             header.appendChild(transcriptActions);
             content.appendChild(header);
+            content.appendChild(audioContainer);
             content.appendChild(transcriptContent);
             content.appendChild(editPanel);
 
             transcriptToggle.addEventListener("click", () => {
-                const willShow = transcriptContent.hidden;
-                transcriptContent.hidden = !willShow;
-                transcriptToggle.textContent = willShow ? "Hide transcript" : "Show transcript";
-                transcriptToggle.title = transcriptToggle.textContent;
-                transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
-                transcriptToggle.setAttribute("aria-expanded", String(willShow));
-                editToggle.hidden = !willShow;
+                if (transcriptContent.hidden) {
+                    showTranscript();
+                } else {
+                    transcriptContent.hidden = true;
+                    audioContainer.hidden = true;
+                    transcriptToggle.textContent = "Show transcript";
+                    transcriptToggle.title = "Show transcript";
+                    transcriptToggle.setAttribute("aria-label", "Show transcript");
+                    transcriptToggle.setAttribute("aria-expanded", "false");
+                    editToggle.hidden = true;
+                }
             });
 
             editToggle.addEventListener("click", () => {
                 if (editPanel.hidden) {
+                    ensureAudioControl();
+                    audioContainer.hidden = false;
                     editor.value = String(record.transcript || "");
                     editPanel.hidden = false;
                     transcriptContent.hidden = true;
@@ -480,6 +512,7 @@ export async function displayTranscriptFiles(files) {
                     editPanel.hidden = true;
                     editToggle.textContent = "Edit";
                     editToggle.hidden = transcriptContent.hidden;
+                    audioContainer.hidden = transcriptContent.hidden;
                     editor.value = String(record.transcript || "");
                 }
             });
@@ -487,6 +520,7 @@ export async function displayTranscriptFiles(files) {
             cancelEdit.addEventListener("click", () => {
                 editPanel.hidden = true;
                 editToggle.textContent = "Edit";
+                audioContainer.hidden = false;
                 transcriptContent.hidden = false;
                 transcriptToggle.textContent = "Hide transcript";
                 transcriptToggle.title = "Hide transcript";
@@ -530,26 +564,10 @@ export async function displayTranscriptFiles(files) {
                         selectedTranscriptFiles[selectedIndex] = record.file;
                     }
 
-                    transcriptContent.innerHTML = "";
-                    const paragraphs = editedBody
-                        .split(/\n\s*\n+/)
-                        .map(paragraph => paragraph.trim())
-                        .filter(Boolean);
-                    if (paragraphs.length) {
-                        for (const paragraph of paragraphs) {
-                            const paragraphElement = document.createElement("p");
-                            paragraphElement.className = "search-full-transcript-paragraph";
-                            paragraphElement.textContent = paragraph;
-                            transcriptContent.appendChild(paragraphElement);
-                        }
-                    } else {
-                        const empty = document.createElement("p");
-                        empty.className = "empty-message";
-                        empty.textContent = "This transcript is empty.";
-                        transcriptContent.appendChild(empty);
-                    }
+                    renderTranscriptText();
 
                     editPanel.hidden = true;
+                    audioContainer.hidden = false;
                     editToggle.textContent = "Edit";
                     transcriptContent.hidden = false;
                     transcriptToggle.textContent = "Hide transcript";
