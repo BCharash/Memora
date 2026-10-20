@@ -1384,3 +1384,67 @@ button:disabled {
 .search-result-file-header .combine-edit-toggle {
     flex-shrink: 0;
 }
+
+
+/* Keep the existing Search Index button conspicuous while changes are pending.
+   The blue glow pulses independently from a separate thin black outline. */
+#searchIndexUpdateButton:not(:disabled) {
+    position: relative;
+    isolation: isolate;
+    background: #0878F9;
+    color: #FFFFFF;
+    border: 2px solid #005ACB;
+    font-weight: 700;
+    box-shadow: 0 0 0 3px rgb(8 120 249 / 20%), 0 3px 10px rgb(0 72 180 / 22%);
+    animation: search-index-blue-halo 2.4s ease-in-out infinite;
+}
+
+#searchIndexUpdateButton:not(:disabled)::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 1px solid #111111;
+    border-radius: 15px;
+    pointer-events: none;
+    animation: search-index-black-outline 2.4s ease-in-out infinite;
+}
+
+#searchIndexUpdateButton:not(:disabled):hover {
+    background: #0067E8;
+    border-color: #004FAF;
+    opacity: 1;
+}
+
+#searchIndexUpdateButton:not(:disabled):focus-visible {
+    outline: 3px solid #003F91;
+    outline-offset: 9px;
+}
+
+@keyframes search-index-blue-halo {
+    0%,
+    100% {
+        box-shadow: 0 0 0 3px rgb(8 120 249 / 24%), 0 3px 10px rgb(0 72 180 / 22%);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgb(8 120 249 / 18%), 0 4px 15px rgb(0 72 180 / 34%);
+    }
+}
+
+@keyframes search-index-black-outline {
+    0%,
+    100% {
+        inset: -6px;
+        border-color: rgb(17 17 17 / 85%);
+    }
+    50% {
+        inset: -9px;
+        border-color: rgb(17 17 17 / 95%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #searchIndexUpdateButton:not(:disabled),
+    #searchIndexUpdateButton:not(:disabled)::after {
+        animation: none;
+    }
+}
