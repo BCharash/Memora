@@ -488,8 +488,6 @@ export async function buildSearchIndex(
 
     const readStart = performance.now();
 
-    currentIndex = null;
-
     if (!Array.isArray(files) || files.length === 0) {
         return {
             modelId,

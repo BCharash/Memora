@@ -674,3 +674,32 @@ export async function clearSemanticStore() {
         };
     });
 }
+
+
+// Remove cached embeddings belonging to one previous version of a transcript.
+// The transcript hash is included so freshly generated entries for the edited
+// version (which shares the same sourceKey) are not deleted.
+export async function removeSemanticEntriesForTranscript(sourceKey, transcriptHash) {
+    if (!sourceKey || !transcriptHash) return 0;
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(ENTRY_STORE, "readwrite");
+        const store = transaction.objectStore(ENTRY_STORE);
+        let removed = 0;
+        const request = store.openCursor();
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) return;
+            const entry = cursor.value;
+            if (entry.sourceKey === sourceKey && entry.transcriptHash === transcriptHash) {
+                cursor.delete();
+                removed++;
+            }
+            cursor.continue();
+        };
+        request.onerror = () => { db.close(); reject(request.error); };
+        transaction.oncomplete = () => { db.close(); resolve(removed); };
+        transaction.onerror = () => { db.close(); reject(transaction.error); };
+        transaction.onabort = () => { db.close(); reject(transaction.error); };
+    });
+}

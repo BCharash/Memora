@@ -1309,7 +1309,8 @@ button:disabled {
     display: none !important;
 }
 
-.combine-transcript-editor-input {
+.combine-transcript-editor-input,
+.search-transcript-editor {
     display: block;
     width: 100%;
     min-height: 275px;
@@ -1324,9 +1325,19 @@ button:disabled {
     resize: vertical;
 }
 
-.combine-transcript-editor-input:focus {
+.combine-transcript-editor-input:focus,
+.search-transcript-editor:focus {
     outline: 2px solid #C9C3DD;
     outline-offset: 1px;
+}
+
+.combine-transcript-editor,
+.search-transcript-editor-panel {
+    margin-top: 12px;
+}
+
+.search-transcript-editor-panel[hidden] {
+    display: none !important;
 }
 
 .combine-transcript-editor-actions {
@@ -1336,13 +1347,40 @@ button:disabled {
     margin-top: 10px;
 }
 
-.combine-transcript-editor-actions button {
+.combine-transcript-editor-actions button,
+.search-transcript-editor-actions button {
     padding: 8px 12px;
     font-size: 14px;
+}
+
+.search-transcript-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .combine-transcript-editor-actions .combine-transcript-secondary-button {
     background: var(--surface);
     color: var(--navy);
     border: 1px solid var(--border);
+}
+
+
+/* Search result header actions mirror the compact Combine transcript controls. */
+.search-result-file-header .combine-transcript-actions {
+    display: inline-flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+.search-result-file-header .combine-transcript-actions .search-transcript-toggle {
+    width: auto !important;
+    flex: 0 0 auto;
+    margin-left: 0;
+}
+.search-result-file-header .combine-edit-toggle {
+    flex-shrink: 0;
 }

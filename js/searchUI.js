@@ -1014,6 +1014,205 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     section.appendChild(control);
 }
 
+function makeSearchEditButton(label, className) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+    return button;
+}
+
+function getTranscriptFileContent(file, editedTranscript) {
+    return file.text().then(originalText => {
+        const lines = originalText.split(/\r?\n/);
+        const separatorIndex = lines.findIndex(line => line.trim() === "--------------------------------------------------");
+        if (separatorIndex < 0) {
+            throw new Error("This transcript has no metadata separator, so Memora cannot safely replace only its transcript text.");
+        }
+        const header = lines.slice(0, separatorIndex + 1).join("\n");
+        const cleanTranscript = String(editedTranscript ?? "").replace(/\r\n?/g, "\n");
+        return `${header}\n${cleanTranscript}${cleanTranscript.endsWith("\n") ? "" : "\n"}`;
+    });
+}
+
+async function reindexEditedTranscript(updatedFile, oldRecord) {
+    if (!currentSearchIndex || !searchIndexReady) {
+        throw new Error("Search is not ready to reindex this transcript. Please rebuild the Search Index first.");
+    }
+    const search = await getSearchModule();
+    const semantic = await import("./semantic.js");
+    const oldArchive = JSON.parse(search.serializeSearchEmbeddingsArchive(currentSearchIndex));
+    const files = currentSearchIndex.records.map(record =>
+        record.filename === updatedFile.name ? updatedFile : record.file
+    ).filter(Boolean);
+    if (!files.some(file => file.name === updatedFile.name)) {
+        throw new Error("The edited transcript is not part of the current Search Index.");
+    }
+
+    const previousIndex = currentSearchIndex;
+    const previousReady = searchIndexReady;
+    searchIndexReady = false;
+    if (searchButton) searchButton.disabled = true;
+    if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+    setSearchIndexStatus("Reindexing the edited transcript and reusing unchanged embeddings…", true);
+
+    try {
+        const replacementIndex = await search.buildSearchIndex(
+            files,
+            message => setSearchIndexStatus(message, true),
+            oldArchive
+        );
+        if (!replacementIndex || !replacementIndex.sentences) {
+            throw new Error("The edited transcript did not produce a searchable index.");
+        }
+        currentSearchIndex = replacementIndex;
+        searchIndexReady = true;
+
+        // Clean only the old hash version. New embeddings have a different hash,
+        // even though they retain the same source key.
+        try {
+            await semantic.removeSemanticEntriesForTranscript(oldRecord.sourceKey, oldRecord.transcriptHash);
+        } catch (cleanupError) {
+            console.warn("Old semantic cache entries could not be cleaned up:", cleanupError);
+        }
+
+        if (searchIndexUpdateButton) {
+            searchIndexUpdateButton.disabled = !replacementIndex.archiveNeedsUpdate;
+        }
+        setSearchIndexStatus("Transcript updated and reindexed. Search Index has unsaved changes.");
+    } catch (error) {
+        currentSearchIndex = previousIndex;
+        searchIndexReady = false; // Prevent new queries from silently using stale index data.
+        if (searchButton) searchButton.disabled = true;
+        if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+        setSearchIndexStatus(`Transcript file saved, but reindexing failed: ${error.message || String(error)}. Rebuild the Search Index before searching again.`);
+        throw error;
+    } finally {
+        if (searchButton) searchButton.disabled = !searchIndexReady;
+        if (!searchIndexReady && previousReady) {
+            // Current result DOM remains visible, but new queries are blocked until recovery.
+        }
+    }
+}
+
+function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle) {
+    const record = group.record;
+    const editButton = makeSearchEditButton("Edit", "search-transcript-toggle combine-edit-toggle search-transcript-edit-button");
+    editButton.title = "Edit transcript";
+    editButton.setAttribute("aria-label", `Edit ${group.filename}`);
+    const transcriptActions = document.createElement("div");
+    transcriptActions.className = "combine-transcript-actions";
+    // Match Combine: Edit sits immediately to the left of Show/Hide transcript.
+    transcriptActions.append(editButton, transcriptToggle);
+    header.appendChild(transcriptActions);
+
+    const editorPanel = document.createElement("div");
+    editorPanel.className = "search-transcript-editor-panel";
+    editorPanel.hidden = true;
+    const textarea = document.createElement("textarea");
+    textarea.className = "search-transcript-editor";
+    textarea.setAttribute("aria-label", `Edit full transcript: ${group.filename}`);
+    textarea.rows = 12;
+    textarea.value = String(record.transcript || "");
+    const actions = document.createElement("div");
+    actions.className = "search-transcript-editor-actions";
+    const saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
+    const cancelButton = makeSearchEditButton("Cancel", "search-transcript-cancel-button");
+    const status = document.createElement("p");
+    status.className = "search-transcript-editor-status";
+    status.setAttribute("role", "status");
+    actions.append(saveButton, cancelButton);
+    editorPanel.append(textarea, actions, status);
+    const transcriptBody = section.querySelector(".search-result-full-transcript");
+    (transcriptBody || section).appendChild(editorPanel);
+
+    editButton.addEventListener("click", () => {
+        textarea.value = String(record.transcript || "");
+        editorPanel.hidden = false;
+        transcriptElement.hidden = false;
+        transcriptToggle.textContent = "Hide transcript";
+        transcriptToggle.title = "Hide transcript";
+        transcriptToggle.setAttribute("aria-label", "Hide transcript");
+        transcriptToggle.setAttribute("aria-expanded", "true");
+        transcriptTextElement.hidden = true;
+        editButton.disabled = true;
+        textarea.focus();
+        // Match Combine: place the insertion point at the start of the transcript.
+        textarea.setSelectionRange(0, 0);
+        textarea.scrollTop = 0;
+    });
+    cancelButton.addEventListener("click", () => {
+        editorPanel.hidden = true;
+        transcriptTextElement.hidden = false;
+        editButton.disabled = false;
+        status.textContent = "";
+        textarea.value = String(record.transcript || "");
+    });
+    saveButton.addEventListener("click", async () => {
+        const editedTranscript = textarea.value;
+        if (!editedTranscript.trim()) {
+            status.textContent = "The transcript cannot be empty.";
+            return;
+        }
+        if (editedTranscript === String(record.transcript || "")) {
+            status.textContent = "No changes to save.";
+            return;
+        }
+        saveButton.disabled = true;
+        cancelButton.disabled = true;
+        status.textContent = "Saving transcript…";
+        try {
+            const storage = await getStorageModule();
+            const fullText = await getTranscriptFileContent(record.file, editedTranscript);
+            let updatedFile;
+            if (searchSourceHandle?.kind === "file-input") {
+                // iPhone/iPad folder selection is read-only. Share an updated
+                // replacement file instead of claiming the original was overwritten.
+                updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
+                await storage.shareFile(updatedFile);
+                const currentFiles = Array.from(searchSourceHandle.files || []);
+                const idx = currentFiles.findIndex(file => file.name === record.filename);
+                if (idx >= 0) currentFiles[idx] = updatedFile;
+                else currentFiles.push(updatedFile);
+                searchSourceHandle.files = currentFiles;
+                status.textContent = "Updated transcript shared. Reindexing this session…";
+            } else {
+                const fileHandle = await searchSourceHandle.getFileHandle(record.filename, { create: false });
+                const writable = await fileHandle.createWritable();
+                try { await writable.write(fullText); } finally { await writable.close(); }
+                updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
+                status.textContent = "Transcript saved. Reindexing…";
+            }
+
+            const oldRecord = { ...record };
+            await reindexEditedTranscript(updatedFile, oldRecord);
+            record.transcript = editedTranscript;
+            record.file = updatedFile;
+            // Close the editor before refreshing results. Re-running the same
+            // query rebuilds the result DOM from the edited transcript and
+            // refreshed in-memory index, so stale text/highlighting disappears.
+            transcriptTextElement.hidden = false;
+            editorPanel.hidden = true;
+            editButton.disabled = false;
+            status.textContent = "Transcript updated. Refreshing search results…";
+            await runSearchQuery();
+            // The index archive is separate from the live in-memory index.
+            // Keep the existing top-of-page Update Search Index control as the
+            // single way to persist the refreshed archive.
+            const reminder = "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
+            setSearchIndexStatus(reminder);
+            status.textContent = reminder;
+            window.scrollTo(0, 0);
+        } catch (error) {
+            console.error("Search transcript edit failed:", error);
+            status.textContent = error.message || "Unable to save or reindex this transcript.";
+        } finally {
+            saveButton.disabled = false;
+            cancelButton.disabled = false;
+        }
+    });
+}
+
 function renderSearchResults(payload) {
     if (!searchResults) {
         return { files: [], displayedChunkCount: 0 };
@@ -1245,9 +1444,6 @@ function renderSearchResults(payload) {
         transcriptToggle.title = "Hide transcript";
         transcriptToggle.setAttribute("aria-label", "Hide transcript");
         transcriptToggle.setAttribute("aria-expanded", "true");
-        transcriptToggle.style.marginLeft = "auto";
-        transcriptToggle.style.flexShrink = "0";
-        header.appendChild(transcriptToggle);
         section.appendChild(header);
 
         const transcriptElement = document.createElement("div");
@@ -1259,6 +1455,7 @@ function renderSearchResults(payload) {
         appendColoredTranscript(transcriptTextElement, group);
         transcriptElement.appendChild(transcriptTextElement);
         section.appendChild(transcriptElement);
+        addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle);
 
         transcriptToggle.addEventListener("click", () => {
             const willHide = !transcriptElement.hidden;
