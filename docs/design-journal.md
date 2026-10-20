@@ -3914,42 +3914,66 @@ Keep the embedding-model choice fixed during that work so ranking changes can be
 
 ---
 
-# 55. Search Transcript Editing and Index Refresh Workflow
+---
+
+# 55. Transcript Editing in Combine and Search
 
 **Date:** 20 October 2026  
-**Status:** Implemented in the current Search/Combine workflow; visual behavior should still be checked in the running app.
+**Status:** Editing controls are implemented in both Combine and Search. The user reported that the recent Combine save/refresh workflow appeared to work; the Search edit workflow is designed to preserve the current results while refreshing the live index. Browser-specific file-write and visual behavior should be validated in the running app.
 
-## 55.1 Purpose
+## 55.1 Purpose and shared behavior
 
-Transcript editing from Combine is intended to let the user correct an existing transcript without losing the ability to search the updated text. Saving an edit must update the durable transcript file and refresh the current Search view so the user can immediately see the effect of the change.
+Memora now supports editing the **full transcript** from either Combine or Search. These are two entry points to correct the durable transcript, not two separate transcript stores. The edit applies to the transcript text, while the existing transcript metadata/header is retained when the saved file is reconstructed.
 
-## 55.2 Save and refresh behavior
+Both interfaces provide an **Edit** control and a text editor with **Save** and **Cancel** actions. Editing starts at the beginning of the transcript. Cancel discards the unsaved changes and restores the previously saved text. The interface guards against accidentally discarding unsaved edits when leaving the editor.
 
-The current edit workflow in Combine was refined so that, after a transcript edit is saved successfully, Memora:
+## 55.2 Editing from Combine
 
-- updates the in-memory transcript record to reflect the saved text;
-- invalidates/rebuilds the relevant Search index entries for the changed transcript through the existing indexing workflow;
-- reruns the current Search query so the results and highlights reflect the edited text;
-- refreshes the visible Search results rather than leaving stale transcript text or stale highlighting on screen; and
-- returns the view to the top so the user can see the Search controls and indexing status.
+In Combine, the transcript card provides **Show transcript / Hide transcript** controls. The **Edit** control is available alongside these controls when the transcript is shown. Choosing Edit opens an editor for the complete transcript body; the normal transcript display is hidden while editing.
 
-The intent is to make the result of editing visible immediately, while retaining the existing explicit index-update action for committing the refreshed index state.
+The controls are:
 
-## 55.3 Explicit Update Search Index action
+- **Save changes** — saves the edited transcript text while retaining the existing metadata/header and separator in the individual transcript file; then updates the in-memory record and the selected-file reference used by the current Combine view.
+- **Cancel** — abandons the edits and restores the saved transcript.
+- **Show transcript / Hide transcript** — controls the normal transcript presentation independently of the editor.
 
-The Search workflow still includes an **Update Search Index** action. Saving an edited transcript and rerunning the current query does not remove the need for the user to use this existing action when the UI indicates that the index needs updating. The interface should make that action easy to notice because it is located above the query area, while the user's attention is usually on the search box and results.
+After a successful save, Combine refreshes the displayed transcript to show the corrected text. This is an edit to the individual transcript source, not merely an annotation in the combined output. The Combine output can then be regenerated from the corrected record. Saving an edit in Combine does not itself mean that the separate Search index JSON has been persisted.
 
-The current visual refinement makes the enabled button more conspicuous with a vivid blue fill and a slow, gentle pulsing blue halo. A separate thin black outline surrounds the halo; it is a distinct outline rather than a dark shadow blended into the blue glow. The button's label and indexing behavior remain unchanged. The animation is disabled when the operating system requests reduced motion, and the button retains a visible keyboard-focus indicator.
+## 55.3 Editing from Search
 
-This is a presentation improvement only. It must not change indexing semantics, result ranking, or the stored transcript content.
+Search results also provide an **Edit** control for the full transcript, positioned beside the transcript visibility control. The editor has **Save and reindex** and **Cancel** actions.
 
-## 55.4 Responsibilities and boundaries
+Search editing is designed for correcting a transcript while continuing to review the current results:
 
-The durable individual `.txt` transcript remains the source of truth. Search results, highlights, and the Search index are derived representations of that content. Editing should update the source file first, then refresh the derived views through the established workflow.
+1. Open Edit on a transcript result.
+2. Correct the full transcript in the editor.
+3. Choose **Save and reindex**.
+4. Memora saves the changed transcript and rebuilds the live Search index entries for that transcript through the existing indexing pipeline.
+5. The current result list remains visible and the user's review position is preserved. Search does **not** automatically rerun the current query or reconcile its existing ranking/highlighting snapshot.
+6. Subsequent queries use the updated live index without requiring the user to reset Search or select the source again.
 
-The change does not introduce a new embedding model or change the semantic representations, retrieval thresholds, lexical matching, contextual highlighting, or Search-to-Combine handoff. It is a workflow and presentation refinement around transcript edits and index refresh.
+The index refresh is incremental: the edited transcript's sentence records, contextual chunks, and associated embeddings are replaced for the new transcript version. Unchanged transcripts are not intended to be reindexed, and stale records from the old version must not remain available to later queries.
 
-## 55.5 Validation notes
+On desktop, the workflow writes to the source transcript file when the selected source supports file-system writes. On iPhone/iPad, where a file-input source cannot be overwritten in place, the workflow must provide an updated replacement file for the user to save rather than claiming that the original was overwritten.
 
-The updated save-and-refresh behavior was reported by the user to appear to work in practice. The CSS change for the distinct black outline was corrected after the first attempt produced a single dark pulsing halo. The revised CSS uses a separate pseudo-element outline. Its appearance should still be checked in the running browser; a source change alone does not establish that every browser renders the intended visual effect identically.
+## 55.4 Transcript file versus Search index persistence
 
+The individual `.txt` transcript is the durable source of truth. The live in-memory Search index and its persisted index JSON are derived data and have separate save states.
+
+After a successful Search edit and reindex, Memora reports that the transcript has been updated and reindexed and that the Search Index has unsaved changes. This distinction matters: saving the transcript does not, by itself, prove that the updated index JSON has been saved.
+
+If the source file is saved but reindexing fails, Memora must report that partial outcome clearly and prevent new searches from silently using stale index data until recovery. Similarly, the interface must not report index persistence as complete unless the persistence operation succeeds.
+
+## 55.5 Update Search Index control
+
+The Search interface retains its explicit **Update Search Index** action for persisting the updated index state through the existing workflow. The button was made easier to notice because it sits above the query area, away from where the user is usually concentrating.
+
+The visual refinement uses a vivid blue button fill, a slow pulsing blue halo, and a separate thin black outline around the halo. The black outline is an independent outline, not simply a dark shadow blended into the blue glow. The animation is disabled when the operating system requests reduced motion, and the button retains a visible keyboard-focus indicator. These are presentation changes only; they must not alter index contents, ranking, or transcript text.
+
+## 55.6 Boundaries and validation
+
+The editing features do not introduce a new embedding model or change the Search retrieval representations, lexical matching, semantic filtering, contextual highlighting, or Search-to-Combine handoff. They reuse the existing transcript and indexing mechanisms.
+
+The Combine edit flow refreshes the current Combine transcript display after saving. The Search edit flow intentionally keeps the existing search results on screen and uses the refreshed live index for later queries. These are different post-save behaviors and should not be described as one shared automatic Search refresh.
+
+The user reported that the recent Combine save/refresh behavior appeared to work. The distinct black outline around the blue halo was corrected after the first CSS attempt produced a single dark pulsing halo; its appearance should still be checked in the running browser. Source-level checks and a successful save in one browser do not establish identical behavior across desktop browsers and iPhone/iPad file workflows.
