@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 11
+**Version:** 12
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -3911,3 +3911,45 @@ If semantic retrieval is improved next, first inspect how sentence and chunk can
 Keep the embedding-model choice fixed during that work so ranking changes can be evaluated without confounding them with a model change. Reconsider E5 only if a clearly defined later test shows a meaningful benefit for the intended corpus and user queries.
 
 ---
+
+---
+
+# 55. Search Transcript Editing and Index Refresh Workflow
+
+**Date:** 20 October 2026  
+**Status:** Implemented in the current Search/Combine workflow; visual behavior should still be checked in the running app.
+
+## 55.1 Purpose
+
+Transcript editing from Combine is intended to let the user correct an existing transcript without losing the ability to search the updated text. Saving an edit must update the durable transcript file and refresh the current Search view so the user can immediately see the effect of the change.
+
+## 55.2 Save and refresh behavior
+
+The current edit workflow in Combine was refined so that, after a transcript edit is saved successfully, Memora:
+
+- updates the in-memory transcript record to reflect the saved text;
+- invalidates/rebuilds the relevant Search index entries for the changed transcript through the existing indexing workflow;
+- reruns the current Search query so the results and highlights reflect the edited text;
+- refreshes the visible Search results rather than leaving stale transcript text or stale highlighting on screen; and
+- returns the view to the top so the user can see the Search controls and indexing status.
+
+The intent is to make the result of editing visible immediately, while retaining the existing explicit index-update action for committing the refreshed index state.
+
+## 55.3 Explicit Update Search Index action
+
+The Search workflow still includes an **Update Search Index** action. Saving an edited transcript and rerunning the current query does not remove the need for the user to use this existing action when the UI indicates that the index needs updating. The interface should make that action easy to notice because it is located above the query area, while the user's attention is usually on the search box and results.
+
+The current visual refinement makes the enabled button more conspicuous with a vivid blue fill and a slow, gentle pulsing blue halo. A separate thin black outline surrounds the halo; it is a distinct outline rather than a dark shadow blended into the blue glow. The button's label and indexing behavior remain unchanged. The animation is disabled when the operating system requests reduced motion, and the button retains a visible keyboard-focus indicator.
+
+This is a presentation improvement only. It must not change indexing semantics, result ranking, or the stored transcript content.
+
+## 55.4 Responsibilities and boundaries
+
+The durable individual `.txt` transcript remains the source of truth. Search results, highlights, and the Search index are derived representations of that content. Editing should update the source file first, then refresh the derived views through the established workflow.
+
+The change does not introduce a new embedding model or change the semantic representations, retrieval thresholds, lexical matching, contextual highlighting, or Search-to-Combine handoff. It is a workflow and presentation refinement around transcript edits and index refresh.
+
+## 55.5 Validation notes
+
+The updated save-and-refresh behavior was reported by the user to appear to work in practice. The CSS change for the distinct black outline was corrected after the first attempt produced a single dark pulsing halo. The revised CSS uses a separate pseudo-element outline. Its appearance should still be checked in the running browser; a source change alone does not establish that every browser renders the intended visual effect identically.
+
