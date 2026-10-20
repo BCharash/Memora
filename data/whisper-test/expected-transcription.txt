@@ -1,5 +1,2 @@
-This is a Whisper Model test. 
+On the 21st of July, 1969, Neil Armstrong left an indelible mark on the world when, becoming the first person to set foot on the surface of the Moon, he uttered the now famous words: “That’s one small step for man, one giant leap for mankind.”
 
-Each model should be able to transcribe naturally spoken text, including numbers like 287. 
-
-Transcription failure needs to be recognized and characterized.
