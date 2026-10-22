@@ -1482,3 +1482,36 @@ button:disabled {
         animation: none;
     }
 }
+
+
+/* --------------------------------------------------
+   On-demand DOM diagnostics
+   -------------------------------------------------- */
+.dom-diagnostics-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.dom-diagnostics-actions button {
+    width: auto;
+}
+.dom-diagnostics-summary {
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.dom-diagnostics-report {
+    max-height: 420px;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: #FAFAFC;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}

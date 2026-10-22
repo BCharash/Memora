@@ -10,6 +10,7 @@ import {
 import { getRuntimeInfo } from "./runtime.js";
 import { clearWhisperResources } from "./whisper.js";
 import { getWhisperSelfTestOptions, runWhisperSelfTest } from "./whisperSelfTest.js";
+import { collectDomDiagnostics, formatDomDiagnostics } from "./domDiagnostics.js";
 
 export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
@@ -18,6 +19,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
     let currentReport = null;
     let modelAvailability = null;
+    let latestDomDiagnostics = null;
 
     function formatBytes(bytes) {
         if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
@@ -101,6 +103,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ${button("View", "toggle-other-indexeddb")}
             </div>
             <div id="settingsOtherIndexedDBDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">DOM Diagnostics</span>
+                <span>Read-only snapshot of the current page</span>
+                ${button("View", "toggle-dom-diagnostics")}
+            </div>
+            <div id="settingsDomDiagnosticsDetail" class="settings-detail dom-diagnostics-detail" hidden aria-live="polite">
+                <p class="settings-note">Captures data only when requested.</p>
+                <div class="dom-diagnostics-actions">
+                    ${button("Capture", "capture-dom-diagnostics")}
+                    ${button("Copy report", "copy-dom-diagnostics", true)}
+                </div>
+                <div id="settingsDomDiagnosticsReport"></div>
+            </div>
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
@@ -614,6 +631,48 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
+            if (action === "toggle-dom-diagnostics") {
+                const detail = document.getElementById("settingsDomDiagnosticsDetail");
+                if (!detail) return;
+                detail.hidden = !detail.hidden;
+                target.textContent = detail.hidden ? "View" : "Hide";
+                return;
+            }
+            if (action === "capture-dom-diagnostics") {
+                latestDomDiagnostics = collectDomDiagnostics();
+                const report = document.getElementById("settingsDomDiagnosticsReport");
+                if (report) {
+                    const reportText = formatDomDiagnostics(latestDomDiagnostics);
+                    report.innerHTML = `<div class="dom-diagnostics-summary">Snapshot captured ${escapeHtml(latestDomDiagnostics.timestamp)}</div><pre class="dom-diagnostics-report">${escapeHtml(reportText)}</pre>`;
+                }
+                const copyButton = storage.querySelector('[data-settings-action="copy-dom-diagnostics"]');
+                if (copyButton) copyButton.disabled = false;
+                return;
+            }
+            if (action === "copy-dom-diagnostics") {
+                if (!latestDomDiagnostics) return;
+                const reportText = formatDomDiagnostics(latestDomDiagnostics);
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(reportText);
+                } else {
+                    const temporary = document.createElement("textarea");
+                    temporary.value = reportText;
+                    temporary.setAttribute("readonly", "");
+                    temporary.style.position = "fixed";
+                    temporary.style.opacity = "0";
+                    document.body.appendChild(temporary);
+                    temporary.select();
+                    const copied = document.execCommand("copy");
+                    temporary.remove();
+                    if (!copied) throw new Error("Clipboard access is unavailable in this browser.");
+                }
+                const copyButton = storage.querySelector('[data-settings-action="copy-dom-diagnostics"]');
+                if (copyButton) {
+                    copyButton.textContent = "Copied";
+                    window.setTimeout(() => { if (copyButton.isConnected) copyButton.textContent = "Copy report"; }, 1500);
+                }
+                return;
+            }
             if (action === "toggle-transcripts") return await showTranscripts();
             if (action === "run-whisper-self-test") return await showWhisperSelfTest();
             if (action === "clear-whisper-resources") {
