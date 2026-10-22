@@ -618,6 +618,76 @@ function appendLexicallyBoldText(container, text, matchRanges) {
     }
 }
 
+function createSearchResultExcerptGroup(group) {
+    const transcript = String(group.record?.transcript || "").trim();
+    const paragraphs = transcript
+        .replace(/\r\n?/g, "\n")
+        .split(/\n\s*\n+/)
+        .map(paragraph => paragraph.trim())
+        .filter(Boolean);
+
+    const excerptParagraphs = [];
+    const excerptColors = new Map();
+    const excerptLexicalMatches = new Map();
+    const excerptYellowSentences = new Set();
+    const colors = group.sentenceColors || new Map();
+
+    function assignmentFor(paragraphIndex, sentenceIndex, sentence) {
+        const normalized = normalizeSentenceMatchKey(sentence);
+        if (group.yellowSentences?.has(normalized)) return { color: "yellow", priority: 0 };
+        const positional = colors.get(searchPositionKey(group.filename, paragraphIndex, sentenceIndex));
+        const textual = colors.get(`text:${group.filename}|${normalized}`);
+        if (!positional) return textual || null;
+        if (!textual) return positional;
+        return textual.priority < positional.priority ? textual : positional;
+    }
+
+    const lexicalBySentence = group.lexicalMatchesBySentence || new Map();
+    for (let paragraphIndex = 0; paragraphIndex < paragraphs.length; paragraphIndex++) {
+        const sentences = splitTranscriptSentences(paragraphs[paragraphIndex]);
+        const entries = sentences.map((sentence, sentenceIndex) => {
+            const key = normalizeSentenceMatchKey(sentence);
+            return {
+                sentence,
+                key,
+                assignment: assignmentFor(paragraphIndex, sentenceIndex, sentence),
+                lexical: lexicalBySentence.get(key) || []
+            };
+        });
+
+        const selected = new Set();
+        entries.forEach((entry, index) => {
+            if (entry.assignment || entry.lexical.length) {
+                selected.add(index);
+                if (index > 0) selected.add(index - 1);
+                if (index + 1 < entries.length) selected.add(index + 1);
+            }
+        });
+        if (!selected.size) continue;
+
+        const kept = [];
+        entries.forEach((entry, index) => {
+            if (!selected.has(index)) return;
+            kept.push(entry.sentence);
+            const textKey = `text:${group.filename}|${entry.key}`;
+            if (entry.assignment) {
+                excerptColors.set(textKey, entry.assignment);
+                if (entry.assignment.color === "yellow") excerptYellowSentences.add(entry.key);
+            }
+            if (entry.lexical.length) excerptLexicalMatches.set(entry.key, entry.lexical);
+        });
+        if (kept.length) excerptParagraphs.push(kept.join(" "));
+    }
+
+    return {
+        ...group,
+        record: { ...group.record, transcript: excerptParagraphs.join("\n\n") },
+        sentenceColors: excerptColors,
+        lexicalMatchesBySentence: excerptLexicalMatches,
+        yellowSentences: excerptYellowSentences
+    };
+}
+
 function appendColoredTranscript(container, group) {
     const transcript = String(group.record?.transcript || "").trim();
     if (!transcript) {
@@ -1452,19 +1522,33 @@ function renderSearchResults(payload) {
         header.appendChild(checkbox);
         header.appendChild(fileText);
 
-        // Keep the filename, selection checkbox and text toggle visible.
-        // Audio controls and transcript text belong to the collapsible body.
+        // Search result excerpts are the default view. The full transcript is
+        // separate and is only displayed on request; neither action reruns search.
+        const resultToggle = document.createElement("button");
+        resultToggle.type = "button";
+        resultToggle.className = "search-transcript-toggle search-result-toggle";
+        resultToggle.textContent = "Hide result";
+        resultToggle.title = "Hide search result";
+        resultToggle.setAttribute("aria-label", "Hide search result");
+        resultToggle.setAttribute("aria-expanded", "true");
+
         const transcriptToggle = document.createElement("button");
         transcriptToggle.type = "button";
         transcriptToggle.className = "search-transcript-toggle";
-        transcriptToggle.textContent = "Hide transcript";
-        transcriptToggle.title = "Hide transcript";
-        transcriptToggle.setAttribute("aria-label", "Hide transcript");
-        transcriptToggle.setAttribute("aria-expanded", "true");
+        transcriptToggle.textContent = "Show transcript";
+        transcriptToggle.title = "Show transcript";
+        transcriptToggle.setAttribute("aria-label", "Show transcript");
+        transcriptToggle.setAttribute("aria-expanded", "false");
+
+        const resultElement = document.createElement("div");
+        resultElement.className = "search-result-excerpt";
+        appendColoredTranscript(resultElement, createSearchResultExcerptGroup(group));
         section.appendChild(header);
+        section.appendChild(resultElement);
 
         const transcriptElement = document.createElement("div");
         transcriptElement.className = "search-result-full-transcript";
+        transcriptElement.hidden = true;
 
         appendSearchAudioControl(transcriptElement, group);
         const transcriptTextElement = document.createElement("div");
@@ -1474,13 +1558,45 @@ function renderSearchResults(payload) {
         section.appendChild(transcriptElement);
         addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle);
 
+        // Preserve button order: Edit is added first by addTranscriptEditor,
+        // then Show/Hide transcript, then Show/Hide result.
+        const transcriptActions = header.querySelector(".combine-transcript-actions");
+        transcriptActions.appendChild(resultToggle);
+
         transcriptToggle.addEventListener("click", () => {
-            const willHide = !transcriptElement.hidden;
-            transcriptElement.hidden = willHide;
-            transcriptToggle.textContent = willHide ? "Show transcript" : "Hide transcript";
+            const willShow = transcriptElement.hidden;
+            transcriptElement.hidden = !willShow;
+            // The full transcript replaces the excerpt while visible. The audio
+            // control stays inside transcriptElement, so it is shown only with
+            // the full transcript rather than with the search-result excerpt.
+            resultElement.hidden = willShow;
+            transcriptToggle.textContent = willShow ? "Hide transcript" : "Show transcript";
             transcriptToggle.title = transcriptToggle.textContent;
             transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
-            transcriptToggle.setAttribute("aria-expanded", String(!willHide));
+            transcriptToggle.setAttribute("aria-expanded", String(willShow));
+            resultToggle.textContent = willShow ? "Show result" : "Hide result";
+            resultToggle.title = willShow ? "Show search result" : "Hide search result";
+            resultToggle.setAttribute("aria-label", resultToggle.title);
+            resultToggle.setAttribute("aria-expanded", String(!willShow));
+        });
+
+        resultToggle.addEventListener("click", () => {
+            const willShow = resultElement.hidden;
+            resultElement.hidden = !willShow;
+            resultToggle.textContent = willShow ? "Hide result" : "Show result";
+            resultToggle.title = willShow ? "Hide search result" : "Show search result";
+            resultToggle.setAttribute("aria-label", resultToggle.title);
+            resultToggle.setAttribute("aria-expanded", String(willShow));
+            if (!willShow) {
+                transcriptElement.hidden = true;
+                transcriptToggle.hidden = true;
+                transcriptToggle.textContent = "Show transcript";
+                transcriptToggle.title = "Show transcript";
+                transcriptToggle.setAttribute("aria-label", "Show transcript");
+                transcriptToggle.setAttribute("aria-expanded", "false");
+            } else {
+                transcriptToggle.hidden = false;
+            }
         });
 
         searchResults.appendChild(section);

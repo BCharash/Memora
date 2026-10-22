@@ -411,6 +411,26 @@ button:disabled {
     display: none !important;
 }
 
+.search-result-excerpt {
+    margin-top: 10px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.search-result-excerpt .search-full-transcript-paragraph {
+    margin: 0 0 0.85em;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.search-result-excerpt .search-full-transcript-paragraph:last-child {
+    margin-bottom: 0;
+}
+
+.search-result-excerpt[hidden] {
+    display: none !important;
+}
+
 .search-transcript-text .search-full-transcript-paragraph {
     margin: 0 0 0.85em;
     line-height: 1.65;
