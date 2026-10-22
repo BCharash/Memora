@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 12
+**Version:** 14
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -3977,3 +3977,75 @@ The editing features do not introduce a new embedding model or change the Search
 The Combine edit flow refreshes the current Combine transcript display after saving. The Search edit flow intentionally keeps the existing search results on screen and uses the refreshed live index for later queries. These are different post-save behaviors and should not be described as one shared automatic Search refresh.
 
 The user reported that the recent Combine save/refresh behavior appeared to work. The distinct black outline around the blue halo was corrected after the first CSS attempt produced a single dark pulsing halo; its appearance should still be checked in the running browser. Source-level checks and a successful save in one browser do not establish identical behavior across desktop browsers and iPhone/iPad file workflows.
+
+---
+
+---
+
+---
+
+# 56. Edit & Combine Tab Label and Header Icon Sizing
+
+**Date:** 22 October 2026  
+**Status:** UI refinement accepted.
+
+## 56.1 Edit & Combine tab label
+
+The former **Combine** tab label is displayed on two lines: **Edit &** above **Combine**. The tab retains its existing width and position; the centered two-line label makes the function clearer without widening navigation. This is a label refinement, not a new workflow or a change to Combine behavior.
+
+## 56.2 Header icon source and display dimensions
+
+Tab-specific header icons should use square PNG source images with a recommended size of **192 × 192 pixels**. The browser scales the source image for display:
+
+- **Desktop:** 120 × 120 CSS pixels.
+- **Mobile:** 80 × 80 CSS pixels.
+
+A 192 × 192 source is sufficient for these display sizes. A 384 × 384 source may provide additional high-density headroom but is not required. The tab-specific icon continues to change with the active operating tab; sizing does not alter icon selection or tab behavior.
+
+## 56.3 Header layout and mobile behavior
+
+The larger icon is accommodated by additional header space on mobile. The title and tagline remain centered, and Settings remains right-aligned. On narrow screens, operating tabs retain compact widths rather than inheriting full-width behavior used by ordinary mobile buttons.
+
+## 56.4 Validation boundary
+
+The update changes the tab label and CSS presentation only. Source-level checks confirmed HTML parsing, balanced CSS braces, and a passing JavaScript syntax check. These checks do not replace visual validation in a running desktop browser and on iPhone Safari.
+
+
+---
+
+# 57. Search Editing: Deferred Editor Creation and Independent Result/Transcript Visibility
+
+**Date:** 22 October 2026  
+**Status:** Current Search editing behavior and presentation controls documented.
+
+## 57.1 Defer edit-related UI work until needed
+
+Search can return many transcript files, while a user may edit only a small number of them. Edit-related UI elements and their event handlers should therefore not be fully constructed for every result up front. The editor panel, textarea, Save and reindex button, Cancel button, and status element are created lazily when the user invokes Edit. This avoids unnecessary DOM and handler creation for results that are never edited.
+
+The full-transcript presentation is also separate from the compact search-result excerpt. The Edit workflow must respect the current visibility state and restore it on Cancel; hiding a result while editing closes the editor and leaves the Edit control usable when the result is shown again.
+
+## 57.2 Search result highlighting and full transcript editing
+
+The Search result excerpt displays the matched passage with the existing lexical/semantic highlighting. The full transcript can be displayed separately and uses the same color-coded match presentation, including direct sentence matches and accepted contextual matches. Highlighting is presentation-only: it does not change transcript wording.
+
+The Edit action opens an editor for the full transcript, not merely the excerpt. Saving uses **Save and reindex**: the durable transcript is updated, and the edited transcript's live Search index records are refreshed through the existing indexing pipeline. The current result list is preserved; the edit does not automatically rerun the current query or silently replace the current result-ranking/highlighting snapshot. Subsequent searches use the refreshed live index.
+
+## 57.3 Independent Show/Hide Result and Show/Hide Transcript controls
+
+Search has two distinct visibility controls:
+
+- **Show result / Hide result** controls the matched search-result excerpt.
+- **Show transcript / Hide transcript** controls the complete transcript.
+
+The controls are independent in purpose. Showing the full transcript hides the excerpt while the full transcript is visible; hiding the full transcript returns to the excerpt. The result can also be hidden entirely without rerunning the search. When a result is hidden, the full transcript is closed and its control returns to **Show transcript** when the result is shown again.
+
+These actions are display changes only. They do not submit a new query, change search ranking, or rebuild the index. The Edit control remains adjacent to the transcript visibility controls, in the established button order.
+
+## 57.4 Save and index-state boundaries
+
+The individual transcript file remains the durable source of truth. Search editing updates the live in-memory index for the edited transcript, but this must not be confused with saving the persisted Search Index JSON. The UI must report unsaved index changes accurately and must not claim index persistence until that persistence operation succeeds. If transcript saving succeeds but reindexing fails, the partial failure must be reported and new searches must not silently use stale index data.
+
+## 57.5 Validation boundary
+
+The implementation has been checked at source level, but the combined visibility/editing interaction should still be validated in the running app: show and hide the result; show and hide the full transcript; open Edit; Cancel; Save and reindex; and verify that the current result list stays in place and later queries use the updated transcript. Desktop file writes and the iPhone/iPad replacement-file workflow require platform-specific validation.
+
