@@ -1183,6 +1183,9 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     let saveButton = null;
     let cancelButton = null;
     let status = null;
+    // Capture the transcript controls before editing so Cancel can restore the
+    // exact visibility state that was in place when Edit was opened.
+    let stateBeforeEdit = null;
 
     function ensureEditorCreated() {
         if (editorPanel) return;
@@ -1211,8 +1214,22 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
         cancelButton.addEventListener("click", () => {
             editorPanel.hidden = true;
-            transcriptTextElement.hidden = false;
-            editButton.disabled = false;
+            const previousState = stateBeforeEdit;
+            stateBeforeEdit = null;
+            if (previousState) {
+                transcriptElement.hidden = !previousState.transcriptVisible;
+                transcriptTextElement.hidden = !previousState.transcriptVisible;
+                transcriptToggle.hidden = previousState.toggleHidden;
+                transcriptToggle.textContent = previousState.toggleText;
+                transcriptToggle.title = previousState.toggleTitle;
+                transcriptToggle.setAttribute("aria-label", previousState.toggleAriaLabel);
+                transcriptToggle.setAttribute("aria-expanded", previousState.toggleExpanded);
+            } else {
+                // Defensive fallback for an editor opened without a saved state.
+                transcriptTextElement.hidden = false;
+            }
+            editButton.classList.remove("is-editing");
+            editButton.style.fontWeight = "";
             status.textContent = "";
             textarea.value = String(record.transcript || "");
         });
@@ -1262,7 +1279,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 // refreshed in-memory index, so stale text/highlighting disappears.
                 transcriptTextElement.hidden = false;
                 editorPanel.hidden = true;
-                editButton.disabled = false;
+                editButton.classList.remove("is-editing");
+                editButton.style.fontWeight = "";
                 status.textContent = "Transcript updated. Refreshing search results…";
                 await runSearchQuery();
                 // The index archive is separate from the live in-memory index.
@@ -1284,6 +1302,18 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
     editButton.addEventListener("click", () => {
         ensureEditorCreated();
+        if (!editorPanel.hidden) {
+            textarea.focus({ preventScroll: true });
+            return;
+        }
+        stateBeforeEdit = {
+            transcriptVisible: !transcriptElement.hidden,
+            toggleHidden: transcriptToggle.hidden,
+            toggleText: transcriptToggle.textContent,
+            toggleTitle: transcriptToggle.title,
+            toggleAriaLabel: transcriptToggle.getAttribute("aria-label") || transcriptToggle.textContent,
+            toggleExpanded: transcriptToggle.getAttribute("aria-expanded") || "false"
+        };
         textarea.value = String(record.transcript || "");
         editorPanel.hidden = false;
         transcriptElement.hidden = false;
@@ -1292,11 +1322,23 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         transcriptToggle.setAttribute("aria-label", "Hide transcript");
         transcriptToggle.setAttribute("aria-expanded", "true");
         transcriptTextElement.hidden = true;
-        editButton.disabled = true;
-        textarea.focus();
-        // Match Combine: place the insertion point at the start of the transcript.
+        editButton.classList.add("is-editing");
+        editButton.style.fontWeight = "bold";
+        // Keep the button enabled so its selected state can be shown in bold,
+        // rather than using the browser's greyed-out disabled appearance.
+        textarea.focus({ preventScroll: true });
+        // Keep the insertion point at the start without scrolling the textarea.
         textarea.setSelectionRange(0, 0);
         textarea.scrollTop = 0;
+
+        // Once the newly revealed editor has been laid out, scroll so the top
+        // of the editing area is centered in the viewport. This is especially
+        // helpful when Edit is selected directly from the collapsed result view.
+        requestAnimationFrame(() => {
+            const editorTop = textarea.getBoundingClientRect().top + window.scrollY;
+            const targetScrollY = editorTop - (window.innerHeight / 2);
+            window.scrollTo({ top: Math.max(0, targetScrollY), left: window.scrollX, behavior: "instant" });
+        });
     });
 }
 
@@ -1589,6 +1631,17 @@ function renderSearchResults(payload) {
             resultToggle.setAttribute("aria-expanded", String(willShow));
             if (!willShow) {
                 transcriptElement.hidden = true;
+                // If the result is hidden while editing, close the editor and
+                // restore the Edit control so it is usable when the result returns.
+                const editButton = section.querySelector(".search-transcript-edit-button");
+                const editorPanel = section.querySelector(".search-transcript-editor-panel");
+                if (editorPanel) editorPanel.hidden = true;
+                const transcriptText = section.querySelector(".search-transcript-text");
+                if (transcriptText) transcriptText.hidden = false;
+                if (editButton) {
+                    editButton.classList.remove("is-editing");
+                    editButton.style.fontWeight = "";
+                }
                 transcriptToggle.hidden = true;
                 transcriptToggle.textContent = "Show transcript";
                 transcriptToggle.title = "Show transcript";
@@ -1596,6 +1649,16 @@ function renderSearchResults(payload) {
                 transcriptToggle.setAttribute("aria-expanded", "false");
             } else {
                 transcriptToggle.hidden = false;
+                // Explicitly restore Edit when the result is redisplayed. The
+                // editor is closed above when hiding a result, so this control
+                // must be available again when the result returns.
+                const editButton = section.querySelector(".search-transcript-edit-button");
+                if (editButton) {
+                    editButton.hidden = false;
+                    editButton.disabled = false;
+                    editButton.classList.remove("is-editing");
+                    editButton.style.fontWeight = "";
+                }
             }
         });
 
