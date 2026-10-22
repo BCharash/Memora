@@ -688,7 +688,7 @@ function createSearchResultExcerptGroup(group) {
     };
 }
 
-function appendColoredTranscript(container, group) {
+function appendColoredTranscript(container, group, { showMatchIndicators = false } = {}) {
     const transcript = String(group.record?.transcript || "").trim();
     if (!transcript) {
         const fallback = document.createElement("p");
@@ -808,7 +808,65 @@ function appendColoredTranscript(container, group) {
         });
 
         flushRun();
-        container.appendChild(paragraphElement);
+
+        if (showMatchIndicators) {
+            // Keep the transcript text and its existing highlight spans intact.
+            // The indicator lives beside the paragraph, not inside its text.
+            const matchedSentenceCount = pieces.filter(piece =>
+                Boolean(piece.assignment) ||
+                Boolean(group.lexicalMatchesBySentence?.get(normalizeSentenceMatchKey(piece.sentence))?.length)
+            ).length;
+
+            if (matchedSentenceCount > 0) {
+                const paragraphRow = document.createElement("div");
+                paragraphRow.className = "search-transcript-paragraph-row";
+                paragraphRow.style.display = "flex";
+                paragraphRow.style.alignItems = "flex-start";
+                paragraphRow.style.gap = "0.5rem";
+
+                const indicator = document.createElement("button");
+                indicator.type = "button";
+                indicator.className = "search-transcript-match-indicator";
+                indicator.textContent = "●";
+                indicator.title = `Go to ${matchedSentenceCount} match${matchedSentenceCount === 1 ? "" : "es"} in paragraph ${paragraphIndex + 1}`;
+                indicator.setAttribute("aria-label", indicator.title);
+                indicator.style.flex = "0 0 1.5rem";
+                indicator.style.minWidth = "1.5rem";
+                indicator.style.padding = "0.15rem 0";
+                indicator.style.border = "0";
+                indicator.style.background = "transparent";
+                indicator.style.cursor = "pointer";
+                indicator.style.color = "#2563eb";
+                indicator.style.lineHeight = "inherit";
+                indicator.addEventListener("click", () => {
+                    paragraphElement.scrollIntoView({ behavior: "smooth", block: "center" });
+                    indicator.focus({ preventScroll: true });
+                });
+
+                paragraphElement.style.flex = "1 1 auto";
+                paragraphElement.style.minWidth = "0";
+                paragraphElement.style.marginBlock = "0.5em";
+                paragraphRow.append(indicator, paragraphElement);
+                container.appendChild(paragraphRow);
+            } else {
+                // Keep unmarked paragraphs aligned with the indicator column.
+                const paragraphRow = document.createElement("div");
+                paragraphRow.className = "search-transcript-paragraph-row";
+                paragraphRow.style.display = "flex";
+                paragraphRow.style.alignItems = "flex-start";
+                paragraphRow.style.gap = "0.5rem";
+                const spacer = document.createElement("span");
+                spacer.setAttribute("aria-hidden", "true");
+                spacer.style.flex = "0 0 1.5rem";
+                paragraphElement.style.flex = "1 1 auto";
+                paragraphElement.style.minWidth = "0";
+                paragraphElement.style.marginBlock = "0.5em";
+                paragraphRow.append(spacer, paragraphElement);
+                container.appendChild(paragraphRow);
+            }
+        } else {
+            container.appendChild(paragraphElement);
+        }
     });
 }
 
@@ -1187,6 +1245,173 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     // exact visibility state that was in place when Edit was opened.
     let stateBeforeEdit = null;
 
+    let matchNavigation = null;
+    let previousMatchButton = null;
+    let nextMatchButton = null;
+    let markedTextRanges = [];
+
+    function findMarkedTextRanges(text) {
+        const ranges = [];
+        const source = String(text || "");
+        const paragraphPattern = /\\r?\\n\\s*\\r?\\n+/g;
+        let segmentStart = 0;
+        const segments = [];
+        let separator;
+        while ((separator = paragraphPattern.exec(source)) !== null) {
+            segments.push({ start: segmentStart, end: separator.index });
+            segmentStart = separator.index + separator[0].length;
+        }
+        segments.push({ start: segmentStart, end: source.length });
+
+        segments.forEach((segment, paragraphIndex) => {
+            const rawParagraph = source.slice(segment.start, segment.end);
+            const leadingWhitespace = rawParagraph.match(/^\\s*/)?.[0].length || 0;
+            const paragraph = rawParagraph.trim();
+            if (!paragraph) return;
+            const paragraphStart = segment.start + leadingWhitespace;
+            let sentenceCursor = 0;
+
+            splitTranscriptSentences(paragraph).forEach((sentence, sentenceIndex) => {
+                let sentenceStart = paragraph.indexOf(sentence, sentenceCursor);
+                if (sentenceStart < 0) sentenceStart = paragraph.indexOf(sentence);
+                if (sentenceStart < 0) return;
+                const normalized = normalizeSentenceMatchKey(sentence);
+                const positionAssignment = group.sentenceColors?.get(
+                    searchPositionKey(group.filename, paragraphIndex, sentenceIndex)
+                );
+                const textAssignment = group.sentenceColors?.get(`text:${group.filename}|${normalized}`);
+                const assignment = group.yellowSentences?.has(normalized)
+                    ? true
+                    : Boolean(positionAssignment || textAssignment);
+                const lexical = group.lexicalMatchesBySentence?.get(normalized);
+                if (assignment || lexical?.length) {
+                    ranges.push({
+                        start: paragraphStart + sentenceStart,
+                        end: paragraphStart + sentenceStart + sentence.length
+                    });
+                }
+                sentenceCursor = sentenceStart + sentence.length;
+            });
+        });
+
+        return ranges.sort((a, b) => a.start - b.start);
+    }
+
+    function updateMatchNavigationButtons() {
+        if (!textarea || !previousMatchButton || !nextMatchButton) return;
+        const position = textarea.selectionStart ?? 0;
+        const selectedRange = markedTextRanges.find(range =>
+            range.start === textarea.selectionStart && range.end === textarea.selectionEnd
+        );
+        const currentIndex = selectedRange
+            ? markedTextRanges.indexOf(selectedRange)
+            : markedTextRanges.findIndex(range => range.start >= position);
+        const previousUnavailable = markedTextRanges.length === 0 || currentIndex <= 0;
+        const nextUnavailable = markedTextRanges.length === 0 ||
+            (currentIndex >= 0 && currentIndex >= markedTextRanges.length - 1);
+
+        // Do not use the native disabled property here. Clicking a disabled
+        // button can still move focus away from the textarea, hiding its blue
+        // selection even though the selected range has not changed. Keep the
+        // controls visibly disabled while preserving textarea focus/selection.
+        [[previousMatchButton, previousUnavailable], [nextMatchButton, nextUnavailable]]
+            .forEach(([button, unavailable]) => {
+                button.disabled = false;
+                button.setAttribute("aria-disabled", String(unavailable));
+                button.style.opacity = unavailable ? "0.45" : "1";
+                button.style.cursor = unavailable ? "default" : "pointer";
+            });
+    }
+
+    function scrollMarkedTextToCenter(target) {
+        if (!textarea || !target) return;
+
+        // A textarea does not expose text ranges that can be scrolled into view.
+        // Mirror its typography and wrapping in an invisible element to measure
+        // the selected sentence's visual position, then center that position.
+        const style = window.getComputedStyle(textarea);
+        const mirror = document.createElement("div");
+        mirror.setAttribute("aria-hidden", "true");
+        mirror.style.position = "absolute";
+        mirror.style.visibility = "hidden";
+        mirror.style.pointerEvents = "none";
+        mirror.style.left = "-100000px";
+        mirror.style.top = "0";
+        mirror.style.width = `${textarea.clientWidth}px`;
+        mirror.style.boxSizing = style.boxSizing;
+        mirror.style.padding = style.padding;
+        mirror.style.border = style.border;
+        mirror.style.font = style.font;
+        mirror.style.letterSpacing = style.letterSpacing;
+        mirror.style.lineHeight = style.lineHeight;
+        mirror.style.textIndent = style.textIndent;
+        mirror.style.textTransform = style.textTransform;
+        mirror.style.wordSpacing = style.wordSpacing;
+        mirror.style.whiteSpace = "pre-wrap";
+        mirror.style.overflowWrap = "break-word";
+        mirror.style.wordBreak = style.wordBreak;
+
+        mirror.appendChild(document.createTextNode(textarea.value.slice(0, target.start)));
+        const selectedText = document.createElement("span");
+        selectedText.textContent = textarea.value.slice(target.start, target.end) || " ";
+        mirror.appendChild(selectedText);
+        mirror.appendChild(document.createTextNode(textarea.value.slice(target.end)));
+        document.body.appendChild(mirror);
+
+        const targetTop = selectedText.offsetTop;
+        const targetHeight = selectedText.offsetHeight || parseFloat(style.lineHeight) || 20;
+        const centeredScrollTop = targetTop - (textarea.clientHeight / 2) + (targetHeight / 2);
+        textarea.scrollTop = Math.max(0, centeredScrollTop);
+        mirror.remove();
+    }
+
+    function navigateMarkedText(direction) {
+        if (!textarea || !markedTextRanges.length) return;
+
+        const selectionStart = textarea.selectionStart ?? 0;
+        const selectionEnd = textarea.selectionEnd ?? selectionStart;
+        const exactSelectedIndex = markedTextRanges.findIndex(range =>
+            range.start === selectionStart && range.end === selectionEnd
+        );
+
+        let targetIndex;
+        if (exactSelectedIndex >= 0) {
+            targetIndex = exactSelectedIndex + direction;
+        } else if (direction > 0) {
+            // Include a match that begins at the caret, especially when the
+            // first marked sentence starts at offset zero.
+            targetIndex = markedTextRanges.findIndex(range => range.start >= selectionStart);
+        } else {
+            targetIndex = -1;
+            for (let i = markedTextRanges.length - 1; i >= 0; i--) {
+                if (markedTextRanges[i].start < selectionStart) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // At either end, leave the current selection untouched.
+        if (targetIndex < 0 || targetIndex >= markedTextRanges.length) {
+            updateMatchNavigationButtons();
+            return;
+        }
+
+        const target = markedTextRanges[targetIndex];
+        textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(target.start, target.end);
+        scrollMarkedTextToCenter(target);
+        updateMatchNavigationButtons();
+    }
+
+    function clearMarkedTextSelection() {
+        if (!textarea) return;
+        const position = textarea.selectionEnd ?? 0;
+        textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(position, position);
+        updateMatchNavigationButtons();
+    }
+
     function ensureEditorCreated() {
         if (editorPanel) return;
 
@@ -1199,6 +1424,39 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         textarea.setAttribute("aria-label", `Edit full transcript: ${group.filename}`);
         textarea.rows = 12;
 
+        matchNavigation = document.createElement("div");
+        matchNavigation.className = "search-transcript-match-navigation";
+        matchNavigation.style.display = "flex";
+        matchNavigation.style.alignItems = "center";
+        matchNavigation.style.gap = "0.5rem";
+        matchNavigation.style.marginBlock = "0.4rem";
+
+        previousMatchButton = makeSearchEditButton("↑ Previous match", "search-transcript-previous-match");
+        previousMatchButton.title = "Move to the previous marked text";
+        previousMatchButton.setAttribute("aria-label", "Previous marked text");
+        nextMatchButton = makeSearchEditButton("↓ Next match", "search-transcript-next-match");
+        nextMatchButton.title = "Move to the next marked text";
+        nextMatchButton.setAttribute("aria-label", "Next marked text");
+        const clearMatchButton = makeSearchEditButton("Clear selection", "search-transcript-clear-match");
+        clearMatchButton.title = "Clear the current text selection without changing the transcript";
+        clearMatchButton.setAttribute("aria-label", "Clear current match selection");
+        // Prevent mouse clicks on the navigation controls from blurring the
+        // textarea. This keeps the selected text visibly highlighted, including
+        // when a greyed-out control is clicked at either end of the match list.
+        [previousMatchButton, nextMatchButton].forEach(button => {
+            button.addEventListener("mousedown", event => event.preventDefault());
+        });
+        previousMatchButton.addEventListener("click", () => {
+            if (previousMatchButton.getAttribute("aria-disabled") === "true") return;
+            navigateMarkedText(-1);
+        });
+        clearMatchButton.addEventListener("click", clearMarkedTextSelection);
+        nextMatchButton.addEventListener("click", () => {
+            if (nextMatchButton.getAttribute("aria-disabled") === "true") return;
+            navigateMarkedText(1);
+        });
+        matchNavigation.append(previousMatchButton, clearMatchButton, nextMatchButton);
+
         const actions = document.createElement("div");
         actions.className = "search-transcript-editor-actions";
         saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
@@ -1207,7 +1465,15 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         status.className = "search-transcript-editor-status";
         status.setAttribute("role", "status");
         actions.append(saveButton, cancelButton);
-        editorPanel.append(textarea, actions, status);
+        editorPanel.append(matchNavigation, textarea, actions, status);
+        markedTextRanges = findMarkedTextRanges(textarea.value);
+        updateMatchNavigationButtons();
+        ["click", "keyup", "select", "input"].forEach(eventName =>
+            textarea.addEventListener(eventName, () => {
+                if (eventName === "input") markedTextRanges = findMarkedTextRanges(textarea.value);
+                updateMatchNavigationButtons();
+            })
+        );
 
         const transcriptBody = section.querySelector(".search-result-full-transcript");
         (transcriptBody || section).appendChild(editorPanel);
@@ -1315,6 +1581,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             toggleExpanded: transcriptToggle.getAttribute("aria-expanded") || "false"
         };
         textarea.value = String(record.transcript || "");
+        markedTextRanges = findMarkedTextRanges(textarea.value);
+        updateMatchNavigationButtons();
         editorPanel.hidden = false;
         transcriptElement.hidden = false;
         transcriptToggle.textContent = "Hide transcript";
