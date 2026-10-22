@@ -1106,27 +1106,114 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     transcriptActions.append(editButton, transcriptToggle);
     header.appendChild(transcriptActions);
 
-    const editorPanel = document.createElement("div");
-    editorPanel.className = "search-transcript-editor-panel";
-    editorPanel.hidden = true;
-    const textarea = document.createElement("textarea");
-    textarea.className = "search-transcript-editor";
-    textarea.setAttribute("aria-label", `Edit full transcript: ${group.filename}`);
-    textarea.rows = 12;
-    textarea.value = String(record.transcript || "");
-    const actions = document.createElement("div");
-    actions.className = "search-transcript-editor-actions";
-    const saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
-    const cancelButton = makeSearchEditButton("Cancel", "search-transcript-cancel-button");
-    const status = document.createElement("p");
-    status.className = "search-transcript-editor-status";
-    status.setAttribute("role", "status");
-    actions.append(saveButton, cancelButton);
-    editorPanel.append(textarea, actions, status);
-    const transcriptBody = section.querySelector(".search-result-full-transcript");
-    (transcriptBody || section).appendChild(editorPanel);
+    // Defer the editor DOM and its event handlers until Edit is actually used.
+    // Search results often contain many transcripts, but users usually edit few.
+    let editorPanel = null;
+    let textarea = null;
+    let saveButton = null;
+    let cancelButton = null;
+    let status = null;
+
+    function ensureEditorCreated() {
+        if (editorPanel) return;
+
+        editorPanel = document.createElement("div");
+        editorPanel.className = "search-transcript-editor-panel";
+        editorPanel.hidden = true;
+
+        textarea = document.createElement("textarea");
+        textarea.className = "search-transcript-editor";
+        textarea.setAttribute("aria-label", `Edit full transcript: ${group.filename}`);
+        textarea.rows = 12;
+
+        const actions = document.createElement("div");
+        actions.className = "search-transcript-editor-actions";
+        saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
+        cancelButton = makeSearchEditButton("Cancel", "search-transcript-cancel-button");
+        status = document.createElement("p");
+        status.className = "search-transcript-editor-status";
+        status.setAttribute("role", "status");
+        actions.append(saveButton, cancelButton);
+        editorPanel.append(textarea, actions, status);
+
+        const transcriptBody = section.querySelector(".search-result-full-transcript");
+        (transcriptBody || section).appendChild(editorPanel);
+
+        cancelButton.addEventListener("click", () => {
+            editorPanel.hidden = true;
+            transcriptTextElement.hidden = false;
+            editButton.disabled = false;
+            status.textContent = "";
+            textarea.value = String(record.transcript || "");
+        });
+
+        saveButton.addEventListener("click", async () => {
+            const editedTranscript = textarea.value;
+            if (!editedTranscript.trim()) {
+                status.textContent = "The transcript cannot be empty.";
+                return;
+            }
+            if (editedTranscript === String(record.transcript || "")) {
+                status.textContent = "No changes to save.";
+                return;
+            }
+            saveButton.disabled = true;
+            cancelButton.disabled = true;
+            status.textContent = "Saving transcript…";
+            try {
+                const storage = await getStorageModule();
+                const fullText = await getTranscriptFileContent(record.file, editedTranscript);
+                let updatedFile;
+                if (searchSourceHandle?.kind === "file-input") {
+                    // iPhone/iPad folder selection is read-only. Share an updated
+                    // replacement file instead of claiming the original was overwritten.
+                    updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
+                    await storage.shareFile(updatedFile);
+                    const currentFiles = Array.from(searchSourceHandle.files || []);
+                    const idx = currentFiles.findIndex(file => file.name === record.filename);
+                    if (idx >= 0) currentFiles[idx] = updatedFile;
+                    else currentFiles.push(updatedFile);
+                    searchSourceHandle.files = currentFiles;
+                    status.textContent = "Updated transcript shared. Reindexing this session…";
+                } else {
+                    const fileHandle = await searchSourceHandle.getFileHandle(record.filename, { create: false });
+                    const writable = await fileHandle.createWritable();
+                    try { await writable.write(fullText); } finally { await writable.close(); }
+                    updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
+                    status.textContent = "Transcript saved. Reindexing…";
+                }
+
+                const oldRecord = { ...record };
+                await reindexEditedTranscript(updatedFile, oldRecord);
+                record.transcript = editedTranscript;
+                record.file = updatedFile;
+                // Close the editor before refreshing results. Re-running the same
+                // query rebuilds the result DOM from the edited transcript and
+                // refreshed in-memory index, so stale text/highlighting disappears.
+                transcriptTextElement.hidden = false;
+                editorPanel.hidden = true;
+                editButton.disabled = false;
+                status.textContent = "Transcript updated. Refreshing search results…";
+                await runSearchQuery();
+                // The index archive is separate from the live in-memory index.
+                // Keep the existing top-of-page Update Search Index control as the
+                // single way to persist the refreshed archive.
+                const reminder = "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
+                setSearchIndexStatus(reminder);
+                status.textContent = reminder;
+                window.scrollTo(0, 0);
+            } catch (error) {
+                console.error("Search transcript edit failed:", error);
+                status.textContent = error.message || "Unable to save or reindex this transcript.";
+            } finally {
+                saveButton.disabled = false;
+                cancelButton.disabled = false;
+            }
+        });
+    }
 
     editButton.addEventListener("click", () => {
+        ensureEditorCreated();
         textarea.value = String(record.transcript || "");
         editorPanel.hidden = false;
         transcriptElement.hidden = false;
@@ -1140,76 +1227,6 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         // Match Combine: place the insertion point at the start of the transcript.
         textarea.setSelectionRange(0, 0);
         textarea.scrollTop = 0;
-    });
-    cancelButton.addEventListener("click", () => {
-        editorPanel.hidden = true;
-        transcriptTextElement.hidden = false;
-        editButton.disabled = false;
-        status.textContent = "";
-        textarea.value = String(record.transcript || "");
-    });
-    saveButton.addEventListener("click", async () => {
-        const editedTranscript = textarea.value;
-        if (!editedTranscript.trim()) {
-            status.textContent = "The transcript cannot be empty.";
-            return;
-        }
-        if (editedTranscript === String(record.transcript || "")) {
-            status.textContent = "No changes to save.";
-            return;
-        }
-        saveButton.disabled = true;
-        cancelButton.disabled = true;
-        status.textContent = "Saving transcript…";
-        try {
-            const storage = await getStorageModule();
-            const fullText = await getTranscriptFileContent(record.file, editedTranscript);
-            let updatedFile;
-            if (searchSourceHandle?.kind === "file-input") {
-                // iPhone/iPad folder selection is read-only. Share an updated
-                // replacement file instead of claiming the original was overwritten.
-                updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                await storage.shareFile(updatedFile);
-                const currentFiles = Array.from(searchSourceHandle.files || []);
-                const idx = currentFiles.findIndex(file => file.name === record.filename);
-                if (idx >= 0) currentFiles[idx] = updatedFile;
-                else currentFiles.push(updatedFile);
-                searchSourceHandle.files = currentFiles;
-                status.textContent = "Updated transcript shared. Reindexing this session…";
-            } else {
-                const fileHandle = await searchSourceHandle.getFileHandle(record.filename, { create: false });
-                const writable = await fileHandle.createWritable();
-                try { await writable.write(fullText); } finally { await writable.close(); }
-                updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                status.textContent = "Transcript saved. Reindexing…";
-            }
-
-            const oldRecord = { ...record };
-            await reindexEditedTranscript(updatedFile, oldRecord);
-            record.transcript = editedTranscript;
-            record.file = updatedFile;
-            // Close the editor before refreshing results. Re-running the same
-            // query rebuilds the result DOM from the edited transcript and
-            // refreshed in-memory index, so stale text/highlighting disappears.
-            transcriptTextElement.hidden = false;
-            editorPanel.hidden = true;
-            editButton.disabled = false;
-            status.textContent = "Transcript updated. Refreshing search results…";
-            await runSearchQuery();
-            // The index archive is separate from the live in-memory index.
-            // Keep the existing top-of-page Update Search Index control as the
-            // single way to persist the refreshed archive.
-            const reminder = "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
-            setSearchIndexStatus(reminder);
-            status.textContent = reminder;
-            window.scrollTo(0, 0);
-        } catch (error) {
-            console.error("Search transcript edit failed:", error);
-            status.textContent = error.message || "Unable to save or reindex this transcript.";
-        } finally {
-            saveButton.disabled = false;
-            cancelButton.disabled = false;
-        }
     });
 }
 

@@ -381,31 +381,112 @@ export async function displayTranscriptFiles(files) {
             transcriptActions.appendChild(editToggle);
             transcriptActions.appendChild(transcriptToggle);
 
-            const editPanel = document.createElement("div");
-            editPanel.className = "combine-transcript-editor";
-            editPanel.hidden = true;
+            // Create the editor DOM only when the user chooses Edit.
+            // Most transcripts are never edited, so avoid allocating a textarea,
+            // action buttons, and their handlers for every row during initial load.
+            let editPanel = null;
+            let editor = null;
+            let cancelEdit = null;
+            let saveEdit = null;
 
-            const editor = document.createElement("textarea");
-            editor.className = "combine-transcript-editor-input";
-            editor.setAttribute("aria-label", `Edit transcript text for ${record.filename}`);
-            editor.spellcheck = true;
+            function ensureEditPanel() {
+                if (editPanel) return;
 
-            const editActions = document.createElement("div");
-            editActions.className = "combine-transcript-editor-actions";
+                editPanel = document.createElement("div");
+                editPanel.className = "combine-transcript-editor";
+                editPanel.hidden = true;
 
-            const cancelEdit = document.createElement("button");
-            cancelEdit.type = "button";
-            cancelEdit.className = "combine-transcript-secondary-button";
-            cancelEdit.textContent = "Cancel";
+                editor = document.createElement("textarea");
+                editor.className = "combine-transcript-editor-input";
+                editor.setAttribute("aria-label", `Edit transcript text for ${record.filename}`);
+                editor.spellcheck = true;
 
-            const saveEdit = document.createElement("button");
-            saveEdit.type = "button";
-            saveEdit.textContent = "Save changes";
+                const editActions = document.createElement("div");
+                editActions.className = "combine-transcript-editor-actions";
 
-            editActions.appendChild(cancelEdit);
-            editActions.appendChild(saveEdit);
-            editPanel.appendChild(editor);
-            editPanel.appendChild(editActions);
+                cancelEdit = document.createElement("button");
+                cancelEdit.type = "button";
+                cancelEdit.className = "combine-transcript-secondary-button";
+                cancelEdit.textContent = "Cancel";
+
+                saveEdit = document.createElement("button");
+                saveEdit.type = "button";
+                saveEdit.textContent = "Save changes";
+
+                editActions.appendChild(cancelEdit);
+                editActions.appendChild(saveEdit);
+                editPanel.appendChild(editor);
+                editPanel.appendChild(editActions);
+                content.appendChild(editPanel);
+
+                cancelEdit.addEventListener("click", () => {
+                    editPanel.hidden = true;
+                    editToggle.textContent = "Edit";
+                    audioContainer.hidden = false;
+                    transcriptContent.hidden = false;
+                    transcriptToggle.textContent = "Hide transcript";
+                    transcriptToggle.title = "Hide transcript";
+                    transcriptToggle.setAttribute("aria-label", "Hide transcript");
+                    transcriptToggle.setAttribute("aria-expanded", "true");
+                    editToggle.hidden = false;
+                    editor.value = String(record.transcript || "");
+                });
+
+                saveEdit.addEventListener("click", async () => {
+                    if (saveEdit.disabled) return;
+                    saveEdit.disabled = true;
+                    cancelEdit.disabled = true;
+                    editToggle.disabled = true;
+                    saveEdit.textContent = "Saving…";
+
+                    try {
+                        const originalText = await record.file.text();
+                        const lines = originalText.split(/\r?\n/);
+                        const separatorIndex = lines.findIndex(
+                            line => line.trim() === "--------------------------------------------------"
+                        );
+                        if (separatorIndex === -1) {
+                            throw new Error("The transcript separator was not found; the file was not changed.");
+                        }
+                        const headerText = lines.slice(0, separatorIndex + 1).join("\n");
+                        const editedBody = editor.value.replace(/\r\n?/g, "\n").replace(/^\n+|\n+$/g, "");
+                        const updatedText = `${headerText}\n${editedBody}\n`;
+                        const updatedFile = await saveTranscriptEdits(record, updatedText);
+
+                        record.file = updatedFile || new File([updatedText], record.filename, {
+                            type: "text/plain",
+                            lastModified: Date.now()
+                        });
+                        record.transcript = editedBody;
+                        const selectedIndex = selectedTranscriptFiles.findIndex(
+                            file => file.name === record.filename
+                        );
+                        if (selectedIndex !== -1) {
+                            selectedTranscriptFiles[selectedIndex] = record.file;
+                        }
+
+                        renderTranscriptText();
+
+                        editPanel.hidden = true;
+                        audioContainer.hidden = false;
+                        editToggle.textContent = "Edit";
+                        transcriptContent.hidden = false;
+                        transcriptToggle.textContent = "Hide transcript";
+                        transcriptToggle.title = "Hide transcript";
+                        transcriptToggle.setAttribute("aria-label", "Hide transcript");
+                        transcriptToggle.setAttribute("aria-expanded", "true");
+                        editToggle.hidden = false;
+                    } catch (error) {
+                        console.error("Unable to save transcript edits:", error);
+                        alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
+                    } finally {
+                        saveEdit.disabled = false;
+                        cancelEdit.disabled = false;
+                        editToggle.disabled = false;
+                        saveEdit.textContent = "Save changes";
+                    }
+                });
+            }
 
             // Keep audio outside the transcript text container so it remains
             // available while the transcript is being edited.
@@ -418,8 +499,8 @@ export async function displayTranscriptFiles(files) {
                 transcriptContent.innerHTML = "";
                 const currentTranscript = String(record.transcript || "").trim();
                 const paragraphs = currentTranscript
-                    .replace(/\r\n?/g, "\n")
-                    .split(/\n\s*\n+/)
+                    .replace(/\\r\\n?/g, "\\n")
+                    .split(/\\n\\s*\\n+/)
                     .map(paragraph => paragraph.trim())
                     .filter(Boolean);
 
@@ -458,7 +539,7 @@ export async function displayTranscriptFiles(files) {
                 ensureAudioControl();
                 audioContainer.hidden = false;
                 transcriptContent.hidden = false;
-                editPanel.hidden = true;
+                if (editPanel) editPanel.hidden = true;
                 transcriptToggle.textContent = "Hide transcript";
                 transcriptToggle.title = "Hide transcript";
                 transcriptToggle.setAttribute("aria-label", "Hide transcript");
@@ -471,7 +552,6 @@ export async function displayTranscriptFiles(files) {
             content.appendChild(header);
             content.appendChild(audioContainer);
             content.appendChild(transcriptContent);
-            content.appendChild(editPanel);
 
             transcriptToggle.addEventListener("click", () => {
                 if (transcriptContent.hidden) {
@@ -484,10 +564,12 @@ export async function displayTranscriptFiles(files) {
                     transcriptToggle.setAttribute("aria-label", "Show transcript");
                     transcriptToggle.setAttribute("aria-expanded", "false");
                     editToggle.hidden = true;
+                    if (editPanel) editPanel.hidden = true;
                 }
             });
 
             editToggle.addEventListener("click", () => {
+                ensureEditPanel();
                 if (editPanel.hidden) {
                     ensureAudioControl();
                     audioContainer.hidden = false;
@@ -514,75 +596,6 @@ export async function displayTranscriptFiles(files) {
                     editToggle.hidden = transcriptContent.hidden;
                     audioContainer.hidden = transcriptContent.hidden;
                     editor.value = String(record.transcript || "");
-                }
-            });
-
-            cancelEdit.addEventListener("click", () => {
-                editPanel.hidden = true;
-                editToggle.textContent = "Edit";
-                audioContainer.hidden = false;
-                transcriptContent.hidden = false;
-                transcriptToggle.textContent = "Hide transcript";
-                transcriptToggle.title = "Hide transcript";
-                transcriptToggle.setAttribute("aria-label", "Hide transcript");
-                transcriptToggle.setAttribute("aria-expanded", "true");
-                editToggle.hidden = false;
-                editor.value = String(record.transcript || "");
-            });
-
-            saveEdit.addEventListener("click", async () => {
-                if (saveEdit.disabled) return;
-                saveEdit.disabled = true;
-                cancelEdit.disabled = true;
-                editToggle.disabled = true;
-                const originalLabel = saveEdit.textContent;
-                saveEdit.textContent = "Saving…";
-
-                try {
-                    const originalText = await record.file.text();
-                    const lines = originalText.split(/\r?\n/);
-                    const separatorIndex = lines.findIndex(
-                        line => line.trim() === "--------------------------------------------------"
-                    );
-                    if (separatorIndex === -1) {
-                        throw new Error("The transcript separator was not found; the file was not changed.");
-                    }
-                    const headerText = lines.slice(0, separatorIndex + 1).join("\n");
-                    const editedBody = editor.value.replace(/\r\n?/g, "\n").replace(/^\n+|\n+$/g, "");
-                    const updatedText = `${headerText}\n${editedBody}\n`;
-                    const updatedFile = await saveTranscriptEdits(record, updatedText);
-
-                    record.file = updatedFile || new File([updatedText], record.filename, {
-                        type: "text/plain",
-                        lastModified: Date.now()
-                    });
-                    record.transcript = editedBody;
-                    const selectedIndex = selectedTranscriptFiles.findIndex(
-                        file => file.name === record.filename
-                    );
-                    if (selectedIndex !== -1) {
-                        selectedTranscriptFiles[selectedIndex] = record.file;
-                    }
-
-                    renderTranscriptText();
-
-                    editPanel.hidden = true;
-                    audioContainer.hidden = false;
-                    editToggle.textContent = "Edit";
-                    transcriptContent.hidden = false;
-                    transcriptToggle.textContent = "Hide transcript";
-                    transcriptToggle.title = "Hide transcript";
-                    transcriptToggle.setAttribute("aria-label", "Hide transcript");
-                    transcriptToggle.setAttribute("aria-expanded", "true");
-                    editToggle.hidden = false;
-                } catch (error) {
-                    console.error("Unable to save transcript edits:", error);
-                    alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
-                } finally {
-                    saveEdit.disabled = false;
-                    cancelEdit.disabled = false;
-                    editToggle.disabled = false;
-                    saveEdit.textContent = "Save changes";
                 }
             });
 
