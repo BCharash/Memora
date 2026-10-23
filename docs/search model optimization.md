@@ -1315,3 +1315,94 @@ plan.
 This order prevents a new agent from mistaking a failed or incomplete
 experiment for evidence, repeating old work, or optimizing the wrong
 objective.
+
+
+---
+
+# Dated Addendum — Analysis of Search Laboratory Run 2026-10-23 10:35 UTC
+
+**Purpose:** Update the status of the research using the uploaded report `memora-search-lab-report(20261023-110231).json`. This addendum supplements the preceding plan; it does not silently replace or erase earlier conclusions.
+
+## A1. Run identity and integrity observations
+
+- Report creation time: `2026-10-23T10:35:45.706Z`.
+- Lab: `Memora Search Laboratory`, version `0.2.0`.
+- Build identifier: `single-file-production-parity-category-audit`.
+- Model: `Xenova/all-MiniLM-L6-v2`, Transformers.js `transformers.js-3.7.2`, 384-dimensional embeddings.
+- Archive: `Archive.zip`, 114 transcripts, 3832 passage representations.
+- Calibration status recorded in JSON: **completed**.
+- Calibration elapsed time: 16.40 seconds.
+- Calibration errors array: [].
+- Human judgments in the report: **0**.
+- The report describes browser-local inference; CDN access is for JavaScript/model assets, not hosted transcript inference.
+
+The report records a completed run with an empty calibration error list. This is evidence about the run's recorded status, not independent proof that the calculations, browser behavior, or production parity are correct. The current HTML must still be inspected and tested.
+
+## A2. Target-transcript rank results
+
+The report's `methodResults` records give the following target-transcript ranks across the 20 built-in queries:
+
+| Retrieval method | Target in top 5 | Target in top 10 | Target in top 20 | Worst observed target rank |
+|---|---:|---:|---:|---:|
+| Lexical | 20/20 | 20/20 | 20/20 | 1 |
+| Sentence-semantic | 17/20 | 18/20 | 19/20 | 48 |
+| 3–1 chunks | 17/20 | 18/20 | 20/20 | 13 |
+| 5–2 chunks | 16/20 | 18/20 | 20/20 | 15 |
+| 7–3 chunks | 17/20 | 18/20 | 20/20 | 20 |
+
+These are **target-transcript retrieval measurements**, not passage-level human relevance judgments. They do not establish that all other candidates are irrelevant, nor that the target passage itself is always the best passage shown to the user.
+
+### Interpretation
+
+- The three chunk families each retrieved all 20 target transcripts within their top 20 in this run. Sentence-semantic retrieval placed 19/20 targets in the top 20.
+- No chunk size dominates every target rank; the representation families should be treated as potentially complementary until judged results show otherwise.
+- Lexical retrieval ranked the designated target first for all 20 queries, but averaged exactly one candidate per query in the method results. The lexical threshold sweep also recorded one matched candidate at every tested threshold.
+- The lexical result is therefore a useful sanity check for these compact, phrase-like queries. It is not evidence that lexical search solves indirect or imperfect memory-recovery queries, and should not by itself justify increasing lexical weight in production.
+
+## A3. Cutoff and fusion results: what they do and do not prove
+
+The calibration design records five retrieval methods, lexical thresholds `[50, 60, 70, 80, 90, 100]`, semantic cutoff quantiles `[0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.975, 0.99]`, lexical score cutoffs `[0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1]`, and 70 fusion weight vectors per query.
+
+The fusion sweep contains 1400 query/configuration outcomes. The intended target transcript ranked in the top 5 in 1164/1400, top 10 in 1252/1400, and top 20 in 1361/1400 outcomes (top 20: 97.2%).
+
+This is encouraging as a target-retrieval diagnostic, but it does not identify the best production configuration. The report's target metric is the best-ranked passage in the expected target transcript, described by the report itself as a transcript-level proxy rather than passage-level human relevance. The report has no human judgments for non-target candidates, so precision/specificity and the practical clutter-versus-recall trade-off cannot be established.
+
+**Do not select a winning fusion configuration from these counts alone.** First ensure that sweep outputs and candidate-level evidence are complete and auditable; then judge pooled results.
+
+## A4. Remaining evidence gaps
+
+The current report is not a complete candidate-level dataset for every method/configuration. The `methodResults` objects retain ranked lists under `rankedTop`; the cutoff and fusion sweeps retain compact `top` arrays alongside summary fields. The exported report therefore does not give a complete, auditable score-and-rank record for every candidate across every tested configuration.
+
+Before using it to set production cutoffs or the sensitivity slider, the lab should export, at minimum:
+
+1. Every scored candidate for each query and retrieval family, including candidates beyond the visible top list.
+2. Stable query ID, configuration ID, retrieval family, candidate/passage ID, transcript filename/ID, representation type, original rank, score, and passage text.
+3. Intended and actual retrieval depth, number of candidates scored, number retained, and target rank/retention.
+4. Per-run completion state, errors, elapsed time, model/archive identifiers, and configuration values.
+5. Separate raw retrieval, post-cutoff retrieval, fusion, and final composite-display records.
+6. Export validation showing that all expected query/configuration/method combinations are present and that failed or incomplete runs are not represented as complete.
+
+The JSON report's `judgments` array is empty. Build a pooled candidate set across methods and depths and label candidates Target, Useful, Irrelevant, or Uncertain. Until this exists, do not call non-target results false positives or claim validated precision/recall.
+
+## A5. Recommended next steps, in order
+
+1. **Inspect the actual HTML used for this run.** Confirm its build and code paths; do not infer implementation details from the report label alone.
+2. **Audit experiment integrity and export completeness.** Verify actual depth, candidate counts, sweep error propagation, and expected combinations. Fix any silent partial-run or truncation behavior first.
+3. **Produce complete candidate-level exports.** Preserve the full scored distributions, not just top 20/100 summaries. Keep the summary report as a separate artifact.
+4. **Audit benchmark quality.** Keep compact phrase-like lexical sanity checks, but create a separately labelled, transcript-grounded benchmark of realistic imperfect recollections. Record target evidence and query provenance without copying the target wording.
+5. **Human-judge pooled results.** Include candidates from every retrieval family and depth; distinguish Target, Useful, Irrelevant, and Uncertain.
+6. **Run controlled depth comparisons** at 30, 50, 100, and 200 with other variables fixed; then compare baseline, RRF, and hybrid at a fixed depth.
+7. **Evaluate composition and overlap separately.** Suppress direct redundant presentations only; preserve useful nested context. Keep raw candidates available for analysis.
+8. **Only then tune cutoffs, fusion, and slider behavior**, reporting target losses individually and validating the selected configuration on held-out queries.
+
+## A6. Current decision
+
+**Decision: continue the search-lab investigation; do not change production ranking or slider defaults on the basis of this report alone.**
+
+The report is a useful completed diagnostic run: target-transcript recovery is encouraging, especially for chunk representations, and the fusion sweep supplies many additional target-rank observations. But the evidence is not yet sufficient to choose a winner because the benchmark is small, the lexical tests are unusually phrase-like, the full candidate-level export is incomplete, and there are no human relevance judgments.
+
+The immediate next input should be the exact Search Laboratory HTML file used to produce this report. Inspect that source against the export and sweep requirements above before changing it. Record actual tests performed; a source inspection or syntax check must not be described as a browser/model test.
+
+## A7. Validity of the handoff
+
+The preceding sections remain the governing design and continuity plan. This addendum updates the status with the 2026-10-23 report. It does not make the handoff a substitute for inspecting current source files, and any corpus counts or implementation details must be re-verified if the archive or lab changes.
