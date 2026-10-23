@@ -4,6 +4,25 @@
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  
 **Status:** Proposal for discussion and agreement — **not authorization to edit code yet**.
 
+
+## Handoff summary — read this first when resuming
+
+**Project goal:** Make Whisper model definitions, environment assessment, self-test evidence, eligibility, and production loading consistent and trustworthy across desktop and iPhone.
+
+**Current status:** This is a design proposal. No implementation work is authorized by this document alone. Inspect the current repository and device builds before translating this plan into code; this document is not proof that the current code still behaves as described.
+
+**First action:** Audit the latest user-supplied repository/build and produce an audit map plus baseline report. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
+
+**Important constraints:**
+- Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.
+- Do not repeatedly crash or destabilize Safari to obtain test data. Stop a sequence after serious resource or execution failures.
+- Do not delete or reset IndexedDB to conceal a schema error. Establish recovery and data-preservation behavior first.
+- Do not claim a model is supported, a backend was used, or resources were released unless the available evidence supports that claim.
+- Keep search ranking/selectivity, hybrid lexical/semantic retrieval, service-worker/offline work, and unrelated UI cleanup out of this project.
+- Use the newest files supplied for the active session. If a needed current file is absent, ask for it rather than silently relying on an older archive or remembered copy.
+
+**Completion evidence:** A reviewed audit map, agreed decisions, passing regression/acceptance tests, and a handoff note identifying the code revision and what was actually tested on each device.
+
 ---
 
 ## 1. Executive summary
@@ -290,6 +309,19 @@ A stable `configurationId` identifies the logical configuration. A revision or d
 
 Validation should be keyed to the exact configuration revision and environment fingerprint. Otherwise a new configuration could accidentally inherit an old “passed” status.
 
+
+### 7.3.1 Configuration fingerprint inputs and evidence freshness
+
+Before implementation, classify fingerprint inputs as **execution-critical**, **environment-relevant**, or **descriptive only**. Review the exact model repository/revision, runtime/backend, dtype and per-component quantization overrides, Transformers.js/runtime version, worker implementation/protocol version, and loader options. The final list must come from the current code and runtime behavior, not this example list alone.
+
+- An execution-critical change must produce a new configuration revision/fingerprint and must not inherit a previous pass as current evidence.
+- An environment-relevant change may require revalidation according to a documented compatibility rule.
+- A descriptive-only change (for example, a display label) should not invalidate execution evidence.
+- Store fingerprint inputs or a diagnostic representation alongside the fingerprint so stale evidence can be explained.
+- Define the canonicalization/hash method once. Equivalent configurations must fingerprint consistently; omitted defaults and explicit defaults should not create confusing identities unless they genuinely change execution.
+
+The audit should determine whether the current code can reliably identify upstream model revisions. If it cannot, record the limitation; a repository name alone must not be presented as proof that model contents are immutable.
+
 ### 7.4 Keep family labels simple for the user
 
 The user-facing selector should continue to show simple model-family labels such as Tiny, Base, Small, Medium, and Large. Internally, a family can map to one or more environment-specific implementations. If more than one configuration exists for a family, the resolver must choose among eligible configurations using explicit rules, not whichever entry happens to appear first.
@@ -306,6 +338,21 @@ Given a requested family or configuration ID plus the shared environment, the re
 It must not silently fall back to a generic model name, silently change dtype, or select a desktop-only configuration on iPhone. Any fallback should be explicit, deterministic, logged, and covered by tests.
 
 Both self-test and production must use this resolver. For a self-test, the chosen configuration ID/revision should be frozen into the run record at test start so a registry update during the run cannot change what that run claims to have tested.
+
+
+### 7.5.1 Controlled catalogue update protocol
+
+If definitions are refreshed from an upstream catalogue or maintained manifest, treat an update as a reviewed data change—not automatic enablement. The update flow should:
+
+1. Identify the catalogue source and version/revision.
+2. Validate required metadata and reject malformed or incompatible entries.
+3. Report additions, removals, and execution-relevant modifications before applying them.
+4. Preserve retired definitions and historical evidence; mark evidence stale when identity changes require it.
+5. Keep newly discovered configurations disabled/not eligible until compatibility and validation policy allow them.
+6. Retain the last known valid catalogue if the network is unavailable or an update fails validation.
+7. Record update time, source/revision, outcome, and rejected entries for diagnostics.
+
+Runtime model loading must not depend on a live catalogue request. Keep a known-good local set of definitions; this does not imply the model assets themselves are cached.
 
 ## 8. Registry evidence and eligibility model
 
@@ -381,6 +428,18 @@ Do not implement a single hand-maintained `available: true` flag as the whole de
 - A cleanup failure should not be conflated with a transcription failure.
 - One sequence failure should not erase a prior standalone success.
 - One standalone success does not prove sequence safety.
+
+
+### 8.6 Separate functional validity, performance suitability, stability, and recommendation
+
+A single `passed` result must not be treated as the complete answer to whether a model should be offered. Keep these questions distinct:
+
+- **Functional validity:** Did this exact configuration load, transcribe, pass the fixture check, and complete the required observable cleanup steps?
+- **Performance suitability:** Were load and inference times acceptable for the intended interaction on this environment, based on measured timings and an agreed policy?
+- **Stability evidence:** Has it succeeded alone, and has it been shown to remain usable in relevant sequences or repeated sessions?
+- **Production eligibility/recommendation:** Given compatibility, current evidence, availability, safety, and user choice, should the app offer or recommend it for ordinary use?
+
+Do not invent universal time or memory thresholds before collecting baselines. A slow but functioning configuration may be valid yet unsuitable as a default; a fast standalone success may still lack sequence-safety evidence. Preserve measurements so eligibility policy can change without rewriting historical test results.
 
 ## 9. Self-test lifecycle and reporting
 
@@ -517,6 +576,20 @@ Every sequence attempt must record:
 - whether the sequence continued or stopped and why.
 
 This enables a useful comparison between standalone and sequence behavior without claiming a definitive root cause prematurely.
+
+
+### 11.5 Resource measurements and claims
+
+Record resource information with an explicit evidence class:
+
+- **Measured:** directly exposed by a reliable API or captured by an instrumented test.
+- **Estimated:** calculated from known inputs using a documented method.
+- **Inferred:** a possible explanation supported by observations but not directly measured.
+- **Unavailable/unknown:** the browser or runtime does not expose enough information.
+
+A browser crash after several model loads may support a resource-pressure hypothesis, but it does not measure memory use or prove that memory was not released. Worker termination is an attempted cleanup action, not confirmation that GPU/OS allocations have been reclaimed.
+
+Before adding a “clear resources” control, document what it can actually release (such as references, workers, object URLs, or app-owned buffers), the action taken, observable confirmation, and what remains outside the app's control. Do not promise to clear all memory or GPU resources.
 
 ## 12. Production transcription must use the same configuration
 
@@ -730,6 +803,24 @@ Test the Windows PC, MacBook, and iPhone. Include Android in the design and sche
 
 Do not force identical model availability across devices. The target is consistent architecture and honest reporting, not identical capabilities.
 
+
+### 15.1 Failure-injection and regression acceptance checks
+
+In addition to normal device testing, exercise controlled failure paths where feasible. Use mocked worker/database failures for deterministic cases rather than repeatedly crashing a real device; then perform only necessary real-device confirmation.
+
+- Worker reports an initialization error; the run is terminally classified and persisted.
+- Worker fails during inference after loading; this is not recorded as a load failure.
+- Worker exits or the page reloads before a terminal event; the run is recovered as interrupted/inconclusive, not left active forever.
+- A timeout fires; the UI and evidence distinguish timeout from confirmed incompatibility.
+- Result validation fails despite successful inference; output-check failure is distinct from runtime failure.
+- Cleanup reports failure or cannot be confirmed; that fact remains distinct from transcription success.
+- A new configuration revision is introduced; old evidence is retained but no longer treated as current for that revision.
+- Catalogue refresh is offline, malformed, or partially incompatible; the last known valid catalogue remains usable.
+- Registry definitions are rebuilt while semantic indexes, transcript records, and model caches exist; unrelated data remains intact.
+- Two consumers request initialization concurrently; schema ownership prevents competing partial upgrades or invalid transactions.
+
+For every test, record expected and actual outcomes, evidence/artifact, device/build, and whether the test was simulated or performed on a real device.
+
 ## 16. Definition of done
 
 The overhaul is complete when all of the following are true:
@@ -779,6 +870,47 @@ The first tangible deliverable should be an **audit map and baseline report**, n
 
 ---
 
+## 19. Decision log and conversation-to-conversation handoff
+
+This document is intended to survive a pause or a new conversation. Update this section as decisions are made; do not silently turn a proposal into an agreed requirement.
+
+### 19.1 Decision log
+
+| Date | Topic | Decision and rationale | Alternatives deferred/rejected | Status |
+|---|---|---|---|---|
+| To be completed during design review | To be agreed | No new decisions are implied by this document revision | To be completed | Proposed |
+
+Use `proposed`, `agreed`, `implemented`, or `verified` consistently. “Implemented” means code was changed; “verified” means the stated check was actually run and its result recorded. Code inspection alone is not verification.
+
+### 19.2 Implementation status by stage
+
+| Stage | Status | Code revision / files | Checks run and results | Remaining risks / next action |
+|---|---|---|---|---|
+| Stage 0 — audit and baseline | Not started for the resumed session | — | — | Obtain current repository/build and map current paths |
+| Stage 1 — self-test safety/observability | Not started for the resumed session | — | — | Establish safe baseline before broader refactor |
+| Stages 2–7 | Not started for the resumed session | — | — | Follow the checkpoints in Section 14 |
+
+Replace these placeholders with evidence when work occurs. If implementation diverges from this plan, record why and whether the plan should be updated.
+
+### 19.3 Handoff checklist for a new conversation
+
+Before pausing or moving to a new conversation, record:
+- current repository/build identity and commit or other stable revision identifier, if available;
+- files changed and the purpose of each change;
+- checks run, exact results, and checks not run;
+- which results came from real devices versus simulations or code inspection;
+- decisions agreed since the previous handoff and unresolved questions;
+- known regressions, risks, and the next single recommended action;
+- the latest version of this plan and any design-journal updates that must accompany code changes.
+
+At the start of the next session, re-read this handoff and inspect the current files. The handoff is a navigation aid, not a substitute for current source code or fresh verification.
+
+### 19.4 Acceptance evidence record
+
+For each acceptance area, retain a compact record with test ID, date, device/OS/browser, app revision, configuration ID/revision, expected result, actual result, and evidence location. Never claim “tested on iPhone/Mac/Windows” without identifying which build and what was actually run.
+
+---
+
 ## Appendix A — Questions to settle during the design review
 
 These questions should be answered from current code and test evidence, not guessed in advance.
@@ -799,6 +931,8 @@ These questions should be answered from current code and test evidence, not gues
 ## Appendix B — Source and confidence notes
 
 This plan is based primarily on the two supplied planning documents and the available Memora design-journal history through Sections 49–51, plus prior conversation context about model testing, the registry, and the Medium q4 discrepancy. It is a design proposal, not a claim that every described component currently exists in the exact form shown.
+
+This revision adds a first-read handoff summary, explicit configuration-fingerprint rules, a controlled catalogue-update protocol, separate functional/performance/stability/eligibility dimensions, resource-evidence labels, failure-injection acceptance checks, and a decision/implementation handoff log. These additions strengthen the plan; they do not authorize code changes or assert that proposed mechanisms already exist.
 
 - Facts about the observed Mac Settings error, missing `modelRegistry`, runtime ambiguity, and iPhone sequence failure are retained as observations from the supplied planning notes.
 - Possible causes of the missing store and iPhone crash remain hypotheses until confirmed by code tracing or controlled tests.
