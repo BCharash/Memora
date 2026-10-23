@@ -1406,3 +1406,72 @@ The immediate next input should be the exact Search Laboratory HTML file used to
 ## A7. Validity of the handoff
 
 The preceding sections remain the governing design and continuity plan. This addendum updates the status with the 2026-10-23 report. It does not make the handoff a substitute for inspecting current source files, and any corpus counts or implementation details must be re-verified if the archive or lab changes.
+
+
+# Addendum B — Sensitivity/specificity slider calibration and fixed result paging (2026-10-23)
+
+## B1. Governing objective
+
+The objective is **not** to replace Memora's current search method, maximize target transcripts in the top 20, or choose a universal cosine cutoff. The immediate objective is to make the sensitivity–specificity slider meaningfully change the ordering and relative strength of results while preserving access to the full result set.
+
+- Left end: greater sensitivity; retain the current broad search standard as the baseline.
+- Right end: greater specificity; stronger matches should generally rise and weaker matches may fall, accepting that some useful matches may be ranked lower.
+- The slider may adjust the relative influence of the existing sentence and contextual representations (3–1, 5–2, 7–3) and, if supported by evidence, how their query-specific score distributions contribute.
+- Do not assume a single cosine threshold is comparable across representations or queries.
+- Preserve the current composite ranking methodology as the baseline. Do not change production ranking or the default slider position until the diagnostic supports a specific change.
+
+## B2. Result availability is independent of slider position
+
+This is a binding UI requirement, not an experiment variable:
+
+1. Initially show the top 20 transcript results, or all results if fewer than 20 exist.
+2. If more results exist, show a **Show 20 more** control that appends the next 20; repeat until all results can be inspected.
+3. The slider must **not** change the number of transcripts available, impose a hard result cap, or remove lower-ranked candidates through an arbitrary retained-percentage rule.
+4. Changing the slider may change score interpretation, ordering, or relevance grouping, but every candidate in the evaluated result set must remain reachable by paging.
+5. Rank 21 is not inherently a failure. Inspect quality and candidate retention at depths such as 20, 30, 40 and beyond; the user may scan 30–40 results when useful.
+
+## B3. Source inspection findings (not a browser validation)
+
+The supplied `search.js` and `searchUI.js` were inspected on 2026-10-23. This is source inspection only; it does not establish runtime or browser behavior.
+
+- The current UI slider (`semanticFractionSlider`, persisted as `memoraSemanticResultsFraction`) maps to a retained fraction between 100% and 50%.
+- `retainSemanticFraction(...)` filters by rank within each representation. It therefore removes candidates as the slider moves rather than merely changing relevance/specificity or order.
+- Contextual retrieval is requested with `maxResults: 30` per representation in the inspected UI path.
+- The composite UI ordering uses family/category priorities and rank-derived values, and overlap suppression can hide nested/contextual candidates from display.
+- Consequently, the current rank-based retention mechanism conflicts with the binding result-availability requirement above. This is a finding to address in the diagnostic/design, not permission to rewrite production behavior without evidence.
+
+## B4. Immediate next experiment: baseline slider behavior, not another broad fusion sweep
+
+Use the Search Laboratory and the same loaded archive/embeddings to collect per-query scores and ranks for the four existing semantic representations: sentence, chunk 3–1, chunk 5–2, and chunk 7–3. Preserve the existing composite as a named baseline.
+
+For each query and representation, record:
+
+- number of candidates scored and score distribution (minimum/maximum, quantiles, gaps/clusters where informative);
+- original rank and score for every candidate in the evaluated pool, not just top 20 or top 100;
+- per-transcript aggregation/overlap, including whether several passages or representations refer to the same underlying transcript/passage;
+- cross-representation agreement and disagreement;
+- composite order and candidate retention at slider positions across the full range, with result availability held constant;
+- the set and ordering visible after the first 20, then after Show 20 more (40, 60, etc.), with explicit checks at ranks 20, 30 and 40.
+
+The first run is a diagnostic baseline: compare slider positions against the unchanged current composite and measure what moves, what stays stable, what is demoted, and whether useful candidates remain accessible. Do not select new weights or thresholds from target rank alone. Human relevance judgments are needed to establish specificity; without them, report only observable ranking/distribution behavior and known target recovery.
+
+## B5. Decision criteria and evidence discipline
+
+A proposed slider mechanism should be adopted only if the report makes clear:
+
+1. exactly what the slider changes (weights, distribution-based scoring, or both);
+2. how the method handles score-scale differences between representations and query-specific distributions;
+3. that the number of available candidates does not shrink as a side effect;
+4. how ordering and result paging behave through the full candidate list;
+5. which useful candidates move up or down, based on human judgments where available;
+6. what was implemented, syntax-checked, actually executed, and independently validated—each as a separate status.
+
+Do not tune against the same small hand-authored query/target set and call the result validated. Keep the current composite unchanged until the evidence justifies a narrowly scoped change.
+
+## B6. Separate later workstream: lexical queries longer than one or two words
+
+Do not mix lexical redesign into this slider calibration. Investigate it as a separate experiment using the same query/corpus set: consecutive phrase matching, partial matching, minimum matching-term count, explicit term exclusions/stop words, and IDF-weighted token overlap. Record candidate counts and judged useful/irrelevant results. An any-token matcher can be noisy; IDF alone is not presumed to solve the problem. Keep lexical findings separate from semantic slider conclusions.
+
+## B7. Current next step
+
+Build and inspect the Search Laboratory baseline diagnostic around the actual existing representations and composite. Keep the production code/defaults untouched for this first step. The report must export complete candidate-level data sufficient to reproduce slider-position comparisons and inspect ranks beyond 20/40. Only after that diagnostic should we propose a specific slider mechanism.
