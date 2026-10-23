@@ -1475,3 +1475,627 @@ Do not mix lexical redesign into this slider calibration. Investigate it as a se
 ## B7. Current next step
 
 Build and inspect the Search Laboratory baseline diagnostic around the actual existing representations and composite. Keep the production code/defaults untouched for this first step. The report must export complete candidate-level data sufficient to reproduce slider-position comparisons and inspect ranks beyond 20/40. Only after that diagnostic should we propose a specific slider mechanism.
+
+
+## B8. 2026-10-23 implementation checkpoint — Search Laboratory baseline diagnostics
+
+Updated `Memora_Search_Laboratory_multi_target_benchmark.html` as an experimental diagnostic only. In the full calibration output, each independent method now records score-distribution summaries (min/max, p10/p25/median/p75/p90/p95/p99, mean, standard deviation, and adjacent score gaps among the top 20), rank-and-score metadata for every scored candidate, and passage text for the top 200 candidates. Target-recovery summaries now include depths 30, 40, and 200 as well as earlier depths. The report metadata explicitly states that slider position must not reduce candidate availability and that the UI should show 20 initially, then append 20 per click.
+
+**Scope and limits:** this change does not implement a new slider, does not change Memora production code or defaults, and does not yet simulate alternative slider positions against the production composite. It equips the next analysis with full candidate rank/score metadata and query-specific score distributions. The HTML's inline JavaScript passed `node --check`; the ZIP was checked to contain the HTML under its exact original filename and byte-for-byte match. No browser execution or end-to-end archive run was performed in this environment.
+
+**Decision:** retain as a diagnostic-only iteration. Next, run this HTML in the user's browser against the same archive/embedding JSON, export the new report, and inspect candidate ordering and score distributions across all four semantic representations. Then use the evidence to design a slider simulation that changes ranking/strength while keeping the candidate pool available; do not alter production ranking before that analysis.
+
+---
+
+# Addendum — Query-specific score-distribution simulation (2026-10-23)
+
+## User confirmation
+The sensitivity–specificity slider should be grounded in the distribution of scores for the individual query, separately for each representation. A candidate's score is interpreted relative to the score pool for the same query and representation—not against one global cosine threshold and not against a pooled distribution of unrelated queries.
+
+## Simulation performed
+Input: `memora-search-lab-report(20261023-125705).json` (28 queries, 114 transcripts; full passage scores and ranks for sentence, chunk 3–1, chunk 5–2, and chunk 7–3).
+
+For each query and representation, the simulation:
+1. Used all passage scores to form that query/representation's empirical distribution.
+2. Converted each passage score to an empirical percentile within that distribution (midrank for ties).
+3. For each transcript and representation, used the highest passage percentile for that transcript.
+4. Compared transcript rankings under raw-score mean, percentile mean, z-score mean, robust-z mean, max percentile, and mean of the two strongest representation percentiles.
+5. Tested an illustrative slider interpolation from max-percentile (one strong representation can elevate a transcript) to top-two-percentile mean (two representations contribute strongly). This was a diagnostic hypothesis only, not a selected production formula.
+
+All 114 transcripts remained rankable at every simulated position. No candidate was removed by the slider simulation. This preserves the agreed policy that result display is separate: show 20 initially, then append 20 per “Show 20 more” until exhausted.
+
+## Key findings
+- Percentile normalization is feasible from the existing export and respects query-specific, representation-specific score distributions.
+- The raw-score mean and z-score mean each had a mean top-20 overlap of about 92.1% with the percentile-mean ranking across the 28 queries. The robust-z mean had about 92.3% overlap. This suggests those three average-based approaches produced broadly similar top-20 sets on this archive, although it does not establish relevance.
+- The max-percentile diagnostic had about 72.1% mean top-20 overlap with percentile mean; top-two-percentile mean had about 84.8%. These formulas change rankings more substantially.
+- Mean top-40 overlap with percentile mean was about 94.7% for raw-score mean, 95.0% for z-score mean, 95.0% for robust-z mean, 79.6% for max percentile, and 88.9% for top-two-percentile mean.
+- These are ranking-stability metrics only. No non-target human relevance labels exist in the report, so none of these results proves that an approach is more relevant or more specific.
+
+## Decision
+Do not adopt a production formula yet. The simple interpolation is useful as an experiment design but remains unvalidated. The next step is a focused human review of passages/transcripts whose ranks move substantially between the max-percentile and agreement-oriented variants, including movements within ranks 20–40 and deeper. Record judgments as relevant / partly relevant / irrelevant before making a decision about the specificity end.
+
+## Artifacts
+- `Memora_Slider_Simulation_Analysis_2026-10-23.md`: detailed method and limitations.
+- `Memora_Slider_Simulation_Analysis_2026-10-23.json`: machine-readable aggregate results.
+- `Memora_Slider_Simulation_Query_Summary_2026-10-23.csv`: per-query comparison.
+- `Memora_Slider_Simulation_Rank_Changes_2026-10-23.csv`: transcript rank movements across approaches and slider positions.
+- `Memora_Slider_Simulation_Distributions_2026-10-23.csv`: per-query/per-representation distribution summary.
+- `Memora_Slider_Simulation_Top5_Examples_2026-10-23.csv`: top-five examples for inspection.
+
+Status distinctions: simulation executed offline against the exported report; no production code changed; no browser runtime test performed.
+
+---
+
+# Addendum — Full-Passage Export and Query-Specific Distribution Study (2026-10-23)
+
+## 1. Updated source report and scope
+
+A new browser-generated Search Laboratory report was supplied for offline analysis:
+
+- Report: `memora-search-lab-report(20261023-131744).json`
+- Laboratory build: `target-validation-full-passage-rank-export-v2`
+- Queries: 28
+- Transcript files: 114
+- Passage representations: 3,832
+- Semantic methods analyzed: sentence, chunk 3–1, chunk 5–2, chunk 7–3
+- Human relevance judgments: none for the non-target candidate pool
+
+The report contains full ranked passage IDs, ranks and cosine scores for the four semantic methods, together with a separate passage inventory containing the passage text and source metadata. This enables analysis beyond the former top-100 text export without repeating passage text in every ranked record.
+
+The distribution analysis was performed offline against the uploaded JSON. It was not a new browser run, and it does not independently verify production parity or runtime behavior.
+
+## 2. Export improvement
+
+The updated Search Laboratory HTML adds:
+
+- `rankedPassages`: complete rank/score records for every scored passage for each of the four semantic methods;
+- `passageInventory`: one copy of each passage's text and metadata, including filename, transcript hash, representation/type, ordinal, sentence indices and paragraph index;
+- a build identifier, `target-validation-full-passage-rank-export-v2`.
+
+The prior `rankedTop` export remains available. Ranking logic, query definitions and production Memora behavior were not changed.
+
+Artifact names from the preceding handoff:
+
+- `Memora_Search_Laboratory_multi_target_benchmark_full_passage_export.html`
+- `Memora_Search_Laboratory_full_passage_export.zip`
+
+Validation performed at that checkpoint: the inline JavaScript passed `node --check`, and the ZIP was checked to contain the HTML under its original filename. No browser execution or end-to-end archive/calibration run was performed by the assistant. The new JSON report was subsequently supplied by the user and analyzed offline.
+
+## 3. Score-distribution study
+
+### 3.1 Method
+
+For each of 28 queries and each of the four semantic representations:
+
+1. All ranked passage cosine scores were used to calculate query-specific distribution statistics.
+2. Passage scores were converted to empirical percentiles within that same query and representation.
+3. For each transcript and representation, the highest passage percentile was retained as that transcript's representation-level score.
+4. Distribution summaries and cutoff diagnostics were calculated. Cutoffs at the 50th, 75th, 90th, 95th, 97.5th and 99th percentiles were examined as diagnostics, not as production filters.
+5. An illustrative ordering-only slider was recomputed at positions 0, 0.25, 0.5, 0.75 and 1. It interpolates between the strongest percentile across the four methods and the mean of the two strongest method percentiles.
+
+Empirical percentile indicates relative standing in one score distribution. It is not a probability of relevance. The illustrative slider ranks all 114 transcripts at every position and removes none.
+
+### 3.2 Median score distribution summaries
+
+Medians below are across the 28 query-level distributions. They must not be treated as universal thresholds.
+
+| Representation | Median query maximum | Median P50 | Median P95 | Median P99 | Median maximum minus P95 | Median distinct transcripts with a passage at/above P95 | Median distinct transcripts at/above P99 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Sentence | 0.575 | 0.143 | 0.309 | 0.403 | 0.266 | 45.5 | 12.5 |
+| Chunk 3–1 | 0.583 | 0.148 | 0.337 | 0.423 | 0.243 | 24.0 | 6.0 |
+| Chunk 5–2 | 0.535 | 0.162 | 0.338 | 0.412 | 0.196 | 18.0 | 4.0 |
+| Chunk 7–3 | 0.545 | 0.166 | 0.331 | 0.414 | 0.216 | 14.0 | 3.5 |
+
+The same query-relative percentile yields different numbers of distinct transcripts across representation families. Passage counts and repeated passages per transcript differ, so a percentile cutoff is not a consistent transcript-level selection rule. A high percentile also does not establish relevance.
+
+### 3.3 Implications
+
+- Query-specific, representation-specific normalization is computationally feasible with the complete exported score distributions.
+- A universal raw cosine cutoff is not justified by these distributions.
+- Query-relative percentiles can be a feature for ranking, but should not be used alone as a relevance probability or hard gate.
+- Candidate counts at quantile cutoffs are diagnostic only. The production slider must not remove candidates or make lower-ranked transcripts inaccessible.
+- Cross-representation agreement is potentially informative, but overlapping sentence/chunk representations are not independent evidence. A wider chunk may add useful context or may introduce unrelated material.
+- Score gaps and tail separation may be useful candidate features, but a score gap does not prove that the leading passage matches the remembered event.
+
+## 4. Illustrative slider results
+
+The prototype interpolates between (a) the maximum of a transcript's four representation percentiles and (b) the mean of its two strongest representation percentiles. It changes order only and retains all 114 transcripts.
+
+| Slider position | Mean best target rank | Target labels in top 20 | Target labels in top 40 | Target labels in total |
+|---:|---:|---:|---:|---:|
+| 0.00 | 3.71 | 45 | 50 | 54 |
+| 0.25 | 3.64 | 46 | 50 | 54 |
+| 0.50 | 3.75 | 45 | 49 | 54 |
+| 0.75 | 4.00 | 45 | 49 | 54 |
+| 1.00 | 4.36 | 44 | 49 | 54 |
+
+These figures are diagnostic target-label measurements only. The labels are not exhaustive human relevance judgments, and non-target candidates have not been fully judged. The prototype does not demonstrate that the right-hand end is more specific. The small changes in target recovery cannot establish which ordering is more useful to the user.
+
+**Decision: do not adopt this prototype as the production formula.** Keep it as a comparison baseline only.
+
+## 5. Binding slider and display requirements — reaffirmed
+
+The user’s settled requirements remain:
+
+- Left end: higher sensitivity and broad retrieval, preserving the current search standard.
+- Right end: greater specificity, with stronger matches generally moving up and weaker matches moving down; some misses may be accepted only if the trade-off is supported by evidence.
+- The slider may change the relative contribution of sentence and chunk representations and, if justified, use query-specific score-distribution features.
+- The slider must not control the number of transcripts available or apply arbitrary retained-percentage filtering.
+- Initially display the top 20 results, or all if fewer than 20 exist.
+- If more remain, **Show 20 more** appends the next 20; repeat until all candidates can be inspected.
+- Examine ranking and quality at ranks 20, 30, 40 and beyond. Rank 21 is not itself a failure.
+- Preserve the current composite as the baseline. Do not change production ranking or slider defaults until evidence supports a specific change.
+
+## 6. Decision and next experiment
+
+### Decision log
+
+| Date | Decision | Evidence | Status |
+|---|---|---|---|
+| 2026-10-23 | Add complete ranked passage score export and a non-repeated passage inventory to the lab | Updated HTML source; user supplied report from the new build | Implemented in lab source; inline JavaScript syntax-checked; user subsequently produced a report. No independent browser run by the assistant. |
+| 2026-10-23 | Use query-specific, representation-specific distributions as diagnostic features, not as standalone hard cutoffs | 112 query-method distributions and 672 quantile-cutoff diagnostics | Offline analysis completed |
+| 2026-10-23 | Reject the max-percentile-to-top-two-percentile prototype as a production recommendation for now | Target-label counts change little and worsen slightly at the specificity endpoint; no human judgments for non-targets | Rejected as production formula; retain as diagnostic baseline |
+| 2026-10-23 | Keep production code and defaults unchanged | Evidence does not yet establish that a proposed ordering improves relevance or specificity | Current decision |
+
+### Next step: passage-level human review
+
+Build a focused review set from examples where the candidate ordering changes substantially between the maximum-percentile and agreement-oriented variants, including ranks 20–40 and deeper. For each candidate, inspect the underlying passage and context and label it:
+
+- **Target** — the intended memory/recording;
+- **Useful** — another result that could genuinely help rediscover the memory;
+- **Irrelevant** — does not help;
+- **Uncertain** — insufficient basis to decide.
+
+Record duplicate/overlap relationships separately so repeated nested chunks are not mistaken for independent support. Review both candidates promoted and candidates demoted by the prototype. Only then test whether distribution-relative standing, tail separation, top-score gaps and cross-representation support improve the order of useful results without hiding them.
+
+Do not resume a broad fusion-weight sweep as the next step. The main uncertainty is whether candidate features improve memory rediscovery, not which formula best fits the existing target labels. Do not mix the separate lexical-query workstream into this experiment.
+
+## 7. Research artifacts generated from this study
+
+The offline study produced:
+
+- `Memora_Slider_Distribution_Study_2026-10-23.md` — study report;
+- `Memora_Query_Method_Distributions_2026-10-23.csv` — 112 query-method distributions;
+- `Memora_Distribution_Cutoff_Diagnostics_2026-10-23.csv` — 672 query/method/quantile cutoff diagnostics;
+- `Memora_Query_Distribution_Summary_2026-10-23.csv` — compact per-query summary;
+- `Memora_Distribution_Method_Summary_2026-10-23.csv` — cross-query method medians;
+- `Memora_Slider_Prototype_Rankings_2026-10-23.csv` — rankings of all 114 transcripts at five slider positions, including ranks 21–40.
+
+The study ZIP is `Memora_Slider_Distribution_Study_2026-10-23.zip`.
+
+## 8. Status and evidence discipline
+
+- **Source inspection:** performed for the supplied lab HTML and production search snapshots previously described.
+- **Code modification:** full-passage rank/score export and passage inventory were added to the diagnostic lab HTML; production Memora code was not changed.
+- **Syntax check:** inline JavaScript passed `node --check` on the updated HTML.
+- **Browser execution by assistant:** not performed.
+- **New report:** supplied by the user from the updated lab build.
+- **Distribution analysis:** executed offline against that report.
+- **Human relevance review:** not yet performed.
+- **Production slider formula:** not selected or validated.
+- **Held-out validation:** not performed.
+
+The next deliverable should be a compact, passage-level human review set with stable query/candidate IDs and enough context to judge the memory match. Preserve the full raw export and this updated handoff as separate, read-only research artifacts.
+
+
+---
+
+# Addendum — Distribution-to-evidence framework: first executable test (2026-10-23)
+
+## User's clarified question
+The user correctly identified a missing design layer: the project had computed query-specific score distributions and tested simple percentile combinations, but had not agreed on a complete framework that translates each transcript's result into a distribution-aware evidence score. The user also proposed that 7–3 may be more useful for sensitivity than specificity because broader context can retrieve indirect matches. Treat that as a hypothesis to test, not as established truth.
+
+## First executable framework
+Offline analysis of `memora-search-lab-report(20261023-131744).json` (28 queries, 114 transcripts, 3,832 passages; four operations) compared three transcript-level normalizations per query and operation:
+
+1. Passage percentile: transcript's maximum passage score relative to all passage scores.
+2. Transcript-max percentile: transcript's maximum score relative to the maximum scores of all transcripts.
+3. Length-matched percentile: transcript's maximum score relative to up to 25 transcripts with the closest passage counts, under the same query and operation.
+
+The third method is a first conditional adjustment for opportunity bias: transcripts with more passages have more chances to produce a high maximum. Passage count is only a proxy; overlapping passages are not independent, so this is not a final correction or a calibrated probability of relevance.
+
+## Diagnostic finding
+Across queries, passage count had a positive mean query-level Spearman correlation of approximately:
+- sentence: 0.402 before length matching, 0.056 after;
+- 3–1: 0.398 before, 0.059 after;
+- 5–2: 0.392 before, 0.067 after;
+- 7–3: 0.374 before, 0.045 after.
+
+The passage percentile and transcript-max percentile preserve the same ordering of transcript maxima, so neither alone removes the length association. Length-matched percentile substantially reduces that association in this dataset. This is encouraging but not proof of relevance improvement or perfect bias correction.
+
+## Candidate slider endpoints tested offline
+- Sensitivity-oriented prototype: maximum of all four length-matched percentiles, allowing one strong operation—including 7–3—to elevate a candidate.
+- Specificity-oriented prototype: mean of the two highest length-matched percentiles among sentence, 3–1 and 5–2, testing whether corroboration from tighter representations is more selective. 7–3 is excluded from this prototype endpoint as an explicit hypothesis, not a settled decision.
+- All 114 transcripts remain rankable at all times. No score cutoff removes candidates.
+
+These are experimental ranking formulas, not production decisions. The existing seed-target benchmark shows high target recovery under both prototypes, but those seed labels are not exhaustive relevance judgements and cannot measure specificity. The 112 human-review rows are selected to study rank changes, so they also cannot provide an unbiased overall precision estimate.
+
+## Decision and next test
+No production changes. Inspect query-by-query changes between the candidate endpoints, especially Target/Useful versus Irrelevant cases and passages crossing ranks 20 and 40. Determine whether 7–3 rescues genuinely useful context-dependent results or mainly raises incidental matches. Revisit the length-matching method if individual queries reveal unstable peer comparisons. Only then choose an interpolation and slider semantics.
+
+## Artifacts
+- `Memora_Distribution_to_Evidence_Framework_First_Test_2026-10-23.zip`: report, workbook, query distributions, transcript-operation features, prototype rankings, seed-target rank checks, and length-bias diagnostics.
+- This was offline computation against an exported report. No production source code was changed and no browser/runtime test was performed.
+
+---
+
+# Current Continuity Update — Complete Score-Curve, Tail, and Ranking-Statistics Investigation (2026-10-23)
+
+**This is the current operational priority.** It supplements the previous addenda and preserves their decisions. It does not replace the source document or authorize production changes.
+
+## 1. Current question
+
+The current task is to determine what useful evidence is already present in MiniLM's complete score distributions and whether that evidence can improve the **ordering and presentation of transcripts** in Memora.
+
+The user explicitly wants us to inspect **the shape of the entire sorted-score curve**, including abrupt changes, tails, elbows/knees, local slope changes, score gaps, and distribution spread—not just raw scores, percentiles, or a handful of top-ranked passages.
+
+This is not an attempt to improve MiniLM's language understanding. Its known limitations are accepted. A semantically odd result is not automatically proof of a ranking bug, and a high score is not proof that a result helps recover the intended memory. The goal is to use available score-distribution evidence intelligently without claiming more than it can establish.
+
+## 2. Source data available for the statistical investigation
+
+The supplied full-passage export was packaged as:
+
+`Memora_Semantic_Evaluation_Data_2026-10-23_14-16-03-937.zip`
+
+It contains the following reported material:
+
+- 28 queries;
+- 114 transcripts;
+- 3,832 passage representations;
+- four semantic representation families: sentence, chunk 3–1, chunk 5–2, and chunk 7–3;
+- 107,296 query–passage score records;
+- complete per-query ranked passage score CSVs;
+- passage and transcript inventories;
+- query definitions and seed-target information;
+- query/method distribution summaries and transcript-match features;
+- diagnostic judgments and lexical-test information where present.
+
+The scores are cosine similarities from `Xenova/all-MiniLM-L6-v2` (384 dimensions; Transformers.js 3.7.2 in the reported lab). They are raw scores; no length normalization was applied in the source export.
+
+The source export and prior reports are evidence about the supplied runs, not independent proof that the lab is identical to current production. This investigation is offline data analysis unless a browser/model run is explicitly recorded.
+
+## 3. Existing statistical work and its limits
+
+Earlier work has already examined raw-score distributions, ranks, percentiles, score gaps, top-k summaries, repeated transcript hits, seed-target ranks, and several transcript-level ranking prototypes. It also explored passage-percentile and transcript-max-percentile normalization, a provisional length-matched percentile, and candidate slider endpoints.
+
+Important observations from that work:
+
+- Query-relative, representation-specific percentiles can be calculated from the complete score export.
+- A percentile describes relative standing in one distribution; it is **not a probability of relevance**.
+- Passage percentiles and transcript-max percentiles do not by themselves remove the association between transcript length/opportunity and maximum score.
+- A first length-matched percentile diagnostic reduced the mean query-level association between passage count and transcript score, but passage count is only a proxy and overlapping passages are not independent. This is not a validated correction.
+- Prototype ranking formulas changed ordering, but the existing seed-target labels and absence of comprehensive human relevance judgments do not establish that any formula improves usefulness.
+- A percentile or score-gap rule can be useful as a feature for ordering, but it should not be treated as a standalone relevance decision.
+- No production formula has been selected. Production ranking, slider defaults, and candidate accessibility remain unchanged.
+
+The prior distribution-to-evidence framework proposed a sensitivity-oriented endpoint that lets any representation—including 7–3—elevate a transcript, and a specificity-oriented diagnostic endpoint that tests corroboration among tighter representations. These remain hypotheses to test, not decisions. In particular, do not assume in advance that 7–3 is only useful for sensitivity or that tighter representations necessarily provide better evidence.
+
+## 4. Required next analysis: the full sorted-score curve
+
+For every query × representation pair, retain and analyze every score in descending order. Do not pool raw scores across different queries and representations as though they share one universal scale.
+
+### 4.1 Passage-level curve shape
+
+For each complete ordered score curve, calculate and preserve:
+
+- raw score at every rank and adjacent score drop;
+- score gaps at important ranks (including 1–2, 1–5, 1–10, 1–20, 1–50, and 1–100 where available);
+- the largest local drops in several portions of the ranking, rather than only the single largest gap;
+- local slope and changes in slope on the descending curve;
+- candidate elbow/knee locations using clearly documented heuristic(s);
+- distance from the curve to a reference line or other shape diagnostic, where useful;
+- score quantiles and tail spread;
+- skewness and excess kurtosis as descriptive diagnostics, with caution for bounded, dependent scores;
+- upper-tail separation, including maximum minus P95/P99 and gaps between the top scores and the bulk of the distribution;
+- candidate counts above several empirical quantiles and fixed score bands;
+- how many distinct transcripts appear in each upper tail;
+- tail concentration: repeated passages from the same transcript, share contributed by the most represented transcript, and suitable concentration summaries.
+
+A detected knee or abrupt drop is a **candidate structural feature**, not an automatic relevance boundary. Report its rank, score, size/prominence, method, and sensitivity to the detection settings. Do not present one heuristic as objective truth.
+
+### 4.2 Tail and exceedance analysis
+
+Compare the full upper-tail behavior at useful diagnostic levels such as P90, P95, P97.5, P99, and P99.5, where sample size supports them. For each level, report both passage counts and distinct transcript counts. The same passage percentile can yield very different numbers of distinct transcripts across representations because the number of passages and their clustering by transcript differ.
+
+Examine whether a tail is:
+
+- a gradual continuation of the main curve;
+- separated by one conspicuous gap;
+- composed of several local score tiers;
+- dominated by one transcript with many overlapping passages;
+- spread across multiple transcripts;
+- stable or fragile when representation or query changes.
+
+Do not infer relevance from tail shape alone.
+
+### 4.3 Transcript-level distributions
+
+Memora presents recordings, not independent passages. Repeat the curve/tail analysis after collapsing each query × representation to one score per transcript. At minimum, analyze transcript maximum score and preserve the underlying passages that produced it. Where feasible, compare maximum with secondary summaries such as the best two distinct passage scores or a top-k aggregate, but do not replace raw evidence.
+
+The transcript-level curve must include the full set of 114 transcripts, including those with weak scores. Compare its elbow, gaps, and tail concentration with the passage-level curve. This is essential because a passage-level knee can be created by repeated or overlapping passages from a single recording and may not represent a transition between recordings.
+
+### 4.4 Stability and cross-representation comparisons
+
+For each query, compare the curve structure across sentence, 3–1, 5–2, and 7–3:
+
+- Does a strong tail or knee recur across representations?
+- Does a candidate transcript appear in multiple families, or only one?
+- Are changes in apparent support attributable to wider context, passage count, overlap, or a different candidate set?
+- Are knee positions and top-tail candidates stable under modest changes to the inspected range or smoothing/detection settings?
+- Do transcripts promoted or demoted by distribution-aware prototypes cross meaningful UI boundaries (especially 20, 30, and 40)?
+
+Do not treat sentence and chunk scores as independent corroboration: their contents overlap, and they use the same embedding model. Cross-representation agreement is a potentially useful signal, not independent proof.
+
+If a stability resampling is performed, preserve transcript clustering rather than naively resampling individual overlapping passages as independent observations. If a reliable stability test is not feasible, state that limitation instead of implying robustness.
+
+## 5. Statistical features and ranking: rules of interpretation
+
+Keep these quantities distinguishable in the data:
+
+1. **Raw cosine score** — the original model evidence.
+2. **Passage rank** — position within one query/representation ranking.
+3. **Empirical percentile** — relative position within that query/representation's score distribution.
+4. **Distance above the median** — absolute separation from the distribution's center.
+5. **Tail separation** — e.g. score minus P95/P99, or maximum minus a high quantile.
+6. **Local score gaps and curve-shape features** — possible structural transitions.
+7. **Transcript-level aggregation** — how passage evidence is summarized for a recording.
+8. **Cross-representation support** — whether multiple representation families surface the same recording.
+
+Do not simply add correlated metrics as if each were independent evidence. Percentile, distance above median, z-score, and tail position may encode overlapping information. Preserve each feature separately first, examine relationships and rank changes, and only test a combined score when the data and judgments justify it.
+
+No feature should cause a transcript to disappear from the candidate list in this investigation. Ranking/presentation is separate from retrieval availability: display the initial top 20, then append the next 20 on “Show 20 more” until all 114 can be inspected.
+
+## 6. Evidence standard and constraints
+
+- Keep every raw score and original rank available in machine-readable outputs.
+- Do not pool query-specific raw scores into a universal threshold without a justified calibration.
+- Do not treat a high percentile, large gap, or detected knee as a relevance probability.
+- A non-target seed transcript is not automatically irrelevant; the query may have multiple useful results.
+- Existing target labels are incomplete evidence, not a fully judged relevance pool.
+- Report structural findings and rank-stability findings separately from relevance findings.
+- Do not make production changes before evidence shows a meaningful improvement to transcript rediscovery.
+- Do not spend this phase trying to repair MiniLM's semantic understanding or repeatedly hand-tune query wording.
+- Do not ask the user to run repetitive parameter sweeps manually; automate the analysis where feasible.
+- Preserve original input and historical reports unchanged.
+- Distinguish offline computation, static source inspection, syntax checks, and actual browser/model execution.
+
+## 7. Required deliverables from the next analysis pass
+
+Produce a reproducible report and machine-readable tables containing:
+
+1. **Per-query/method curve summary** — distribution, tail, score-gap, and candidate knee diagnostics.
+2. **Full ordered passage curves** — all passage scores, ranks, adjacent gaps, and empirical percentiles.
+3. **Tail composition** — passage count, distinct transcript count, and transcript concentration at each tested tail level.
+4. **Full transcript-level curves** — one record per query × method × transcript, with raw maximum score, rank, percentile, and associated top passage identifier.
+5. **Transcript-level shape diagnostics** — knees, gaps, tail metrics, and comparison with passage-level structure.
+6. **Cross-representation comparison** — stability of candidate ordering and curve features across the four representation families.
+7. **Rank-change comparison** — where statistical features or diagnostic ranking prototypes change ordering, especially near ranks 20, 30, and 40.
+8. **Interpretation report** — what appears stable, what is query-specific, which features may be useful for ranking, and what remains unproven.
+9. **Workbook and ZIP bundle** — include the report, all CSVs, and a manifest. Preserve original filenames for any code files; do not overwrite the source data ZIP.
+
+The report must clearly label any hypothetical or heuristic knee detection and document its parameters. If an analysis cannot be completed or a statistic is unreliable for the available sample size, state that rather than silently omitting it.
+
+## 8. Current decision and immediate next action
+
+**Current decision: no production ranking or slider change.**
+
+The next executable step is to perform the complete passage-curve, tail, and transcript-curve analysis on the available full score export. Then use the observed curve structure and rank changes to decide which features merit a focused human review. The human review should inspect both promoted and demoted recordings with their passages and context, using Target / Useful / Irrelevant / Uncertain and preserving uncertainty.
+
+The immediate question is not “Which formula wins?” It is:
+
+> What reproducible information do the full score curves and tails contain, at both passage and transcript level, and does that information help organize the candidate recordings for memory rediscovery?
+
+Only after this question is answered should we design a small, controlled test of a distribution-aware ranking formula. Keep the current production behavior as the baseline.
+
+## 9. Status at this handoff update
+
+- Handoff updated by appending this addendum; previous material retained.
+- No production code changed.
+- This update records the current research direction and analysis requirements; it does not claim the curve/tail analysis described above has already been executed.
+- Next work should begin with the available full score export and produce reproducible analysis artifacts.
+
+---
+
+# Current Decision Addendum — Peak-Dominant Search Ranking (2026-10-23)
+
+## 1. User's current request and scope
+
+The user has explained that reviewing detailed result tables on a laptop is too difficult. They would prefer that I make the best-supported recommendation, carry out further analysis where useful, and prepare the implementation plan. They cannot perform or review implementation tonight.
+
+This addendum records the latest offline ranking experiment, the resulting recommendation, what is decided, what is not decided, and the concrete next steps. It supplements the earlier distribution and curve analyses; it does not erase their cautions or authorize an untested production change.
+
+## 2. The intended product behavior
+
+The goal remains transcript rediscovery from imperfect recollection, not question answering. The proposed user-facing organization is:
+
+1. Show lexical matches first, retaining the existing lexical ordering and behavior.
+2. Show the remaining transcripts in one unified semantic ranking rather than fixed sentence → 3–1 → 5–2 → 7–3 category blocks.
+3. If a transcript is already in the lexical results, do not show it a second time in the semantic list. Semantic evidence may still contribute to its transcript highlighting.
+4. Keep the existing matched excerpts and the ability to expand “Show transcript” to display the full transcript with highlighting.
+5. Keep the existing highlighting behavior unchanged:
+   - lexical matches: bold;
+   - sentence-semantic matches: yellow;
+   - 3–1 chunks: blue;
+   - 5–2 chunks: orange;
+   - 7–3 chunks: green.
+6. Keep the existing progressive display behavior: show 20 results at a time and append another 20 on “Show 20 more” until all results are available.
+7. Preserve all candidates for access. A ranking experiment must not silently filter away transcripts merely because their scores are low.
+
+The ranking proposal concerns the order of semantic transcript results, not the lexical matcher, highlighting colors, excerpt composition, full-transcript display, or result pagination. Those should be treated as separate concerns and left unchanged during the initial implementation.
+
+## 3. Latest experiment and what it establishes
+
+The offline experiment package is `Memora_Peak_Dominant_Ranking_Experiment_2026-10-23.zip`. Its source was the previously generated `Transcript_Level_Features.csv` from the distribution-to-evidence analysis. It compares four transcript-level formulas over 28 queries × 114 transcripts = 3,192 query/transcript rows, using sentence, 3–1, 5–2, and 7–3 representation-specific transcript-max percentiles.
+
+The tested variants were:
+
+- **A — Peak only:** maximum of the four representation-specific transcript-max percentiles.
+- **B — Peak plus family support:** 85% peak + 15% mean of the two strongest family percentiles.
+- **C — Peak plus capped curve support:** 90% peak + 10% of a best-family top-three-mean percentile, with support floored at peak minus 10 percentile points.
+- **D — Capped combination:** 80% peak + 12% mean of the two strongest family percentiles + 8% capped best-family support.
+
+Percentiles are relative positions within a query and representation family, not probabilities that a transcript is relevant.
+
+### 3.1 Quantitative summary
+
+| Variant | Mean absolute rank movement vs A | Maximum rank movement | Top-20 boundary crossings vs A | Seed targets in top 20 |
+|---|---:|---:|---:|---:|
+| A — Peak only | 0 | 0 | 0 | 46 |
+| B — Peak + family support | 0.70 | 9 | 24 | 46 |
+| C — Peak + capped curve support | 0.77 | 6 | 22 | 46 |
+| D — Capped combination | 0.94 | 8 | 28 | 46 |
+
+The “46 seed targets in top 20” value is the total across the benchmark's query-level seed-target records, not 46 unique transcripts. It is not precision and does not prove that the formulas are equivalent in relevance. The benchmark has incomplete relevance judgments, and these measures cannot establish a production winner.
+
+Variants B–D change ranking positions, but none improved the recorded seed-target top-20 count relative to A. C was the most restrained of the non-baseline formulas by maximum rank movement and top-20 crossings, but that alone does not make it more useful. D moved the most candidates across the top-20 boundary among the three support formulas without showing a seed-target top-20 gain.
+
+### 3.2 The direct single-passage failure case
+
+For query `q23`, “an animal frightened me or I was trying to manage an animal,” the transcript `2017-12-26 - Dream Tuesday Morning - large.txt` is the key example. Its strongest sentence passage directly describes a wounded dog and the owner using electrocautery. A different representation's strongest passage pointed to unrelated pool-house material.
+
+Recorded ranks:
+
+| Ranking | Rank of dog transcript |
+|---|---:|
+| Peak-only A | 8 |
+| Peak + family support B | 13 |
+| Peak + capped curve support C | 10 |
+| Capped combination D | 12 |
+| Earlier combined prototype | 22 |
+
+This case illustrates the principal risk of support-heavy formulas: correlated representations may focus on different parts of a long transcript, and evidence from an unrelated passage can demote the recording that contains the clearest match. A strong direct passage should not need repeated confirmation from other passages to earn a high rank.
+
+A peak-only score does not guarantee that the top-ranked transcript is relevant; it merely avoids allowing weak or unrelated evidence to dilute a strong match. Other known failure cases must still be inspected in a controlled test.
+
+## 4. Recommended next implementation: peak-dominant semantic ranking
+
+**Recommendation: use Variant A as the first implementation candidate. Do not implement B, C, or D as the initial production formula.**
+
+For each query, compute the transcript's maximum score percentile separately within each semantic representation family, then assign the transcript its highest of those four percentiles:
+
+`semanticRankScore = max(sentenceMaxPercentile, chunk3_1MaxPercentile, chunk5_2MaxPercentile, chunk7_3MaxPercentile)`
+
+The percentile calculation must be consistent with the experiment's definition and ties must be handled deterministically. Keep raw cosine scores, raw passage ranks, per-family percentiles, and the winning representation/passage as diagnostic evidence. The combined score is an ordering signal only; it must not be described as a probability of relevance.
+
+Why this is the best first candidate:
+
+- It preserves the strongest available representation-specific signal, including a potentially valuable 7–3 contextual match.
+- It does not assume that sentence or smaller chunks are inherently more relevant than broader context.
+- It does not penalize a transcript because its other passages or representations are weaker or unrelated.
+- It is simple enough to audit and compare with the existing order.
+- In the current offline benchmark, support bonuses did not increase the recorded seed-target top-20 count.
+- The dog example shows why preserving a strong single-passage match matters.
+
+This is a **provisional design recommendation**, not a claim of proven relevance improvement. The experiment is based on exported features rather than a verified browser/model execution of the proposed production path. Before rollout, verify that the per-family transcript-max percentiles are generated from the full candidate distributions, consistently handle missing families and ties, and match the intended production candidate universe.
+
+## 5. Why not add score-curve or cross-representation bonuses yet?
+
+The preceding curve/tail work remains valuable for diagnosis, but no curve feature has yet demonstrated a reliable improvement to memory rediscovery. Elbows, local score gaps, percentiles, and repeated-passage summaries can be useful descriptors; they are not relevance labels.
+
+The four representation families share the same embedding model and overlapping source text. Their agreement is correlated evidence, not four independent votes. Passage count is also an imperfect proxy for opportunity bias because chunks overlap and passages are not independent. A length-matched percentile reduced the observed association between passage count and maximum score in the prior diagnostic, but it is not yet a validated correction.
+
+Therefore:
+
+- Do not add an elbow, curve-shape, length-matching, or multi-passage bonus to the initial production candidate.
+- Preserve these measurements in the laboratory for future analysis.
+- Reconsider them only if judged examples show a repeatable benefit that peak-only ranking misses.
+- Do not remove candidates based on curve shape or a score threshold in this change.
+
+## 6. Implementation contract and boundaries
+
+When implementation resumes, make a small, isolated change to semantic transcript ordering.
+
+### Preserve exactly
+
+- lexical matcher, normalization, fuzzy threshold, and lexical ordering;
+- current lexical result styling and behavior;
+- the existing highlighting colors and their current precedence;
+- matched excerpts and the full-transcript expansion behavior;
+- the 20-at-a-time display and “Show 20 more” interaction;
+- the existing transcript data and embedding index;
+- browser-local transcript inference and current privacy boundary;
+- current result context and overlap composition unless a separate, demonstrated defect requires a separate change.
+
+### Change only
+
+- replace the fixed representation/category hierarchy for semantic result ordering with a unified transcript-level order based on the peak-only score;
+- deduplicate the semantic list against transcripts already displayed in lexical results, without discarding semantic evidence used for highlights;
+- ensure a transcript is represented once in the semantic ranking even if multiple representation families match it;
+- retain the evidence needed to show the strongest matching excerpt and all existing highlight types.
+
+### Ranking details to resolve in code review
+
+1. Identify where the current code computes candidate scores and how transcript-level candidates are assembled.
+2. Confirm whether the existing exported percentiles can be reproduced in production from the available candidate set without changing retrieval depth or truncation. If production only retains top-K passages, do not silently call a percentile computed from that truncated set a full-distribution percentile.
+3. Define behavior if a transcript lacks a representation family or has no candidates for one family. Missing evidence must not be treated as a zero score that distorts the maximum or the percentile denominator.
+4. Use a stable tie-breaker, preferably preserving the strongest underlying raw score and then the existing deterministic ordering. Document it and test ties.
+5. Keep lexical results first and exclude their transcript IDs from the semantic display list, but keep their semantic match records for highlighting.
+6. Do not let pagination or “Show 20 more” cause a transcript to appear twice or reset the established order.
+7. Do not change the slider's behavior or remove it in the same patch unless a separate explicit decision is made. The earlier slider simulation showed little meaningful difference and does not establish the correct long-term slider design. For this isolated ranking change, keep the current slider behavior unchanged and document any interaction with the new ordering. If the current slider filters semantic results before ranking, inspect this carefully: the initial recommendation is a ranking-only change, not a hidden selectivity change.
+
+If exact query-relative percentiles cannot be calculated faithfully in production with the existing retained candidates, stop and report the mismatch before substituting a different formula. Do not quietly replace percentiles with raw cosine scores, because scores from different representation families may not be directly comparable.
+
+## 7. Verification plan for the implementation session
+
+The implementation should be delivered in a ZIP archive containing the changed files under their exact original filenames. Do not add numeric suffixes, underscores, or descriptive renames to the code filenames inside the ZIP. Preserve the existing source files and do not overwrite the user's originals.
+
+Before claiming success:
+
+1. Compare the source against the current authoritative production files and identify the precise insertion/change points.
+2. Implement the smallest patch in the semantic ranking path.
+3. Run syntax/static checks where available and report exactly what they establish.
+4. Test deterministic ranking on fixtures covering:
+   - one strong sentence match with weak unrelated matches elsewhere;
+   - a transcript with strong 7–3 contextual evidence but weaker narrow matches;
+   - multiple representation matches for the same transcript;
+   - a transcript present in both lexical and semantic results;
+   - missing representation data;
+   - tied scores and tied percentiles;
+   - more than 20 semantic candidates and repeated “Show 20 more” actions;
+   - transcript excerpt and full-transcript highlighting.
+5. Compare the before/after order for all 28 benchmark queries and report every target crossing the top 5, 10, 20, 30, or 40 boundary.
+6. Reinspect the dog example and the physical-confrontation example, including their actual best passages and context.
+7. Confirm that the full transcript remains accessible and highlighting is unchanged.
+8. If a real browser/model run is not available, label the result as static/unit/fixture testing and do not claim full runtime validation.
+9. Keep the original experimental exports unchanged and add a new report for the implementation test.
+
+The benchmark's seed-target ranks can serve as a regression check, but they are not a substitute for relevance judgments. The change should be reversible and should not alter indexing or stored embeddings.
+
+## 8. Decision log
+
+### Decided now
+
+- Search remains a transcript rediscovery tool.
+- Lexical results appear first.
+- Semantic results use one unified ranking, not fixed representation priority blocks.
+- A transcript appearing in lexical results is not repeated in semantic results.
+- Existing highlighting colors, excerpt behavior, full-transcript display, and 20-at-a-time pagination remain unchanged.
+- The first implementation candidate is peak-only ranking across the four representation-specific transcript-max percentiles.
+- No curve-shape, length-matching, multi-passage, or cross-representation support bonus is included in the initial formula.
+- No candidate is filtered out by this ranking change.
+- Implementation is deferred until the user is ready; no production source has been changed as part of this analysis.
+
+### Not decided
+
+- Whether the slider should eventually be removed, redesigned, or given a new meaning.
+- Whether a later, bounded support bonus improves ranking quality.
+- Whether any cutoff should remove semantic candidates.
+- Whether the peak-only formula improves actual user success; this needs a production-parity test and better relevance judgments.
+- Whether the current lab and production implementations are fully equivalent for all ranking and presentation behavior.
+
+### Conditions for revisiting peak-only
+
+Reconsider the formula if a controlled comparison with reviewed passages shows that peak-only repeatedly promotes clearly misleading single-passage matches, or if a modest support feature demonstrably improves rediscovery without demoting strong direct matches. Any such change must be tested on held-out queries or transcripts, not just the same examples used to design it.
+
+## 9. Current status and next action
+
+- Offline ranking simulation: completed for variants A–D using the existing transcript-level feature export.
+- Formula selection: provisional recommendation made; peak-only is the preferred first implementation candidate.
+- Production code: unchanged.
+- Browser/model execution of the proposed production ranking: not performed.
+- Full human relevance judgments: incomplete.
+- Held-out validation: not completed.
+- User implementation/review tonight: not expected.
+
+**Next action when work resumes:** inspect the latest authoritative `search.js` and `searchUI.js`, verify the score/percentile data available to production and the current slider interaction, then implement the isolated peak-only unified semantic ordering and lexical/semantic deduplication. Preserve all existing presentation behavior, test the stated fixtures, compare before/after rankings across all 28 queries, and deliver the changed files in a ZIP with their original filenames intact.
+
