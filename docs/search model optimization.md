@@ -2317,3 +2317,151 @@ The final decision should state whether to keep z-score, adopt RRF, combine them
 
 **Next action**
 Inspect available exports and the Search Laboratory to locate or generate the full passage-level score data for the 15 broad queries. Verify completeness before computing the exact original z-score, normalized peak, robust-z, composites, and RRF on the same candidates. Then run the blinded pooled relevance review and produce the strict and inclusive positive/negative tables alongside retrieval metrics. Do not change production ranking until that comparison is complete.
+
+---
+
+# Dated Addendum — Score Normalization and Alternative RRF Experiments
+
+**Prepared:** 2026-10-24  
+**Purpose:** Record the subsequent exploration of whether sentence and contextual-chunk scores can be statistically adjusted before combination, rather than relying only on rank fusion. This addendum supplements the previous findings and does not replace the requirement for exact passage-level scoring and human-reviewed judgments.
+
+## 1. Clarification of the existing RRF baseline
+
+The existing equal-weight Reciprocal Rank Fusion (RRF) combines five ranked lists for each query:
+
+1. Sentence search.
+2. Chunk 3–1 search.
+3. Chunk 5–2 search.
+4. Chunk 7–3 search.
+5. IDF lexical overlap.
+
+The documented constant is `k = 60`. For transcript `d`, the fused score is the sum of `1 / (60 + rank)` across the five lists. It uses each transcript's **rank** in each list, not its raw cosine score or z-score. A consistency check on the available broad-query export reproduced the existing stored RRF ranks exactly.
+
+The embedding searches that feed these lists use cosine similarity. That does not mean the existing RRF itself uses z-scores.
+
+## 2. New experiment: direct score adjustment before combination
+
+The user clarified that the main research question is whether the sentence, 3–1, 5–2, and 7–3 scores can be statistically adjusted to make them more comparable **before** combining them. This is different from weighted RRF. The initial exploration therefore held the four representation families at equal weight within each direct-score method and compared them against the existing RRF baseline.
+
+### 2.1 Dataset and labels
+
+The exploratory comparison used all **1,710 query–transcript pairs** from 15 broad recollection queries × 114 transcripts. The available audit includes each transcript's maximum cosine score for each of the four representation families, plus IDF overlap scores/ranks and the existing RRF rank.
+
+The labels came from an evaluator-assisted provisional assessment, not independent human review:
+- `True`: 51 pairs.
+- `Likely true`: 109 pairs.
+- `Likely false`: 251 pairs.
+- `False`: 1,299 pairs.
+
+The inclusive grouping treats True + Likely true as relevant (160 pairs) and Likely false + False as irrelevant (1,550 pairs). The strict grouping counts only True as definite positive (51) and False as definite negative (1,299), leaving the likely categories outside the strict totals. These counts are exploratory and must not be represented as human-validated precision or recall.
+
+### 2.2 Score methods evaluated
+
+Each transformation was calculated within each query across its 114 transcripts, using the available **transcript-level maximum cosine score per representation**:
+
+1. **Existing ordinary RRF:** stored ranks from sentence, 3–1, 5–2, 7–3, and IDF; equal weights; `k = 60`.
+2. **Mean raw cosine:** arithmetic mean of the four representation-specific maximum cosine scores.
+3. **Mean percentile:** convert each representation's transcript scores to within-query percentiles, then average the four percentiles.
+4. **Mean z-score:** standardize each representation's transcript scores within query by subtracting its mean and dividing by its standard deviation, then average the four z-scores.
+5. **Mean robust z-score:** standardize each representation within query using its median and median absolute deviation, then average the robust z-scores.
+6. **Maximum z-score:** take the maximum of the four representation-level z-scores for each transcript.
+7. **Mean z-score + IDF percentile:** combine the average of the four representation z-scores and the IDF score percentile with equal family-level weight.
+8. **Mean percentile + IDF:** average the four representation percentiles and the IDF overlap-score percentile with equal weight.
+
+**Important limitation:** this experiment does not standardize every individual passage score within each transcript. It transforms the available transcript-level maximum scores. It is not equivalent to the original passage-level z-score method in the selected 28-query/54-target benchmark. The full passage-score distributions must still be exported to run that exact method on the 15 broad queries.
+
+### 2.3 Top-10 inclusive results
+
+Each value is a count divided by the total number of pairs in that class. There are 160 provisionally relevant pairs and 1,550 provisionally irrelevant pairs.
+
+| Method | True positive (TP) | False positive (FP) | False negative (FN) | True negative (TN) |
+|---|---:|---:|---:|---:|
+| Existing ordinary RRF | 71/160 | 79/1550 | 89/160 | 1471/1550 |
+| Mean raw cosine | 63/160 | 87/1550 | 97/160 | 1463/1550 |
+| Mean percentile | 62/160 | 88/1550 | 98/160 | 1462/1550 |
+| Mean z-score | 63/160 | 87/1550 | 97/160 | 1463/1550 |
+| Mean robust z-score | 63/160 | 87/1550 | 97/160 | 1463/1550 |
+| Maximum z-score | 57/160 | 93/1550 | 103/160 | 1457/1550 |
+| Mean z-score + IDF percentile | 68/160 | 82/1550 | 92/160 | 1468/1550 |
+| **Mean percentile + IDF** | **72/160** | **78/1550** | **88/160** | **1472/1550** |
+
+At this cutoff, mean percentile + IDF has one more provisionally relevant pair and one fewer provisionally irrelevant pair than the existing RRF baseline. This is a very small difference on provisional labels; it is not a validated win. Simple averaging of the four embedding scores or their z-scores did not beat RRF. The result suggests that the IDF lexical signal may add complementary evidence, but human review is required.
+
+### 2.4 Strict top-10 results
+
+Only explicit `True` and `False` labels are counted; `Likely true` and `Likely false` remain excluded from this strict table.
+
+| Method | True positive (TP) | False positive (FP) | False negative (FN) | True negative (TN) |
+|---|---:|---:|---:|---:|
+| Existing ordinary RRF | 31/51 | 0/1299 | 20/51 | 1299/1299 |
+| Mean raw cosine | 31/51 | 1/1299 | 20/51 | 1298/1299 |
+| Mean percentile | 30/51 | 2/1299 | 21/51 | 1297/1299 |
+| Mean z-score | 32/51 | 1/1299 | 19/51 | 1298/1299 |
+| Mean robust z-score | 31/51 | 1/1299 | 20/51 | 1298/1299 |
+| Maximum z-score | 30/51 | 8/1299 | 21/51 | 1291/1299 |
+| Mean z-score + IDF percentile | 31/51 | 2/1299 | 20/51 | 1297/1299 |
+| Mean percentile + IDF | 31/51 | 0/1299 | 20/51 | 1299/1299 |
+
+The strict table is intentionally not a complete binary partition of all 1,710 pairs, because the likely labels are not forced into the definite classes. The large TN counts mostly reflect the large number of pairs outside the top 10 and are not by themselves evidence of a good ranking method.
+
+The detailed metrics export includes top 5, 10, 20, and 30 for all methods, with inclusive and strict count/denominator fields. The full ranking export contains all 1,710 pairs and method scores/ranks.
+
+## 3. Alternative ordinary RRF input lists
+
+A separate experiment kept the RRF formula unchanged—equal weights and `k = 60`—while varying which ranked lists were fused. This is not weighted RRF. It tests the input lists rather than the weights.
+
+The tested alternatives included:
+- Existing RRF: sentence + three chunk sizes + IDF.
+- Sentence + three chunk sizes, without IDF.
+- Three chunk sizes only.
+- RRF over raw peak and normalized peak rankings.
+- RRF over z-score and robust-z rankings.
+- RRF over raw peak + z-score.
+- RRF over four base score-family rankings plus three composite rankings.
+
+At top 10, existing RRF remained strongest among these alternatives under the inclusive provisional labels: 71/160 relevant and 79/1550 irrelevant. Sentence + chunks without IDF produced 63/160 relevant and 87/1550 irrelevant; chunk-only RRF produced 62/160 relevant and 88/1550 irrelevant. Among the score-family fusions, the tested combinations did not outperform the existing representation-plus-IDF baseline.
+
+This suggests that the existing RRF benefits from the combination of different representation families and lexical IDF. It does not prove that the existing RRF is better than the original passage-level z-score method, because the broad-query exports do not yet contain the complete passage-level score distributions needed for a fair exact comparison.
+
+## 4. Interpretation for the false-negative concern
+
+False negatives are central to Memora's purpose: a relevant transcript outside the displayed cutoff may be effectively missed by the user.
+
+A miss can arise because:
+- no component representation recognizes the connection between the query and the transcript;
+- a relevant passage receives a weak score or is diluted by unrelated content at transcript aggregation;
+- one component ranks the target well, but the combination method demotes it;
+- the target is retrieved but falls below the UI cutoff;
+- the provisional relevance label is wrong or the query admits multiple reasonable targets.
+
+RRF can only rescue a target when at least one of its component lists gives the target enough rank contribution. Score normalization can help if the component scores have incompatible scales, but it cannot invent semantic evidence absent from the underlying representations. The next diagnostic should classify each reviewed missed target by whether any individual component ranks it well.
+
+## 5. Required next steps
+
+1. **Preserve the existing RRF and original passage-level z-score as separate baselines.** Do not infer that the transcript-max z-score proxy is equivalent to the original method.
+2. **Inspect the Search Laboratory and its exports** to locate or generate full passage-level scores for all 15 broad queries. The export must include every scored passage by query, transcript, and representation, with raw cosine score, rank, passage text/ID, and enough data to reconstruct complete score distributions. Confirm there is no top-K truncation.
+3. **Recompute the exact original methods on the same candidate universe:** raw passage-level peak, normalized peak, original passage-level z-score peak, robust-z peak, the three original composites, equal-weight RRF (`k = 60`), and IDF reference.
+4. **Retain direct score-adjustment tests**—mean raw cosine, mean percentile, mean z-score, mean robust z-score, and mean percentile + IDF—as clearly labelled additional candidates. Do not silently substitute them for the original formulas.
+5. **Complete the blinded pooled human review** using Target, Useful, Irrelevant, and Uncertain. Keep method identities hidden during judgment. Do not call all non-targets irrelevant.
+6. **Compare at top 5, 10, 20, and 30** on the same reviewed pool. Present TP, FP, FN, and TN as count/denominator, and report target Recall@k where the target set is complete, MRR, graded nDCG@10 where supported, per-query results, and target-rank distributions.
+7. **Audit missed targets individually:** determine whether each target appears high in any component list, whether fusion demotes it, or whether every component fails to recognize it.
+8. **Do not change production ranking yet.** If a small direct-score advantage survives human review, tune only a limited number of weights on development queries and evaluate on held-out queries/transcripts. If results remain inconclusive, report that plainly.
+
+## 6. Updated decision/status log
+
+**Established so far**
+- Existing ordinary RRF is the equal-weight fusion of sentence, 3–1, 5–2, 7–3, and IDF rankings with `k = 60`.
+- On the 15-query broad audit, existing RRF leads the existing rank-column comparison at top 10 under the inclusive provisional labels.
+- In the direct transcript-level score-adjustment experiment, mean percentile + IDF is marginally ahead of RRF at top 10 (72/160 vs 71/160 provisional relevant pairs), with one fewer provisional irrelevant pair.
+- Simple mean raw cosine, mean percentile, mean z-score, and mean robust z-score do not beat the existing RRF at top 10.
+- Alternative ordinary RRF input-list combinations did not beat the existing sentence/chunk/IDF baseline in this provisional comparison.
+- The original passage-level z-score remains a strong individual method in the separate selected 28-query/54-target benchmark.
+
+**Not established**
+- That the one-pair advantage for mean percentile + IDF is meaningful or survives human review.
+- That RRF is better than the exact original passage-level z-score method on the same broad queries.
+- That transcript-level maximum-score normalization is equivalent to passage-level score normalization.
+- That the provisional labels are accurate enough to support definitive precision/recall claims.
+- That any ranking change is ready for production.
+
+**Next executable action:** inspect the available Search Laboratory source and reports, verify whether full passage-level scores for the 15 broad queries exist, and generate a complete export if they do not. Only then run the exact same-data comparison and use the blinded relevance review to evaluate false-negative changes.
