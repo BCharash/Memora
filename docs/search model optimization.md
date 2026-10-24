@@ -2099,3 +2099,221 @@ Reconsider the formula if a controlled comparison with reviewed passages shows t
 
 **Next action when work resumes:** inspect the latest authoritative `search.js` and `searchUI.js`, verify the score/percentile data available to production and the current slider interaction, then implement the isolated peak-only unified semantic ordering and lexical/semantic deduplication. Preserve all existing presentation behavior, test the stated fixtures, compare before/after rankings across all 28 queries, and deliver the changed files in a ZIP with their original filenames intact.
 
+
+---
+
+# Dated Addendum — Broad-Query Positive/Negative Analysis and Ranking-Method Comparison
+
+**Prepared:** 2026-10-24  
+**Purpose:** Preserve the latest comparison of peak, z-score, composite, RRF, and IDF ranking approaches, clarify what the current evidence does and does not show, and specify the next controlled experiment. This addendum supplements the prior decision log; it does not overwrite earlier findings.
+
+## 1. Broad-query audit dataset
+
+The latest broad-query audit covers **15 natural-language recollection queries × 114 transcripts = 1,710 query–transcript pairs**. The queries cover broad recollections such as a familiar place feeling different, difficulty getting somewhere, tense interactions, unexpected animal behaviour, feeling watched or judged, directions, vehicle problems, unfamiliar buildings, danger, protection, changed plans, and offers of help.
+
+The audit contains transcript-level ranks and maximum cosine scores for sentence, 3–1, 5–2, and 7–3 semantic representations, plus IDF overlap and equal-weight Reciprocal Rank Fusion (RRF). It also contains provisional relevance categories. Those categories were rule/model-assisted and have **not** been independently adjudicated. The resulting counts are exploratory diagnostics, not validated precision/recall measurements.
+
+The four labels are:
+- **True:** judged clearly relevant under the provisional audit.
+- **Likely true:** possibly or probably relevant.
+- **Likely false:** possibly or probably irrelevant.
+- **False:** judged clearly irrelevant under the provisional audit.
+
+For comparison, two groupings were used:
+1. **Strict set:** True and False only are treated as definite positives and negatives; likely categories remain separate rather than being forced into either side.
+2. **Inclusive set:** True + Likely true are treated as relevant; Likely false + False are treated as irrelevant.
+
+The inclusive grouping is useful for examining possible memory rediscovery, but its validity depends on the provisional labels being right.
+
+## 2. Earlier known-target benchmark: z-score remains the leading individual method
+
+A separate benchmark used **28 selected queries and 54 known query-target examples**. The reported metrics were:
+
+| Method | Targets in top 20 | Targets in top 30 | Beyond rank 30 | Mean target rank |
+|---|---:|---:|---:|---:|
+| Raw peak | 45/54 | 49/54 | 5 | 7.51 |
+| Normalized peak | 46/54 | 47/54 | 7 | 7.82 |
+| **Z-score peak** | **46/54** | **50/54** | **4** | **7.44** |
+| Robust z-score peak | 45/54 | 49/54 | 5 | 7.75 |
+| Composite 50/50 | 46/54 | 48/54 | 6 | 7.52 |
+| Composite 75% normalized / 25% z | 47/54 | 48/54 | 6 | 7.67 |
+| Composite 25% normalized / 75% z | 46/54 | 49/54 | 5 | 7.40 |
+
+On that benchmark, conventional passage-level z-score peak retrieved the most known targets by rank 30 and had the best top-30 count. The 25% normalized / 75% z composite had a slightly better mean target rank, but it retrieved fewer targets in the top 30. This is an exploratory, selected benchmark—not independent held-out validation—but it is the strongest existing evidence in favour of the original z-score method.
+
+**Decision carried forward:** do not demote or replace the original passage-level z-score based on the broad-query proxy analysis below.
+
+## 3. Broad-query top-10 comparison of existing rank lists
+
+The original broad-query audit compared the rank columns that were already available. Across 15 queries, each method contributes up to 150 top-10 query–transcript results.
+
+| Existing rank method | True | Likely true | Likely false | False | True + Likely true |
+|---|---:|---:|---:|---:|---:|
+| Sentence | 28 | 29 | 74 | 19 | 57 |
+| Chunk 3–1 | 28 | 36 | 75 | 11 | 64 |
+| Chunk 5–2 | 31 | 28 | 88 | 3 | 59 |
+| Chunk 7–3 | 28 | 32 | 83 | 7 | 60 |
+| IDF overlap | 25 | 28 | 48 | 49 | 53 |
+| **Equal-weight RRF** | **31** | **40** | **79** | **0** | **71** |
+
+RRF is Reciprocal Rank Fusion. For each transcript, it sums contributions from its rank in multiple lists, typically using `RRF(d) = Σ 1/(k + rank_i(d))`. In this audit, equal-weight RRF used `k = 60` and fused five rank lists: sentence, 3–1, 5–2, 7–3, and IDF overlap. RRF combines ranks rather than raw cosine score magnitudes. It can reward candidates that appear consistently near the top of several lists, but it is not automatically better than a calibrated individual scorer.
+
+This top-10 table suggests that RRF is a promising competitor on this broad-query set: it has the highest True + Likely true count among the existing rank columns. The label categories remain provisional, however, and this table does not compare RRF against the original passage-level z-score on the same raw passage scores.
+
+## 4. Peak, z-score, robust-z, and composite analysis on the broad-query audit
+
+A follow-up calculation compared peak-family methods on the same 1,710 query–transcript pairs. The source audit did **not** contain all passage-level score distributions. It contained only each transcript's maximum cosine score per representation. Consequently, the calculations were proxies:
+
+- **Raw peak:** maximum of the available transcript maximum cosine scores across the four semantic representations.
+- **Normalized peak:** maximum within-query percentile of transcript maxima across the four representations.
+- **Transcript-max z peak (proxy):** standardize each representation's transcript maxima within each query, then take the strongest standardized value.
+- **Transcript-max robust-z peak (proxy):** median/MAD standardization of transcript maxima within each query, then take the strongest standardized value.
+- **Composite proxies:** blends of normalized-peak and transcript-max-z proxy ranks.
+- **RRF and IDF:** existing rank lists included as reference methods.
+
+These are **not the same algorithms** as the original passage-level z-score, robust-z, or composite methods. The original z-score method standardizes the passage-score distribution within query and representation before selecting a transcript's strongest passage. Standardizing transcript maxima instead can change the rankings.
+
+### 4.1 Inclusive confusion-style counts at top 10
+
+The table below groups True + Likely true as relevant, and Likely false + False as irrelevant. The “not retrieved” counts are the remainder of the 1,710 pairs.
+
+| Method | Relevant retrieved (TP) | Irrelevant retrieved (FP) | Irrelevant not retrieved (TN) | Relevant missed (FN) |
+|---|---:|---:|---:|---:|
+| Raw peak | 62 | 88 | 1,462 | 98 |
+| Normalized peak | 60 | 101 | 1,449 | 100 |
+| Transcript-max z peak (proxy) | 57 | 93 | 1,457 | 103 |
+| Transcript-max robust-z peak (proxy) | 59 | 91 | 1,459 | 101 |
+| Composite 50% normalized / 50% z (proxy) | 58 | 92 | 1,458 | 102 |
+| Composite 75% normalized / 25% z (proxy) | 59 | 91 | 1,459 | 101 |
+| Composite 25% normalized / 75% z (proxy) | 58 | 92 | 1,458 | 102 |
+| **Existing equal-weight RRF** | **71** | **79** | **1,471** | **89** |
+| IDF overlap | 53 | 97 | 1,453 | 107 |
+
+The “relevant” and “irrelevant” terms in this table mean the inclusive provisional grouping, not independently established ground truth.
+
+### 4.2 Strict confusion-style counts at top 10
+
+This view counts only True as a positive and False as a negative; likely categories remain outside the strict positive/negative totals. They are still shown as distinct categories in the source export. Do not interpret the strict table as if all 1,710 pairs had definitive labels.
+
+| Method | True positives | False positives (False label) | True negatives (False label, not retrieved) | False negatives (True label, not retrieved) |
+|---|---:|---:|---:|---:|
+| Raw peak | 30 | 12 | 1,287 | 21 |
+| Normalized peak | 30 | 9 | 1,290 | 21 |
+| Transcript-max z peak (proxy) | 30 | 8 | 1,291 | 21 |
+| Transcript-max robust-z peak (proxy) | 30 | 11 | 1,288 | 21 |
+| Composite 50/50 (proxy) | 30 | 8 | 1,291 | 21 |
+| Composite 75N / 25Z (proxy) | 30 | 8 | 1,291 | 21 |
+| Composite 25N / 75Z (proxy) | 30 | 8 | 1,291 | 21 |
+| Existing equal-weight RRF | 31 | 0 | 1,299 | 20 |
+| IDF overlap | 25 | 49 | 1,250 | 26 |
+
+**Interpretation caution:** these strict counts are not a conventional complete confusion matrix because Likely true and Likely false pairs are deliberately left out of the definite-positive/negative interpretation. Their presence matters and must be reported separately. Also, the “TN” count is large mainly because there are many pairs outside the top 10; it is not by itself evidence of a useful ranking system.
+
+### 4.3 What can be concluded
+
+- The broad-query proxy table does **not** establish that the original z-score algorithm performs poorly. It did not run the original algorithm.
+- In the available broad-query data, RRF places more provisionally relevant pairs in the top 10 than the tested proxy methods, but it has not been compared against exact passage-level z-score under a fair same-data experiment.
+- Raw peak and robust-z proxy are close to other peak-family proxies under the provisional inclusive grouping.
+- None of these provisional label counts is sufficiently reliable to choose a production winner without reviewing candidates.
+- The top-10 cutoff is a useful diagnostic slice, not a complete representation of retrieval quality. The full export includes cutoffs 5, 10, 20, and 30.
+
+## 5. Required next experiment: exact passage-level z-score versus RRF and alternatives
+
+The next goal is a fair comparison on the **same 15 broad queries, the same 114 transcripts, and the same candidate universe**. The experiment should not use transcript-max proxies where exact passage-level scores can be exported.
+
+### Step 1 — Recover and verify the necessary input
+
+Inspect the current Search Laboratory and its available exports. Find or generate a complete passage-level score export for each of the 15 broad queries, retaining all relevant sentence and chunk passage scores. Verify that it includes:
+- stable query ID and exact query text;
+- stable transcript ID and filename;
+- representation family (sentence, 3–1, 5–2, 7–3);
+- passage ID/index and passage text;
+- raw cosine score;
+- rank within each query and representation;
+- transcript association;
+- enough records to reconstruct the full score distribution for every query × representation;
+- any IDF score/rank needed to reproduce RRF exactly;
+- explicit run configuration and export completeness status.
+
+Do not infer that a historical 28-query known-target export contains the 15 broad queries. Inspect query IDs and coverage. Do not call a top-K-truncated passage list a full score distribution.
+
+### Step 2 — Calculate all methods using their original definitions
+
+For every broad query and transcript, compute and preserve:
+1. Raw passage-level peak.
+2. Normalized peak.
+3. Original passage-level z-score peak.
+4. Original passage-level robust-z peak.
+5. The three previously tested composites: 50/50, 75% normalized / 25% z, and 25% normalized / 75% z.
+6. Equal-weight RRF using the same five source lists and the documented `k = 60`.
+7. IDF overlap as a reference method.
+
+Document exact formulas, treatment of missing representations, ties, and score distributions. Ensure that a formula named “z-score” matches the original experiment rather than a proxy. Keep the proxy results as historical diagnostics and label them clearly; do not silently overwrite them.
+
+### Step 3 — Freeze a fair candidate pool and obtain human judgments
+
+Pool candidates from all compared methods and review them without showing the reviewer which method supplied each result. At minimum, review the top results and a stratified sample of candidates ranked lower by one or more methods, so the judging pool does not automatically favour a shallow list. Include cases where methods disagree, and cases where a known target appears outside the top 10 or 20.
+
+Use the documented relevance labels:
+- **Target:** the intended recording/passage;
+- **Useful:** another result that could genuinely help rediscover the memory;
+- **Irrelevant:** does not help;
+- **Uncertain:** insufficient evidence.
+
+Keep query intent and ambiguity notes. Do not treat every non-target transcript as irrelevant, and do not force uncertain judgments into positive or negative categories. If practical, re-review a small subset after a delay to check consistency.
+
+### Step 4 — Compare the same methods at the same cutoffs
+
+Report results at top 5, 10, 20, and 30, using the same judged pool and clearly distinguishing:
+- definite Target only;
+- Target + Useful as an inclusive relevance grouping;
+- Irrelevant;
+- Uncertain.
+
+For each method, show confusion-style counts only where the judged pool supports them, alongside precision@k, target Recall@k where the target set is complete, MRR, nDCG@10 for graded judgments, target rank distribution, and the number of relevant memories missed beyond rank 30. Report per-query outcomes as well as aggregates; repeated examples from one transcript must not dominate the result. Treat recall as estimated if the relevant pool is incomplete.
+
+### Step 5 — Inspect disagreements and failures
+
+For each method, inspect:
+- targets it uniquely retrieves;
+- targets it demotes or misses;
+- relevant results found only beyond the top 10;
+- irrelevant results that look deceptively similar;
+- whether a strong individual passage is diluted by unrelated passages in the same transcript;
+- whether multiple representation families genuinely support the same event or merely match different unrelated parts of a long transcript;
+- effects of ties, missing representation families, and score normalization.
+
+Preserve example passages and the reason for each reviewed judgment.
+
+### Step 6 — Decide only after the comparison
+
+Keep original passage-level z-score as the leading individual scorer until the exact broad-query experiment can compare it fairly with RRF. RRF is a competing rank-fusion baseline, not a proven replacement. Do not select a winner solely because it produces more provisional positives, fewer strict false labels, or a higher similarity score.
+
+The final decision should state whether to keep z-score, adopt RRF, combine them, or defer the choice, with the supporting metrics and known failure cases. If the evidence is inconclusive, specify the smallest additional experiment that would resolve the uncertainty.
+
+## 6. Artifact and provenance rules for this experiment
+
+- Keep all historical reports and the proxy evaluation unchanged.
+- Store the exact passage-level export and a compact method-comparison summary as separate artifacts.
+- Record source file names, hashes, query coverage, candidate counts, formulas, configuration, errors, and whether any truncation occurred.
+- Distinguish computed metrics from provisional labels and from human-reviewed judgments.
+- Do not claim independent validation unless the queries or transcripts used for validation were held out from method selection.
+- Preserve original filenames inside ZIP archives when delivering changed code or documents; do not append extra numeric suffixes to filenames inside a ZIP.
+- Do not make production changes as part of the evaluation itself.
+
+## 7. Current decision/status log
+
+**Established**
+- Original passage-level z-score was the strongest overall individual method in the selected 28-query/54-target benchmark by top-30 target count.
+- RRF had the largest True + Likely true count among existing rank columns in the 15-query broad audit.
+- The broad-query peak/z/composite follow-up used transcript-max proxies because full passage-score distributions were absent from that audit.
+- Provisional labels are not independent human judgments and do not support definitive precision/recall claims.
+
+**Not established**
+- That RRF outperforms original passage-level z-score on the 15 broad queries.
+- That any peak-family proxy is equivalent to the original passage-level formula.
+- That the provisional labels accurately classify all query–transcript pairs.
+- That any method is production-proven or generalizes to the full corpus.
+
+**Next action**
+Inspect available exports and the Search Laboratory to locate or generate the full passage-level score data for the 15 broad queries. Verify completeness before computing the exact original z-score, normalized peak, robust-z, composites, and RRF on the same candidates. Then run the blinded pooled relevance review and produce the strict and inclusive positive/negative tables alongside retrieval metrics. Do not change production ranking until that comparison is complete.
