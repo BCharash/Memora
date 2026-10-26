@@ -1024,6 +1024,37 @@ export async function search(
         (a, b) => b.score - a.score
     );
 
+    // Transcript-level ranking for RRF: first take each transcript's strongest
+    // sentence passage, then rank transcripts by that peak score. Do this over
+    // the full candidate collection, not just the UI's passage-result cutoff.
+    const bestSentenceByTranscript = new Map();
+    for (const item of scoredSentences) {
+        const filename = item.entry.record.filename;
+        const current = bestSentenceByTranscript.get(filename);
+        if (!current || item.score > current.score) {
+            bestSentenceByTranscript.set(filename, {
+                filename,
+                record: item.entry.record,
+                score: item.score
+            });
+        }
+    }
+    const sortedSentenceTranscriptPeaks = [...bestSentenceByTranscript.values()]
+        .sort((a, b) => b.score - a.score);
+    const transcriptRanks = [];
+    for (let start = 0; start < sortedSentenceTranscriptPeaks.length;) {
+        let end = start + 1;
+        while (end < sortedSentenceTranscriptPeaks.length &&
+            Math.abs(sortedSentenceTranscriptPeaks[end].score - sortedSentenceTranscriptPeaks[start].score) <= 1e-12) {
+            end++;
+        }
+        const averageRank = ((start + 1) + end) / 2;
+        for (let index = start; index < end; index++) {
+            transcriptRanks.push({ ...sortedSentenceTranscriptPeaks[index], rank: averageRank });
+        }
+        start = end;
+    }
+
     scoredChunks.sort(
         (a, b) => b.score - a.score
     );
@@ -1085,6 +1116,7 @@ export async function search(
         results: combined.slice(0, Math.max(1, maxResults * 2)),
         sentenceResults,
         chunkResults,
+        transcriptRanks,
         durationMs:
             performance.now() - startTime
     };
@@ -1133,7 +1165,7 @@ export async function searchStoredRepresentations(
                 chunkOverlap: context.chunkOverlap
             });
 
-        const scored = entries
+        const allScored = entries
             .map(entry => ({
                 entry,
                 score: cosine(
@@ -1141,8 +1173,39 @@ export async function searchStoredRepresentations(
                     new Float32Array(entry.embedding)
                 )
             }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, Math.max(1, maxResults));
+            .sort((a, b) => b.score - a.score);
+
+        // As with sentence retrieval, rank transcripts by their strongest
+        // passage for this representation, using all indexed passages.
+        const bestTranscriptPassage = new Map();
+        for (const item of allScored) {
+            const filename = item.entry.record.filename;
+            const current = bestTranscriptPassage.get(filename);
+            if (!current || item.score > current.score) {
+                bestTranscriptPassage.set(filename, {
+                    filename,
+                    record: item.entry.record,
+                    score: item.score
+                });
+            }
+        }
+        const sortedTranscriptPeaks = [...bestTranscriptPassage.values()]
+            .sort((a, b) => b.score - a.score);
+        const transcriptRanks = [];
+        for (let start = 0; start < sortedTranscriptPeaks.length;) {
+            let end = start + 1;
+            while (end < sortedTranscriptPeaks.length &&
+                Math.abs(sortedTranscriptPeaks[end].score - sortedTranscriptPeaks[start].score) <= 1e-12) {
+                end++;
+            }
+            const averageRank = ((start + 1) + end) / 2;
+            for (let index = start; index < end; index++) {
+                transcriptRanks.push({ ...sortedTranscriptPeaks[index], rank: averageRank });
+            }
+            start = end;
+        }
+
+        const scored = allScored.slice(0, Math.max(1, maxResults));
 
         const results = scored.map(({ entry, score }, index) => ({
             type: "chunk",
@@ -1166,7 +1229,8 @@ export async function searchStoredRepresentations(
 
         representationResults.push({
             representation: context.label,
-            results
+            results,
+            transcriptRanks
         });
 
         candidates.push(...results);
@@ -1199,7 +1263,11 @@ export async function searchStoredRepresentations(
     return {
         results: chunkResults,
         chunkResults,
-        representations: representationResults
+        representations: representationResults,
+        transcriptRanks: representationResults.map(({ representation, transcriptRanks }) => ({
+            representation,
+            results: transcriptRanks
+        }))
     };
 }
 

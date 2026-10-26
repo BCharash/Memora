@@ -1526,6 +1526,129 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     });
 }
 
+// Weighted RRF over transcript ranks. Each term/representation contributes
+// its rank of the transcript's strongest passage; repeated query terms have
+// already been deduplicated before retrieval. Sentence weight is 2, each chunk
+// representation and IDF weight 1, with k=30.
+function fuseSemanticTranscriptRanks(rankLists, idfResults = []) {
+    const k = 30;
+    const weights = { sentence: 2, "3–1": 1, "5–2": 1, "7–3": 1, idf: 1 };
+    const scores = new Map();
+
+    function getScore(filename) {
+        if (!scores.has(filename)) scores.set(filename, { score: 0, bestRawScore: 0 });
+        return scores.get(filename);
+    }
+
+    for (const group of rankLists || []) {
+        const representation = group.representation;
+        const weight = weights[representation];
+        if (!weight) continue;
+        for (const result of group.results || []) {
+            if (!result.filename || !(Number(result.rank) > 0)) continue;
+            const summary = getScore(result.filename);
+            summary.score += weight / (k + Number(result.rank));
+            summary.bestRawScore = Math.max(summary.bestRawScore, Number(result.score) || 0);
+        }
+    }
+
+    for (const result of idfResults || []) {
+        if (!result.filename || !(Number(result.score) > 0) || !(Number(result.rank) > 0)) continue;
+        getScore(result.filename).score += weights.idf / (k + Number(result.rank));
+    }
+    return scores;
+}
+
+// IDF-weighted transcript-token overlap supplies the fifth ranking list used
+// by the selected sentence-heavy RRF design. It is ranking evidence only: it
+// does not create a result card or bypass the lexical-first boundary.
+function rankIdfTranscriptOverlap(queryTerms, records) {
+    const stopWords = new Set((
+        "a an the and or but if then else when while where what which who whom " +
+        "this that these those is am are was were be been being do does did " +
+        "have has had of to in on at by for from with about as into over after " +
+        "before between during through above below up down out off again further " +
+        "de da do das dos e ou mas se então quando onde o que qual quem este " +
+        "esta estes estas isso aquilo isto é ser estar um uma uns umas os as " +
+        "em no na nos nas por para com sobre entre até depois antes como mais " +
+        "menos muito muita muitos muitas já também não sim"
+    ).split(/\s+/));
+    const queryTokens = [...new Set(
+        String(queryTerms || "")
+            .normalize("NFKC")
+            .toLocaleLowerCase()
+            .match(/[\p{L}\p{N}]+/gu) || []
+    )].filter(token => !stopWords.has(token));
+    if (!queryTokens.length || !Array.isArray(records) || !records.length) return [];
+
+    const tokenizedRecords = records.map(record => {
+        const tokens = String(record.transcript || "")
+            .normalize("NFKC")
+            .toLocaleLowerCase()
+            .match(/[\p{L}\p{N}]+/gu) || [];
+        const counts = new Map();
+        for (const token of tokens) counts.set(token, (counts.get(token) || 0) + 1);
+        return { record, counts, present: new Set(counts.keys()) };
+    });
+    const documentFrequency = new Map(queryTokens.map(token => [token, 0]));
+    for (const item of tokenizedRecords) {
+        for (const token of queryTokens) {
+            if (item.present.has(token)) {
+                documentFrequency.set(token, documentFrequency.get(token) + 1);
+            }
+        }
+    }
+    const idf = new Map(queryTokens.map(token => [
+        token,
+        Math.log(1 + (tokenizedRecords.length + 1) / (documentFrequency.get(token) + 1))
+    ]));
+    const totalWeight = [...idf.values()].reduce((sum, weight) => sum + weight, 0);
+    if (!totalWeight) return [];
+
+    const sorted = tokenizedRecords.map(({ record, counts, present }) => {
+        let matchedWeight = 0;
+        let matchedTokenCount = 0;
+        let occurrenceCount = 0;
+        for (const token of queryTokens) {
+            if (!present.has(token)) continue;
+            matchedWeight += idf.get(token);
+            matchedTokenCount++;
+            occurrenceCount += counts.get(token) || 0;
+        }
+        return {
+            filename: record.filename,
+            score: matchedWeight / totalWeight,
+            matchedTokenCount,
+            occurrenceCount
+        };
+    })
+        // A zero-overlap transcript contributes no IDF evidence. This avoids
+        // letting arbitrary tie ranks among zero-score files affect RRF.
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score ||
+            b.matchedTokenCount - a.matchedTokenCount ||
+            b.occurrenceCount - a.occurrenceCount);
+
+    // Equal evidence receives equal average rank, rather than allowing source
+    // file order to create a tiny but arbitrary RRF advantage.
+    const ranked = [];
+    for (let start = 0; start < sorted.length;) {
+        let end = start + 1;
+        while (end < sorted.length &&
+            Math.abs(sorted[end].score - sorted[start].score) <= 1e-12 &&
+            sorted[end].matchedTokenCount === sorted[start].matchedTokenCount &&
+            sorted[end].occurrenceCount === sorted[start].occurrenceCount) {
+            end++;
+        }
+        const averageRank = ((start + 1) + end) / 2;
+        for (let index = start; index < end; index++) {
+            ranked.push({ ...sorted[index], rank: averageRank });
+        }
+        start = end;
+    }
+    return ranked;
+}
+
 function renderSearchResults(payload) {
     if (!searchResults) {
         return { files: [], displayedChunkCount: 0 };
@@ -1545,18 +1668,30 @@ function renderSearchResults(payload) {
         return { files: [], displayedChunkCount: 0 };
     }
 
+    // These scores are calculated from transcript-level ranks returned by each
+    // retrieval representation, not from the truncated passage lists rendered
+    // below. The renderer only consumes the scores; it does not change match
+    // objects, overlap suppression, or highlight metadata.
+    const semanticTranscriptScores = payload.semanticTranscriptScores || new Map();
+
     const files = new Map();
     function getFileGroup(result) {
         let group = files.get(result.filename);
         if (!group) {
+            const semanticSummary = semanticTranscriptScores.get(result.filename) || { score: 0, bestRawScore: 0 };
             group = {
                 filename: result.filename,
                 record: result.record,
                 sentenceColors: new Map(),
                 yellowSentences: new Set(),
                 lexicalMatchesBySentence: new Map(),
-                displayCategory: Number.POSITIVE_INFINITY,
-                displayRelevance: 0
+                hasLexicalMatch: false,
+                lexicalRelevance: 0,
+                // Among equally scored lexical matches, prefer the result from
+                // the longest query phrase that produced that score.
+                lexicalQueryWordCount: 0,
+                semanticRrfScore: semanticSummary.score,
+                semanticBestRawScore: semanticSummary.bestRawScore
             };
             files.set(result.filename, group);
         }
@@ -1590,16 +1725,6 @@ function renderSearchResults(payload) {
             0,
             yellowText
         );
-        if (group.displayCategory > 1) {
-            group.displayCategory = 1;
-            group.displayRelevance = 0;
-        }
-        if (group.displayCategory === 1) {
-            group.displayRelevance = Math.max(
-                group.displayRelevance,
-                1 / Math.max(1, result.rank || 1)
-            );
-        }
     }
 
     // Lexical matches are independent of semantic matches, so lexical-only
@@ -1612,12 +1737,16 @@ function renderSearchResults(payload) {
             ranges.push({ start: result.matchStart, end: result.matchEnd });
             group.lexicalMatchesBySentence.set(key, ranges);
         }
-        if (group.displayCategory > 0) {
-            group.displayCategory = 0;
-            group.displayRelevance = 0;
-        }
-        if (group.displayCategory === 0) {
-            group.displayRelevance = Math.max(group.displayRelevance, result.score || 0);
+        group.hasLexicalMatch = true;
+        const resultScore = Number(result.score) || 0;
+        const resultWordCount = Number(result.queryWordCount) || 0;
+        if (
+            resultScore > group.lexicalRelevance ||
+            (resultScore === group.lexicalRelevance &&
+                resultWordCount > group.lexicalQueryWordCount)
+        ) {
+            group.lexicalRelevance = resultScore;
+            group.lexicalQueryWordCount = resultWordCount;
         }
     }
 
@@ -1659,28 +1788,25 @@ function renderSearchResults(payload) {
 
         acceptedChunks.push({ chunkSize, keys: new Set(keys) });
         acceptedChunksByFile.set(result.filename, acceptedChunks);
-        const categoryByRepresentation = { "3–1": 2, "5–2": 3, "7–3": 4 };
-        const category = categoryByRepresentation[result.representation] ?? 4;
-        if (category < group.displayCategory) {
-            group.displayCategory = category;
-            group.displayRelevance = result.relativeRank || result.score || 0;
-        } else if (category === group.displayCategory) {
-            group.displayRelevance = Math.max(
-                group.displayRelevance,
-                result.relativeRank || result.score || 0
-            );
-        }
         displayedChunkCount++;
     }
 
-    // Transcript order is categorical first, relevance second:
-    // lexical > sentence > contextual 3–1 > 5–2 > 7–3.
-    // A transcript appears only once, at its strongest available match category.
-    const groups = Array.from(files.values()).sort((a, b) =>
-        a.displayCategory - b.displayCategory ||
-        b.displayRelevance - a.displayRelevance ||
-        a.filename.localeCompare(b.filename)
-    );
+    // The only categorical boundary is the agreed lexical-first rule. Inside
+    // the lexical tier, use lexical match quality; inside the semantic-only
+    // tier, use sentence-heavy peak-rank RRF across sentence and chunk sizes.
+    // Do not sort by filename or force one semantic representation to outrank
+    // another simply because of its representation label.
+    const groups = Array.from(files.values()).sort((a, b) => {
+        if (a.hasLexicalMatch !== b.hasLexicalMatch) return a.hasLexicalMatch ? -1 : 1;
+        if (a.hasLexicalMatch && b.hasLexicalMatch) {
+            return b.lexicalRelevance - a.lexicalRelevance ||
+                b.lexicalQueryWordCount - a.lexicalQueryWordCount ||
+                b.semanticRrfScore - a.semanticRrfScore ||
+                b.semanticBestRawScore - a.semanticBestRawScore;
+        }
+        return b.semanticRrfScore - a.semanticRrfScore ||
+            b.semanticBestRawScore - a.semanticBestRawScore;
+    });
 
     const toolbar = document.createElement("div");
     toolbar.className = "search-results-toolbar";
@@ -2084,6 +2210,10 @@ function splitSearchQueryTerms(query) {
     )];
 }
 
+function countSearchQueryWords(term) {
+    return (String(term || "").match(/[\p{L}\p{N}]+/gu) || []).length;
+}
+
 function reciprocalRankFuseSentenceResults(resultLists) {
     const fused = new Map();
 
@@ -2115,7 +2245,6 @@ function reciprocalRankFuseSentenceResults(resultLists) {
     return [...fused.values()]
         .sort((a, b) => b.fusionScore - a.fusionScore ||
             b.bestRawScore - a.bestRawScore ||
-            String(a.filename).localeCompare(String(b.filename)) ||
             (a.sentenceIndex || 0) - (b.sentenceIndex || 0))
         .map((result, index) => {
             const { fusionScore, bestRawScore, ...clean } = result;
@@ -2164,7 +2293,6 @@ function reciprocalRankFuseChunkRepresentations(representationLists) {
         const sorted = [...fused.values()]
             .sort((a, b) => b.fusionScore - a.fusionScore ||
                 b.bestRawScore - a.bestRawScore ||
-                String(a.filename).localeCompare(String(b.filename)) ||
                 (a.firstSentenceGlobalIndex || 0) - (b.firstSentenceGlobalIndex || 0))
             .map((result, index) => {
                 const { fusionScore, bestRawScore, ...clean } = result;
@@ -2209,15 +2337,24 @@ function combineLexicalResults(resultLists) {
             ].join("|");
             if (!unique.has(key)) {
                 unique.set(key, { ...result });
-            } else if ((Number(result.score) || 0) > (Number(unique.get(key).score) || 0)) {
-                unique.set(key, { ...result });
+            } else {
+                const existing = unique.get(key);
+                const resultScore = Number(result.score) || 0;
+                const existingScore = Number(existing.score) || 0;
+                const resultWordCount = Number(result.queryWordCount) || 0;
+                const existingWordCount = Number(existing.queryWordCount) || 0;
+                if (
+                    resultScore > existingScore ||
+                    (resultScore === existingScore && resultWordCount > existingWordCount)
+                ) {
+                    unique.set(key, { ...result });
+                }
             }
         }
     }
 
     return [...unique.values()].sort((a, b) =>
         (b.score || 0) - (a.score || 0) ||
-        String(a.filename).localeCompare(String(b.filename)) ||
         (a.sentenceIndex || 0) - (b.sentenceIndex || 0)
     );
 }
@@ -2244,11 +2381,15 @@ async function runSearchQuery() {
 
     setSearchQueryStatus("Searching…", true);
 
+    let lexicalResults = [];
+    let records = [];
+
     try {
         const search = await getSearchModule();
-        const records = search.getSearchIndexRecords();
+        records = search.getSearchIndexRecords();
         const sentenceResultLists = [];
         const contextualRepresentationLists = [];
+        const transcriptRankLists = [];
         const lexicalResultLists = [];
         let totalDurationMs = 0;
 
@@ -2257,8 +2398,12 @@ async function runSearchQuery() {
 
             const term = queryTerms[termIndex];
             if (queryTerms.length > 1) {
-                setSearchQueryStatus(`Searching term ${termIndex + 1} of ${queryTerms.length}…`, true);
+                setSearchQueryStatus(
+                    `Searching term ${termIndex + 1} of ${queryTerms.length}…`,
+                    true
+                );
             }
+
             const sentencePayload = await search.search(
                 term,
                 60,
@@ -2278,11 +2423,23 @@ async function runSearchQuery() {
             if (requestToken !== searchQueryToken) return;
 
             sentenceResultLists.push(sentencePayload.sentenceResults || []);
+            transcriptRankLists.push({
+                representation: "sentence",
+                results: sentencePayload.transcriptRanks || []
+            });
             totalDurationMs += Number(sentencePayload.durationMs) || 0;
+
+            // Keep the lexical search call in the same position as the last
+            // working pre-RRF implementation: after sentence retrieval for
+            // each term. The RRF change must not alter the lexical path.
             lexicalResultLists.push(
                 search.searchLexical(term, {
                     threshold: getLexicalFuzzyPercent() / 100
-                })
+                }).map(result => ({
+                    ...result,
+                    queryTerm: term,
+                    queryWordCount: countSearchQueryWords(term)
+                }))
             );
 
             const contextualPayload = await search.searchStoredRepresentations(
@@ -2295,11 +2452,13 @@ async function runSearchQuery() {
 
             if (requestToken !== searchQueryToken) return;
             contextualRepresentationLists.push(contextualPayload.representations || []);
+            transcriptRankLists.push(...(contextualPayload.transcriptRanks || []));
         }
 
-        // Keep every candidate returned by retrieval and combine the rankings
-        // across query terms with RRF. The renderer's existing overlap handling
-        // still determines which contextual passages are displayed.
+        lexicalResults = combineLexicalResults(lexicalResultLists);
+
+        // Combine the semantic candidates across terms using reciprocal rank
+        // fusion. Lexical matches remain a separate, mandatory first tier.
         const semanticSentenceResults =
             reciprocalRankFuseSentenceResults(sentenceResultLists);
 
@@ -2307,17 +2466,19 @@ async function runSearchQuery() {
             contextualRepresentationLists
         );
         const semanticChunkResults = fusedContextual.chunkResults;
-        const lexicalResults = combineLexicalResults(lexicalResultLists);
+        const idfResults = rankIdfTranscriptOverlap(queryTerms.join(" "), records);
+        const semanticTranscriptScores = fuseSemanticTranscriptRanks(
+            transcriptRankLists,
+            idfResults
+        );
 
-        // Keep lexical hits first in the combined payload. The existing renderer
-        // continues to use its separate lexical/sentence/chunk collections for
-        // colors, bold ranges, transcript ordering, and overlap suppression.
         const payload = {
-            results: lexicalResults
-                .concat(semanticSentenceResults, semanticChunkResults),
+            results: lexicalResults.concat(semanticSentenceResults, semanticChunkResults),
             sentenceResults: semanticSentenceResults,
             chunkResults: semanticChunkResults,
             lexicalResults,
+            idfResults,
+            semanticTranscriptScores,
             durationMs: totalDurationMs,
             representations: fusedContextual.representationResults
         };
