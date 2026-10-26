@@ -1,5 +1,60 @@
 # Memora Search Model Optimization
 
+# CURRENT PRODUCTION STRATEGY — 2026-10-26 (GOVERNING)
+
+> **This section records the latest user-approved direction and supersedes any conflicting earlier proposal in this document, especially the earlier statement that lexical priority was still an open question.** The historical research record remains below for provenance; do not treat superseded proposals as current requirements.
+
+## Production objective
+
+Memora is a transcript rediscovery tool. Its search should help users find recordings from incomplete recollection. The production change is a focused ranking/pipeline change, not a redesign of the search UI or result-composition system.
+
+## Query structure and retrieval
+
+- The main search term is expected to be a natural-language description, often several words long, and is especially useful for semantic retrieval.
+- Additional search terms are separated by semicolons and are expected to be individual words or short phrases the user remembers.
+- **Run every search term through both lexical and semantic retrieval.** Do not assign a term to only one retrieval mode because of its length or role.
+- It is acceptable and expected for a short additional term to return no lexical matches at some slider settings while still returning useful semantic matches.
+- The search slider controls the fuzziness/strictness of lexical matching. The current minimum is 50%; that minimum may be changed in the future without changing the overall design.
+- At 100%, lexical matching remains enabled. It requires the exact phrase as a sequence of words (for example, `pink elephant` must occur as that phrase), while sensible normalization such as case-insensitivity and punctuation differences should not prevent a match. **100% does not mean semantic-only search.**
+- At lower settings, the existing fuzzy lexical matcher can accept less exact matches according to its threshold. If lexical matches are noisy, the user can raise the slider; lexical matches are recalculated almost instantaneously.
+
+## Ranking rule: lexical results first
+
+- **Every qualifying lexical match is ranked ahead of every semantic-only match.** This is the user's explicit intended behavior, not an open experiment or a preference to be left to RRF.
+- Within the lexical group, retain the existing match-quality ordering/score behavior where possible; the slider determines which matches qualify. Do not introduce a hidden confidence rule that silently discards qualifying lexical matches.
+- Semantic retrieval remains important: it supplies results when wording differs from the transcript, and it remains available for every search term. Use the selected semantic ranking/fusion method to order the semantic portion; the latest research direction favors sentence-heavy RRF as the practical candidate, but the lexical-before-semantic boundary is a separate, explicit rule.
+- A short term with zero lexical matches contributes no lexical result; its semantic matches can still appear in the semantic portion.
+- Avoid treating incidental matches on extremely common words as meaningful merely because they are lexical. Use the existing lexical matcher and its threshold semantics; any proposed exception or new filtering rule that would change which matches qualify must be discussed with the user first.
+
+## Preserve existing result presentation exactly
+
+The user explicitly requires that the current presentation behavior remain unchanged:
+
+- Preserve the current handling of overlap, deduplication, grouping, and composite/nested context.
+- Preserve how all matching results are represented and how matching text is highlighted: lexical matches remain bold, and the existing distinct highlight schemes for other match types remain as they are.
+- Do not change how transcripts or result cards are presented, how overlap is handled, or how context is composed as part of this ranking work.
+- Do not reduce or suppress matches merely to make the new ranking look cleaner.
+- If implementing lexical-first ranking appears to conflict with existing overlap/composition, highlight rendering, result ordering inside a composite, or any other established presentation behavior, **stop and explain the concrete conflict and proposed options to the user before making that modification.** Do not silently resolve the conflict.
+
+## Implementation and validation boundaries
+
+1. Inspect the current production implementation before editing; identify where lexical and semantic candidates are assembled and where final ordering is applied.
+2. Make the smallest change that puts all qualifying lexical results before semantic-only results while preserving current match objects, scores, highlight metadata, overlap handling, and presentation.
+3. Keep the semantic ranking implementation internally configurable if that is straightforward, but do not add user-facing ranking-method controls as part of this task.
+4. Reuse the existing fast lexical recalculation path when the slider changes. Avoid re-embedding or rerunning semantic inference if the current architecture can recalculate lexical matches independently.
+5. Test the slider boundary, exact phrase behavior at 100%, fuzzy matches at the current minimum, terms with no lexical matches, terms searched both ways, mixed lexical/semantic queries, stable highlighting, and unchanged overlap/composite presentation.
+6. Compare the current production behavior with the new ordering on representative queries and inspect rank changes. Tests must distinguish code inspection, syntax checks, unit tests, and actual browser/model tests; never claim a test ran unless it did.
+7. Do not alter the transcript corpus, embedding cache format, query syntax, UI layout, overlap rules, highlighting, or result presentation without approval.
+
+## Interpretation of earlier evidence
+
+The benchmark's zero lexical candidates for long natural-language queries does not refute this design: the lab's strict consecutive-window matcher was not suitable for those queries and did not adequately evaluate lexical retrieval. The user's semicolon-separated short terms are intended to provide lexical clues while the main, longer term provides broader semantic context. All terms are still run through both paths.
+
+The earlier comparison favoring sentence-heavy RRF is evidence for choosing a semantic ranking candidate, not a reason to place semantic-only results above qualifying lexical matches. The final production rule is lexical group first, semantic-only group second, with existing display/composition preserved.
+
+---
+
+
 **Consolidated design, research plan, evidence, and implementation
 handoff**\
 **Prepared:** 2026-10-23
@@ -2568,21 +2623,24 @@ Use precision-like or graded-ranking measures only when the judged pool supports
 
 For Track B, retain the established target rank, Recall@k, MRR, and target-loss diagnostics. Keep the two tracks' metrics and conclusions explicitly separated.
 
-## 6. Lexical priority remains an open design question
+## 6. Lexical priority — superseded by the current production decision
 
-The user's working hypothesis is that a strong, distinctive lexical match should generally be surfaced prominently, while broad/common-word overlap should not automatically outrank a better semantic match. This is a hypothesis to test, not a settled production rule.
+The earlier text in this section treated lexical priority as an open hypothesis. That is no longer the governing decision. The user has explicitly chosen the following behavior:
 
-Compare, at minimum:
+- Every search term is run through both lexical and semantic retrieval.
+- The main search term is usually a longer natural-language description; semicolon-separated additional terms are usually single words or short phrases.
+- Every qualifying lexical match appears before every semantic-only match.
+- The fuzzy slider controls which lexical matches qualify. The current minimum is 50%; this can be changed later.
+- At 100%, lexical matching remains enabled and requires an exact phrase/word sequence, with sensible case and punctuation normalization. It does not turn search into semantic-only mode.
+- If lexical results are noisy, the user can raise the slider. Recalculation of lexical matches is expected to be almost instantaneous.
+- A term that has no lexical matches can still contribute semantic matches.
+- The current result presentation is not to change: preserve existing overlap/composition, all matching results, bold lexical matches, and the existing highlight schemes for other match types.
 
-- lexical-only;
-- semantic-only;
-- current composite/baseline;
-- a composite that gives strong, distinctive lexical evidence priority;
-- where available, a more permissive lexical-overlap diagnostic.
+The semantic ranking method (including sentence-heavy RRF as the leading practical candidate) orders the semantic-only portion; it must not override the lexical-first group boundary.
 
-The benchmark should include distinctive phrases, imperfect/approximate wording, common terms, specific paraphrases, broad descriptions, and mixed queries. Inspect cases individually: a lexical result can be an incidental match, and a semantically strong result can be misleading. Do not impose a rule that every lexical hit must outrank every semantic hit without evidence.
+**Conflict protocol:** if this rule cannot be implemented without changing existing overlap behavior, transcript/result presentation, or highlighting, stop and ask the user before changing that behavior.
 
-The earlier 15-query general-search audit, its provisional relevance labels, RRF comparisons, and score-normalization experiments remain separate historical evidence. Their labels were not independent human judgments, and they do not settle the lexical-priority question.
+The benchmark's earlier zero-lexical-candidate outcome for long natural-language queries does not settle this design question. The strict consecutive-window matcher was not suitable for those long queries; the intended additional short terms are still searched both lexically and semantically.
 
 ## 7. Immediate next steps
 
@@ -2594,37 +2652,113 @@ The earlier 15-query general-search audit, its provisional relevance labels, RRF
 6. Use Track B target-known diagnostics only for specific failure investigations or controlled capability tests.
 7. Do not change production ranking until the comparison is sufficiently complete and its limitations are understood.
 
-## 8. Current decision/status log
+## 8. Current decision/status log — historical benchmark status plus production direction
 
-**Decisions now governing the work**
+**Decisions governing production**
 
 - The purpose remains transcript rediscovery from imperfect recollection, not question answering.
-- The primary benchmark is target-free at query creation time; relevance is assessed after retrieval.
-- Target-known queries are a separate secondary diagnostic track.
-- Queries may have multiple relevant results or none; no target is assumed by default.
-- Unjudged is not synonymous with irrelevant.
-- Compare lexical-only, semantic-only, and composite approaches using the same query set and preserve full candidate evidence.
-- Strong distinctive lexical evidence may deserve priority, but common-word matches must be distinguished from specific phrase matches. The ranking rule is not yet settled.
-- Do not modify production ranking before evidence supports a change.
+- Every search term is run through both lexical and semantic retrieval.
+- The main term is typically a longer semantic description; semicolon-separated additional terms are typically single words or short phrases.
+- Every qualifying lexical match must appear before every semantic-only match.
+- The fuzzy slider controls lexical strictness. The current minimum is 50%; at 100%, lexical matching still operates but requires an exact phrase/word sequence, with sensible normalization.
+- Lexical recalculation should remain fast and should not force semantic re-embedding when the existing architecture can avoid it.
+- Preserve the existing result presentation exactly, including overlap/composition, all matching results, bold lexical matches, and the current highlight schemes for other match types.
+- If the lexical-first rule conflicts with any of that existing behavior, stop and discuss the conflict with the user before modifying presentation or overlap handling.
+- Sentence-heavy RRF remains a candidate for ordering the semantic-only portion; it does not supersede lexical-first ordering.
+- The user is ready to proceed to production implementation after this handoff is updated.
 
-**Current artifact**
+**Historical benchmark artifact and evidence limits**
 
 - `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.html`
 - `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.zip`
+- The suite was described as containing 40 target-free queries across four categories, and a JavaScript syntax check passed.
+- The recorded syntax check is not proof of a full browser/model run or complete execution of every query/method.
+- Earlier lexical zero-candidate results for long queries are not evidence against the current strategy because the lab's strict consecutive-window matcher was not suitable for those long natural-language queries.
+- Earlier relevance labels and ranking comparisons remain provisional/historical; do not treat them as definitive ground truth.
 
-**Verified so far**
+**Next production action:** inspect the actual current production search source and make the smallest change that orders qualifying lexical results before semantic-only results while preserving all existing match/highlight/overlap/composite presentation behavior. Add regression tests for the slider boundary and existing display behavior. If a required change would alter presentation or overlap, ask the user before proceeding.
 
-- The HTML file exists and was packaged in the ZIP.
-- The suite contains 40 queries across four categories, with no assigned target transcripts.
-- A JavaScript syntax check passed.
+---
 
-**Not yet verified**
+# Final Production Handoff — Current User-Approved Strategy
 
-- A full browser/model run using the transcript archive and embedding cache.
-- Complete successful execution of every query across every method.
-- Relevance judgments for the new suite.
-- Whether lexical-priority composite ranking improves open-ended search.
-- Whether any ranking change should be made in production.
+**Status date:** 2026-10-26  
+**Status:** Ready to begin production implementation. This section is the latest and controlling handoff if older research sections appear to disagree.
 
-**Next executable action:** run the new lab with the same corpus and embeddings, export the complete results, and verify run completeness before starting the relevance review.
+## The product problem
+
+Memora helps users rediscover a transcript from incomplete recollection. Search terms may describe a subject, or they may capture a specific word or phrase the user remembers. These two signals complement one another; neither search path should be disabled based on term length.
+
+## Search-term behavior
+
+- The primary term is generally a multiword natural-language description and is expected to be useful for semantic retrieval.
+- Additional terms are separated with semicolons and are generally individual words or short phrases.
+- Run every term through both lexical and semantic retrieval.
+- A short term can have zero lexical matches but still retrieve semantically similar passages. This is normal, not an error.
+- A lexical match is eligible according to the existing fuzzy-matching rules and current slider value.
+- The current slider minimum is 50%. Keep that minimum for this implementation unless the user later changes it.
+- At 100%, require the exact phrase/word sequence. Normalize case and harmless punctuation so `Pink elephant.` can match a search for `pink elephant`; do not loosen the word sequence itself. The 100% setting still performs lexical search.
+- Moving the slider changes lexical eligibility and should recalculate lexical matches almost instantaneously. Preserve the current fast path and avoid unnecessary semantic recomputation.
+
+## Mandatory final ordering
+
+**All qualifying lexical results come before all semantic-only results.**
+
+This is an explicit production requirement. Do not substitute a soft lexical boost, a weighted blend, or RRF across the lexical and semantic groups if that can allow a semantic-only result to outrank a qualifying lexical result.
+
+Within the lexical group, preserve existing lexical match quality/ranking where available. Within the semantic-only group, use the selected semantic ranking approach. Sentence-heavy RRF is the leading practical candidate from the recent comparisons, but the prior experiments were provisional and the exact production implementation must be inspected before changing it. The RRF decision affects ordering inside the semantic-only group, not the lexical-first boundary.
+
+A term with no lexical hits adds no items to the lexical group; its semantic results remain eligible for the semantic-only group. If the same result is supported by both lexical and semantic retrieval, treat it according to the existing result model and retain the lexical match designation/highlighting. Do not create redundant result cards merely to represent the two retrieval paths.
+
+## Presentation and overlap are out of scope for change
+
+The user explicitly requires no change to the current way Memora handles overlap and presents search results or transcripts. Preserve:
+
+- the existing overlap/deduplication/composition rules;
+- the current relationship between a matching sentence and its contextual windows;
+- all matching results currently intended to be shown;
+- bold styling for lexical matches;
+- the existing distinct highlighting schemes for other match types;
+- transcript/result-card styling, layout, controls, and interaction;
+- current transcript text and context.
+
+**Do not silently alter any of these.** If the lexical-first ordering requires a change to overlap handling, composite composition, which matches are displayed, transcript presentation, or highlight behavior, pause and explain the exact conflict to the user before proceeding. Prefer a ranking-stage change that leaves candidate objects and presentation metadata intact.
+
+## Why this strategy is appropriate
+
+The main natural-language term can find a passage by meaning even when the words differ. A short additional term can find a passage the user remembers by wording. The user should not have to predict which retrieval mode is appropriate or select a mode for each term. Running all terms both ways gives both kinds of evidence a chance to help.
+
+The slider is the user's control over lexical tolerance. No separate user-facing ranking-method selector is required. If lexical matches are poor, the user can increase strictness; the lexical list should recalculate quickly. At 100%, the user can demand exact phrase matching without disabling semantic retrieval.
+
+The laboratory's zero lexical candidates for long natural-language queries do not disprove this strategy. The lab used a strict consecutive-window lexical matcher that was not appropriate for those long queries. Short semicolon-separated clues are expected to be more useful lexical queries, but they still must be run through semantic retrieval too.
+
+## Implementation checklist
+
+1. Inspect the current production search source, workers, ranking assembly, slider mapping, and result composition before editing.
+2. Locate the final ordering boundary between lexical candidates and semantic-only candidates.
+3. Implement lexical-first ordering with the smallest safe change. Keep the existing candidate objects, scores, transcript references, match types, and highlight metadata intact.
+4. Preserve current lexical ordering within the lexical group and current semantic ranking within the semantic-only group unless inspection reveals a concrete defect that must be discussed.
+5. Confirm every term is sent through both retrieval paths.
+6. Confirm 50% retains current minimum behavior and 100% requires an exact phrase/word sequence while keeping lexical search enabled.
+7. Confirm a zero-hit lexical term still contributes semantic results.
+8. Confirm a mixed query with both lexical and semantic matches displays lexical matches first.
+9. Confirm a result matching both ways is not duplicated and continues to receive existing lexical bolding/highlighting behavior.
+10. Regression-test overlap/composite context, all current highlight types, transcript display, result controls, and the current result list behavior.
+11. Confirm slider changes recalculate lexical results without unnecessary embedding/model work.
+12. Distinguish static review, syntax checks, unit tests, and actual browser/model testing in the handoff. Report exactly what was run.
+13. Package changed code in a ZIP and preserve every code file's true/original filename inside the ZIP.
+14. If any required implementation would alter overlap or presentation, stop and ask the user before making that change.
+
+## Evidence and scope cautions
+
+- The corpus and embedding counts recorded earlier in this document describe particular lab reports; verify current source and artifacts before relying on them as live production facts.
+- The 40-query blind benchmark was target-free at query creation time, but its themes were informed by the corpus. It is not fully corpus-independent.
+- Some earlier relevance labels were provisional, and the latest lab report had empty experiment run/sweep arrays. Do not describe those as a completed definitive comparison.
+- Sentence-heavy RRF appeared promising for the semantic ranking portion, especially near the top of results, but the available evidence does not establish a universal winner.
+- None of those research limitations blocks implementing the explicit lexical-first product behavior. They do mean that the exact semantic ranking configuration should be treated as configurable and validated separately.
+- Do not re-open settled product decisions without a concrete conflict or new evidence. Do not redesign overlap, presentation, or the slider as part of this focused change.
+
+## Immediate next step
+
+Inspect the current production source and identify the smallest code change that guarantees lexical-first ordering while leaving the existing result composition and rendering untouched. If that is not possible without changing presentation behavior, return to the user with the concrete conflict and alternatives before editing.
 
