@@ -815,68 +815,6 @@ button:disabled {
     line-height: 1.4;
 }
 
-.semantic-fraction-control {
-    margin: 0 0 14px;
-    padding: 11px 12px 9px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: #FAFBFD;
-}
-
-.semantic-fraction-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 5px;
-}
-
-.semantic-fraction-heading label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-}
-
-#semanticFractionValue {
-    color: var(--navy);
-    font-size: 13px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-#semanticFractionSlider {
-    display: block;
-    width: 100%;
-    margin: 5px 0 3px;
-    accent-color: var(--navy);
-    cursor: pointer;
-}
-
-
-.semantic-fraction-scale {
-    display: flex;
-    justify-content: space-between;
-    margin: 0 1px;
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 1.3;
-}
-
-.semantic-fraction-scale span:nth-child(2) {
-    text-align: center;
-}
-
-.semantic-fraction-scale span:last-child {
-    text-align: right;
-}
-
-.semantic-fraction-help {
-    margin: 4px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.4;
-}
-
 .search-query-row {
     display: flex;
     gap: 10px;
@@ -987,6 +925,21 @@ button:disabled {
 
 .search-use-combine-button {
     margin-left: auto;
+}
+
+
+.search-results-load-more-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+}
+
+.search-results-load-more-button {
+    min-width: 220px;
+}
+
+.search-results-load-more-button[hidden] {
+    display: none !important;
 }
 
 .search-result-file {

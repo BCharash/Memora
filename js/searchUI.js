@@ -10,18 +10,12 @@ const searchQueryInput = document.getElementById("searchQueryInput");
 const clearSearchButton = document.getElementById("clearSearchButton");
 const lexicalFuzzySlider = document.getElementById("lexicalFuzzySlider");
 const lexicalFuzzyValue = document.getElementById("lexicalFuzzyValue");
-const semanticFractionSlider = document.getElementById("semanticFractionSlider");
-const semanticFractionValue = document.getElementById("semanticFractionValue");
 const LEXICAL_FUZZY_STORAGE_KEY = "memoraLexicalFuzzyThreshold";
-const SEMANTIC_FRACTION_STORAGE_KEY = "memoraSemanticResultsFraction";
 const DEFAULT_LEXICAL_FUZZY_PERCENT = 70;
 const MIN_LEXICAL_FUZZY_PERCENT = 50;
 const MAX_LEXICAL_FUZZY_PERCENT = 100;
 const LEXICAL_FUZZY_STEP = 5;
-const DEFAULT_SEMANTIC_SLIDER_POSITION = 0;
-const MIN_SEMANTIC_RETAINED_PERCENT = 50;
-const MAX_SEMANTIC_RETAINED_PERCENT = 100;
-const SEMANTIC_SLIDER_MAX = 100;
+const SEARCH_RESULTS_PAGE_SIZE = 20;
 const searchButton = document.getElementById("searchButton");
 const searchIndexStatus = document.getElementById("searchIndexStatus");
 const searchQueryStatus = document.getElementById("searchQueryStatus");
@@ -66,84 +60,6 @@ try {
     // Use the default when browser storage is unavailable.
 }
 updateLexicalFuzzyValue();
-
-function getSemanticSliderPosition() {
-    const value = Number(semanticFractionSlider?.value);
-    return Number.isFinite(value)
-        ? Math.min(SEMANTIC_SLIDER_MAX, Math.max(0, value))
-        : DEFAULT_SEMANTIC_SLIDER_POSITION;
-}
-
-// Moving right increases filtering continuously: 0 = retain 100%;
-// 100 = retain 50%. The visible Low/Medium/High labels are guideposts only.
-function getSemanticFractionPercent() {
-    return Math.round(
-        MAX_SEMANTIC_RETAINED_PERCENT -
-        (getSemanticSliderPosition() / SEMANTIC_SLIDER_MAX) *
-        (MAX_SEMANTIC_RETAINED_PERCENT - MIN_SEMANTIC_RETAINED_PERCENT)
-    );
-}
-
-function getSemanticFilterLabel() {
-    const position = getSemanticSliderPosition();
-    if (position < 33.333) return "Low";
-    if (position < 66.667) return "Medium";
-    return "High";
-}
-
-function updateSemanticFractionValue() {
-    if (semanticFractionSlider && semanticFractionValue) {
-        semanticFractionValue.textContent = getSemanticFilterLabel();
-    }
-}
-
-if (semanticFractionSlider) {
-    semanticFractionSlider.min = "0";
-    semanticFractionSlider.max = String(SEMANTIC_SLIDER_MAX);
-    semanticFractionSlider.step = "1";
-}
-
-try {
-    // Preserve the previous saved retained percentage by converting it to
-    // the equivalent position on the new continuous slider.
-    const savedFraction = Number(localStorage.getItem(SEMANTIC_FRACTION_STORAGE_KEY));
-    if (semanticFractionSlider && Number.isFinite(savedFraction) && savedFraction >= MIN_SEMANTIC_RETAINED_PERCENT && savedFraction <= MAX_SEMANTIC_RETAINED_PERCENT) {
-        const position = ((MAX_SEMANTIC_RETAINED_PERCENT - savedFraction) /
-            (MAX_SEMANTIC_RETAINED_PERCENT - MIN_SEMANTIC_RETAINED_PERCENT)) * SEMANTIC_SLIDER_MAX;
-        semanticFractionSlider.value = String(Math.round(position));
-    } else if (semanticFractionSlider) {
-        semanticFractionSlider.value = String(DEFAULT_SEMANTIC_SLIDER_POSITION);
-    }
-} catch (_) {
-    // Use the default when browser storage is unavailable.
-}
-updateSemanticFractionValue();
-
-// Keep the strongest fraction of each semantic result family. Lexical results
-// are intentionally excluded from this filtering. Contextual candidates are
-// filtered separately by window size so the experiment does not erase an
-// entire context size merely because another size has a different score scale.
-function retainSemanticFraction(results, percent, key = null) {
-    const fraction = Math.min(1, Math.max(0, percent / 100));
-    if (!key) {
-        const sorted = [...(results || [])].sort((a, b) => (a.rank || Infinity) - (b.rank || Infinity) || (b.score || 0) - (a.score || 0));
-        return sorted.slice(0, Math.ceil(sorted.length * fraction));
-    }
-
-    const groups = new Map();
-    for (const result of results || []) {
-        const groupKey = result[key] || "unknown";
-        if (!groups.has(groupKey)) groups.set(groupKey, []);
-        groups.get(groupKey).push(result);
-    }
-
-    const retained = [];
-    for (const group of groups.values()) {
-        group.sort((a, b) => (b.relativeRank || 0) - (a.relativeRank || 0) || (b.score || 0) - (a.score || 0));
-        retained.push(...group.slice(0, Math.ceil(group.length * fraction)));
-    }
-    return retained;
-}
 
 function setSearchBusy(busy) {
 
@@ -1789,8 +1705,17 @@ function renderSearchResults(payload) {
     collapseControlTop.appendChild(collapseLabelTop);
     toolbar.appendChild(collapseControlTop);
 
+    let loadedGroupCount = Math.min(SEARCH_RESULTS_PAGE_SIZE, groups.length);
+    const sentenceMatchCount = (payload.sentenceResults || []).length;
     const summary = document.createElement("span");
-    summary.textContent = `${groups.length} transcript${groups.length === 1 ? "" : "s"} represented · ${(payload.sentenceResults || []).length} sentence matches · ${displayedChunkCount} contextual chunks shown`;
+
+    function updateResultSummary() {
+        summary.textContent =
+            `Showing ${loadedGroupCount} of ${groups.length} transcript${groups.length === 1 ? "" : "s"} · ` +
+            `${sentenceMatchCount} sentence matches · ${displayedChunkCount} contextual chunks shown`;
+    }
+
+    updateResultSummary();
     toolbar.appendChild(summary);
 
     const useButton = document.createElement("button");
@@ -1808,9 +1733,12 @@ function renderSearchResults(payload) {
     const searchResultListItems = [];
     let searchResultsCollapsed = false;
 
-    for (const group of groups) {
+    for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+        const group = groups[groupIndex];
         const section = document.createElement("section");
         section.className = "search-result-file";
+        section.dataset.paginationHidden = String(groupIndex >= loadedGroupCount);
+        section.hidden = groupIndex >= loadedGroupCount;
 
         const header = document.createElement("div");
         header.className = "search-result-file-header";
@@ -1934,6 +1862,44 @@ function renderSearchResults(payload) {
         searchResultListItems.push(section);
     }
 
+    let loadMoreButton = null;
+    if (groups.length > loadedGroupCount) {
+        const loadMoreWrap = document.createElement("div");
+        loadMoreWrap.className = "search-results-load-more-wrap";
+
+        loadMoreButton = document.createElement("button");
+        loadMoreButton.type = "button";
+        loadMoreButton.className = "search-results-load-more-button";
+
+        function updateLoadMoreButton() {
+            const remaining = groups.length - loadedGroupCount;
+            loadMoreButton.textContent =
+                `Show next ${Math.min(SEARCH_RESULTS_PAGE_SIZE, remaining)} transcript${Math.min(SEARCH_RESULTS_PAGE_SIZE, remaining) === 1 ? "" : "s"} (${remaining} remaining)`;
+            loadMoreButton.hidden = remaining <= 0;
+        }
+
+        loadMoreButton.addEventListener("click", () => {
+            const nextLoadedCount = Math.min(
+                groups.length,
+                loadedGroupCount + SEARCH_RESULTS_PAGE_SIZE
+            );
+
+            for (let index = loadedGroupCount; index < nextLoadedCount; index++) {
+                const section = searchResultListItems[index];
+                section.dataset.paginationHidden = "false";
+                section.hidden = searchResultsCollapsed;
+            }
+
+            loadedGroupCount = nextLoadedCount;
+            updateResultSummary();
+            updateLoadMoreButton();
+        });
+
+        updateLoadMoreButton();
+        loadMoreWrap.appendChild(loadMoreButton);
+        searchResults.appendChild(loadMoreWrap);
+    }
+
     const bottomSeparator = document.createElement("div");
     bottomSeparator.className = "selection-double-separator";
     searchResults.appendChild(bottomSeparator);
@@ -1956,7 +1922,9 @@ function renderSearchResults(payload) {
         collapseLabelBottom.textContent = label;
         collapseCheckboxTop.checked = false;
         collapseCheckboxBottom.checked = false;
-        searchResultListItems.forEach(section => { section.hidden = searchResultsCollapsed; });
+        searchResultListItems.forEach(section => {
+            section.hidden = searchResultsCollapsed || section.dataset.paginationHidden === "true";
+        });
     }
 
     function toggleSearchCollapse() {
@@ -2102,16 +2070,168 @@ function clearSearchQueryAndResults() {
     // the input here can interfere with completing the button's click gesture.
 }
 
+// Multiple semicolon-separated query terms are fused independently within each
+// semantic result family. RRF uses ranks rather than raw similarity scores,
+// which are not reliably comparable across different query embeddings.
+const MULTI_QUERY_RRF_K = 60;
+
+function splitSearchQueryTerms(query) {
+    return [...new Set(
+        String(query || "")
+            .split(";")
+            .map(term => term.trim())
+            .filter(Boolean)
+    )];
+}
+
+function reciprocalRankFuseSentenceResults(resultLists) {
+    const fused = new Map();
+
+    for (const results of resultLists) {
+        for (const result of results || []) {
+            // Keep repeated occurrences of the same sentence distinct when
+            // they occupy different positions in a transcript.
+            const key = [
+                result.filename || "",
+                Number.isFinite(result.sentenceIndex) ? result.sentenceIndex : "",
+                normalizeSentenceMatchKey(result.sentence || result.text || "")
+            ].join("|");
+            if (!fused.has(key)) {
+                fused.set(key, {
+                    ...result,
+                    fusionScore: 0,
+                    bestRawScore: Number(result.score) || 0
+                });
+            }
+            const item = fused.get(key);
+            const rank = Number.isFinite(Number(result.rank)) ? Math.max(1, Number(result.rank)) : 31;
+            item.fusionScore += 1 / (MULTI_QUERY_RRF_K + rank);
+            item.bestRawScore = Math.max(item.bestRawScore, Number(result.score) || 0);
+            // Prefer a populated record/metadata object if the first hit omitted it.
+            if (!item.record && result.record) item.record = result.record;
+        }
+    }
+
+    return [...fused.values()]
+        .sort((a, b) => b.fusionScore - a.fusionScore ||
+            b.bestRawScore - a.bestRawScore ||
+            String(a.filename).localeCompare(String(b.filename)) ||
+            (a.sentenceIndex || 0) - (b.sentenceIndex || 0))
+        .map((result, index) => {
+            const { fusionScore, bestRawScore, ...clean } = result;
+            return { ...clean, rank: index + 1, score: bestRawScore };
+        });
+}
+
+function reciprocalRankFuseChunkRepresentations(representationLists) {
+    const byRepresentation = new Map();
+
+    for (const list of representationLists) {
+        for (const representationGroup of list || []) {
+            const label = representationGroup.representation || "unknown";
+            if (!byRepresentation.has(label)) byRepresentation.set(label, new Map());
+            const fused = byRepresentation.get(label);
+
+            for (const result of representationGroup.results || []) {
+                const key = [
+                    result.filename || "",
+                    label,
+                    Number.isFinite(result.firstSentenceGlobalIndex) ? result.firstSentenceGlobalIndex : "",
+                    Number.isFinite(result.lastSentenceGlobalIndex) ? result.lastSentenceGlobalIndex : "",
+                    normalizeSentenceMatchKey(result.text || "")
+                ].join("|");
+                if (!fused.has(key)) {
+                    fused.set(key, {
+                        ...result,
+                        representation: label,
+                        fusionScore: 0,
+                        bestRawScore: Number(result.score) || 0
+                    });
+                }
+                const item = fused.get(key);
+                const rank = Number.isFinite(Number(result.rank)) ? Math.max(1, Number(result.rank)) : 31;
+                item.fusionScore += 1 / (MULTI_QUERY_RRF_K + rank);
+                item.bestRawScore = Math.max(item.bestRawScore, Number(result.score) || 0);
+                if (!item.record && result.record) item.record = result.record;
+            }
+        }
+    }
+
+    const representationResults = [];
+    const chunkResults = [];
+
+    for (const [representation, fused] of byRepresentation) {
+        const sorted = [...fused.values()]
+            .sort((a, b) => b.fusionScore - a.fusionScore ||
+                b.bestRawScore - a.bestRawScore ||
+                String(a.filename).localeCompare(String(b.filename)) ||
+                (a.firstSentenceGlobalIndex || 0) - (b.firstSentenceGlobalIndex || 0))
+            .map((result, index) => {
+                const { fusionScore, bestRawScore, ...clean } = result;
+                return {
+                    ...clean,
+                    rank: index + 1,
+                    relativeRank: 1 / (index + 1),
+                    score: bestRawScore
+                };
+            });
+
+        representationResults.push({ representation, results: sorted });
+        chunkResults.push(...sorted);
+    }
+
+    // Preserve the current specificity-first presentation order. The renderer
+    // still owns overlap suppression and does not use this array for coloring.
+    chunkResults.sort((a, b) => {
+        const sizeA = Number(String(a.representation || "7–3").split("–")[0]);
+        const sizeB = Number(String(b.representation || "7–3").split("–")[0]);
+        if (sizeA !== sizeB) return sizeA - sizeB;
+        return (b.relativeRank || 0) - (a.relativeRank || 0) ||
+            (b.score || 0) - (a.score || 0);
+    });
+
+    return { chunkResults, representationResults };
+}
+
+function combineLexicalResults(resultLists) {
+    const unique = new Map();
+
+    for (const results of resultLists) {
+        for (const result of results || []) {
+            // Duplicate semicolon terms should not create duplicate bold ranges,
+            // while distinct occurrences and distinct query phrases are retained.
+            const key = [
+                result.filename || "",
+                Number.isFinite(result.sentenceIndex) ? result.sentenceIndex : "",
+                normalizeSentenceMatchKey(result.sentence || ""),
+                result.matchStart,
+                result.matchEnd
+            ].join("|");
+            if (!unique.has(key)) {
+                unique.set(key, { ...result });
+            } else if ((Number(result.score) || 0) > (Number(unique.get(key).score) || 0)) {
+                unique.set(key, { ...result });
+            }
+        }
+    }
+
+    return [...unique.values()].sort((a, b) =>
+        (b.score || 0) - (a.score || 0) ||
+        String(a.filename).localeCompare(String(b.filename)) ||
+        (a.sentenceIndex || 0) - (b.sentenceIndex || 0)
+    );
+}
+
 async function runSearchQuery() {
 
     if (!searchIndexReady || !searchQueryInput) {
         return;
     }
 
-    const query =
-        searchQueryInput.value.trim();
+    const query = searchQueryInput.value.trim();
+    const queryTerms = splitSearchQueryTerms(query);
 
-    if (!query) {
+    if (!queryTerms.length) {
         searchQueryInput.focus();
         return;
     }
@@ -2122,84 +2242,91 @@ async function runSearchQuery() {
         searchButton.disabled = true;
     }
 
-    setSearchQueryStatus(
-        "Searching…",
-        true
-    );
+    setSearchQueryStatus("Searching…", true);
 
     try {
+        const search = await getSearchModule();
+        const records = search.getSearchIndexRecords();
+        const sentenceResultLists = [];
+        const contextualRepresentationLists = [];
+        const lexicalResultLists = [];
+        let totalDurationMs = 0;
 
-        const search =
-            await getSearchModule();
+        for (let termIndex = 0; termIndex < queryTerms.length; termIndex++) {
+            if (requestToken !== searchQueryToken) return;
 
-        const sentencePayload =
-            await search.search(
-                query,
-                30,
-                message => {
-                    if (requestToken !== searchQueryToken) return;
-                    setSearchQueryStatus(
-                        message,
-                        true
-                    );
-                }
+            const term = queryTerms[termIndex];
+            if (queryTerms.length > 1) {
+                setSearchQueryStatus(`Searching term ${termIndex + 1} of ${queryTerms.length}…`, true);
+            }
+            const sentencePayload = await search.search(
+                term,
+                60,
+                termIndex === 0
+                    ? message => {
+                        if (requestToken !== searchQueryToken) return;
+                        setSearchQueryStatus(
+                            queryTerms.length > 1
+                                ? `Searching term 1 of ${queryTerms.length}…`
+                                : message,
+                            true
+                        );
+                    }
+                    : null
             );
 
-        if (requestToken !== searchQueryToken) return;
+            if (requestToken !== searchQueryToken) return;
 
-        const lexicalResults =
-            search.searchLexical(query, { threshold: getLexicalFuzzyPercent() / 100 });
+            sentenceResultLists.push(sentencePayload.sentenceResults || []);
+            totalDurationMs += Number(sentencePayload.durationMs) || 0;
+            lexicalResultLists.push(
+                search.searchLexical(term, {
+                    threshold: getLexicalFuzzyPercent() / 100
+                })
+            );
 
-        const semanticFractionPercent = getSemanticFractionPercent();
-        const semanticSentenceResults = retainSemanticFraction(
-            sentencePayload.sentenceResults,
-            semanticFractionPercent
-        );
-
-        const contextualPayload =
-            await search.searchStoredRepresentations(
-                query,
+            const contextualPayload = await search.searchStoredRepresentations(
+                term,
                 {
-                    maxResults: 30,
-                    records: search.getSearchIndexRecords()
+                    maxResults: 40,
+                    records
                 }
             );
 
-        if (requestToken !== searchQueryToken) return;
+            if (requestToken !== searchQueryToken) return;
+            contextualRepresentationLists.push(contextualPayload.representations || []);
+        }
 
-        const semanticChunkResults = retainSemanticFraction(
-            contextualPayload.chunkResults,
-            semanticFractionPercent,
-            "representation"
+        // Keep every candidate returned by retrieval and combine the rankings
+        // across query terms with RRF. The renderer's existing overlap handling
+        // still determines which contextual passages are displayed.
+        const semanticSentenceResults =
+            reciprocalRankFuseSentenceResults(sentenceResultLists);
+
+        const fusedContextual = reciprocalRankFuseChunkRepresentations(
+            contextualRepresentationLists
         );
+        const semanticChunkResults = fusedContextual.chunkResults;
+        const lexicalResults = combineLexicalResults(lexicalResultLists);
 
+        // Keep lexical hits first in the combined payload. The existing renderer
+        // continues to use its separate lexical/sentence/chunk collections for
+        // colors, bold ranges, transcript ordering, and overlap suppression.
         const payload = {
-            results: semanticSentenceResults
-                .concat(semanticChunkResults)
-                .concat(lexicalResults)
-                .sort((a, b) => {
-                    const aRank =
-                        a.type === "chunk"
-                            ? a.relativeRank
-                            : 1 / Math.max(1, a.rank || 1);
-                    const bRank =
-                        b.type === "chunk"
-                            ? b.relativeRank
-                            : 1 / Math.max(1, b.rank || 1);
-                    return bRank - aRank;
-                }),
+            results: lexicalResults
+                .concat(semanticSentenceResults, semanticChunkResults),
             sentenceResults: semanticSentenceResults,
             chunkResults: semanticChunkResults,
             lexicalResults,
-            durationMs: sentencePayload.durationMs,
-            representations: contextualPayload.representations
+            durationMs: totalDurationMs,
+            representations: fusedContextual.representationResults
         };
 
         const displaySummary = renderSearchResults(payload);
 
         setSearchQueryStatus(
             `${lexicalResults.length} lexical sentence match${lexicalResults.length === 1 ? "" : "es"}` +
-            ` · ${semanticSentenceResults.length} semantic sentence matches (${getSemanticFilterLabel()} filtering)` +
+            ` · ${semanticSentenceResults.length} semantic sentence matches` +
             ` · ${displaySummary.displayedChunkCount} contextual results after overlap filtering` +
             ` · ${formatElapsed(payload.durationMs / 1000)}.`
         );
@@ -2208,21 +2335,14 @@ async function runSearchQuery() {
 
         if (requestToken !== searchQueryToken) return;
 
-        console.error(
-            "Search error:",
-            error
-        );
-
-        setSearchQueryStatus(
-            "Unable to perform the search."
-        );
+        console.error("Search error:", error);
+        setSearchQueryStatus("Unable to perform the search.");
     }
 
     if (requestToken === searchQueryToken && searchButton) {
         searchButton.disabled = !searchIndexReady;
     }
 }
-
 
 // A transcript edit makes the current Search session potentially stale.
 // Require a fresh source selection so files are reread before the next index build.
@@ -2378,20 +2498,6 @@ export function initSearchUI({
         );
     }
 
-
-    if (semanticFractionSlider) {
-        semanticFractionSlider.addEventListener("input", updateSemanticFractionValue);
-        semanticFractionSlider.addEventListener("change", () => {
-            try {
-                localStorage.setItem(SEMANTIC_FRACTION_STORAGE_KEY, String(getSemanticFractionPercent()));
-            } catch (_) {
-                // The current setting still applies for this page session.
-            }
-            if (searchIndexReady && searchQueryInput?.value.trim()) {
-                runSearchQuery();
-            }
-        });
-    }
 
     if (lexicalFuzzySlider) {
         lexicalFuzzySlider.addEventListener("input", updateLexicalFuzzyValue);
