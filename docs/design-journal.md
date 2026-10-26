@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 14
+**Version:** 15
 **Status:** Living document  
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -3730,55 +3730,31 @@ These rules preserve the central Memora principle that the individual transcript
 
 ---
 
-# 52. Search Controls: Lexical Fuzzy Matching and Semantic Filtering Sliders
+# 52. Search Controls: Lexical Fuzzy Matching and Removal of Semantic Filtering
 
-The Search tab now has two adjustable controls positioned above the search query box. They let the user tune lexical matching and semantic result filtering while working through searches, without changing the underlying transcript files or the semantic index.
+The Search interface retains a lexical fuzzy-matching slider. The separate semantic-filtering slider was removed after testing; semantic retrieval is no longer controlled by a user-facing fraction/filter slider.
 
-## 52.1 Lexical fuzzy-matching slider
+## 52.1 Lexical fuzzy matching
 
-The **Lexical fuzzy matching** slider controls how closely each query word must match a word in the transcript for a lexical match to qualify.
+The lexical slider controls how strictly query wording must match transcript wording.
 
-- The default is **80%**.
-- The range is **70%–100%**, in five-percentage-point increments in the current UI logic.
-- Lower settings allow more spelling variation; higher settings demand closer matches.
-- At **100%**, lexical matching requires exact word matches.
-- The threshold is applied to each word individually. A strong match for one word cannot compensate for a weak match for another word in the query.
-- When a lexical match is displayed, bolding is limited to the actual matched text span rather than every occurrence of the same query word elsewhere in the transcript.
+- The current range begins at **50%** and extends to **100%**.
+- When no saved setting exists, the initial default is **70%**. A previously saved user setting is restored.
+- Lower settings permit more approximate word matches; higher settings are stricter.
+- At **100%**, lexical matching remains enabled and requires the exact phrase as a sequence of words, with case and punctuation normalization. It does not switch Search to semantic-only mode.
+- The existing lexical matcher and its qualification rules remain authoritative; the slider does not change semantic scores or indexing.
 
-The setting is saved on the current device. When the user changes it with a query already entered, Memora reruns that query after the slider change is committed. This avoids repeatedly rerunning the full search while the user is dragging the control.
+The setting is local to the current browser/device. Where supported by the existing UI flow, changing the slider with a query already entered recalculates lexical matching without unnecessarily repeating semantic inference.
 
-## 52.2 Continuous semantic-filtering slider
+## 52.2 Semantic retrieval without a user-facing filter
 
-The **Semantic filtering** slider controls how many of the highest-ranked semantic candidates are retained for display. Unlike the lexical control, it is not a similarity threshold and does not change the semantic scores themselves.
+Semantic retrieval remains active alongside lexical retrieval. The experimental semantic-filtering slider was removed, so users no longer adjust the fraction of semantic candidates retained through that control. Candidate retrieval limits and the number of transcript groups initially displayed are separate implementation decisions documented in Section 58.
 
-The slider is continuous, with **Low**, **Medium**, and **High** shown as guide labels rather than as the only selectable positions:
+Removing the slider does not mean semantic retrieval has been removed. It also does not change the established result presentation, highlighting, overlap suppression, transcript grouping, or lexical-first ordering.
 
-- **Low** retains all candidates returned by semantic retrieval.
-- Moving right progressively retains a smaller fraction of the candidates.
-- **Medium** is a visual midpoint, not a separate mode.
-- **High** retains fewer of the highest-ranked candidates.
-- The experimental range retains between **100% and 50%** of the available semantic candidates.
+## 52.3 Validation boundary
 
-The filtering is applied separately to sentence-level results and to each contextual-window family. This is intended to avoid allowing one representation family to eliminate another merely because their result counts or score distributions differ. Lexical matches are not filtered by this control.
-
-This is a result-count experiment, not a calibrated relevance cutoff. Retaining fewer candidates can remove useful results, and the proportion retained does not necessarily translate into the same proportion of unique transcript files shown because different candidates can refer to the same transcript or overlapping passages.
-
-The semantic setting is saved on the current device. Existing saved settings from the earlier three-level version are mapped to the nearest position when the continuous slider is initialized.
-
-## 52.3 How the two controls work together
-
-The controls serve different purposes:
-
-- **Lexical fuzzy matching** adjusts tolerance for word-level textual differences.
-- **Semantic filtering** adjusts how many of the highest-ranked semantic candidates are retained.
-
-Both lexical and semantic search still run. Lexical matches remain prioritized in result ordering and are not removed by semantic filtering. Existing semantic highlighting, contextual-overlap suppression, transcript deduplication, and audio controls remain separate from these slider settings.
-
-The sliders are deliberately placed above the query box so that they can be adjusted as part of an active search rather than buried in Settings. Their preferences are local to the current browser/device.
-
-## 52.4 Validation status and limitations
-
-The JavaScript implementation passed a syntax check. This does not establish end-to-end behavior in every browser. The continuous semantic slider should be checked in the running app to confirm that intermediate positions update the retained fraction smoothly and that saved preferences are restored as expected. Search relevance should also be evaluated against real transcript queries before treating any setting as a recommended default beyond the current experimental defaults.
+The current interface and behavior should be assessed through practical searches. The lexical slider's saved-value restoration and threshold behavior should be distinguished from the separate semantic retrieval and result-display limits. Syntax checks alone do not establish search quality or complete browser-level behavior.
 
 ---
 
@@ -4049,3 +4025,112 @@ The individual transcript file remains the durable source of truth. Search editi
 
 The implementation has been checked at source level, but the combined visibility/editing interaction should still be validated in the running app: show and hide the result; show and hide the full transcript; open Edit; Cancel; Save and reindex; and verify that the current result list stays in place and later queries use the updated transcript. Desktop file writes and the iPhone/iPad replacement-file workflow require platform-specific validation.
 
+---
+
+# 58. Search Retrieval Limits and Incremental Transcript Display
+
+**Date:** 26 October 2026  
+**Status:** Implemented; the user will continue practical search testing.
+
+This change separates the number of semantic candidates retrieved from the number of transcript groups displayed immediately. The goal is to give Search a broader candidate pool while keeping the initial result view manageable.
+
+## 58.1 Retrieval limits
+
+The current implementation uses these limits for each search term:
+
+- **Sentence-level semantic retrieval:** up to 60 candidates, increased from 30.
+- **Contextual chunks:** up to 40 candidates for each contextual representation, increased from 30.
+
+The contextual limit applies independently to each representation family. These are retrieval caps, not a guarantee of that many unique transcripts: candidates can refer to the same transcript or overlapping passages, and the existing grouping and overlap-handling logic still applies.
+
+## 58.2 Display pagination
+
+Search initially displays **20 transcript groups**. A **Show next** control reveals up to 20 additional transcript groups per click until the available groups have been shown.
+
+Pagination operates on the already assembled result set. Clicking to show more does not rerun the query or repeat semantic inference. The count shown in the summary reflects how many transcript groups are currently visible out of the total available groups.
+
+The pagination unit is the transcript group, not an individual sentence or chunk candidate. Matches and excerpts within a displayed transcript continue to use the established presentation.
+
+## 58.3 Preservation boundaries
+
+This change is limited to candidate retrieval caps and progressive visibility. It does not intentionally change:
+
+- lexical qualification or lexical-first ordering;
+- semantic scoring or ranking/fusion;
+- transcript grouping and deduplication;
+- contextual overlap suppression;
+- lexical bolding or sentence/context highlight colors;
+- transcript text, audio controls, or the Search-to-Combine handoff.
+
+Controls that operate on the full search result set, including selection and Combine handoff, must continue to account for all results, not just the currently visible page. Collapse/expand behavior must respect the pagination-hidden state without accidentally revealing groups that have not yet been loaded into view.
+
+## 58.4 Validation boundary
+
+JavaScript syntax checks passed for the updated Search modules, and the ZIP package was checked for integrity. These checks do not replace end-to-end browser testing. Practical testing should confirm that the broader candidate pool improves or preserves useful retrieval, that each click reveals the next page without rerunning Search, and that selection, collapse/expand, highlighting, and Combine continue to behave as before.
+
+---
+
+---
+
+# 59. Search Ranking: Sentence-Heavy RRF and Lexical Tie-Breaking
+
+**Date:** 26 October 2026  
+**Status:** Current ranking policy; practical search testing is ongoing.
+
+This section records the current ranking design for multi-term Search. It distinguishes lexical qualification and ranking from semantic retrieval and fusion. The lexical fuzzy slider remains a match-acceptance threshold; it is not a single score shared by all accepted matches.
+
+## 59.1 Lexical results form the first tier
+
+Any transcript with at least one qualifying lexical match is presented before transcripts that have only semantic matches. Semantic relevance must not move a semantic-only transcript ahead of a transcript with a qualifying lexical match.
+
+Within the lexical tier, transcript groups are ordered by the strongest lexical match associated with each transcript:
+
+1. **Highest lexical score first.** The lexical score measures match quality. Exact lexical matches can score `1.0`; approximate matches can receive lower scores.
+2. **Longest query phrase first when scores tie.** If two transcripts have the same best lexical score, prefer the transcript whose matching query phrase contains more words. A specific multi-word phrase therefore outranks a single-word query when their lexical scores are equal.
+3. **Semantic RRF as the next tie-breaker.** If best lexical score and query-phrase word count are equal, use the transcript's semantic RRF score.
+4. **Best raw semantic score as the final ranking tie-breaker** in the current implementation.
+
+The phrase-length comparison uses the number of words in the query phrase associated with the qualifying lexical match. It does not award extra lexical credit merely because a transcript contains many repeated occurrences. Duplicate occurrences of the same lexical match are deduplicated for display/range handling.
+
+## 59.2 The fuzzy slider is a threshold, not a universal score
+
+The lexical fuzzy slider applies the same acceptance threshold to all query phrases in a search. Each candidate's score is calculated from its own word-level match quality, so two matches accepted at the same slider position can have different lexical scores.
+
+The threshold determines which matches qualify; the resulting lexical score determines their relative order. Exact matches typically score `1.0`, while approximate matches may score below `1.0` and still qualify if they meet the configured word-level threshold. Consequently, changing the slider is not required to compare the scores of matches already accepted at the current setting.
+
+## 59.3 Sentence-heavy weighted reciprocal rank fusion
+
+Semantic-only transcript groups are ranked using weighted reciprocal rank fusion (RRF). RRF combines the rank positions supplied by several retrieval representations rather than directly adding their raw similarity scores.
+
+The current configuration is:
+
+| Evidence source | Weight |
+|---|---:|
+| Sentence-level retrieval | 2 |
+| Contextual chunks, 3–1 | 1 |
+| Contextual chunks, 5–2 | 1 |
+| Contextual chunks, 7–3 | 1 |
+| IDF-weighted transcript-token overlap | 1 |
+
+The RRF constant is `k = 30`. Each positive transcript rank contributes `weight / (30 + rank)` to that transcript's fused score. The sentence-level list receives twice the weight of any one contextual representation or the IDF-overlap list, making this a **sentence-heavy** rather than representation-neutral fusion policy.
+
+For each retrieval list, the transcript rank represents the rank of its strongest passage for that list. The contributions are combined across the query's retrieval lists. The IDF-weighted token-overlap list supplies additional ranking evidence only; it does not create a result card and does not bypass the lexical-first boundary.
+
+The ranking intentionally does not force all results from a particular representation family ahead of results from another family simply because of the representation label. Semantic-only results are ordered by fused RRF score, with best raw semantic score used as a further tie-breaker.
+
+## 59.4 Why the two ranking stages are separate
+
+Lexical and semantic ranking solve different problems:
+
+- **Lexical matching** preserves direct evidence in the transcript, including exact phrases that a semantic model may rank weakly or miss entirely.
+- **Semantic retrieval** helps find related ideas when the query wording is absent or different.
+- **Lexical tie-breaking** prioritizes the quality and specificity of direct wording matches before semantic evidence is considered.
+- **Sentence-heavy RRF** balances semantic evidence while giving direct sentence-level retrieval more influence than any single contextual representation.
+
+This distinction is important for multi-term queries. A transcript that exactly contains a distinctive phrase such as “center of it all” should not be pushed far down the lexical tier merely because many other transcripts rank more highly for a separate semantic term such as “samadhi.” When lexical scores tie, phrase length provides a predictable specificity preference before semantic ranking is consulted.
+
+## 59.5 Preservation and validation boundaries
+
+The ranking change does not alter transcript text, lexical match qualification, the configured fuzzy threshold, embeddings, retrieval representations, contextual overlap suppression, transcript grouping, highlighting colors, or Search-to-Combine handoff. It changes ordering within the lexical tier and retains sentence-heavy RRF for semantic-only results.
+
+Source-level syntax checks have passed for the revised Search JavaScript. This is not equivalent to exhaustive end-to-end validation against the full transcript archive. Practical searches should confirm that exact lexical matches appear first, longer phrases win equal-score ties, and semantic-only results follow the weighted RRF order.
