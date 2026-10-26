@@ -821,6 +821,13 @@ button:disabled {
     align-items: stretch;
 }
 
+.search-instructions {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 .search-input-wrap {
     position: relative;
     flex: 1 1 auto;
