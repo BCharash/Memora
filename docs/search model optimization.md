@@ -4,6 +4,17 @@
 handoff**\
 **Prepared:** 2026-10-23
 
+> **CURRENT GOVERNING STATUS — 2026-10-26**
+>
+> The newest decision is that the primary benchmark must be **blind and target-free at query creation time**. Do not require every query to have a preselected target transcript in the primary open-ended search benchmark. Construct plausible searches first, run all ranking methods, preserve the results, and assess relevance afterward across the returned corpus candidates. A query may yield several relevant transcripts or none.
+>
+> Target-known queries remain useful as a separate, secondary diagnostic track for controlled tests of specific retrieval capabilities. They must not replace or dominate the primary blind benchmark.
+>
+> A new standalone lab has been created: `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.html` (also packaged in a ZIP with the same filename). It contains 40 target-free queries in four categories: distinctive lexical, specific semantic, general semantic, and mixed literal-plus-context. The query themes were informed by the corpus, so this is target-free evaluation, not a fully corpus-independent query sample. The new lab has passed a JavaScript syntax check; a full browser/model run has **not** yet been verified.
+>
+> This status note supersedes conflicting earlier wording below wherever it says that every primary benchmark query must have a known target before retrieval. Older target-known benchmark plans and results remain historical evidence and should not be deleted or silently relabelled.
+
+
 ## 1. Purpose and governing principle
 
 Memora search is a **memory-recovery tool**. The user is trying to find
@@ -2465,3 +2476,155 @@ RRF can only rescue a target when at least one of its component lists gives the 
 - That any ranking change is ready for production.
 
 **Next executable action:** inspect the available Search Laboratory source and reports, verify whether full passage-level scores for the 15 broad queries exist, and generate a complete export if they do not. Only then run the exact same-data comparison and use the blinded relevance review to evaluate false-negative changes.
+
+---
+
+# Dated Addendum — Blind Retrieval Benchmark and Current Search-Quality Direction
+
+**Prepared:** 2026-10-26  
+**Purpose:** Record the current benchmark decision, the new target-free laboratory, and the next work sequence. This addendum governs the next experiment where earlier passages in this document conflict with it.
+
+## 1. The central evaluation decision
+
+The user identified an important source of bias in a benchmark where every query is paired with a target selected in advance: knowing the intended transcript can shape query wording and makes it tempting to evaluate success as retrieval of that preselected answer. That is useful for controlled diagnostics, but it does not fully represent real use of Memora, where a person often searches without knowing which recording contains the memory.
+
+The **primary benchmark is therefore blind, open-ended retrieval**:
+
+1. Create plausible queries without assigning a target transcript to each query.
+2. Freeze the query set before comparing ranking methods.
+3. Run every method against the same corpus and preserve the full rankings and scores.
+4. Assess relevance only after retrieval, pooling results across methods and depths where practical.
+5. Allow a query to have multiple relevant transcripts, no confidently relevant result, or uncertain judgments.
+6. Keep unreviewed results labelled **unjudged**; do not treat them as irrelevant.
+
+The primary question is: **What useful material does Memora retrieve for a realistic search, and where does it appear in the ranking?** It is not simply whether a known target appears at rank one.
+
+## 2. Keep two tracks, with distinct purposes
+
+### Track A — Blind open-ended benchmark (primary)
+
+Queries are created without a target transcript assignment. The relevance review happens after retrieval. This track evaluates realistic rediscovery, result usefulness, ranking, clutter, and missed relevant material.
+
+Query categories in the new lab:
+
+- **Distinctive lexical:** a specific word or phrase, including approximate or imperfect wording.
+- **Specific semantic:** a detailed recollection whose wording need not match the transcript.
+- **General semantic:** a broad or incomplete recollection.
+- **Mixed literal + context:** specific lexical clues combined with descriptive context.
+
+These categories describe intended search behaviour; they do not assert that a query has one correct answer. A query can be lexical, semantic, or mixed regardless of whether its relevant transcripts are known before the search. The category should be assigned based on the query's intended character, not on which method happens to perform well.
+
+### Track B — Target-known diagnostic benchmark (secondary)
+
+Use a known transcript/passage when testing a defined capability, such as whether a specific phrase is retrieved, whether a paraphrase can reach its source recording, or whether a ranking change demotes a known relevant item. Keep these results separate from Track A's open-ended results and label target-retrieval metrics accordingly.
+
+Do not mix target-known success rates into the blind benchmark's metrics as if they measured the same thing.
+
+## 3. New laboratory artifact
+
+- **HTML:** `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.html`
+- **ZIP:** `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.zip`
+- The ZIP contains the HTML under its original filename.
+- The lab includes 40 queries, evenly divided among the four categories above, with no target transcript assigned to any query.
+- It preserves the general comparison goal across lexical, semantic, and composite retrieval approaches and supports experiment/report exports as implemented in the lab.
+
+### Provenance and verification limits
+
+The query themes were informed by the transcript corpus. Therefore the benchmark is target-free, but not fully independent of the corpus. The lab's JavaScript passed a syntax check. This does **not** establish that archive loading, embedding loading, model inference, ranking comparisons, judgments, or exports have all been exercised successfully in a browser. A full run remains outstanding.
+
+The previous general-query lab should be preserved as a historical baseline. Do not overwrite it or assume the new lab has demonstrated better search quality merely because it uses a more suitable protocol.
+
+## 4. Relevance review protocol for the blind track
+
+Use a pooled review across methods so that relevance judgments do not depend only on one method's top results. Include disagreements between methods and, where practical, a sample from below the leading ranks. Review transcript context sufficient to decide whether the result could help the user rediscover a memory.
+
+Use these labels:
+
+- **Relevant / useful:** the transcript genuinely helps with the recollection.
+- **Irrelevant:** the transcript does not help locate the remembered material.
+- **Uncertain:** available evidence is insufficient.
+- **Unjudged:** not yet reviewed.
+
+If distinguishing a directly matching passage from a useful alternative is helpful, retain that distinction in a separate field; do not require every relevant result to be the unique predesignated target.
+
+For open-ended queries, a result is not irrelevant merely because it was not expected in advance. Conversely, lexical overlap or high cosine similarity alone does not establish relevance. If a query is too vague to support a confident relevance judgment, preserve that uncertainty.
+
+Because the queries were designed with knowledge of the corpus, document that limitation. If a stronger independence test is later needed, use naturally occurring user queries collected before seeing results, or have query writers who have not inspected the archive create the queries.
+
+## 5. How to interpret results
+
+For Track A, prioritize measures that match open-ended search:
+
+- judged relevant results in the top 5, 10, and 20;
+- rank and distribution of relevant results;
+- irrelevant results a user would encounter before finding useful material;
+- number of queries for which each method finds at least one useful result;
+- useful-result coverage across query categories;
+- relevant results found only at deeper ranks or by one particular method;
+- uncertain and unjudged counts, reported separately;
+- examples of both successful and misleading retrieval.
+
+Use precision-like or graded-ranking measures only when the judged pool supports them. Do not claim complete recall when relevant items outside the judged pool may remain undiscovered. Do not use target MRR or target Recall@k as primary metrics for Track A because no single target is assigned in advance. Those remain appropriate for Track B.
+
+For Track B, retain the established target rank, Recall@k, MRR, and target-loss diagnostics. Keep the two tracks' metrics and conclusions explicitly separated.
+
+## 6. Lexical priority remains an open design question
+
+The user's working hypothesis is that a strong, distinctive lexical match should generally be surfaced prominently, while broad/common-word overlap should not automatically outrank a better semantic match. This is a hypothesis to test, not a settled production rule.
+
+Compare, at minimum:
+
+- lexical-only;
+- semantic-only;
+- current composite/baseline;
+- a composite that gives strong, distinctive lexical evidence priority;
+- where available, a more permissive lexical-overlap diagnostic.
+
+The benchmark should include distinctive phrases, imperfect/approximate wording, common terms, specific paraphrases, broad descriptions, and mixed queries. Inspect cases individually: a lexical result can be an incidental match, and a semantically strong result can be misleading. Do not impose a rule that every lexical hit must outrank every semantic hit without evidence.
+
+The earlier 15-query general-search audit, its provisional relevance labels, RRF comparisons, and score-normalization experiments remain separate historical evidence. Their labels were not independent human judgments, and they do not settle the lexical-priority question.
+
+## 7. Immediate next steps
+
+1. Load the same 114-transcript archive and embedding cache used in the earlier experiments, verifying their identity and coverage.
+2. Run the new 40-query lab against the available ranking methods. Save the complete report and record whether every query/method combination completed.
+3. Inspect export completeness, errors, and candidate/ranking counts before interpreting the results.
+4. Pool candidates across methods and review relevance after retrieval, keeping unjudged items distinct.
+5. Compare methods on the same queries and reviewed pool, reporting category-level results and representative failures.
+6. Use Track B target-known diagnostics only for specific failure investigations or controlled capability tests.
+7. Do not change production ranking until the comparison is sufficiently complete and its limitations are understood.
+
+## 8. Current decision/status log
+
+**Decisions now governing the work**
+
+- The purpose remains transcript rediscovery from imperfect recollection, not question answering.
+- The primary benchmark is target-free at query creation time; relevance is assessed after retrieval.
+- Target-known queries are a separate secondary diagnostic track.
+- Queries may have multiple relevant results or none; no target is assumed by default.
+- Unjudged is not synonymous with irrelevant.
+- Compare lexical-only, semantic-only, and composite approaches using the same query set and preserve full candidate evidence.
+- Strong distinctive lexical evidence may deserve priority, but common-word matches must be distinguished from specific phrase matches. The ranking rule is not yet settled.
+- Do not modify production ranking before evidence supports a change.
+
+**Current artifact**
+
+- `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.html`
+- `Memora_Blind_Retrieval_Benchmark_Lab_2026-10-26.zip`
+
+**Verified so far**
+
+- The HTML file exists and was packaged in the ZIP.
+- The suite contains 40 queries across four categories, with no assigned target transcripts.
+- A JavaScript syntax check passed.
+
+**Not yet verified**
+
+- A full browser/model run using the transcript archive and embedding cache.
+- Complete successful execution of every query across every method.
+- Relevance judgments for the new suite.
+- Whether lexical-priority composite ranking improves open-ended search.
+- Whether any ranking change should be made in production.
+
+**Next executable action:** run the new lab with the same corpus and embeddings, export the complete results, and verify run completeness before starting the relevance review.
+
