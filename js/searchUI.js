@@ -1511,17 +1511,27 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         // Keep the button enabled so its selected state can be shown in bold,
         // rather than using the browser's greyed-out disabled appearance.
         textarea.focus({ preventScroll: true });
-        // Keep the insertion point at the start without scrolling the textarea.
-        textarea.setSelectionRange(0, 0);
-        textarea.scrollTop = 0;
+        // Select the first marked sentence as soon as Edit opens, rather than
+        // leaving the caret at the start until the user presses Next match.
+        // This makes the first semantic/lexical match immediately visible.
+        const firstMarkedText = markedTextRanges[0] || null;
+        if (firstMarkedText) {
+            textarea.setSelectionRange(firstMarkedText.start, firstMarkedText.end);
+        } else {
+            textarea.setSelectionRange(0, 0);
+            textarea.scrollTop = 0;
+        }
 
-        // Once the newly revealed editor has been laid out, scroll so the top
-        // of the editing area is centered in the viewport. This is especially
-        // helpful when Edit is selected directly from the collapsed result view.
+        // Once the newly revealed editor has been laid out, center the editing
+        // area in the viewport and, when present, scroll the first marked
+        // sentence into view inside the textarea.
         requestAnimationFrame(() => {
             const editorTop = textarea.getBoundingClientRect().top + window.scrollY;
             const targetScrollY = editorTop - (window.innerHeight / 2);
             window.scrollTo({ top: Math.max(0, targetScrollY), left: window.scrollX, behavior: "instant" });
+            if (firstMarkedText) {
+                scrollMarkedTextToCenter(firstMarkedText);
+            }
         });
     });
 }
