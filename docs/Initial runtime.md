@@ -2,7 +2,31 @@
 
 ## Updated scope and order — 29 October 2026
 
-Progress: the iOS worker and Combine export renames have been implemented and passed the user's testing. The next read-only inventory is recorded in [File workflow inventory](File_Workflow_Inventory.md). Runtime consolidation and sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work and the newly confirmed database blocker are recorded below. The [file workflow inventory](File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+
+### Current implementation and test evidence
+
+| Change | Status and evidence |
+|---|---|
+| iOS worker renamed to `whisper-ios-worker.js` | Implemented; user reported the requested iPhone tests worked. |
+| Combine module renamed to `combineShareExport.js` | Implemented; user reported no issues after the export test checklist. |
+| Shared runtime API | Implemented in `runtime.js`: immutable identity, separate OS/type/class, platform helpers, and live capability queries. Eleven representative classification fixtures passed. User confirmed startup, Settings, and Search worked. Fixtures are simulated classification checks, not real-device coverage of all represented platforms. |
+| Settings runtime display | Implemented; user confirmed the updated worker/requested-backend descriptions were correct. Browser label still uses the legacy reporting accessor. |
+| Production Whisper detection | Migrated to shared `isIOS`; user confirmed Tiny transcription on desktop and iPhone. Other model families were not tested in this step. |
+| Whisper self-test detection | Migrated to shared `isIOS`; user reported success following the requested standalone Tiny desktop/iPhone checklist. No broader sequence/model validation is implied. |
+| Settings registry target detection | Implemented by removing its duplicate predicate. Local parsing and target checks passed. Real UI verification is blocked on the Mac by the missing `modelRegistry` store; iPhone verification of this last change has not occurred. |
+
+These are session reports, not a complete build-specific acceptance record. Capture revision, browser/device details, and exact checks in the next implementation handoff. At this documentation update, the latest Settings predicate change remains a local code modification; do not mistake it for a tested deployment.
+
+### Remaining runtime work
+
+1. After database repair, verify Settings' current-device registry view: WebGPU configurations on desktop and WASM configurations on iPhone. Do not run large models merely to check filtering.
+2. Review Search audio's `isIPhoneBrowser()` separately. Its predicate includes iPhone/iPod and Mac-with-touch iPads but omits explicitly identified iPads. Replacing it directly with `isIOS` would expand behavior; first trace its controls/picker branches and decide whether to preserve or deliberately correct that distinction. Verify audio loading/playback on affected devices after any change.
+3. Retire or reconcile legacy `getRuntimeInfo()` reporting in a separate compatibility change. Settings still uses it for browser naming; its old device and Whisper fields remain present and can contradict the new API if reused. Keep one truthful reporting contract without changing production routing.
+4. Update self-test environment wording/capability reporting separately if needed: existing `Desktop`/`WebGPU` labels are retained for compatibility and do not constitute actual execution evidence. Defer durable run evidence to the registry overhaul.
+5. Update documentation and perform a final search for duplicate detection. Do not replace capability/source checks with device flags or bundle sharing extraction into this completion work.
+
+The core foundation is usable now; the above items mean migration is not exhaustive. Pause further runtime changes while the confirmed database defect is addressed. See [IndexedDB repair and ownership plan](IndexedDB_Repair_and_Ownership_Plan.md). Bringing database ownership forward does not authorize the rest of the model-registry overhaul.
 
 This plan now starts with a narrow naming cleanup before runtime consolidation. Updating this document does not authorize code changes. Each implementation step should remain independently reviewable, with behavior preserved unless a change is explicitly agreed.
 
@@ -29,7 +53,7 @@ The iPhone-oriented sharing workflow is used by more than Combine. Sharing is a 
 | Workflow | Current owner/path | What to preserve |
 |---|---|---|
 | Generated transcription batch | `app.js`, including `exportIPhoneTranscripts()` | Pending batch, save button/status, and multi-file sharing. |
-| Generated combined TXT/DOCX/HTML | `iphoneCombineExport.js` and `app.js` | Format selection, busy/status state, and single-file sharing. |
+| Generated combined TXT/DOCX/HTML | `combineShareExport.js` and `app.js` | Format selection, busy/status state, and single-file sharing. |
 | Updated semantic embeddings JSON | `searchUI.js` through `storage.shareFile()` for file-input sources | Export of `search-embeddings.json`; distinguish this file from browser-internal embedding persistence. |
 | Edited transcript in Combine | `app.js` through `storage.shareFile()` for file-input sources | Edited-file content and the existing write-versus-share choice. |
 | Edited transcript in Search | `searchUI.js` through `storage.shareFile()` for file-input sources | Edited-file delivery and subsequent session reindexing behavior. |
