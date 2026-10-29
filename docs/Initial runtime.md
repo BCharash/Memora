@@ -1,5 +1,9 @@
 # Initial Runtime Identification
 
+Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
+Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 ## Updated scope and order — 29 October 2026
 
 Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](CURRENT_STATUS.md). The [file workflow inventory](File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.

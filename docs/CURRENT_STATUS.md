@@ -4,16 +4,11 @@ Updated 29 October 2026. Read this first in a new session, then inspect current 
 
 ## Immediate next action
 
-Await GitHub Pages publication of commit **`35d69cd` — migrated to central IndexedDB**, then collect the user's iPhone results. User is waiting for publication; the agent has not verified deployment or tested the phone. No further application code changes are needed before that test.
+The user confirmed iPhone verification passed for the published database integration checkpoint `35d69cd`, following the requested checklist: WASM registry view, Tiny production transcription and standalone self-test, Search/embedding reuse after reload, and cached transcript export. This is user-reported acceptance, not agent-operated device testing.
 
-On iPhone, check:
+**Stable stopping point:** Mac, iPhone, and Windows acceptance passed. No further implementation is pending within this database integration checkpoint. The user also confirmed Windows worked as expected against all recommended tests. No additional acceptance tests are requested for this checkpoint. Commit any outstanding documentation updates before the week-long break; do not commit/publish automatically.
 
-1. Settings → Whisper Models → View: Model Registry appears and the current-device view shows WASM configurations.
-2. Tiny production transcription and one standalone Tiny self-test succeed.
-3. Search works; after reload and source reselection, saved embeddings are reused.
-4. Cached transcript export/share works.
-
-If an error appears, record its exact text and operation, stop dependent changes, and investigate narrowly. Do not repeatedly run larger models or unstable sequences. After tests, update this handoff with results and actual deployed revision. Windows verification waits until the Alienware is available.
+When resuming, inspect Git status and this handoff, then choose one remaining runtime cleanup item with the user (Search audio predicate review or legacy reporting cleanup). Do not restart completed database work or repeat iPhone tests unless a new change or failure warrants it. The larger registry overhaul remains a separate next project.
 
 ## Completed work
 
@@ -33,8 +28,9 @@ If an error appears, record its exact text and operation, stop dependent changes
 | `tests/database-integration.html` | Six groups passed using production modules, an import-map test adapter, temporary database names and a separate Chrome profile. Includes binary embedding reuse, transaction rollback, registry display/error paths, and storage failure diagnostics. |
 | Existing Mac database | User inspected Chrome on a 2018 MacBook Pro: version 4, three stores, missing modelRegistry before repair; version 5, four stores afterward. |
 | Mac acceptance of integrated working build subsequently committed as `35d69cd` | User reported all requested checks passed: current-device WebGPU registry, Search/embedding reuse after reload, Tiny transcription and standalone Tiny self-test. No full content baseline comparison was performed. |
-| iPhone database integration | Pending publication/test of `35d69cd`; earlier runtime Tiny transcription/self-test tests passed before this database integration. |
-| Windows/Android/iPad database integration | Not verified in this session. |
+| iPhone database integration | User confirmed verification passed for the published `35d69cd` checkpoint after the requested registry, Tiny transcription/self-test, Search persistence, and cached export checklist. |
+| Windows database integration | User confirmed all recommended tests worked as expected. Exact Windows/browser versions were not supplied. |
+| Android/iPad database integration | Not separately verified in this session. |
 
 Four canonical stores: `transcripts` (key filename), `semanticEntries` (key id; non-unique representationKey/sourceKey indexes), `semanticMetadata` (key key), and `modelRegistry` (key id). Existing Mac data was not reset. No evidence ties earlier intermittent Settings closure/favicon flashing to a crash; Live Server reloads were a possibility, not a confirmed cause.
 
@@ -59,4 +55,4 @@ Four canonical stores: `transcripts` (key filename), `semanticEntries` (key id; 
 - [Larger registry/self-test plan](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md)
 - [Archive index](archive/README.md): paragraphing comparison, older mobile file proposal, and future iMuse migration. Five journals remain untouched; restructuring them is deferred. Search model optimization remains active because it contains governing requirements.
 
-Suggested new-session prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Resume from the pending iPhone verification of 35d69cd; preserve the small-change/test checkpoints. Do not restart completed database work.”
+Suggested new-session prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Mac, iPhone, and Windows verification of 35d69cd passed; review remaining runtime cleanup with me; preserve the small-change/test checkpoints. Do not restart completed database work.”

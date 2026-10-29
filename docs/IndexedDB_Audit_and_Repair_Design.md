@@ -1,5 +1,9 @@
 # IndexedDB audit and repair design
 
+Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
+Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 Current status: integrated in `35d69cd`, Mac acceptance passed, iPhone/Windows pending. See [current handoff](CURRENT_STATUS.md). The audit and design sections below retain their original pre-implementation context. Audited 29 October 2026 at HEAD `8391155`. The working tree also contained the uncommitted Settings shared-predicate change. No application code or database was modified by this audit.
 
 ## User-confirmed Mac localhost schema
