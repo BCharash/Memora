@@ -7,10 +7,17 @@ import {
     getModelRegistry,
     rebuildModelRegistry
 } from "./modelManager.js";
-import { getRuntimeInfo } from "./runtime.js";
+import { getRuntimeInfo, runtimeIdentity, isIOS, getRuntimeCapabilities } from "./runtime.js";
 import { clearWhisperResources } from "./whisper.js";
 import { getWhisperSelfTestOptions, runWhisperSelfTest } from "./whisperSelfTest.js";
 import { collectDomDiagnostics, formatDomDiagnostics } from "./domDiagnostics.js";
+
+// Describes current routing policy, not confirmation of model execution.
+function getWhisperRuntimeDescription() {
+    return isIOS
+        ? "Transformers.js 3.7.2 · worker · requested backend: WASM"
+        : "Transformers.js 4.0.0 · worker · requested backend: WebGPU";
+}
 
 export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
@@ -163,18 +170,26 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (!runtime) return;
 
         const info = getRuntimeInfo();
+        const capabilities = getRuntimeCapabilities();
+        const platformLabels = {
+            ios: "iOS / iPadOS", android: "Android", windows: "Windows",
+            macos: "macOS", linux: "Linux", unknown: "Unknown"
+        };
+        const deviceLabels = {
+            phone: "Phone", tablet: "Tablet", desktop: "Desktop", unknown: "Unknown"
+        };
 
         runtime.innerHTML = [
-            row("Platform", info.platform),
+            row("Platform", platformLabels[runtimeIdentity.operatingSystem]),
             row("Browser", info.browser),
-            row("Device", info.deviceType),
+            row("Device", deviceLabels[runtimeIdentity.deviceType]),
             row(
                 "Whisper",
-                `Transformers.js ${info.whisper.transformersVersion} · ${info.whisper.execution} · ${info.whisper.acceleration}`
+                getWhisperRuntimeDescription()
             ),
             row(
-                "WebGPU",
-                info.webgpu ? "Available" : "Not available"
+                "WebGPU API",
+                capabilities.webgpu ? "Present (execution not verified)" : "Not present"
             ),
             row(
                 "Semantic search",
@@ -429,10 +444,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             large: "whisper-large-v3"
         };
 
-        const runtime = getRuntimeInfo();
-        const runtimeText =
-            `Transformers.js ${runtime.whisper.transformersVersion} · ` +
-            `${runtime.whisper.execution} · ${runtime.whisper.acceleration}`;
+        const runtimeText = getWhisperRuntimeDescription();
 
         detail.innerHTML = modelAvailability.map(item => {
             const cachedName = whisperCacheNames[item.model];
