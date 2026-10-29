@@ -2,6 +2,7 @@ import {
     getModelDefinition,
     getModelRegistryBaseline
 } from "./modelManager.js";
+import { isIOS } from "./runtime.js";
 
 
 // --------------------------------------------------
@@ -21,15 +22,6 @@ async function loadTransformers() {
     );
 
     return transformers;
-}
-
-
-function isIOSDevice() {
-
-    return (
-        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-    );
 }
 
 
@@ -294,11 +286,8 @@ async function loadTranscriberDefinition(
         repository: definition.repository,
         dtype: definition.dtype ?? definition.preferredDtype ?? null,
         transformersVersion: "4.0.0",
-        runtime: isIOSDevice() ? "iphone-worker" : "webgpu",
+        runtime: isIOS ? "iphone-worker" : "webgpu",
     });
-
-    const isIOS =
-        isIOSDevice();
 
     if (statusCallback) {
         statusCallback(
@@ -385,7 +374,7 @@ async function loadTranscriberDefinition(
         // A failed load can leave a partially-created pipeline behind.
         // Terminate the worker explicitly because transcriber is only assigned
         // after the worker reports a successful load.
-        if (isIOSDevice()) {
+        if (isIOS) {
             if (whisperWorker) {
                 whisperWorker.terminate();
                 whisperWorker = null;
@@ -417,7 +406,7 @@ async function loadTranscriberDefinition(
 
     if (statusCallback) {
         statusCallback(
-            isIOSDevice()
+            isIOS
                 ? `Whisper ${identity} loaded on iPhone/iPad.`
                 : `Whisper ${identity} loaded using WebGPU.`
         );
@@ -546,7 +535,7 @@ export async function transcribeAudio(
         );
     }
 
-    if (isIOSDevice()) {
+    if (isIOS) {
 
         if (!whisperWorker) {
             throw new Error(
