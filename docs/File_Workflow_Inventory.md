@@ -32,9 +32,7 @@ These are behavior differences to preserve during naming work and explicitly set
 
 ## Smallest next code change
 
-Update after core runtime migration: the original sequence below has progressed. Further runtime work is paused for a confirmed missing registry store. See [current runtime status](Initial%20runtime.md) and the [IndexedDB repair and ownership plan](IndexedDB_Repair_and_Ownership_Plan.md) for the next checkpoints. This inventory remains an overview; complete dependency tracing when each file workflow is changed rather than expanding the full audit now.
-
-Follow the runtime plan next: first introduce the shared immutable environment API with compatibility accessors, without migrating consumers in the same change. Then migrate consumers one at a time. Review the snapshot contract against the larger registry plan; keep requested and actual execution evidence distinct from device identity.
+Current checkpoint: core runtime migration is substantially complete; the canonical IndexedDB manager is integrated and Mac acceptance passed. iPhone verification is pending for commit `35d69cd`. See [current handoff](CURRENT_STATUS.md) before resuming work. This inventory remains an overview; trace dependencies fully when changing each file workflow. Sharing extraction/consolidation has not been implemented.
 
 Sharing consolidation can follow separately. Prefer evaluating a multi-file helper in `storage.js` before creating another delivery module. Define cancellation/error outcomes before migrating any caller; leave feature controls, pending batches, archive state, and reindexing with their existing feature owners. Extracting transcription controls into `transcriptionShareExport.js` is optional and should be its own change.
 

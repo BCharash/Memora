@@ -1,6 +1,6 @@
 # IndexedDB audit and repair design
 
-First natural break point: repository audit complete; user has confirmed the live store/index inventory. Implementation remains pending. Audited 29 October 2026 at HEAD `8391155`. The working tree also contained the uncommitted Settings shared-predicate change. No application code or database was modified by this audit.
+Current status: integrated in `35d69cd`, Mac acceptance passed, iPhone/Windows pending. See [current handoff](CURRENT_STATUS.md). The audit and design sections below retain their original pre-implementation context. Audited 29 October 2026 at HEAD `8391155`. The working tree also contained the uncommitted Settings shared-predicate change. No application code or database was modified by this audit.
 
 ## User-confirmed Mac localhost schema
 
@@ -67,7 +67,9 @@ Handle blocked upgrades visibly. An open request cannot simply be cancelled afte
 6. Verify the user's existing Mac database after isolated tests pass; compare baseline counts/representative records and test registry display, semantic reuse/reload, cached transcripts and Settings accounting. Reading registry may legitimately add baseline definitions; account for that expected difference.
 7. Publish once for relevant iPhone checks after Mac success. Retain a forward-fix strategy: old version-4 code cannot be assumed to work with an upgraded database. Close/reload other Memora tabs during deployment and handle blocked cases without reset. No downgrade/delete is proposed.
 
-## Next session handoff
+## Checkpoint history (newest first)
+
+Current next action: collect iPhone results for deployed `35d69cd`; do not repeat completed manager implementation. Earlier checkpoint statements below describe their historical state, not outstanding implementation work.
 
 Mac acceptance: user reported all requested checks passed in Chrome on the 2018 MacBook Pro: registry display/current-device WebGPU filter, Search with embedding reuse after reload, Tiny production transcription, and standalone Tiny self-test. DevTools confirmed version 5 with four stores: modelRegistry, semanticEntries, semanticMetadata, and transcripts (user typed “transcrips”). This is user-reported acceptance on the current local working build, not Windows/iPhone acceptance or a full content-preservation comparison. Natural break reached before commit/publication and iPhone tests. No storage reset was needed.
 

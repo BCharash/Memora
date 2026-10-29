@@ -1,8 +1,8 @@
 # IndexedDB repair and ownership plan
 
-Status: proposed implementation sequence, 29 October 2026. Documentation only; no database repair or manager implementation has been authorized by this update. This brings the database foundation from the model-registry/self-test architecture plan forward, without starting its resolver, eligibility, or evidence redesign.
+Status: implemented in `35d69cd` and verified locally by the user on Mac Chrome, 29 October 2026. iPhone deployment verification and Windows acceptance remain pending. See [current handoff](CURRENT_STATUS.md). This brings the database foundation from the model-registry/self-test architecture plan forward, without starting its resolver, eligibility, or evidence redesign.
 
-## Confirmed problem
+## Original problem (repaired on Mac)
 
 On the user's 2018 MacBook Pro, Chrome serving Memora through VS Code Live Server, opening Whisper Models did not show Model Registry. The supplied Console trace confirms `NotFoundError` at `storage.js:409` when `listModelRegistryRecords()` requests a transaction on `modelRegistry`. That confirms the required store is absent in the database opened by this path. Inspect the live database version and full store/index inventory before repair; the prior architecture plan records a version-4 missing-store observation, but the current Console trace alone does not establish version.
 
@@ -12,11 +12,7 @@ Code inspection finds different database owners: `storage.js` opens Memora versi
 
 ## Ordered checkpoints
 
-Mac acceptance update: user reports the requested local checks all passed and confirms version 5 with all four stores. The current stopping point is before publication/iPhone verification. Windows checks remain pending until available. See the audit handoff for detailed evidence and earlier implementation history.
-
-Implementation update: the canonical owner is integrated locally and isolated schema/production-module checks pass. Actual Mac and iPhone acceptance remain pending. See the latest integration checkpoint in [the audit](IndexedDB_Audit_and_Repair_Design.md). No databases were reset; `imuse-recording-breadboard` is explicitly outside scope. User has confirmed current data is disposable if recovery becomes necessary, but no deletion is part of the normal upgrade.
-
-Repository audit and concrete design are recorded in [IndexedDB audit and repair design](IndexedDB_Audit_and_Repair_Design.md). This is the first natural break point. Live schema metadata and browser repair tests remain pending; the manager and upgrade are not implemented.
+Current checkpoint: all openers use the version-5 owner; isolated tests passed (12 schema groups, six integration groups), and the user confirmed Mac registry, Search persistence, Tiny transcription/self-test, and all four stores. Commit `35d69cd` is awaiting GitHub Pages/iPhone verification. The sequence below records the implementation approach; it is not a list of wholly unstarted tasks. See [audit and repair design](IndexedDB_Audit_and_Repair_Design.md).
 
 1. **Audit before code changes.** Search the entire repository for database opens, upgrades, transactions, deletion/reset paths, and connection lifecycles. Inventory every store, key path, index, caller, and preservation/recovery requirement. Distinguish IndexedDB from Cache Storage and browser model caches. Record the live origin, database version, store/index names, and baseline counts without dumping transcript/embedding contents. Audit reporting reads for unnecessary bulk loading. Deliver a reviewed dependency map and exact upgrade design.
 2. **Implement one database owner.** Choose a small module such as `database.js` after the audit. It alone owns opening Memora, schema definitions, validation, upgrades, and connection handling. Serialize concurrent initialization. Define whether consumers borrow a connection or obtain short-lived connections before migrating callers; do not leave callers closing a shared connection unexpectedly. Keep the new owner unused until its isolated checks pass.
@@ -33,7 +29,7 @@ Repository audit and concrete design are recorded in [IndexedDB audit and repair
 - Existing transcript records, semantic data, registry evidence, and model assets must survive the repair.
 - A restored older app build may be unable to open a newer database if it hardcodes version 4. Define a compatible rollback/forward-fix strategy before deployment; reverting JavaScript is not automatically a database downgrade.
 - Test each independently deployable change and pause for the user's results. A schema transition may require a coordinated change across files; splitting its deployment into incompatible intermediate versions increases risk.
-- Do not commit or publish without user instruction. No new real-device or database recovery tests were run for this document.
+- Do not commit or publish without user instruction. Test evidence and remaining device checks are recorded in CURRENT_STATUS.md.
 
 ## Completion evidence
 

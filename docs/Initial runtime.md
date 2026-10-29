@@ -2,7 +2,7 @@
 
 ## Updated scope and order — 29 October 2026
 
-Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work and the newly confirmed database blocker are recorded below. The [file workflow inventory](File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](CURRENT_STATUS.md). The [file workflow inventory](File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
 
 ### Current implementation and test evidence
 
@@ -14,19 +14,19 @@ Progress: the naming cleanup and core runtime migration are substantially comple
 | Settings runtime display | Implemented; user confirmed the updated worker/requested-backend descriptions were correct. Browser label still uses the legacy reporting accessor. |
 | Production Whisper detection | Migrated to shared `isIOS`; user confirmed Tiny transcription on desktop and iPhone. Other model families were not tested in this step. |
 | Whisper self-test detection | Migrated to shared `isIOS`; user reported success following the requested standalone Tiny desktop/iPhone checklist. No broader sequence/model validation is implied. |
-| Settings registry target detection | Implemented by removing its duplicate predicate. Local parsing and target checks passed. Real UI verification is blocked on the Mac by the missing `modelRegistry` store; iPhone verification of this last change has not occurred. |
+| Settings registry target detection | Implemented by removing its duplicate predicate. Local parsing and target checks passed. Mac UI verification passed after database repair; iPhone verification awaits the current deployment. |
 
-These are session reports, not a complete build-specific acceptance record. Capture revision, browser/device details, and exact checks in the next implementation handoff. At this documentation update, the latest Settings predicate change remains a local code modification; do not mistake it for a tested deployment.
+These are session reports, not a complete cross-device acceptance record. The integrated database/runtime checkpoint is committed as `35d69cd`; see [current handoff](CURRENT_STATUS.md) for build identity, actual verification, and remaining tests.
 
 ### Remaining runtime work
 
-1. After database repair, verify Settings' current-device registry view: WebGPU configurations on desktop and WASM configurations on iPhone. Do not run large models merely to check filtering.
+1. Mac verification of Settings' current-device WebGPU registry view passed after database repair; verify WASM configurations on iPhone after deployment. Do not run large models merely to check filtering.
 2. Review Search audio's `isIPhoneBrowser()` separately. Its predicate includes iPhone/iPod and Mac-with-touch iPads but omits explicitly identified iPads. Replacing it directly with `isIOS` would expand behavior; first trace its controls/picker branches and decide whether to preserve or deliberately correct that distinction. Verify audio loading/playback on affected devices after any change.
 3. Retire or reconcile legacy `getRuntimeInfo()` reporting in a separate compatibility change. Settings still uses it for browser naming; its old device and Whisper fields remain present and can contradict the new API if reused. Keep one truthful reporting contract without changing production routing.
 4. Update self-test environment wording/capability reporting separately if needed: existing `Desktop`/`WebGPU` labels are retained for compatibility and do not constitute actual execution evidence. Defer durable run evidence to the registry overhaul.
 5. Update documentation and perform a final search for duplicate detection. Do not replace capability/source checks with device flags or bundle sharing extraction into this completion work.
 
-The core foundation is usable now; the above items mean migration is not exhaustive. Pause further runtime changes while the confirmed database defect is addressed. See [IndexedDB repair and ownership plan](IndexedDB_Repair_and_Ownership_Plan.md). Bringing database ownership forward does not authorize the rest of the model-registry overhaul.
+The core foundation is usable now; the above items mean migration is not exhaustive. Pause further runtime changes until the current iPhone database checks are complete. See [IndexedDB repair and ownership plan](IndexedDB_Repair_and_Ownership_Plan.md). Bringing database ownership forward does not authorize the rest of the model-registry overhaul.
 
 This plan now starts with a narrow naming cleanup before runtime consolidation. Updating this document does not authorize code changes. Each implementation step should remain independently reviewable, with behavior preserved unless a change is explicitly agreed.
 

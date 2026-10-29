@@ -7,6 +7,8 @@ o# Memora — Model Registry and Self-Test Architecture Overhaul
 
 ## Handoff summary — read this first when resuming
 
+**29 October 2026 progress:** prerequisite runtime consolidation and the database foundation were brought forward under separate user authorization. Commit `35d69cd` centralizes Memora schema version 5; isolated tests and Mac acceptance passed. iPhone verification is pending, Windows untested. The full model/worker/evidence audit, resolver, eligibility, and durable self-test redesign remain outstanding. Read [CURRENT_STATUS.md](CURRENT_STATUS.md) first; older stage placeholders below are the original proposal, not proof that database work remains unimplemented.
+
 **Project goal:** Make Whisper model definitions, environment assessment, self-test evidence, eligibility, and production loading consistent and trustworthy across desktop and iPhone.
 
 **Current status:** This is a design proposal. No implementation work is authorized by this document alone. Inspect the current repository and device builds before translating this plan into code; this document is not proof that the current code still behaves as described.
