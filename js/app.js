@@ -7,7 +7,7 @@ import {
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
 import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
-import { initIPhoneCombineExportUI } from "./iphoneCombineExport.js";
+import { initCombineShareExportUI } from "./combineShareExport.js";
 import { initSettingsUI } from "./settings.js";
 
 // --------------------------------------------------
@@ -1377,7 +1377,7 @@ if (combineDestinationButton) {
 }
 
 
-const iphoneCombineExportUI = initIPhoneCombineExportUI({
+const combineShareExportUI = initCombineShareExportUI({
     getTranscriptFileCount,
     onExportRequested: outputType => combineSelectedFiles(outputType)
 });
@@ -1388,7 +1388,7 @@ if (combineTitleInput) {
         "input",
         () => {
             if (textSourceHandle?.kind === "file-input") {
-                iphoneCombineExportUI.reset();
+                combineShareExportUI.reset();
             }
         }
     );
@@ -1400,7 +1400,7 @@ if (combineParagraphingCheckbox) {
         "change",
         () => {
             if (textSourceHandle?.kind === "file-input") {
-                iphoneCombineExportUI.reset();
+                combineShareExportUI.reset();
             }
         }
     );
@@ -1409,7 +1409,7 @@ if (combineParagraphingCheckbox) {
 
 initCombineUI({
     getCombineModule,
-    onSelectionChanged: iphoneCombineExportUI.reset,
+    onSelectionChanged: combineShareExportUI.reset,
     onAppendAudioControl: appendSearchAudioControl,
     getAudioSourceHandle: () => textSourceHandle,
     onSaveTranscriptEdits: async (record, updatedText) => {
@@ -1479,7 +1479,7 @@ async function combineSelectedFiles(
     try {
 
         if (isIPhoneSource) {
-            iphoneCombineExportUI.setBusy(true);
+            combineShareExportUI.setBusy(true);
         } else {
             combineTextButton.disabled = true;
             combineDOCXButton.disabled = true;
@@ -1576,7 +1576,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined TXT…";
 
-                await iphoneCombineExportUI.exportFile(file);
+                await combineShareExportUI.exportFile(file);
                 combineStatus.textContent = "";
 
             } else if (outputType === "docx") {
@@ -1603,7 +1603,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined DOCX…";
 
-                await iphoneCombineExportUI.exportFile(file);
+                await combineShareExportUI.exportFile(file);
                 combineStatus.textContent = "";
 
             } else {
@@ -1633,7 +1633,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined HTML…";
 
-                await iphoneCombineExportUI.exportFile(file);
+                await combineShareExportUI.exportFile(file);
                 combineStatus.textContent = "";
             }
 
@@ -1762,7 +1762,7 @@ async function combineSelectedFiles(
     } finally {
 
         if (isIPhoneSource) {
-            iphoneCombineExportUI.setBusy(false);
+            combineShareExportUI.setBusy(false);
         } else {
             combineTextButton.disabled = false;
             combineDOCXButton.disabled = false;

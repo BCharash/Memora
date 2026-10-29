@@ -1,4 +1,4 @@
-export function initIPhoneCombineExportUI({
+export function initCombineShareExportUI({
     getTranscriptFileCount,
     onExportRequested
 }) {
