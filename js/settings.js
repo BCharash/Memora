@@ -497,10 +497,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     function getCurrentRegistryTarget() {
-        const isIOS =
-            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
         return isIOS
             ? { platform: "ios", runtime: "wasm", label: "WASM" }
             : { platform: "desktop", runtime: "webgpu", label: "WebGPU" };
