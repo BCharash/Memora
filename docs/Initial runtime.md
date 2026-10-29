@@ -1,5 +1,48 @@
 # Initial Runtime Identification
 
+## Updated scope and order — 29 October 2026
+
+This plan now starts with a narrow naming cleanup before runtime consolidation. Updating this document does not authorize code changes. Each implementation step should remain independently reviewable, with behavior preserved unless a change is explicitly agreed.
+
+The broader change inventory below describes possible later work, not the scope of the first rename. The model-registry and self-test overhaul remains a subsequent project governed by `Memora_Model_Registry_and_Self_Test_Architecture_Plan.md`; this groundwork does not replace its repository audit, baseline capture, or safety checkpoints.
+
+### First step: naming only
+
+Use the existing kebab-case worker and camelCase application-module conventions:
+
+| Current file | Planned file | Reason |
+|---|---|---|
+| `js/whisper-worker.js` | `js/whisper-ios-worker.js` | Makes the original worker's iOS role explicit, including iPad. |
+| `js/whisper-desktop-worker.js` | Keep unchanged | Already identifies its role consistently. |
+| `js/iphoneCombineExport.js` | `js/combineShareExport.js` | Names the feature and delivery mechanism rather than implying that only iPhones can use it. |
+
+Rename the Combine initializer from `initIPhoneCombineExportUI` to `initCombineShareExportUI` and its corresponding local references consistently. Update production worker URLs in `whisper.js`, the iOS worker URL in `whisperSelfTest.js`, the Combine import/call sites in `app.js`, and current documentation references. Historical journal entries may retain the original names as historical facts.
+
+Preserve worker routing, worker messages, export behavior, HTML element IDs, user-visible wording, model configuration IDs, persisted evidence, and database schema. Do not extract transcription export code or consolidate sharing in this step. Verify references and module syntax, inspect the diff, and smoke-test worker loading and Combine export where browser/device access permits. A missed worker URL or import is the principal risk; the change is low risk, not risk-free. The working estimate for this narrow step is 20–40 minutes, excluding hands-on device testing.
+
+### File loading, saving, and sharing: current ownership
+
+The iPhone-oriented sharing workflow is used by more than Combine. Sharing is a common delivery mechanism, while file creation and interface state belong to individual features.
+
+| Workflow | Current owner/path | What to preserve |
+|---|---|---|
+| Generated transcription batch | `app.js`, including `exportIPhoneTranscripts()` | Pending batch, save button/status, and multi-file sharing. |
+| Generated combined TXT/DOCX/HTML | `iphoneCombineExport.js` and `app.js` | Format selection, busy/status state, and single-file sharing. |
+| Updated semantic embeddings JSON | `searchUI.js` through `storage.shareFile()` for file-input sources | Export of `search-embeddings.json`; distinguish this file from browser-internal embedding persistence. |
+| Edited transcript in Combine | `app.js` through `storage.shareFile()` for file-input sources | Edited-file content and the existing write-versus-share choice. |
+| Edited transcript in Search | `searchUI.js` through `storage.shareFile()` for file-input sources | Edited-file delivery and subsequent session reindexing behavior. |
+| Other file export | Settings also calls `navigator.share` directly | Include these callers in the inventory before designing a common helper. |
+
+These paths are intended to support iOS Save to Files, but several are selected by `kind === "file-input"`, not device detection. A desktop browser using the read-only file-input fallback can reach the same workflow if it supports sharing. Writable directory-handle workflows must continue to write directly where supported.
+
+An inventory must trace both load and save routes: folder selection, source descriptor, writable destination, generated or edited payload, delivery mechanism, cancellation, and UI outcome. Keep three separate inputs: device/platform for specific workarounds, browser capabilities for supported operations, and selected source/destination access for whether direct writing is possible.
+
+### Later module ownership
+
+After the inventory, a separate refactor may move transcription batch export controls/state from `app.js` to `transcriptionShareExport.js`, alongside `combineShareExport.js`. Feature modules should create their files and own their controls/status; `app.js` should coordinate them.
+
+Evaluate extending `storage.shareFile()` with a multi-file helper before adding another module. A common helper should handle the actual payload's share checks, invocation, cancellation, unsupported cases, and errors with explicit outcomes. It must not treat a completed share request as proof that a user saved to a particular destination. Feature-specific messages and state stay with the feature. Migrate batch transcripts, combined exports, embedding JSON, edited files, and Settings callers deliberately, preserving each workflow. This extraction/consolidation is separate from naming and runtime detection.
+
 ## Recommendation
 
 Yes, Memora would benefit from identifying its runtime once during application startup and exposing one consistent, read-only classification to the rest of the application. At present, platform decisions are repeated in several modules and do not use the same rules. A common startup result would make these decisions easier to find, explain, and maintain.
@@ -63,7 +106,7 @@ No code changes are made by this document. If implementation is approved later, 
 6. **`js/searchUI.js`** — assess the `isIPhoneBrowser()` branch for audio controls and file browsing. Use a device class only for user-interface behavior that truly depends on device class; retain API and source-mode checks for picker behavior. Avoid renaming this branch to “mobile” unless its behavior is verified for Android and tablets.
 7. **`js/storage.js`** — keep folder selection, writing, and share capability checks capability-driven. Consider exposing named capability helpers if multiple callers need the same behavior, while preserving the `file-input` descriptor's meaning as a read-only source mechanism. Do not route storage decisions through `isMobile`.
 8. **`js/iphoneCombineExport.js` and `js/app.js` share flow** — address duplicate file-share capability handling only if the runtime consolidation is also intended to standardize sharing. A device-class flag by itself does not centralize share policy. If a shared file-delivery abstraction is introduced, migrate single-file and batch paths deliberately and preserve feature-specific UI/state.
-9. **`js/modelManager.js`** — review the `iphone` naming and desktop/iOS registry entries. Decide whether to rename labels/IDs or retain persisted identifiers for backward compatibility. Any migration must account for registry records stored in IndexedDB and prior validation results.
+9. **`js/modelManager.js`** — retain existing persisted configuration identifiers during this groundwork. Review naming and any necessary migration in the later registry overhaul, accounting for IndexedDB records and prior validation results.
 10. **`index.html`** — potentially add a runtime data attribute or adapt initial visibility only if there is a demonstrated first-render requirement. Existing IDs and iPhone controls can be migrated separately; the `file-input`-based behavior should not be changed merely because an element name says iPhone.
 11. **`css/style.css`** — leave responsive layout based on CSS media queries. Only add device-class styling if a requirement is about platform behavior that cannot be expressed by responsive layout, and avoid duplicate visibility rules that conflict with `app.js`.
 12. **Documentation and diagnostics** — update runtime architecture notes and any stale platform claims. Include classification reason/signals in Settings diagnostics if useful, without exposing unnecessary raw user-agent data beyond the existing diagnostics behavior.
@@ -87,12 +130,12 @@ These checks should include real target browsers for file APIs, sharing, and Whi
 
 ## Suggested implementation sequence
 
-1. Agree on terminology and tablet mapping (`PC` versus `mobile`, with optional detailed types).
-2. Refactor `js/runtime.js` into the single source of device classification and define the synchronous import contract.
-3. Migrate duplicate classification in Whisper production, Whisper self-test, Settings, and Search UI, keeping API checks local to their features.
-4. Review selected-folder/file-input UI as a separate storage workflow, correcting names and comments without equating source mode to device identity.
-5. Decide separately whether file sharing should be consolidated across Transcribe, Combine, and storage callers.
-6. Validate the behavior matrix and update architecture documentation.
+1. **Rename only.** Apply the two file renames and Combine symbol updates described above. Maintain every dependency and verify that worker routing and export behavior remain unchanged.
+2. **Inventory file workflows.** Trace loading, direct writing, and sharing across transcription, Combine, Search edits, semantic embedding JSON, and Settings. Record the actual source/capability/device conditions and current owners before moving logic.
+3. **Centralize runtime identification.** Agree terminology and tablet mapping, preferably `desktop`, `mobile`, and explicit `unknown` to align with the larger plan. Create the synchronous immutable snapshot in `runtime.js`; migrate Whisper, self-test, and Settings first. Review Search's platform workarounds individually. Preserve the existing iOS/WASM versus non-iOS/WebGPU routing; Android becoming mobile does not imply switching it to the iOS worker. Correct runtime descriptions without claiming actual backend execution from API presence. Actual execution evidence belongs to individual runs, not immutable device identity.
+4. **Refactor sharing separately.** Use the inventory to define common single/batch delivery outcomes. Consider extracting `transcriptionShareExport.js` and extending the storage sharing helper. Migrate all relevant callers in small changes, preserving feature-specific controls, direct-write paths, and cancellation behavior. This is useful cleanup, not a prerequisite for starting the registry overhaul.
+5. **Validate and document each completed step.** Run checks appropriate to that change and record real-device versus simulated results. Verify supported direct-write and share workflows, including edited transcripts and embedding JSON, without bundling unrelated UI work.
+6. **Begin the model-registry/self-test overhaul.** Follow its own audit and baseline stages with the shared environment foundation in place. Database ownership, configuration resolution, eligibility, and durable execution evidence remain in that project.
 
 ## Risks and limits
 
