@@ -1,6 +1,10 @@
 # IndexedDB audit and repair design
 
-First natural break point: repository audit complete; live schema inspection and implementation remain pending. Audited 29 October 2026 at HEAD `8391155`. The working tree also contained the uncommitted Settings shared-predicate change. No application code or database was modified by this audit.
+First natural break point: repository audit complete; user has confirmed the live store/index inventory. Implementation remains pending. Audited 29 October 2026 at HEAD `8391155`. The working tree also contained the uncommitted Settings shared-predicate change. No application code or database was modified by this audit.
+
+## User-confirmed Mac localhost schema
+
+Chrome DevTools inspection on the user's 2018 MacBook Pro confirmed Memora version 4 with exactly three stores: transcripts, semanticEntries, and semanticMetadata. semanticEntries has representationKey and sourceKey indexes. modelRegistry is absent. This is the localhost database, not the separately hosted GitHub Pages/iPhone database. Record counts, key-path/index options, and representative preservation comparisons have not yet been captured; obtain them before applying the repair. No record contents were requested or shared.
 
 ## Opening and ownership map
 
@@ -65,4 +69,4 @@ Handle blocked upgrades visibly. An open request cannot simply be cancelled afte
 
 ## Next session handoff
 
-The audit/design is ready for review. Live database version/store/index metadata remains uninspected by the agent. The next implementation checkpoint is an unused manager plus isolated browser tests; no production migration until those pass. Windows and iPhone database repair behavior remain untested. Runtime migration stays paused; the Settings filter change is implemented but its Mac UI verification is blocked by the missing store.
+The audit/design is ready for review. The user confirmed the Mac localhost version/store/index names as recorded above; the agent has not accessed the live browser database. The next implementation checkpoint is an unused manager plus isolated browser tests; no production migration until those pass. Windows and iPhone database repair behavior remain untested. Runtime migration stays paused; the Settings filter change is implemented but its Mac UI verification is blocked by the missing store.
