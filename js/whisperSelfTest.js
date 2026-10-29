@@ -4,6 +4,7 @@
 
 import { decodeAudio } from "./audioProcessor.js";
 import { getModelRegistryBaseline } from "./modelManager.js";
+import { isIOS } from "./runtime.js";
 
 const TEST_AUDIO_URL = "./data/whisper-test/test-audio.m4a";
 const EXPECTED_TEXT_URL = "./data/whisper-test/expected-transcription.txt";
@@ -94,10 +95,6 @@ async function loadExpectedText() {
 }
 
 function getEnvironment() {
-    const isIOS =
-        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
     return {
         platform: isIOS ? "iOS" : "Desktop",
         runtime: isIOS ? "WASM / iPhone worker" : "WebGPU",
