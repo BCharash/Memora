@@ -2,6 +2,8 @@
 
 ## Updated scope and order — 29 October 2026
 
+Progress: the iOS worker and Combine export renames have been implemented and passed the user's testing. The next read-only inventory is recorded in [File workflow inventory](File_Workflow_Inventory.md). Runtime consolidation and sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+
 This plan now starts with a narrow naming cleanup before runtime consolidation. Updating this document does not authorize code changes. Each implementation step should remain independently reviewable, with behavior preserved unless a change is explicitly agreed.
 
 The broader change inventory below describes possible later work, not the scope of the first rename. The model-registry and self-test overhaul remains a subsequent project governed by `Memora_Model_Registry_and_Self_Test_Architecture_Plan.md`; this groundwork does not replace its repository audit, baseline capture, or safety checkpoints.
