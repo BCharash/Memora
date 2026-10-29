@@ -69,4 +69,6 @@ Handle blocked upgrades visibly. An open request cannot simply be cancelled afte
 
 ## Next session handoff
 
+Second natural break point: `js/database.js` now implements the unused version-5 schema owner. No existing application module imports it. The isolated browser harness is `tests/database.html`; see `tests/README.md`. Eleven groups passed in headless Chrome with a separate temporary profile, covering preservation, missing stores/indexes, blocked retry, concurrency, incompatible-schema rollback, and newer-version refusal. The manager is not a live repair yet. Before integration, add incompatible-index coverage, verify caller cleanup/transaction behavior, capture live preservation baselines, and prepare the coordinated opener migration. iPhone/Windows and the actual Mac database remain untested for upgrade behavior.
+
 The audit/design is ready for review. The user confirmed the Mac localhost version/store/index names as recorded above; the agent has not accessed the live browser database. The next implementation checkpoint is an unused manager plus isolated browser tests; no production migration until those pass. Windows and iPhone database repair behavior remain untested. Runtime migration stays paused; the Settings filter change is implemented but its Mac UI verification is blocked by the missing store.
