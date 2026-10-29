@@ -493,7 +493,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const toggle = storage.querySelector('[data-settings-action="toggle-whisper-models"]');
         if (toggle) toggle.textContent = "Hide";
 
-        renderModelRegistry();
+        // The renderer owns its error state; no rejected promise is left unhandled.
+        void renderModelRegistry();
     }
 
     function getCurrentRegistryTarget() {
@@ -512,102 +513,108 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const detail = document.getElementById("settingsWhisperModelsDetail");
         if (!detail) return;
 
-        const registry = await getModelRegistry();
-        const families = ["tiny", "base", "small", "medium", "large"];
-        const currentTarget = getCurrentRegistryTarget();
+        let registryContainer = document.getElementById("settingsModelRegistryContainer");
+        if (!registryContainer) {
+            registryContainer = document.createElement("div");
+            registryContainer.id = "settingsModelRegistryContainer";
+            detail.appendChild(registryContainer);
+        }
+        registryContainer.innerHTML = `<strong>Model Registry</strong><p>Loading registry…</p>`;
 
-        const matchesCurrentDevice = record =>
-            record.platform === currentTarget.platform &&
-            record.runtime === currentTarget.runtime;
+        try {
+            const registry = await getModelRegistry();
+            if (!registryContainer.isConnected) return;
+            const families = ["tiny", "base", "small", "medium", "large"];
+            const currentTarget = getCurrentRegistryTarget();
 
-        const filteredRegistry =
-            mode === "current"
-                ? registry.filter(matchesCurrentDevice)
-                : registry;
+            const matchesCurrentDevice = record =>
+                record.platform === currentTarget.platform &&
+                record.runtime === currentTarget.runtime;
 
-        const registryHtml = families.map(family => {
-            const records = filteredRegistry.filter(record => record.family === family);
-            if (!records.length) return "";
+            const filteredRegistry =
+                mode === "current"
+                    ? registry.filter(matchesCurrentDevice)
+                    : registry;
 
-            const label = records[0].label;
+            const registryHtml = families.map(family => {
+                const records = filteredRegistry.filter(record => record.family === family);
+                if (!records.length) return "";
 
-            return `
-                <div class="settings-item" style="display:block;">
-                    <div class="settings-item-name">${label}</div>
-                    ${records.map(record => {
-                        const isCurrent =
-                            mode === "all" &&
-                            matchesCurrentDevice(record);
+                const label = records[0].label;
 
-                        return `
-                            <div class="settings-item-detail" style="margin-top:8px;${isCurrent ? "font-weight:700;" : ""}">
-                                ${formatRegistryRuntime(record.runtime)} · ${formatRegistryDtype(record.configuration?.dtype)} · ${formatValidation(record.validation)}
-                            </div>
-                            <div class="settings-item-detail" style="margin-bottom:8px;${isCurrent ? "font-weight:700;" : ""}">
-                                ${record.repository}
-                            </div>
-                        `;
-                    }).join("")}
+                return `
+                    <div class="settings-item" style="display:block;">
+                        <div class="settings-item-name">${label}</div>
+                        ${records.map(record => {
+                            const isCurrent =
+                                mode === "all" &&
+                                matchesCurrentDevice(record);
+
+                            return `
+                                <div class="settings-item-detail" style="margin-top:8px;${isCurrent ? "font-weight:700;" : ""}">
+                                    ${formatRegistryRuntime(record.runtime)} · ${formatRegistryDtype(record.configuration?.dtype)} · ${formatValidation(record.validation)}
+                                </div>
+                                <div class="settings-item-detail" style="margin-bottom:8px;${isCurrent ? "font-weight:700;" : ""}">
+                                    ${record.repository}
+                                </div>
+                            `;
+                        }).join("")}
+                    </div>
+                `;
+            }).join("");
+
+            const knownCount = filteredRegistry.length;
+            const targetLabel =
+                mode === "current"
+                    ? `This device · ${currentTarget.label}`
+                    : "All devices";
+
+            registryContainer.innerHTML = `
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Model Registry</span>
+                    <span>${knownCount} known configurations</span>
+                </div>
+
+                <div class="model-registry-mode" role="radiogroup" aria-label="Model registry scope">
+                    <label class="model-registry-radio">
+                        <input
+                            type="radio"
+                            name="model-registry-scope"
+                            value="current"
+                            data-settings-action="model-registry-mode"
+                            ${mode === "current" ? "checked" : ""}
+                        >
+                        <span>This device</span>
+                    </label>
+                    <label class="model-registry-radio">
+                        <input
+                            type="radio"
+                            name="model-registry-scope"
+                            value="all"
+                            data-settings-action="model-registry-mode"
+                            ${mode === "all" ? "checked" : ""}
+                        >
+                        <span>All devices</span>
+                    </label>
+                </div>
+
+                <div class="settings-note" style="margin-bottom:10px;">
+                    Showing ${targetLabel}.
+                </div>
+
+                <div class="settings-detail" style="display:block;">
+                    ${registryHtml}
+                    <div class="action-row" style="margin-top:10px;">
+                        ${button("Rebuild Registry", "rebuild-model-registry")}
+                    </div>
                 </div>
             `;
-        }).join("");
-
-        const knownCount = filteredRegistry.length;
-        const targetLabel =
-            mode === "current"
-                ? `This device · ${currentTarget.label}`
-                : "All devices";
-
-        let registryContainer = document.getElementById("settingsModelRegistryContainer");
-
-        if (!registryContainer) {
-            detail.insertAdjacentHTML("beforeend", `
-                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:14px 0 10px;"></div>
-                <div id="settingsModelRegistryContainer"></div>
-            `);
-            registryContainer = document.getElementById("settingsModelRegistryContainer");
+        } catch (error) {
+            console.error("Settings model registry error:", error);
+            if (registryContainer.isConnected) {
+                registryContainer.innerHTML = `<strong>Model Registry unavailable</strong><p>${escapeHtml(error?.message || String(error))}</p>`;
+            }
         }
-
-        registryContainer.innerHTML = `
-            <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Model Registry</span>
-                <span>${knownCount} known configurations</span>
-            </div>
-
-            <div class="model-registry-mode" role="radiogroup" aria-label="Model registry scope">
-                <label class="model-registry-radio">
-                    <input
-                        type="radio"
-                        name="model-registry-scope"
-                        value="current"
-                        data-settings-action="model-registry-mode"
-                        ${mode === "current" ? "checked" : ""}
-                    >
-                    <span>This device</span>
-                </label>
-                <label class="model-registry-radio">
-                    <input
-                        type="radio"
-                        name="model-registry-scope"
-                        value="all"
-                        data-settings-action="model-registry-mode"
-                        ${mode === "all" ? "checked" : ""}
-                    >
-                    <span>All devices</span>
-                </label>
-            </div>
-
-            <div class="settings-note" style="margin-bottom:10px;">
-                Showing ${targetLabel}.
-            </div>
-
-            <div class="settings-detail" style="display:block;">
-                ${registryHtml}
-                <div class="action-row" style="margin-top:10px;">
-                    ${button("Rebuild Registry", "rebuild-model-registry")}
-                </div>
-            </div>
-        `;
     }
 
     async function showTranscripts() {
@@ -781,6 +788,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     async function refresh() {
         if (!status) return;
 
+        renderRuntime();
         status.innerHTML = `<span class="transcription-spinner" aria-hidden="true"></span><span>Reading Memora storage information…</span>`;
 
         try {
@@ -801,7 +809,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             status.textContent = `Updated ${new Intl.DateTimeFormat("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(new Date())}.`;
         } catch (error) {
             console.error("Settings storage error:", error);
-            status.textContent = "Unable to read Memora storage information.";
+            status.textContent = `Unable to read Memora storage information: ${error?.message || String(error)}`;
         }
     }
 

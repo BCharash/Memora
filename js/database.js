@@ -1,5 +1,5 @@
 // Canonical schema owner. Importing this module never opens a database.
-// Not connected to application consumers until the coordinated migration.
+// All application database opens go through this owner.
 export const DATABASE_VERSION = 5;
 
 const schema = [

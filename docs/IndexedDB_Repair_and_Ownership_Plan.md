@@ -12,6 +12,10 @@ Code inspection finds different database owners: `storage.js` opens Memora versi
 
 ## Ordered checkpoints
 
+Mac acceptance update: user reports the requested local checks all passed and confirms version 5 with all four stores. The current stopping point is before publication/iPhone verification. Windows checks remain pending until available. See the audit handoff for detailed evidence and earlier implementation history.
+
+Implementation update: the canonical owner is integrated locally and isolated schema/production-module checks pass. Actual Mac and iPhone acceptance remain pending. See the latest integration checkpoint in [the audit](IndexedDB_Audit_and_Repair_Design.md). No databases were reset; `imuse-recording-breadboard` is explicitly outside scope. User has confirmed current data is disposable if recovery becomes necessary, but no deletion is part of the normal upgrade.
+
 Repository audit and concrete design are recorded in [IndexedDB audit and repair design](IndexedDB_Audit_and_Repair_Design.md). This is the first natural break point. Live schema metadata and browser repair tests remain pending; the manager and upgrade are not implemented.
 
 1. **Audit before code changes.** Search the entire repository for database opens, upgrades, transactions, deletion/reset paths, and connection lifecycles. Inventory every store, key path, index, caller, and preservation/recovery requirement. Distinguish IndexedDB from Cache Storage and browser model caches. Record the live origin, database version, store/index names, and baseline counts without dumping transcript/embedding contents. Audit reporting reads for unnecessary bulk loading. Deliver a reviewed dependency map and exact upgrade design.

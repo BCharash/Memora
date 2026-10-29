@@ -104,6 +104,15 @@ try {
         const name = nameFor("partial-current"); (await rawOpen(name, 5, db => fixture(db, { registry: false }))).close();
         await rejects(() => createDatabaseManager({ name }).open(), "SchemaError");
     });
+    await test("Incompatible index aborts upgrade without replacing records", async () => {
+        const name = nameFor("bad-index");
+        (await rawOpen(name, 4, (db, transaction) => {
+            fixture(db, { indexes: false });
+            transaction.objectStore("semanticEntries").createIndex("representationKey", "sourceKey", { unique: true });
+        })).close();
+        await rejects(() => createDatabaseManager({ name }).open(), "SchemaError");
+        const db = await rawOpen(name, 4); await preserved(db, true); db.close();
+    });
     await test("Future version is refused without downgrade", async () => {
         const name = nameFor("future"); (await rawOpen(name, 6, db => fixture(db))).close();
         await rejects(() => createDatabaseManager({ name }).open(), "VersionError");

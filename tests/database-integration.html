@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Isolated database integration tests</title>
+<h1>Isolated database integration tests</h1>
+<p>Production data-access modules use a temporary database through an import map. Memora and iMuse databases are untouched.</p>
+<pre id="results">Running…</pre>
+<div id="fixture" hidden></div>
+<script type="importmap">
+{"imports":{"../js/database.js":"./database-adapter.js"}}
+</script>
+<script type="module" src="./database-integration.test.js"></script>
+</html>

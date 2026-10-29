@@ -5,30 +5,7 @@
 // Storage accounting and management for Memora.
 //
 
-const DB_NAME = "Memora";
-
-
-function openMemoraDatabase() {
-    return new Promise((resolve, reject) => {
-        if (!window.indexedDB) {
-            resolve(null);
-            return;
-        }
-
-        const request = indexedDB.open(DB_NAME);
-
-        request.onsuccess = () => {
-            const database = request.result;
-            database.onversionchange = () => database.close();
-            resolve(database);
-        };
-
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
-}
-
+import { openMemoraDatabase } from "./database.js";
 
 function estimateValueBytes(value) {
     try {
@@ -64,156 +41,128 @@ function embeddingByteLength(embedding) {
 
 async function readIndexedDBReport() {
     const database = await openMemoraDatabase();
+    try {
 
-    const empty = {
-        transcripts: {
-            count: 0,
-            bytes: 0
-        },
-        semanticEntries: {
-            count: 0,
-            embeddingBytes: 0,
-            recordBytes: 0,
-            representations: []
-        },
-        otherBytes: 0,
-        otherCount: 0,
-        otherStores: []
-    };
+        const stores = Array.from(database.objectStoreNames);
 
-    if (!database) {
-        return empty;
-    }
-
-    const stores = Array.from(database.objectStoreNames);
-
-    // Opening a database without a version can create an empty database if
-    // its data was cleared or it has not yet been initialized. Do not attempt
-    // an IndexedDB transaction with an empty store list.
-    if (stores.length === 0) {
-        console.warn(
-            'Memora storage report: the IndexedDB database has no object stores. ' +
-            'Returning an empty report without changing stored data.'
-        );
-        database.close();
-        return empty;
-    }
-
-    const result = await new Promise((resolve, reject) => {
-        const transaction =
-            database.transaction(
-                stores,
-                "readonly"
-            );
-
-        const output = {
-            transcripts: {
-                count: 0,
-                bytes: 0
-            },
-            semanticEntries: {
-                count: 0,
-                embeddingBytes: 0,
-                recordBytes: 0,
-                representations: []
-            },
-            otherBytes: 0,
-            otherCount: 0,
-            otherStores: []
-        };
-
-        for (const storeName of stores) {
-            const request =
-                transaction.objectStore(storeName).getAll();
-
-            request.onsuccess = () => {
-                const values = request.result || [];
-
-                if (storeName === "transcripts") {
-                    output.transcripts.count = values.length;
-                    output.transcripts.bytes =
-                        values.reduce(
-                            (total, value) =>
-                                total + estimateValueBytes(value),
-                            0
-                        );
-                    return;
-                }
-
-                if (storeName === "semanticEntries") {
-                    const groups = new Map();
-
-                    for (const value of values) {
-                        output.semanticEntries.embeddingBytes +=
-                            embeddingByteLength(value.embedding);
-
-                        output.semanticEntries.recordBytes +=
-                            estimateValueBytes(value);
-
-                        const key =
-                            [
-                                value.modelId || "unknown model",
-                                value.representationType || "unknown representation",
-                                value.chunkSize ?? "",
-                                value.chunkOverlap ?? ""
-                            ].join("|");
-
-                        const group =
-                            groups.get(key) || {
-                                name: "Semantic representation",
-                                modelId: value.modelId || "unknown model",
-                                representationType: value.representationType || "unknown representation",
-                                chunkSize: value.chunkSize ?? null,
-                                chunkOverlap: value.chunkOverlap ?? null,
-                                count: 0,
-                                embeddingBytes: 0
-                            };
-
-                        group.count++;
-                        group.embeddingBytes +=
-                            embeddingByteLength(value.embedding);
-
-                        group.name =
-                            formatRepresentationName(value);
-
-                        groups.set(key, group);
-                    }
-
-                    output.semanticEntries.count = values.length;
-                    output.semanticEntries.representations =
-                        Array.from(groups.values())
-                            .sort((a, b) =>
-                                a.name.localeCompare(b.name)
-                            );
-                    return;
-                }
-
-                const bytes = values.reduce(
-                    (total, value) => total + estimateValueBytes(value),
-                    0
+        const result = await new Promise((resolve, reject) => {
+            const transaction =
+                database.transaction(
+                    stores,
+                    "readonly"
                 );
 
-                output.otherCount += values.length;
-                output.otherBytes += bytes;
-                output.otherStores.push({
-                    name: storeName,
-                    count: values.length,
-                    bytes
-                });
+            const output = {
+                transcripts: {
+                    count: 0,
+                    bytes: 0
+                },
+                semanticEntries: {
+                    count: 0,
+                    embeddingBytes: 0,
+                    recordBytes: 0,
+                    representations: []
+                },
+                otherBytes: 0,
+                otherCount: 0,
+                otherStores: []
             };
-        }
 
-        transaction.oncomplete = () => {
-            output.otherStores.sort((a, b) => a.name.localeCompare(b.name));
-            resolve(output);
-        };
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error);
-    });
+            for (const storeName of stores) {
+                const request =
+                    transaction.objectStore(storeName).getAll();
 
-    database.close();
+                request.onsuccess = () => {
+                    const values = request.result || [];
 
-    return result;
+                    if (storeName === "transcripts") {
+                        output.transcripts.count = values.length;
+                        output.transcripts.bytes =
+                            values.reduce(
+                                (total, value) =>
+                                    total + estimateValueBytes(value),
+                                0
+                            );
+                        return;
+                    }
+
+                    if (storeName === "semanticEntries") {
+                        const groups = new Map();
+
+                        for (const value of values) {
+                            output.semanticEntries.embeddingBytes +=
+                                embeddingByteLength(value.embedding);
+
+                            output.semanticEntries.recordBytes +=
+                                estimateValueBytes(value);
+
+                            const key =
+                                [
+                                    value.modelId || "unknown model",
+                                    value.representationType || "unknown representation",
+                                    value.chunkSize ?? "",
+                                    value.chunkOverlap ?? ""
+                                ].join("|");
+
+                            const group =
+                                groups.get(key) || {
+                                    name: "Semantic representation",
+                                    modelId: value.modelId || "unknown model",
+                                    representationType: value.representationType || "unknown representation",
+                                    chunkSize: value.chunkSize ?? null,
+                                    chunkOverlap: value.chunkOverlap ?? null,
+                                    count: 0,
+                                    embeddingBytes: 0
+                                };
+
+                            group.count++;
+                            group.embeddingBytes +=
+                                embeddingByteLength(value.embedding);
+
+                            group.name =
+                                formatRepresentationName(value);
+
+                            groups.set(key, group);
+                        }
+
+                        output.semanticEntries.count = values.length;
+                        output.semanticEntries.representations =
+                            Array.from(groups.values())
+                                .sort((a, b) =>
+                                    a.name.localeCompare(b.name)
+                                );
+                        return;
+                    }
+
+                    const bytes = values.reduce(
+                        (total, value) => total + estimateValueBytes(value),
+                        0
+                    );
+
+                    output.otherCount += values.length;
+                    output.otherBytes += bytes;
+                    output.otherStores.push({
+                        name: storeName,
+                        count: values.length,
+                        bytes
+                    });
+                };
+            }
+
+            transaction.oncomplete = () => {
+                output.otherStores.sort((a, b) => a.name.localeCompare(b.name));
+                resolve(output);
+            };
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+        });
+
+        database.close();
+
+        return result;
+    } finally {
+        database.close();
+    }
 }
 
 
@@ -426,81 +375,88 @@ export async function getStorageReport() {
 }
 
 
-function openReadWriteStore(storeName) {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME);
-        request.onsuccess = () => {
-            const database = request.result;
-            if (!database.objectStoreNames.contains(storeName)) {
-                database.close();
-                resolve(null);
-                return;
-            }
-            resolve(database);
-        };
-        request.onerror = () => reject(request.error);
-    });
+async function openReadWriteStore(storeName) {
+    const database = await openMemoraDatabase();
+    if (!database.objectStoreNames.contains(storeName)) {
+        database.close();
+        throw new Error(`Memora database is missing required store: ${storeName}`);
+    }
+    return database;
 }
 
 export async function listCachedTranscripts() {
     const database = await openReadWriteStore("transcripts");
-    if (!database) return [];
+    try {
 
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("transcripts", "readonly");
-        const request = transaction.objectStore("transcripts").getAll();
-        request.onsuccess = () => {
-            const records = (request.result || []).map(record => ({
-                filename: record.filename,
-                bytes: estimateValueBytes(record.transcript || ""),
-                model: record.model || "",
-                operation: record.operation || "transcribe",
-                savedAt: record.savedAt || null
-            }));
-            resolve(records.sort((a, b) => String(a.filename).localeCompare(String(b.filename))));
-        };
-        request.onerror = () => reject(request.error);
-        transaction.oncomplete = () => database.close();
-        transaction.onerror = () => reject(transaction.error);
-    });
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("transcripts", "readonly");
+            const request = transaction.objectStore("transcripts").getAll();
+            request.onsuccess = () => {
+                const records = (request.result || []).map(record => ({
+                    filename: record.filename,
+                    bytes: estimateValueBytes(record.transcript || ""),
+                    model: record.model || "",
+                    operation: record.operation || "transcribe",
+                    savedAt: record.savedAt || null
+                }));
+                resolve(records.sort((a, b) => String(a.filename).localeCompare(String(b.filename))));
+            };
+            request.onerror = () => reject(request.error);
+            transaction.oncomplete = () => database.close();
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+        });
+    } finally {
+        database.close();
+    }
 }
 
 export async function readCachedTranscripts() {
     const database = await openReadWriteStore("transcripts");
-    if (!database) return [];
+    try {
 
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("transcripts", "readonly");
-        const request = transaction.objectStore("transcripts").getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-        transaction.oncomplete = () => database.close();
-        transaction.onerror = () => reject(transaction.error);
-    });
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("transcripts", "readonly");
+            const request = transaction.objectStore("transcripts").getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+            transaction.oncomplete = () => database.close();
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+        });
+    } finally {
+        database.close();
+    }
 }
 
 export async function clearCachedTranscript(filename) {
     const database = await openReadWriteStore("transcripts");
-    if (!database) return;
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("transcripts", "readwrite");
-        transaction.objectStore("transcripts").delete(filename);
-        transaction.oncomplete = () => { database.close(); resolve(); };
-        transaction.onerror = () => { database.close(); reject(transaction.error); };
-        transaction.onabort = () => { database.close(); reject(transaction.error); };
-    });
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("transcripts", "readwrite");
+            transaction.objectStore("transcripts").delete(filename);
+            transaction.oncomplete = () => { database.close(); resolve(); };
+            transaction.onerror = () => { database.close(); reject(transaction.error); };
+            transaction.onabort = () => { database.close(); reject(transaction.error); };
+        });
+    } finally {
+        database.close();
+    }
 }
 
 export async function clearAllCachedTranscripts() {
     const database = await openReadWriteStore("transcripts");
-    if (!database) return;
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("transcripts", "readwrite");
-        transaction.objectStore("transcripts").clear();
-        transaction.oncomplete = () => { database.close(); resolve(); };
-        transaction.onerror = () => { database.close(); reject(transaction.error); };
-        transaction.onabort = () => { database.close(); reject(transaction.error); };
-    });
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("transcripts", "readwrite");
+            transaction.objectStore("transcripts").clear();
+            transaction.oncomplete = () => { database.close(); resolve(); };
+            transaction.onerror = () => { database.close(); reject(transaction.error); };
+            transaction.onabort = () => { database.close(); reject(transaction.error); };
+        });
+    } finally {
+        database.close();
+    }
 }
 
 function representationMatches(value, representation) {
@@ -514,34 +470,40 @@ function representationMatches(value, representation) {
 
 export async function clearSemanticRepresentation(representation) {
     const database = await openReadWriteStore("semanticEntries");
-    if (!database) return;
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("semanticEntries", "readwrite");
-        const store = transaction.objectStore("semanticEntries");
-        const request = store.openCursor();
-        request.onsuccess = () => {
-            const cursor = request.result;
-            if (!cursor) return;
-            if (representationMatches(cursor.value, representation)) cursor.delete();
-            cursor.continue();
-        };
-        request.onerror = () => reject(request.error);
-        transaction.oncomplete = () => { database.close(); resolve(); };
-        transaction.onerror = () => { database.close(); reject(transaction.error); };
-        transaction.onabort = () => { database.close(); reject(transaction.error); };
-    });
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("semanticEntries", "readwrite");
+            const store = transaction.objectStore("semanticEntries");
+            const request = store.openCursor();
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor) return;
+                if (representationMatches(cursor.value, representation)) cursor.delete();
+                cursor.continue();
+            };
+            request.onerror = () => reject(request.error);
+            transaction.oncomplete = () => { database.close(); resolve(); };
+            transaction.onerror = () => { database.close(); reject(transaction.error); };
+            transaction.onabort = () => { database.close(); reject(transaction.error); };
+        });
+    } finally {
+        database.close();
+    }
 }
 
 export async function clearAllSemanticEntries() {
     const database = await openReadWriteStore("semanticEntries");
-    if (!database) return;
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction("semanticEntries", "readwrite");
-        transaction.objectStore("semanticEntries").clear();
-        transaction.oncomplete = () => { database.close(); resolve(); };
-        transaction.onerror = () => { database.close(); reject(transaction.error); };
-        transaction.onabort = () => { database.close(); reject(transaction.error); };
-    });
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction("semanticEntries", "readwrite");
+            transaction.objectStore("semanticEntries").clear();
+            transaction.oncomplete = () => { database.close(); resolve(); };
+            transaction.onerror = () => { database.close(); reject(transaction.error); };
+            transaction.onabort = () => { database.close(); reject(transaction.error); };
+        });
+    } finally {
+        database.close();
+    }
 }
 
 async function modelRequestsByName(modelName) {
