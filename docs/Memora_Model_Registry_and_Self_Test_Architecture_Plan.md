@@ -1,4 +1,4 @@
-# Memora — Model Registry and Self-Test Architecture Overhaul
+o# Memora — Model Registry and Self-Test Architecture Overhaul
 
 **Planning document:** 17 October 2026  
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  

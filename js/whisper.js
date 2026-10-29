@@ -130,7 +130,7 @@ function createWhisperWorker() {
 
     whisperWorker =
         new Worker(
-            "./js/whisper-worker.js",
+            "./js/whisper-ios-worker.js",
             {
                 type: "module"
             }

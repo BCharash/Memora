@@ -230,7 +230,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
         try {
             worker = new Worker(
                 environment.platform === "iOS"
-                    ? "./js/whisper-worker.js"
+                    ? "./js/whisper-ios-worker.js"
                     : "./js/whisper-test-worker.js",
                 { type: "module" }
             );
