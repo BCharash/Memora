@@ -2,7 +2,10 @@
 
 Updated 7 November 2026. Read this first in a new session, then inspect current code and Git status. This file is the current handoff; older plans/audit checkpoints preserve historical context.
 
-Runtime completion resumed, step 1 implemented locally: `getRuntimeInfo()` now derives identity from `runtimeIdentity` and WebGPU presence from the live capability helper. Removed duplicate OS/device classification and unused speculative Whisper fields. Settings is the only application caller and uses its browser label; its displayed worker description and production routing are unchanged. Nine simulated environment checks passed, including missing navigator, stable identity and live capabilities. Await user desktop startup/Settings check before proceeding. No transcription or iPhone processing-path change requires deployment for this step. Next separate steps: self-test environment reporting, then Search audio predicate review. Do not start either until the user confirms this step. The offline Tiny plan remains a proposal to align with the registry architecture, not authorization to implement it.
+Runtime completion resumed 7 November 2026. Step 1 (legacy report reconciliation) is committed as `560d93f`; user confirmed startup and Settings behaved as expected.
+
+Step 2 is implemented locally, awaiting user tests: self-test environment now uses shared OS/type/class and live WebGPU presence, with requestedBackend separate from actualBackend (`unknown`). Settings shows these fields at run start. Routing comparisons now use the same shared `isIOS` directly instead of comparing a display label; worker URLs, messages, model options/order, and validation behavior are preserved. Parsing and five simulated environment/option checks passed; no real inference was run by the agent. Request one standalone Tiny self-test on desktop, then iPhone after publication, and verify the new environment line. Do not rerun larger models or production transcription for this reporting change. Pause until the user confirms. Next separate step: Search audio predicate review. Offline Tiny remains a separate proposal.
+
 
 ## Immediate next action
 

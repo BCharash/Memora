@@ -4,7 +4,7 @@
 
 import { decodeAudio } from "./audioProcessor.js";
 import { getModelRegistryBaseline } from "./modelManager.js";
-import { isIOS } from "./runtime.js";
+import { isIOS, runtimeIdentity, getRuntimeCapabilities } from "./runtime.js";
 
 const TEST_AUDIO_URL = "./data/whisper-test/test-audio.m4a";
 const EXPECTED_TEXT_URL = "./data/whisper-test/expected-transcription.txt";
@@ -96,17 +96,18 @@ async function loadExpectedText() {
 
 function getEnvironment() {
     return {
-        platform: isIOS ? "iOS" : "Desktop",
-        runtime: isIOS ? "WASM / iPhone worker" : "WebGPU",
-        webgpu: "gpu" in navigator
+        ...runtimeIdentity,
+        platform: runtimeIdentity.operatingSystem,
+        requestedBackend: isIOS ? "wasm" : "webgpu",
+        actualBackend: "unknown",
+        webgpu: getRuntimeCapabilities().webgpu
     };
 }
 
 export function getWhisperSelfTestOptions() {
-    const environment = getEnvironment();
     const registry = getModelRegistryBaseline();
     const sequence =
-        environment.platform === "iOS"
+        isIOS
             ? IOS_TEST_SEQUENCE
             : DESKTOP_TEST_SEQUENCE;
 
@@ -189,7 +190,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
     emit({
         type: "test-plan",
         message:
-            environment.platform === "iOS"
+            isIOS
                 ? "The selected iPhone/iPad WASM configuration runs alone using the normal iPhone Whisper worker. The worker is terminated when the test finishes."
                 : "The selected desktop WebGPU configuration runs in a brand-new disposable Web Worker. The worker is terminated when the test finishes to isolate the model test from other runtime state."
     });
@@ -204,7 +205,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
             repository: configuration.repository,
             dtype:
                 configuration.configuration?.dtype ??
-                (environment.platform === "iOS" ? "repository default" : "repository default"),
+                "repository default",
             loadMs: null,
             transcriptionMs: null,
             releaseMs: null,
@@ -226,7 +227,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
 
         try {
             worker = new Worker(
-                environment.platform === "iOS"
+                isIOS
                     ? "./js/whisper-ios-worker.js"
                     : "./js/whisper-test-worker.js",
                 { type: "module" }
@@ -268,7 +269,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
 
                     if (
                         message.type === "loaded" ||
-                        (environment.platform === "iOS" && message.type === "ready")
+                        (isIOS && message.type === "ready")
                     ) {
                         result.loadMs = performance.now() - testStartedAt;
                         result.loadStatus = "passed";
@@ -280,7 +281,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
                             loadMs: result.loadMs
                         });
 
-                        if (environment.platform === "iOS") {
+                        if (isIOS) {
                             worker.postMessage({
                                 type: "transcribe",
                                 audioData: audio,
@@ -325,7 +326,7 @@ export async function runWhisperSelfTest({ modelId, onEvent } = {}) {
                 };
 
                 worker.postMessage(
-                    environment.platform === "iOS"
+                    isIOS
                         ? {
                             type: "load",
                             model: configuration.id,

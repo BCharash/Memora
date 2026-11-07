@@ -286,9 +286,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (!detail) return;
 
         if (event.type === "run-start") {
+            const environment = event.environment;
             detail.hidden = false;
             detail.innerHTML = `
                 <div class="whisper-self-test-output">
+                    <div class="settings-note">Environment: ${escapeHtml(environment.operatingSystem)} · ${escapeHtml(environment.deviceType)} · requested backend: ${escapeHtml(environment.requestedBackend)} · WebGPU API: ${environment.webgpu ? "present" : "not present"} · actual backend: ${escapeHtml(environment.actualBackend)}</div>
                     <div class="settings-note">Running ${event.sequence.length} tests: ${event.sequence.map(escapeHtml).join(" → ")}</div>
                     <div id="settingsWhisperSelfTestResults"></div>
                 </div>`;
