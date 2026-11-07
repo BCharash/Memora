@@ -1,6 +1,8 @@
 # Memora — current status and resume instructions
 
-Updated 29 October 2026. Read this first in a new session, then inspect current code and Git status. This file is the current handoff; older plans/audit checkpoints preserve historical context.
+Updated 7 November 2026. Read this first in a new session, then inspect current code and Git status. This file is the current handoff; older plans/audit checkpoints preserve historical context.
+
+Runtime completion resumed, step 1 implemented locally: `getRuntimeInfo()` now derives identity from `runtimeIdentity` and WebGPU presence from the live capability helper. Removed duplicate OS/device classification and unused speculative Whisper fields. Settings is the only application caller and uses its browser label; its displayed worker description and production routing are unchanged. Nine simulated environment checks passed, including missing navigator, stable identity and live capabilities. Await user desktop startup/Settings check before proceeding. No transcription or iPhone processing-path change requires deployment for this step. Next separate steps: self-test environment reporting, then Search audio predicate review. Do not start either until the user confirms this step. The offline Tiny plan remains a proposal to align with the registry architecture, not authorization to implement it.
 
 ## Immediate next action
 
