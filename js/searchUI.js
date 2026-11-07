@@ -1,6 +1,8 @@
 // --------------------------------------------------
 // Search UI
 // --------------------------------------------------
+import { isIOS } from "./runtime.js";
+
 let getStorageModule;
 let getSearchModule;
 
@@ -875,17 +877,11 @@ async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHan
     return null;
 }
 
-function isIPhoneBrowser() {
-    return /iPhone|iPod/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-
 export function appendSearchAudioControl(section, group, sourceHandleOverride = null) {
     const relativePath = group.record?.audioRelativePath || "";
     const recordingFilename = group.record?.recordingFilename || "";
     if (!relativePath && !recordingFilename) return;
 
-    const onIPhone = isIPhoneBrowser();
     const control = document.createElement("div");
     control.className = "search-result-audio-control";
 
@@ -901,8 +897,8 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     audio.preload = "none";
     audio.hidden = true;
     audio.className = "search-result-audio";
-    if (onIPhone) {
-        // iPhone Safari needs its native audio controls; do not hide the player
+    if (isIOS) {
+        // iOS browsers need their native audio controls; do not hide the player
         // after loading a file selected through the iOS document picker.
         audio.controls = true;
         audio.classList.add("search-audio-no-controls");
@@ -980,10 +976,10 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     });
 
     playButton.addEventListener("click", async () => {
-        // On iPhone, open the native file chooser directly from the tap. A
+        // On iOS, open the native file chooser directly from the tap. A
         // directory picker is not available there, and the share sheet cannot
         // be opened until an actual File object has been obtained.
-        if (onIPhone) {
+        if (isIOS) {
             const cachedFile = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
             if (cachedFile) {
                 showLoadedPlayer(cachedFile);

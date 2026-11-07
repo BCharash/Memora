@@ -4,7 +4,10 @@ Updated 7 November 2026. Read this first in a new session, then inspect current 
 
 Runtime completion resumed 7 November 2026. Step 1 (legacy report reconciliation) is committed as `560d93f`; user confirmed startup and Settings behaved as expected.
 
-Step 2 is implemented locally, awaiting user tests: self-test environment now uses shared OS/type/class and live WebGPU presence, with requestedBackend separate from actualBackend (`unknown`). Settings shows these fields at run start. Routing comparisons now use the same shared `isIOS` directly instead of comparing a display label; worker URLs, messages, model options/order, and validation behavior are preserved. Parsing and five simulated environment/option checks passed; no real inference was run by the agent. Request one standalone Tiny self-test on desktop, then iPhone after publication, and verify the new environment line. Do not rerun larger models or production transcription for this reporting change. Pause until the user confirms. Next separate step: Search audio predicate review. Offline Tiny remains a separate proposal.
+Step 2 (self-test environment reporting) is committed as `4c41d6d`. User reported it works; the exact devices included in that latest report were not specified. Earlier device acceptance of the database checkpoint remains separate.
+
+Step 3 is implemented locally, awaiting audio tests: Search imports shared `isIOS`; its private user-agent predicate is removed. Existing iPhone and Mac-with-touch iPad audio routing is retained. Explicitly identified iPads now deliberately use that same iOS controls/file-input path; Android/desktop branching remains unchanged. Isolated audio-function parsing and simulated controls/picker checks passed, not real media playback. Request desktop playback of a search result, iPhone choose/play and second-result cached-file reuse (also Combine playback, which shares this function), and iPad checks if available. If no iPad is available, record that correction as unverified on hardware. No model tests are needed for this change. Pause for user results. Device classification now lives only in runtime.js; domDiagnostics merely records the user agent. Offline Tiny remains a separate proposal.
+
 
 
 ## Immediate next action
