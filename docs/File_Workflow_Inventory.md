@@ -30,10 +30,8 @@ Search audio also has its own platform-specific controls and an optional read-on
 
 These are behavior differences to preserve during naming work and explicitly settle before consolidation. A resolved share is evidence that the share request completed, not confirmation of a particular saved destination or replacement of the original file. File-input edits deliver replacement files rather than overwriting the source on disk.
 
-## Smallest next code change
+## Status and next use
 
-Current checkpoint: core runtime migration is substantially complete; the canonical IndexedDB manager is integrated and Mac acceptance passed. iPhone verification is pending for commit `35d69cd`. See [current handoff](CURRENT_STATUS.md) before resuming work. This inventory remains an overview; trace dependencies fully when changing each file workflow. Sharing extraction/consolidation has not been implemented.
+Reviewed 7 November 2026. Runtime identification is complete for the agreed scope and canonical IndexedDB ownership passed Mac/iPhone/Windows checks. No sharing extraction/consolidation has been implemented. Current next work is reliable asset publication; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
-Sharing consolidation can follow separately. Prefer evaluating a multi-file helper in `storage.js` before creating another delivery module. Define cancellation/error outcomes before migrating any caller; leave feature controls, pending batches, archive state, and reindexing with their existing feature owners. Extracting transcription controls into `transcriptionShareExport.js` is optional and should be its own change.
-
-Each change to a shared delivery helper or its iPhone callers requires an explicit iPhone regression checklist. Documentation-only inventory needs no deployment test. No registry IDs, database schema, model routing, or delivery behavior changed in this step.
+This document is an overview, not an exhaustive dependency audit. Before changing a file workflow, trace its preparation, UI state, delivery, cancellation and post-save effects end to end. Before migrating callers to a shared helper, audit all affected callers. Consider extending storage's helper and extracting transcription export controls only as separate authorized changes. Keep feature controls, pending batches, archive state and reindexing with feature owners. iPhone delivery changes need an explicit device checklist.

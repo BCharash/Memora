@@ -1,10 +1,12 @@
+> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](../Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
+
 # IndexedDB repair and ownership plan
 
-Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
-Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
-Status: implemented in `35d69cd` and verified locally by the user on Mac Chrome, 29 October 2026. iPhone deployment verification and Windows acceptance remain pending. See [current handoff](CURRENT_STATUS.md). This brings the database foundation from the model-registry/self-test architecture plan forward, without starting its resolver, eligibility, or evidence redesign.
+Status: implemented in `35d69cd` and verified locally by the user on Mac Chrome, 29 October 2026. iPhone deployment verification and Windows acceptance remain pending. See [current handoff](../CURRENT_STATUS.md). This brings the database foundation from the model-registry/self-test architecture plan forward, without starting its resolver, eligibility, or evidence redesign.
 
 ## Original problem (repaired on Mac)
 

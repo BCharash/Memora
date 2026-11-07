@@ -1,11 +1,15 @@
 # Archived documents
 
-Moved here on 29 October 2026 to keep the active documentation folder focused. Archiving preserves these records; it does not cancel agreed future work or invalidate their evidence. Review current code and active plans before implementing an archived proposal.
+Reviewed 7 November 2026. These documents preserve decisions, evidence and earlier proposals; old pending statements are historical. Start from [current handoff](../CURRENT_STATUS.md) and [documentation index](../README.md). Archiving does not cancel agreed future work.
 
-| Document | Why archived |
+| Document | Reason/current authority |
 |---|---|
-| [Paragraphing Revision 4 vs Revision 5](Memora_Revision4_vs_Revision5_Complete_Analysis.md) | Historical evaluation and decision evidence. The selected paragraphing direction is also recorded in the design journal. |
-| [Mobile file processing architecture](Mobile_File_Processing_Architecture_Analysis_and_Plan.md) | Earlier proposal retained as background for future file-workflow changes. Consult the active [file workflow inventory](../File_Workflow_Inventory.md) and [runtime plan](../Initial%20runtime.md) for the current sequence. |
-| [iMuse migration](iMuse%20migration.md) | Agreed future migration, deferred while current Memora foundations are addressed. Not cancelled. |
+| [Original runtime plan](Initial%20runtime.md) | Completed identity migration; see [foundation record](../Runtime_and_Database_Status.md). |
+| [Database repair plan](IndexedDB_Repair_and_Ownership_Plan.md) | Completed schema ownership/repair; see foundation record. |
+| [Database audit/checkpoint history](IndexedDB_Audit_and_Repair_Design.md) | Preserve schema map, failure mechanism and implementation evidence. Older unimplemented/pending notes no longer describe current state. |
+| [Search research](Search_Optimization_Research_Record.md) | Full experiments retained; [active Search strategy](../search%20model%20optimization.md) preserves governing requirements. |
+| [Paragraphing R4/R5 analysis](Memora_Revision4_vs_Revision5_Complete_Analysis.md) | Historical evaluation; selected direction is also in the design journal. |
+| [Earlier mobile file proposal](Mobile_File_Processing_Architecture_Analysis_and_Plan.md) | Background for later file-delivery work; use [current overview](../File_Workflow_Inventory.md) before tracing dependencies. |
+| [Future iMuse migration](iMuse%20migration.md) | Deferred, not cancelled. Inspect both repositories before implementation; recording database remains untouched. |
 
-The archived documents' contents are unchanged by this move. The five design journals and active search, runtime, IndexedDB, and model-registry documents remain in the parent folder.
+No historical research or unique decisions were deleted. The original three archived reference documents retain their content. Moved completed plans have an archive notice and repaired relative links. Five design journals remain in the parent folder unchanged.

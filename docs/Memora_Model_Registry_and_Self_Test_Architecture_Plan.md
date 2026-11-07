@@ -1,4 +1,4 @@
-o# Memora — Model Registry and Self-Test Architecture Overhaul
+# Memora — Model Registry and Self-Test Architecture Overhaul
 
 **Planning document:** 17 October 2026  
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  
@@ -7,13 +7,13 @@ o# Memora — Model Registry and Self-Test Architecture Overhaul
 
 ## Handoff summary — read this first when resuming
 
-**29 October 2026 progress:** prerequisite runtime consolidation and the database foundation were brought forward under separate user authorization. Commit `35d69cd` centralizes Memora schema version 5; isolated tests and Mac acceptance passed. iPhone verification is pending, Windows untested. The full model/worker/evidence audit, resolver, eligibility, and durable self-test redesign remain outstanding. Read [CURRENT_STATUS.md](CURRENT_STATUS.md) first; older stage placeholders below are the original proposal, not proof that database work remains unimplemented.
+**Current status — 7 November 2026:** runtime identification is closed for its agreed scope; canonical version-5 database ownership is implemented and user-verified on Mac, iPhone and Windows. These prerequisites do not need rebuilding. Reliable generated asset versioning/publication is the next priority after a confirmed iPhone HTTP-cache mismatch. The model resolver, meaningful output validation, timeout/cancellation, durable test attempts and eligibility work below remain proposed. Read [CURRENT_STATUS.md](CURRENT_STATUS.md), [foundation record](Runtime_and_Database_Status.md) and [asset inventory](Asset_and_Deployment_Inventory.md).
 
 **Project goal:** Make Whisper model definitions, environment assessment, self-test evidence, eligibility, and production loading consistent and trustworthy across desktop and iPhone.
 
 **Current status:** This is a design proposal. No implementation work is authorized by this document alone. Inspect the current repository and device builds before translating this plan into code; this document is not proof that the current code still behaves as described.
 
-**First action:** Audit the latest user-supplied repository/build and produce an audit map plus baseline report. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
+**First action when this phase resumes:** after release consistency is verified, audit the current model/worker/evidence paths and produce a baseline report. Reuse the completed database audit; inspect changes rather than restarting it. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.
@@ -720,6 +720,8 @@ Agree on:
 
 ### Stage 3 — Centralize database initialization
 
+**Completed prerequisite:** canonical version-5 ownership/repair and its platform acceptance are implemented. This section retains the original goals for reference; do not reimplement it. Any future evidence-history stores require their own deliberate schema change.
+
 **Goal:** Fix schema ownership and the missing-store class of problem.
 
 - Route all database opens through one owner.
@@ -888,9 +890,10 @@ Use `proposed`, `agreed`, `implemented`, or `verified` consistently. “Implemen
 
 | Stage | Status | Code revision / files | Checks run and results | Remaining risks / next action |
 |---|---|---|---|---|
-| Stage 0 — audit and baseline | Not started for the resumed session | — | — | Obtain current repository/build and map current paths |
+| Stage 0 — audit and baseline | Database audit complete; full model/worker/evidence baseline outstanding | See foundation record | Database tests and user platform acceptance passed | Audit exact model resolution and current test behavior after build rollout |
 | Stage 1 — self-test safety/observability | Not started for the resumed session | — | — | Establish safe baseline before broader refactor |
-| Stages 2–7 | Not started for the resumed session | — | — | Follow the checkpoints in Section 14 |
+| Stage 3 — database ownership | Implemented and accepted for repair scope | `35d69cd`; database.js and migrated consumers | 12 isolated schema groups, six integration groups; user Mac/iPhone/Windows checks passed | No destructive reset; future run-history schema remains separate work |
+| Stages 2, 4–7 | Proposed, not implemented as a full overhaul | — | Prior Tiny smoke checks are not full model validation | Agree configuration identity/PASS criteria; resolver and evidence work remain |
 
 Replace these placeholders with evidence when work occurs. If implementation diverges from this plan, record why and whether the plan should be updated.
 

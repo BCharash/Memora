@@ -1,12 +1,14 @@
+> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](../Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
+
 # Initial Runtime Identification
 
-Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Latest acceptance update: user confirmed Windows passed all recommended tests as well. Mac, iPhone, and Windows acceptance is complete for the database integration checkpoint; earlier pending-Windows statements below are historical. No additional tests are required for this checkpoint. See [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
-Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Latest acceptance: user confirmed iPhone verification passed after Mac acceptance for the database integration checkpoint `35d69cd`. This supersedes pending-iPhone statements in the earlier history below. Stable stopping point reached; Windows verification remains pending. See [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
 ## Updated scope and order — 29 October 2026
 
-Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](CURRENT_STATUS.md). The [file workflow inventory](File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](../CURRENT_STATUS.md). The [file workflow inventory](../File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
 
 ### Current implementation and test evidence
 
@@ -20,7 +22,7 @@ Progress: the naming cleanup and core runtime migration are substantially comple
 | Whisper self-test detection | Migrated to shared `isIOS`; user reported success following the requested standalone Tiny desktop/iPhone checklist. No broader sequence/model validation is implied. |
 | Settings registry target detection | Implemented by removing its duplicate predicate. Local parsing and target checks passed. Mac UI verification passed after database repair; iPhone verification awaits the current deployment. |
 
-These are session reports, not a complete cross-device acceptance record. The integrated database/runtime checkpoint is committed as `35d69cd`; see [current handoff](CURRENT_STATUS.md) for build identity, actual verification, and remaining tests.
+These are session reports, not a complete cross-device acceptance record. The integrated database/runtime checkpoint is committed as `35d69cd`; see [current handoff](../CURRENT_STATUS.md) for build identity, actual verification, and remaining tests.
 
 ### Remaining runtime work
 

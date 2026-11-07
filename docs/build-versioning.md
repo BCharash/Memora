@@ -7,3 +7,7 @@ Adopted 7 November 2026, matching iMuse's convention: **YYYY-MM-DD.N**, the UTC 
 The application populates “Memora build …” at the very bottom of the page, outside the tabs and Settings, in small text. HTML contains only the fallback “Build not identified”, not another copy of the number.
 
 This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database version 5 and model configuration revisions remain separate identifiers.
+
+## Release consistency — next project
+
+The user confirmed an iPhone caching mismatch after this label was published. Reliable generated asset URLs and publication are now the next priority, before Whisper model validation changes. See [asset/deployment inventory](Asset_and_Deployment_Inventory.md) for scope and [current handoff](CURRENT_STATUS.md) for order. Build-tool configuration, old-asset retention and GitHub Pages settings still need a concrete proposal. The human-readable identifier remains useful alongside generated content hashes.

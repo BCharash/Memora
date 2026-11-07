@@ -1,6 +1,6 @@
 # Offline Whisper Tiny: executable implementation handoff
 
-Prepared 29 October 2026. Status: plan only; no runtime implementation has been performed.
+Prepared 29 October 2026; reviewed 7 November 2026. Status: deferred proposal; no offline Tiny service is implemented. First complete release-consistency work, then align this proposal with the common Whisper configuration/test design. See [CURRENT_STATUS.md](CURRENT_STATUS.md). The copyable implementation prompt below is for a later explicitly authorized session, not the next current action.
 
 ## Copy this prompt into the implementing ChatGPT session
 
@@ -37,7 +37,7 @@ Reinspect all of these before editing; another session may have changed them.
 | --- | --- |
 | `js/whisper.js` | Preserve exports/signatures; route Tiny through new service; retain existing other-model paths initially. |
 | `js/whisperTinyService.js` (new) | Singleton worker ownership, serialized operations, request IDs, lifecycle, backend preference, and resolved backend reporting. |
-| `js/whisper-worker.js` (new) | Tiny pipeline/inference with explicit WebGPU/WASM; only worker imports the local ML runtime. |
+| `js/whisper-tiny-worker.js` (proposed new name) | Tiny pipeline/inference with explicit WebGPU/WASM; only worker imports the local ML runtime. |
 | `js/offlineModels.js` (new) | Install/verify/status/remove Tiny package, scoped Cache Storage, progress, abort, and recovery. |
 | `js/offlineSetupUI.js` (new) | Bind offline controls/status; keep download mechanics outside Settings rendering. |
 | `vendor/transformers/<version>/` (new) | Pinned browser runtime and all matching JS/WASM sidecars actually required by both backends; license notices. |
@@ -186,4 +186,5 @@ Consult the documentation matching the pinned package version; current documenta
 
 ## Execution log
 
+- 7 November 2026 documentation review: implementation remains deferred. The proposed Tiny worker is named `whisper-tiny-worker.js` to avoid reintroducing the ambiguous worker name removed during runtime cleanup. Generated asset/publication design must precede offline precache enumeration; preserve shared registry configuration identity and test contracts.
 - 29 October 2026: Plan created from current source inspection. No runtime changes, model downloads, or inference tests performed as part of writing this document.
