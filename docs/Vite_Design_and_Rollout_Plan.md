@@ -8,7 +8,7 @@ Step 1 design checkpoint, 7 November 2026. Repository baseline `bc43b76`, applic
 - Node/npm and GitHub CLI were not found on the current shell PATH. Mac reports macOS 15.8.2, Intel x86_64. Installation must account for this before step 2; do not assume npm is available.
 - Public `https://bcharash.github.io/Memora/` returned HTTP 200 on inspection, with `Cache-Control: max-age=600`, ETag and Last-Modified. This is one observed response, not a guarantee of all clients/paths or permanent host policy.
 - Unauthenticated GET of the repository Pages API returned 404. This does not establish whether Pages is configured from a branch or Actions. No credentials were inspected or hosting settings changed.
-- Before the later hosting switch, obtain Settings → Pages → Build and deployment: Source, branch/folder if present, and custom domain. A screenshot or user transcription is sufficient. `/Memora/` is the proposed base for the confirmed public project URL; revisit if a custom domain changes that path.
+- User subsequently confirmed Settings → Pages reports branch-based publishing from `main`, at `https://bcharash.github.io/Memora/`. The user also confirmed the selected folder is `/(root)`. No custom domain was reported. `/Memora/` is the build base for this public URL. This is sufficient to prepare isolated step 2; no hosting switch is needed then.
 
 ## Proposed build choices
 
@@ -74,7 +74,7 @@ Use normal navigation/manual reload at an idle point. No forced refresh, uncondi
 4. **Local acceptance complete.** Startup/build footer, tab icons, metadata decode, Tiny transcription/self-test, Search/paragraphing, edits and all Combine formats; isolated database tests remain source-based. Browser/device tests must be real where claimed; no model-policy/schema changes. Safe break before publishing.
 5. **Publishing transition and two-release test.** Switch only after explicit instruction and verified artifact. Complete first public startup/deployment verification in one sitting; retain rollback artifact. Then publish A/B and test cached clients/old lazy worker loads on Mac/iPhone/Windows. Roll back deployed files using a compatible build, never database version downgrade. Stop after recording real acceptance.
 
-Estimates remain approximately 4–7 implementation/local verification hours overall, plus user tests/publication waits. Step 1 is complete as a written design; Pages configuration is the only user-specific deployment fact still unconfirmed. Nothing in this file starts step 2.
+Estimates remain approximately 4–7 implementation/local verification hours overall, plus user tests/publication waits. Step 1 is complete as a written design; Branch-based publication from main → /(root) is user-confirmed. Nothing in this file starts step 2.
 
 ## Official references consulted
 
