@@ -7,6 +7,7 @@ Reviewed 7 November 2026. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Cur
 | [Current handoff](CURRENT_STATUS.md) | Current sequence and next action. |
 | [Runtime and database status](Runtime_and_Database_Status.md) | Completed foundation, ownership and verification limits. |
 | [Asset/deployment inventory](Asset_and_Deployment_Inventory.md) | Next project; inventory complete, proposal review pending. |
+| [Vite design and rollout](Vite_Design_and_Rollout_Plan.md) | Step 1 prepared; choices/Pages setting review before isolated installation. |
 | [Build numbering](build-versioning.md) | Active release identification. |
 | [Whisper registry/self-test plan](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Subsequent proposal; database prerequisite already implemented. |
 | [Offline Tiny](Offline_Whisper_Tiny_Implementation_Plan.md) | Deferred proposal; align with generated assets/common configuration. |

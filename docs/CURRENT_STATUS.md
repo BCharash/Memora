@@ -12,6 +12,8 @@ Updated 7 November 2026. Read this first, inspect Git status/current source, the
 
 ## Immediate next action
 
+Vite step 1 design is prepared in [Vite design and rollout plan](Vite_Design_and_Rollout_Plan.md). Proposed Node 24 LTS, pinned local Vite/npm lockfile, `/Memora/` output, explicit module workers, preserved remote runtime versions, inactive setup first and five-prior-release asset retention. Public HTML was observed with max-age=600; hashing alone does not force HTML freshness. Pages Source/branch/folder is unconfirmed (unauthenticated API returned 404); obtain the setting before a hosting switch. No Node/npm were found on PATH. No installation or app/hosting changes occurred. Review the design before authorizing isolated step 2; normal development remains available at this breakpoint.
+
 Review [Asset and deployment inventory](Asset_and_Deployment_Inventory.md) and agree a conventional build/deployment proposal. Cover five workers, dynamic chunks, fetched fixtures, icons/manifest, external imports, `/Memora/` base paths, test isolation and retention/recovery for older open pages. Inspect GitHub Pages settings before preparing hosting changes; server-side settings have not been inspected.
 
 The user confirmed caching was involved when the new iPhone HTML showed “Build not identified” without its initializer. Mac displayed the footer. Actual cache headers and the complete update path have not been measured. Acceptance must test an A-to-B publication with existing cache intact, not just a Private tab.
