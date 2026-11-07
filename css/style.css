@@ -36,6 +36,17 @@ body {
     background: var(--background);
 }
 
+.app-build {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 8px 20px 16px;
+}
+
+.app-build p {
+    margin: 0;
+}
+
 .app-header {
     position: relative;
     display: flex;

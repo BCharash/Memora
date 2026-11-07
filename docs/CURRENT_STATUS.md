@@ -6,7 +6,9 @@ Runtime completion resumed 7 November 2026. Step 1 (legacy report reconciliation
 
 Step 2 (self-test environment reporting) is committed as `4c41d6d`. User reported it works; the exact devices included in that latest report were not specified. Earlier device acceptance of the database checkpoint remains separate.
 
-Step 3 is implemented locally, awaiting audio tests: Search imports shared `isIOS`; its private user-agent predicate is removed. Existing iPhone and Mac-with-touch iPad audio routing is retained. Explicitly identified iPads now deliberately use that same iOS controls/file-input path; Android/desktop branching remains unchanged. Isolated audio-function parsing and simulated controls/picker checks passed, not real media playback. Request desktop playback of a search result, iPhone choose/play and second-result cached-file reuse (also Combine playback, which shares this function), and iPad checks if available. If no iPad is available, record that correction as unverified on hardware. No model tests are needed for this change. Pause for user results. Device classification now lives only in runtime.js; domDiagnostics merely records the user agent. Offline Tiny remains a separate proposal.
+Step 3 audio checks: user reported playback worked on both desktop and iPhone after the shared Search detection change. No separate iPad hardware verification was reported. Core runtime completion steps are implemented; broader model resolution/self-test robustness remain future work.
+
+Build identification added locally: `js/build-info.js` owns Memora's independent UTC `YYYY-MM-DD.N` sequence, initially `2026-11-07.1`, matching iMuse's convention. A small footer below all tabs/Settings displays the loaded build. See build-versioning.md. Label checks and diff checks passed; user should reload and check the footer. No model or database retest is required for this display change. No automatic cache/deployment mechanism was added.
 
 
 

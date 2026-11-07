@@ -1,3 +1,5 @@
+import { displayBuildInfo } from "./build-info.js";
+
 import {
     displayTranscriptFiles,
     getCombineSortOrder,
@@ -9,6 +11,8 @@ import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptio
 import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
 import { initCombineShareExportUI } from "./combineShareExport.js";
 import { initSettingsUI } from "./settings.js";
+
+displayBuildInfo(document.getElementById("appBuild"));
 
 // --------------------------------------------------
 // Display text-size preference
