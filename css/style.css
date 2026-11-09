@@ -1504,3 +1504,10 @@ button:disabled {
     color: var(--text);
     font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
+
+/* Keep each saved report distinct, including when its technical details open. */
+.whisper-saved-report {
+    padding: 12px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid currentColor;
+}

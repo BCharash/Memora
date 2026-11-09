@@ -381,6 +381,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     }
                 };
                 technical.append(technicalLabel, body);
+                details.classList.add("whisper-saved-report");
                 details.append(label, description, copy, feedback, technical);
                 target.append(details);
             }
