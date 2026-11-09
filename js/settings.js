@@ -380,9 +380,34 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                         feedback.textContent = " Copy unavailable. Select and copy the technical report below.";
                     }
                 };
+                const download = document.createElement("button");
+                download.type = "button";
+                download.textContent = "Download report";
+                download.onclick = () => {
+                    let url;
+                    const link = document.createElement("a");
+                    try {
+                        url = URL.createObjectURL(new Blob([body.textContent], { type: "application/json" }));
+                        link.href = url;
+                        const name = `whisper-test-${record.configuration.id}-${record.startedAt}-${record.id}`;
+                        link.download = `${name.replace(/[^a-zA-Z0-9._-]/g, "-")}.json`;
+                        document.body.append(link);
+                        link.click();
+                        feedback.textContent = " Report download requested.";
+                    } catch (error) {
+                        feedback.textContent = ` Download unavailable: ${error.message}. Use Copy report instead.`;
+                    } finally {
+                        link.remove();
+                        // Give the browser time to consume the URL before releasing it.
+                        if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
+                    }
+                };
+                const actions = document.createElement("div");
+                actions.className = "whisper-report-actions";
+                actions.append(copy, download);
                 technical.append(technicalLabel, body);
                 details.classList.add("whisper-saved-report");
-                details.append(label, description, copy, feedback, technical);
+                details.append(label, description, actions, feedback, technical);
                 target.append(details);
             }
         } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }

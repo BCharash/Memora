@@ -12,6 +12,8 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 
 ## Immediate next action
 
+Candidate **2026-11-09.12** adds Download report beside Copy report. Downloads the same presented JSON using a filename containing configuration, start time and attempt ID; action buttons wrap on narrow screens. No file-pathway/registry changes. User download acceptance pending on Mac/iPhone; .11 divider is user-accepted.
+
 Candidate **2026-11-09.11** adds spacing and a visible bottom divider to each saved report, below Technical report and its expanded content. This separates adjacent saved entries in both collapsed and expanded states. Presentation only; user visual check pending.
 
 Candidate **2026-11-09.10** completes saved-report presentation: readable outcomes/model labels and browser-local dates, expanded plain-language stage/result summary, Copy report with manual selection fallback, and separately collapsed/wrapped Technical report JSON. New stage snapshots use in-progress instead of provisional failed; a presentation copy normalizes legacy placeholders without rewriting history or changing terminal failures. Ten journal and eight Settings groups passed (including clipboard success/denial). User visual/copy acceptance on Mac/iPhone pending. No inference required for this UI check; use existing reports. Eligibility rules/storage remain the next separate checkpoint, followed by selector integration, resolver consolidation and automatic sequences. No commit/publication by agent.

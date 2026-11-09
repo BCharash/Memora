@@ -1511,3 +1511,10 @@ button:disabled {
     margin-bottom: 8px;
     border-bottom: 1px solid currentColor;
 }
+
+.whisper-report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+}
