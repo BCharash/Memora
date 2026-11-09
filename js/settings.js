@@ -1,3 +1,4 @@
+import { createWhisperAttemptJournal } from "./whisperAttempts.js";
 // --------------------------------------------------
 // Memora Settings UI
 // --------------------------------------------------
@@ -25,6 +26,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
     const storage = document.getElementById("settingsStorage");
     const refreshButton = document.getElementById("settingsRefreshButton");
+
+    // Recover at app initialization, even before Settings is opened. Storage
+    // failures do not prevent startup; the history panel reports them on open.
+    void Promise.resolve().then(() => createWhisperAttemptJournal().recover())
+        .catch(error => console.warn("Whisper attempt recovery unavailable:", error));
 
     let currentReport = null;
     let modelAvailability = null;
@@ -161,6 +167,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <label>Load limit (seconds) <input id="settingsWhisperLoadLimit" type="number" min="1" max="86400" value="600"></label>
                 <label>Inference limit (seconds) <input id="settingsWhisperInferenceLimit" type="number" min="1" max="86400" value="180"></label>
             </div>
+            <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
@@ -175,6 +182,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
         renderRuntime();
         syncSelfTestControls();
+        void renderWhisperAttempts();
         storage.onclick = handleAction;
     }
 
@@ -295,9 +303,41 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         return `${configuration.label} · ${Object.values(dtype).join("/")}`;
     }
 
+    async function renderWhisperAttempts() {
+        const target = document.getElementById("settingsWhisperAttemptHistory");
+        if (!target) return;
+        try {
+            const records = await createWhisperAttemptJournal().recover();
+            target.replaceChildren();
+            if (records.length) {
+                const title = document.createElement("p");
+                title.textContent = "Saved self-test attempts (local to this browser)";
+                target.append(title);
+            }
+            for (const record of records) {
+                const details = document.createElement("details");
+                const label = document.createElement("summary");
+                label.textContent = `${record.status === "interrupted" ? "Interrupted—no final result recorded" : record.status} · ${record.configuration.id} · last saved stage: ${record.phase} · ${record.startedAt}`;
+                const body = document.createElement("pre");
+                body.textContent = JSON.stringify(record, null, 2);
+                details.append(label, body);
+                target.append(details);
+            }
+        } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }
+    }
+
     function renderSelfTestEvent(detail, event) {
         if (!detail) return;
 
+        if (event.type === "attempt-saved") {
+            if (event.persistence.status === "failed") {
+                const warning = document.createElement("p");
+                warning.textContent = `Result is not durable: ${event.persistence.message}`;
+                detail.append(warning);
+            }
+            void renderWhisperAttempts();
+            return;
+        }
         if (event.type === "run-start") {
             const environment = event.environment;
             detail.hidden = false;

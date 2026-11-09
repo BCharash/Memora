@@ -9,7 +9,7 @@ function stopError(name, message) {
     return error;
 }
 
-export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score }) {
+export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score, checkpoint }) {
     let active = false;
     return async function run({ configuration, onEvent, signal, limits = {} }) {
         if (active) throw new Error("A Whisper self-test is already running.");
@@ -44,6 +44,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
 
         async function stage(name, task) {
             phase = name;
+            await checkpoint?.(name, { ...result });
             const startedAt = performance.now();
             const deadline = startedAt + deadlines[name];
             emit({ type: "stage-start", phase: name, timeoutMs: deadlines[name] });
@@ -145,6 +146,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             result.transcript = typeof reply.text === "string" ? reply.text : "";
             result.transcriptionStatus = "passed";
             phase = "validation";
+            await checkpoint?.("validation", { ...result });
             result.validation = validateWhisperOutput(fixture.expectedText, reply.text, score);
             result.wer = result.validation.wer;
             result.accuracyStatus = result.validation.status;

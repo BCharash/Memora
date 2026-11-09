@@ -57,6 +57,14 @@ try {
     try { await transcribeRecording({ name: "broken.m4a", arrayBuffer: async () => { throw new Error("fixture failure"); } }, "tiny"); } catch { /* expected preparation failure */ }
     acquireWhisperActivity("transcription")();
     lines.push("PASS actual production wrapper exclusion and failed-preparation cleanup");
+    const recoveryKey = "memora.whisper-attempt.v1.settings-recovery-fixture";
+    try {
+        localStorage.setItem(recoveryKey, JSON.stringify({ schemaVersion: 1, id: "settings-recovery-fixture", configuration: { id: "medium-fixture" }, startedAt: "2026-01-01", status: "running", phase: "inference" }));
+        await ui.refresh();
+        await waitFor(() => document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Interrupted—no final result recorded"));
+        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture · last saved stage: inference"), "model and stage visible");
+        lines.push("PASS recovered interruption visible in Settings with model and stage");
+    } finally { localStorage.removeItem(recoveryKey); }
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) {
     document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack || error}`);

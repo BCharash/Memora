@@ -2,6 +2,10 @@
 // Memora Whisper Self-Test
 // --------------------------------------------------
 
+import { APP_BUILD } from "./build-info.js";
+import { createWhisperAttemptJournal } from "./whisperAttempts.js";
+import { DEFAULT_TEST_LIMITS } from "./whisperTestLifecycle.js";
+import { WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
 import { decodeAudio } from "./audioProcessor.js";
 import { getModelRegistryBaseline } from "./modelManager.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
@@ -54,7 +58,8 @@ export function getWhisperSelfTestOptions() {
         .filter(Boolean);
 }
 
-const runStandalone = createWhisperTestRunner({
+const createStandalone = checkpoint => createWhisperTestRunner({
+    checkpoint,
     loadFixture: async signal => {
         const [audioFile, expectedText] = await Promise.all([loadTestAudio(signal), loadExpectedText(signal)]);
         return { audioFile, expectedText };
@@ -70,5 +75,13 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits } = 
     const options = getWhisperSelfTestOptions();
     const selected = modelId ? options.find(configuration => configuration.id === modelId) : options[0];
     if (!selected) throw new Error("The requested Whisper self-test configuration is not available for this device.");
-    return runStandalone({ configuration: selected, onEvent, signal, limits });
+    const journal = createWhisperAttemptJournal();
+    const summary = await journal.run({
+        build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
+        configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
+        executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js",
+        fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }
+    }, checkpoint => createStandalone(checkpoint)({ configuration: selected, onEvent, signal, limits }));
+    onEvent?.({ type: "attempt-saved", persistence: summary.persistence });
+    return summary;
 }
