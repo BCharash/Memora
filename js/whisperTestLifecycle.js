@@ -1,5 +1,6 @@
 // Disposable self-test orchestration. Dependencies are injected for controlled
 // failure tests; no worker/model/database is opened merely by importing this file.
+import { hasWhisperReference, validateWhisperOutput, MAX_WHISPER_WER, WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
 export const DEFAULT_TEST_LIMITS = Object.freeze({ prepare: 60000, decode: 60000, release: 30000, load: 600000, inference: 180000 });
 
 function stopError(name, message) {
@@ -36,7 +37,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             label: configuration.label, repository: configuration.repository,
             dtype: configuration.configuration?.dtype ?? "repository default",
             loadMs: null, transcriptionMs: null, releaseMs: null,
-            loadStatus: "not-run", transcriptionStatus: "not-run", wer: null, transcript: "",
+            loadStatus: "not-run", transcriptionStatus: "not-run", accuracyStatus: "not-run", validation: null, wer: null, transcript: "",
             status: "failed", failedPhase: null, releaseStatus: "not-attempted", releaseError: null, error: null
         };
         let modelStarted = false;
@@ -108,10 +109,12 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             });
         }
 
-        emit({ type: "run-start", environment: runtime, sequence: [configuration.id], selectedModel: configuration.id, limits: deadlines });
+        emit({ type: "run-start", environment: runtime, sequence: [configuration.id], selectedModel: configuration.id, limits: deadlines, validationProtocol: WHISPER_VALIDATION_PROTOCOL, maxWer: MAX_WHISPER_WER });
         try {
             emit({ type: "preparing", message: "Loading test audio and expected transcription…" });
             const fixture = await stage("prepare", () => loadFixture(controller.signal));
+            phase = "fixture-validation";
+            if (!hasWhisperReference(fixture.expectedText)) throw stopError("ValidationError", "Expected transcript is empty or invalid; no model test was attempted.");
             const decodeStarted = performance.now();
             const audio = await stage("decode", () => decode(fixture.audioFile));
             decodeMs = performance.now() - decodeStarted;
@@ -139,10 +142,13 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             result.workerInferenceMs = reply.workerInferenceMs;
             result.audioDurationMs = audio.length / 16000 * 1000;
             result.diagnostics = reply.diagnostics || result.diagnostics;
-            result.transcript = reply.text || "";
-            result.wer = score(fixture.expectedText, result.transcript);
-            // Output acceptance is deliberately unchanged until checkpoint 2B.
+            result.transcript = typeof reply.text === "string" ? reply.text : "";
             result.transcriptionStatus = "passed";
+            phase = "validation";
+            result.validation = validateWhisperOutput(fixture.expectedText, reply.text, score);
+            result.wer = result.validation.wer;
+            result.accuracyStatus = result.validation.status;
+            if (result.accuracyStatus !== "passed") throw stopError("ValidationError", result.validation.message);
             result.status = "passed";
         } catch (error) {
             result.status = error.name === "AbortError" ? "cancelled" : error.name === "TimeoutError" ? "timed-out" : "failed";

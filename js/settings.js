@@ -12,6 +12,7 @@ import { clearWhisperResources } from "./whisper.js";
 import { getWhisperSelfTestOptions, runWhisperSelfTest } from "./whisperSelfTest.js";
 import { collectDomDiagnostics, formatDomDiagnostics } from "./domDiagnostics.js";
 import { formatWhisperDiagnostics } from "./whisperDiagnostics.js";
+import { formatWhisperWer } from "./whisperValidation.js";
 
 // Describes current routing policy, not confirmation of model execution.
 function getWhisperRuntimeDescription() {
@@ -153,6 +154,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
             <p class="settings-note">Self-test releases the idle production Whisper model. Default load limit: 600 seconds; inference: 180 seconds. These are provisional Tiny safety limits, not measured limits for larger models.</p>
+            <p class="settings-note">Accuracy passes only with non-empty text and WER ≤15% against the test reference. Inference completion alone is not an accuracy pass.</p>
             <div class="whisper-self-test-controls">
                 <label>Load limit (seconds) <input id="settingsWhisperLoadLimit" type="number" min="1" max="86400" value="600"></label>
                 <label>Inference limit (seconds) <input id="settingsWhisperInferenceLimit" type="number" min="1" max="86400" value="180"></label>
@@ -329,11 +331,14 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const card = detail.querySelector(`#whisper-self-test-${r.index}`);
             if (!card) return;
             const status = r.status === "passed"
-                ? `PASS · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${(r.wer * 100).toFixed(1)}%`
+                ? `PASS · inference completed · accuracy passed · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${formatWhisperWer(r.wer)} (limit 15%)`
                 : `${r.status === "cancelled" ? "CANCELLED" : r.status === "timed-out" ? "TIMED OUT" : "FAIL"} · ${r.failedPhase || "unknown stage"} · ${r.error?.message || "Unknown error"}`;
             card.querySelector(".whisper-self-test-status").textContent = status;
+            if (r.status !== "passed" && r.transcriptionStatus === "passed") {
+                card.insertAdjacentHTML("beforeend", `<div class="settings-note">Inference completed; accuracy failed${Number.isFinite(r.wer) ? ` · WER ${formatWhisperWer(r.wer)} (limit 15%)` : ""}.</div>`);
+            }
             card.insertAdjacentHTML("beforeend", `<details><summary>Timing and model diagnostics</summary><p class="settings-note">${escapeHtml(formatWhisperDiagnostics(r.diagnostics))}</p><p class="settings-note">Worker inference: ${Number.isFinite(r.workerInferenceMs) ? formatSeconds(r.workerInferenceMs) : "unavailable"} · audio: ${Number.isFinite(r.audioDurationMs) ? formatSeconds(r.audioDurationMs) : "unavailable"}</p></details>`);
-            if (r.status === "passed") {
+            if (r.transcriptionStatus === "passed") {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Transcript</summary><pre>${escapeHtml(r.transcript)}</pre></details>`);
             } else if (r.error?.stack) {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Error details</summary><pre>${escapeHtml(r.error.stack)}</pre></details>`);

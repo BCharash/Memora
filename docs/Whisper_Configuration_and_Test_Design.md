@@ -1,5 +1,7 @@
 # Whisper configuration and standalone test design
 
+Latest checkpoint, 9 November 2026: user approved WER ≤15%; 2B is implemented locally in candidate build 2026-11-09.3, with controlled checks passing and real Tiny device acceptance pending. This supersedes the earlier provisional 25% discussion. No configuration/resolver/evidence-store implementation is implied. See CURRENT_STATUS.md.
+
 Acceptance update, 9 November 2026: user reports Tiny/Large self-tests passed on MacBook and Tiny on iPhone for checkpoint 2A. Cancellation/retry and ordinary transcription are not yet explicitly confirmed. Cleanup tracking: replace the duplicate desktop test worker with a disposable production-worker instance during 3B after configuration/protocol parity tests; keep it through the safety/accuracy checkpoints.
 
 Implementation update, 9 November 2026: checkpoint 2A is implemented locally and controlled tests pass; user acceptance is pending. See CURRENT_STATUS.md for limits, coverage and device checklist. Its lifecycle was extracted into whisperTestLifecycle.js with injected dependencies for failure testing; per-page activity exclusion lives in whisperActivity.js. Larger-model deadline calibration, output validation (2B), resolver and durable attempts remain future work.
@@ -61,11 +63,11 @@ Separate four dimensions: load completion, inference completion, output correctn
 
 Cleanup is a separate field. A passed transcription with uncertain cleanup is not sequence-safe or automatically recommended. Report “worker termination invoked” only if a worker existed and termination was actually invoked. Never equate elapsed terminate() call time with confirmed memory release.
 
-### Proposed output gate — needs agreement/calibration
+### Approved output gate — WER ≤15%
 
 Retain existing case/Unicode-apostrophe/punctuation normalization and word-level Levenshtein WER initially. Version that algorithm. Do not silently equate digit spellings with written-out numbers or remove arbitrary words to improve results. Preserve raw output and normalized reference/output for explanation.
 
-Use **WER ≤ 25% as a provisional candidate**, not an established model-accuracy standard or already-agreed requirement. Capture known-working Tiny output on Mac, Windows and iPhone before approving a threshold; number formatting in the current Moon-landing reference can affect scores. If genuine correct output fails, inspect/version the fixture or normalization deliberately; do not tune per failed model to manufacture PASS. If no threshold is agreed yet, display “inference completed; accuracy not validated”, not overall PASS. Empty/gibberish outputs must be covered by deterministic failure tests.
+The user approved **WER ≤15%** on 9 November 2026. Exactly 15% passes; compare the unrounded score. This replaces the earlier provisional 25% candidate. Capture Tiny device output/WER as acceptance evidence; do not relax the threshold automatically when a model fails. Number formatting in the Moon-landing reference can affect scores; inspect and deliberately version any later fixture/normalization correction. Empty or malformed outputs and invalid scores must never pass. Inference completion and output accuracy are separate outcomes, and an accuracy failure retains the transcript for review.
 
 This short English fixture validates a smoke-test transcription, not general language accuracy, translation, long audio, model size suitability, offline readiness or sequence stability. No universal support badge should follow from one pass.
 
@@ -124,7 +126,7 @@ Vite is optional/deferred, not a prerequisite. Continue source publication from 
 
 ## Decisions for the user
 
-Recommended starting scope: **Tiny standalone safety first, existing workers/options preserved**, with a provisional WER candidate of 25% calibrated against known-working outputs. Initial Tiny watchdog ceilings above require agreement before real trials. Step 2 implementation is not authorized merely by completing this document. No actual backend-confirmation claim, upstream model revision pin or durable history has been implemented here.
+Recommended starting scope: **Tiny standalone safety first, existing workers/options preserved**, with the user-approved WER ≤15% fixture gate. Initial Tiny watchdog ceilings above require agreement before real trials. 2A and 2B were separately authorized and implemented; later stages still require their own checkpoints. No actual backend-confirmation claim, upstream model revision pin or durable history has been implemented here.
 
 
 ## User performance observations — build 2026-11-09.2, 9 November 2026

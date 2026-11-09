@@ -31,40 +31,6 @@ const IOS_TEST_SEQUENCE = [
     "medium-iphone-default"
 ];
 
-function normalizeText(text) {
-    return String(text || "")
-        .toLowerCase()
-        .replace(/[“”‘’]/g, "'")
-        .replace(/[^\p{L}\p{N}]+/gu, " ")
-        .trim();
-}
-
-function wordErrorRate(reference, hypothesis) {
-    const ref = normalizeText(reference).split(/\s+/).filter(Boolean);
-    const hyp = normalizeText(hypothesis).split(/\s+/).filter(Boolean);
-
-    if (!ref.length) return hyp.length ? 1 : 0;
-
-    const previous = Array.from({ length: hyp.length + 1 }, (_, i) => i);
-
-    for (let i = 1; i <= ref.length; i++) {
-        const current = [i];
-
-        for (let j = 1; j <= hyp.length; j++) {
-            const substitution = previous[j - 1] + (ref[i - 1] === hyp[j - 1] ? 0 : 1);
-            const insertion = current[j - 1] + 1;
-            const deletion = previous[j] + 1;
-            current[j] = Math.min(substitution, insertion, deletion);
-        }
-
-        for (let j = 0; j <= hyp.length; j++) {
-            previous[j] = current[j];
-        }
-    }
-
-    return previous[hyp.length] / ref.length;
-}
-
 async function loadTestAudio(signal) {
     const response = await fetch(TEST_AUDIO_URL, { cache: "no-store", signal });
     if (!response.ok) {
@@ -116,8 +82,7 @@ const runStandalone = createWhisperTestRunner({
     createWorker: () => new Worker(isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js", { type: "module" }),
     prepareProduction: clearWhisperResources,
     acquireActivity: () => acquireWhisperActivity("self-test"),
-    environment: getEnvironment,
-    score: wordErrorRate
+    environment: getEnvironment
 });
 
 export async function runWhisperSelfTest({ modelId, onEvent, signal, limits } = {}) {
