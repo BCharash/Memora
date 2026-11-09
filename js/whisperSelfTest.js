@@ -67,7 +67,7 @@ const createStandalone = (checkpoint, eligibilityContext) => createWhisperTestRu
         return { audioFile, expectedText };
     },
     decode: decodeAudio,
-    createWorker: () => new Worker(isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js", { type: "module" }),
+    createWorker: () => new Worker(isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-desktop-worker.js", { type: "module" }),
     prepareProduction: clearWhisperResources,
     acquireActivity: () => acquireWhisperActivity("self-test"),
     environment: getEnvironment
@@ -84,11 +84,12 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits, del
     const summary = await journal.run({
         deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
         configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
-        executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js",
+        executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-desktop-worker.js",
         fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }
     }, checkpoint => createStandalone(checkpoint, eligibilityContext)({ configuration: selected, onEvent, signal, limits }));
     try { await bridge.sync(); }
     catch (error) { summary.eligibilityPersistence = { status: "failed", message: error.message }; }
+    window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
     onEvent?.({ type: "attempt-saved", persistence: summary.persistence, eligibilityPersistence: summary.eligibilityPersistence });
     return summary;
 }

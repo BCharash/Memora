@@ -328,7 +328,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const evidence = createWhisperEvidenceBridge().get(context);
             if (run) run.textContent = ["blocked", "suspended"].includes(evidence.status) ? "Retest" : "Run test";
             const status = { eligible: "Test-qualified", blocked: "Failed test—retest required", suspended: "Paused pending retest", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
-            target.textContent = `${status}: ${evidence.reason} Transcription choices are unchanged in this checkpoint.`;
+            target.textContent = `${status}: ${evidence.reason}`;
         } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
     }
 
@@ -338,6 +338,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         try {
             const records = await createWhisperEvidenceBridge().sync();
             await renderWhisperEligibility();
+            window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
             target.replaceChildren();
             if (records.length) {
                 const title = document.createElement("p");

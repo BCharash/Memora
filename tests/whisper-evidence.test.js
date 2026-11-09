@@ -7,10 +7,10 @@ const memory=()=>{const data=new Map();return {get length(){return data.size;},k
 const definition=getWhisperConfigurationDefinitions()[0];
 try {
     const context=await getWhisperEligibilityContext(definition);
-    await test("Fingerprint records actual desktop test worker, environment and recipe",async()=>{
+    await test("Fingerprint records shared production worker, environment and recipe",async()=>{
         const expected=await fingerprintWhisperConfiguration({...definition,worker:{...definition.worker,script:context.executionWorker}});
         assert(context.configurationFingerprint===expected && context.recipe.chunk_length_s===30,"actual inputs");
-        assert(context.configurationFingerprint!==await fingerprintWhisperConfiguration(definition),"desktop test differs from production fingerprint");
+        assert(context.configurationFingerprint===await fingerprintWhisperConfiguration(definition),"same production/test fingerprint");
     });
     await test("Shipped fixture digest matches fetched audio and reference; changes differ",async()=>{
         const audio=await(await fetch("../data/whisper-test/test-audio.m4a")).blob();

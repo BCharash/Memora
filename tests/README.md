@@ -61,3 +61,11 @@ Device check: selected-model status appears beneath controls and changes with mo
 Build 2026-11-09.14: nine eligibility, ten evidence-integration, eight Settings and nine accuracy groups pass (36 total). New coverage distinguishes suspended interruption from confirmed failure, migrates old holds, restores eligibility through deliberate passes, resolves legacy reviews without replay regression, reopens newer holds, scopes resolution to exact contexts, and persists UI retest intent/cancellation. Real-device check: Retest Tiny, verify Test-qualified and persistence after refresh; optional cancellation preserves prior state. No Medium run required.
 
 Build 2026-11-09.15: eight Settings and nine validation groups pass. Main button switches between Run test and Retest for the exact selected configuration/context, preserves hold after cancellation, records deliberate intent and returns to Run test after qualification. There is no separate Retest action.
+
+## Strict production gating — build 2026-11-09.16
+
+- `/tests/whisper-production-eligibility.html`: six groups use the real production-gate factory with injected evidence. Empty state, exclusion/restoration, exact Medium defaults, quantization isolation, unsupported environments and storage failure.
+- `/tests/whisper-production-selector.html`: four groups execute the actual selector refresh function extracted from app.js against fixture DOM/injected choices; onboarding, qualification/removal, active-batch preservation, stale async updates and errors.
+- `/tests/whisper-loader-gate.html`: two groups substitute only the gate decision and Worker to verify loader refusal before worker creation and canonical repository/dtype enforcement. No models.
+
+These plus ten evidence, eight Settings, seven diagnostics, nine validation and 22 lifecycle groups passed (68 groups). Model/backend device acceptance remains separate. Desktop needs a fresh Tiny test because self-test now uses the same production worker and therefore a different fingerprint from historical desktop evidence. iOS worker fingerprint remains unchanged. Only family-default variants can qualify a family selector entry; other variant tests remain available in Settings.

@@ -1,3 +1,4 @@
+import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
 import { displayBuildInfo } from "./build-info.js";
 import { formatWhisperDiagnostics, formatTranscriptionTimings } from "./whisperDiagnostics.js";
 
@@ -70,10 +71,51 @@ const iphoneExportStatus =
     document.getElementById("iphoneExportStatus");
 const fileInput = document.getElementById("fileInput");
 const modelSelect = document.getElementById("modelSelect");
+let transcriptionBatchActive = false;
+let modelRefreshVersion = 0;
+async function refreshQualifiedWhisperModels() {
+    const version = ++modelRefreshVersion;
+    if (!modelSelect || transcriptionBatchActive) return;
+    const note = document.getElementById("modelEligibilityNote");
+    const previous = modelSelect.value;
+    try {
+        const definitions = await listQualifiedWhisperProductionModels();
+        if (version !== modelRefreshVersion || transcriptionBatchActive) return;
+        modelSelect.replaceChildren();
+        for (const definition of definitions) {
+            const option = document.createElement("option");
+            option.value = definition.family;
+            option.textContent = definition.label;
+            modelSelect.append(option);
+        }
+        if (definitions.some(item => item.family === previous)) modelSelect.value = previous;
+        if (!definitions.length) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No qualified models";
+            modelSelect.append(option);
+        }
+        modelSelect.disabled = !definitions.length;
+        transcribeButton.disabled = !definitions.length;
+        if (previous !== modelSelect.value) modelSelect.dispatchEvent(new Event("change"));
+        if (note) note.textContent = definitions.length ? "Only test-qualified models are shown." : "Open Settings → Whisper Self-Test and test a model to enable transcription.";
+    } catch (error) {
+        if (version !== modelRefreshVersion || transcriptionBatchActive) return;
+        modelSelect.replaceChildren();
+        modelSelect.disabled = transcribeButton.disabled = true;
+        if (note) note.textContent = `Model eligibility unavailable: ${error.message}`;
+    }
+}
+window.addEventListener("memora-whisper-eligibility-changed", () => void refreshQualifiedWhisperModels());
+window.addEventListener("focus", () => void refreshQualifiedWhisperModels());
+window.addEventListener("storage", event => {
+    if (event.key === null || event.key?.startsWith("memora.whisper-eligibility")) void refreshQualifiedWhisperModels();
+});
 const languageSelect = document.getElementById("languageSelect");
 const operationSelect = document.getElementById("operationSelect");
 const paragraphingCheckbox = document.getElementById("paragraphingCheckbox");
 const transcribeButton = document.getElementById("transcribeButton");
+void refreshQualifiedWhisperModels();
 
 const transcriptionStatus =
     document.getElementById("transcriptionStatus");
@@ -751,6 +793,7 @@ transcribeButton.addEventListener(
 
         try {
 
+            transcriptionBatchActive = true;
             transcribeButton.disabled = true;
 
             transcriptionOutput.textContent = "";
@@ -892,8 +935,8 @@ transcribeButton.addEventListener(
 
         } finally {
 
-            transcribeButton.disabled =
-                false;
+            transcriptionBatchActive = false;
+            await refreshQualifiedWhisperModels();
         }
     }
 );

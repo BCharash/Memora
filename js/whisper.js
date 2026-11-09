@@ -1,7 +1,4 @@
-import {
-    getModelDefinition,
-    getModelRegistryBaseline
-} from "./modelManager.js";
+import { requireWhisperProductionEligibility } from "./whisperProductionEligibility.js";
 import { isIOS } from "./runtime.js";
 
 
@@ -432,39 +429,10 @@ export async function loadTranscriber(
     statusCallback
 ) {
 
-    // Diagnostic: Medium is loaded from the exact registry record used by
-    // whisperSelfTest.js, rather than reconstructed from the model catalog.
-    // This isolates whether the production path is changing the selected
-    // implementation before it reaches the desktop worker.
-    if (model === "medium") {
-        const registryConfiguration =
-            getModelRegistryBaseline().find(
-                record => record.id === "medium-webgpu-q4"
-            );
-
-        if (!registryConfiguration) {
-            throw new Error(
-                "The medium-webgpu-q4 registry configuration was not found."
-            );
-        }
-
-        console.log(
-            "[Whisper diagnostic] Using exact registry configuration for Medium:",
-            registryConfiguration
-        );
-
-        return loadTranscriberConfiguration(
-            registryConfiguration,
-            statusCallback
-        );
-    }
-
-    const modelInfo =
-        getModelDefinition(model);
-
+    const definition = await requireWhisperProductionEligibility(model);
     return loadTranscriberDefinition(
-        modelInfo,
-        model,
+        { label: definition.label, repository: definition.repository, dtype: definition.loader.dtype },
+        definition.id,
         statusCallback
     );
 }
@@ -477,15 +445,9 @@ export async function loadTranscriberConfiguration(
     statusCallback
 ) {
 
-    return loadTranscriberDefinition(
-        {
-            label: configuration.label || configuration.family || "Whisper",
-            repository: configuration.repository,
-            dtype: configuration.configuration?.dtype ?? null
-        },
-        configuration.id || configuration.family || configuration.repository,
-        statusCallback
-    );
+    // Use canonical fields after checking identity; caller-supplied repository
+    // or dtype overrides must never borrow another configuration's eligibility.
+    return loadTranscriber(configuration.id, statusCallback);
 }
 
 

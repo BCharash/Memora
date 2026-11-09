@@ -217,19 +217,10 @@
                         Model
                     </label>
 
-                    <select id="modelSelect">
-                        <option value="tiny">Tiny — fastest</option>
-                        <option value="base">Base — fast</option>
-                        <option value="small" selected>
-                            Small — balanced
-                        </option>
-                        <option value="medium">
-                            Medium — higher accuracy
-                        </option>
-                        <option value="large">
-                            Large — highest accuracy
-                        </option>
+                    <select id="modelSelect" disabled>
+                        <option value="">Checking qualified models…</option>
                     </select>
+                    <span id="modelEligibilityNote" class="settings-note" role="status"></span>
 
                     <label for="languageSelect">
                         Language
@@ -267,7 +258,7 @@
                     </label>
 
                     <div class="transcribe-action">
-                        <button id="transcribeButton" type="button">
+                        <button id="transcribeButton" type="button" disabled>
                             Transcribe Selected
                         </button>
                     </div>

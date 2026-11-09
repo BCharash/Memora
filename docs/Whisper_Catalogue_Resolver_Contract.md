@@ -48,3 +48,7 @@ modelManager now imports the canonical definitions; it does not call the resolve
 ### 3B self-test option checkpoint — 9 November 2026
 
 Build 2026-11-09.6 removes the duplicate desktop/iOS self-test ID arrays. whisperSelfTest now filters canonical definitions by the existing iOS/non-iOS platform split and test.allowed, sorts by test.order, then returns the legacy registry projection. Choices and execution remain unchanged; the stricter resolver OS/capability gates are not activated by this list migration. Thirteen catalogue and five Settings groups passed; user device acceptance remains pending. Medium resource/benefit policy is deferred and Medium inference is not requested.
+
+### Strict production eligibility — build 2026-11-09.16
+
+Production family/default selection and exact configuration loads now derive from canonical definitions through `whisperProductionEligibility.js`, which checks current-context persisted eligibility before worker initialization. The UI lists only qualified family defaults; empty/stale/held evidence cannot be used. Desktop self-tests now use the production desktop worker, so the fingerprint is shared; old separate-worker evidence needs fresh validation. Existing iOS worker context is unchanged. Medium's desktop-only registry shortcut is replaced by platform-correct defaults. Core asynchronous resolver API is still not the execution entry point: remaining adapter/availability cleanup is separate, and this checkpoint is not a claim that every catalogue duplicate is retired.

@@ -12,7 +12,7 @@ export async function digestWhisperFixture(audioFile, expectedText) {
     return `sha256:${await hash(new TextEncoder().encode(JSON.stringify(parts)))}`;
 }
 export async function getWhisperEligibilityContext(definition) {
-    const executionWorker = isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js";
+    const executionWorker = definition.worker.script;
     const capabilities = getRuntimeCapabilities();
     return {
         configurationId: definition.id,
