@@ -125,3 +125,23 @@ Vite is optional/deferred, not a prerequisite. Continue source publication from 
 ## Decisions for the user
 
 Recommended starting scope: **Tiny standalone safety first, existing workers/options preserved**, with a provisional WER candidate of 25% calibrated against known-working outputs. Initial Tiny watchdog ceilings above require agreement before real trials. Step 2 implementation is not authorized merely by completing this document. No actual backend-confirmation claim, upstream model revision pin or durable history has been implemented here.
+
+
+## User performance observations — build 2026-11-09.2, 9 November 2026
+
+User-supplied diagnostic output; no new agent-run inference. MacBook is the previously identified 2018 MacBook Pro, Chrome; exact browser version, power/thermal state and competing workloads were not recorded. iPhone/browser version not supplied. These are observations, not controlled benchmarks or evidence that all graph operators ran on one backend.
+
+| Device/path | Selection and initialized session settings | Audio | Load | Caller inference / worker inference | Other evidence |
+|---|---|---:|---:|---:|---|
+| Mac self-test | small-webgpu-default; onnx-community/whisper-small; model webgpu/fp32, decoder_model_merged webgpu/fp32 | 15.5s | 15.0s | 26.3s / 26.1s | WER 0.0%; passed; 41.4s total; termination invoked |
+| Mac self-test | large-webgpu-fp16-q4; onnx-community/whisper-large-v3-ONNX; model webgpu/fp16, decoder_model_merged webgpu/q4 | Not supplied in latest Large excerpt | Not supplied | Not supplied | Initialized settings match production Large; no latest WER supplied |
+| Mac production | small; same repository/default dtype request; model webgpu/fp32, decoder_model_merged webgpu/fp32 | 16.7s | 12.1s, new | 20.2s / 20.2s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s |
+| Mac production | large; requested encoder fp16/decoder q4; model webgpu/fp16, decoder_model_merged webgpu/q4 | 16.7s | 39.4s, new | 76.2s / 76.0s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s; user reports window switching/typing sluggish |
+| Mac production, English selected | Same Large settings | 16.7s | 0.0s, reused | 81.7s / 81.6s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s |
+| iPhone production | tiny; onnx-community/whisper-tiny; runtime-default backend (WASM intended), Transformers.js 3.7.2; model wasm/q8, decoder_model_merged wasm/q8 | 16.6s | 2.1s, new | 3.8s / 3.8s | Metadata/decode/paragraphing displayed 0.0s |
+
+Desktop sessions use Transformers.js 4.0.0. Worker-level time closely matches caller inference time, localizing the reported delay to the pipeline invocation rather than messaging, metadata, audio decoding or paragraphing. Reusing Large did not eliminate the slow inference. Selecting English did not improve the supplied repeat, but these are not controlled comparisons and do not establish causality. Small test and production inputs have different reported durations, so do not compare their times as an exact same-input regression benchmark.
+
+There is no evidence here of desktop WASM fallback: both session components report selected WebGPU settings. actual operator backend remains unknown without runtime profiling. System contention/shared GPU or memory pressure is a plausible hypothesis for sluggish UI, not measured/proven. Do not claim a watchdog regression, thermal fault, memory leak, or GPU-only execution from these data. Large may be unsuitable as the routine default on this device; do not alter model/quantization/eligibility automatically. Small currently selects fp32 when dtype is omitted; evaluating an explicit quantized variant is separate configuration/test work.
+
+Diagnostics acceptance now includes normal Mac Small/Large and iPhone Tiny, plus Mac Small self-test. Further repeated Large runs are not required for this checkpoint. Next planned change is 2B output validation after reviewing Tiny fixture WER/reference outputs; retain the deferred desktop-test-worker consolidation in 3B. Large performance tuning/profiling is a separate optional investigation, not a prerequisite for implementing reliable quality verdicts.
