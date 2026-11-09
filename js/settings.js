@@ -40,6 +40,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     let modelAvailability = null;
     let latestDomDiagnostics = null;
     let selfTestController = null;
+    let activeSelfTestStatus = null;
     let registryRenderToken = 0;
     let registryMode = "current";
 
@@ -323,16 +324,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const target = document.getElementById("settingsWhisperEligibility");
         const id = document.getElementById("settingsWhisperSelfTestModel")?.value;
         if (!target || !id) return;
+        if (selfTestController) {
+            target.textContent = activeSelfTestStatus;
+            return;
+        }
         const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
         if (run) run.textContent = "Run test";
         try {
             const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === id));
             if (document.getElementById("settingsWhisperSelfTestModel")?.value !== id) return;
+            if (selfTestController) { target.textContent = activeSelfTestStatus; return; }
             const evidence = createWhisperEvidenceBridge().get(context);
             if (run) run.textContent = ["blocked", "suspended"].includes(evidence.status) ? "Retest" : "Run test";
             const status = formatEligibilityStatus(evidence);
             target.textContent = `${status}: ${evidence.reason}`;
-        } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
+        } catch (error) { target.textContent = selfTestController ? activeSelfTestStatus : `Eligibility unavailable: ${error.message}`; }
     }
 
     async function renderWhisperAttempts() {
@@ -562,6 +568,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         detail.innerHTML = `<p class="settings-note">Starting Whisper self-test…</p>`;
 
         selfTestController = new AbortController();
+        activeSelfTestStatus = "Test in progress. Checking saved eligibility…";
+        void renderWhisperEligibility();
         syncSelfTestControls();
 
         try {
@@ -576,7 +584,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const bridge = createWhisperEvidenceBridge();
             await bridge.sync();
             const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === modelSelect?.value));
-            const deliberateRetest = ["blocked", "suspended"].includes(bridge.get(context).status);
+            const evidence = bridge.get(context);
+            const deliberateRetest = ["blocked", "suspended"].includes(evidence.status);
+            activeSelfTestStatus = evidence.status === "eligible"
+                ? "Test in progress. Existing transcription eligibility remains in effect until a new result is saved."
+                : `${deliberateRetest ? "Retest" : "Test"} in progress. Transcription remains unavailable until this test passes.`;
+            void renderWhisperEligibility();
             await runWhisperSelfTest({
                 deliberateRetest, modelId: modelSelect?.value,
                 signal: selfTestController.signal,
@@ -590,7 +603,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             }
         } finally {
             selfTestController = null;
+            activeSelfTestStatus = null;
             syncSelfTestControls();
+            await renderWhisperEligibility();
         }
     }
 

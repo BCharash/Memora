@@ -1,6 +1,14 @@
 # Memora — current status and resume instructions
 
-Reviewed 9 November 2026 against build **2026-11-09.23**, committed as `58cfd3f`. The user accepted the latest registry presentation (“looks good”). This documentation refresh changes no application code or build number. This is a stable stopping point; no implementation is currently underway.
+Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-09.24** changes only active self-test status wording; local checks passed and user wording acceptance is pending. No commit/publication by agent.
+
+## Latest narrow change — active retest wording (.24)
+
+While a manual test/retest runs, its selected-model status says Test/Retest in progress rather than presenting the saved eligibility hold as a paused current operation. Unqualified models remain unavailable until a qualifying result; existing eligible models retain their saved status until new evidence. After completion/cancellation/error, the actual saved eligibility message returns. Async status reads cannot overwrite an active test with old paused wording. Eight Settings groups passed, including active wording, unchanged hold and cancellation restoration. Worker inputs, fingerprints and eligibility rules are unchanged; no new qualification is required.
+
+User reported three iPhone tests without crashes when deliberately waiting about a minute between runs. This is a useful uncontrolled observation, not a safe minimum or proof of reclaimed memory. The user explicitly deferred cooldown implementation and asked to study whether 25 seconds might suffice. No cooldown, beep or extra lockout is added. A future agreed comparison should hold device/model/cache and predecessor conditions steady, compare a spaced baseline with a shorter interval in limited sessions, record actual intervals and page continuity, and stop on the first instability rather than stress until failure. No new device trials are requested now.
+
+User check: start one needed retest and confirm the active wording; after finishing/cancelling, confirm saved eligibility returns. Do not deliberately interrupt or rerun Large/Medium merely for a wording check. iPhone shared UI acceptance can be checked after the user's next publication.
 
 ## What is complete
 

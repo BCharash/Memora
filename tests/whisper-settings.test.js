@@ -62,11 +62,16 @@ try {
     assert(!document.querySelector('[data-settings-action="retest-whisper-self-test"]'), "single test action");
     runButton().click(); await waitFor(() => !cancelButton().disabled);
     assert(runButton().disabled, "main action disabled while active");
+    await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.startsWith("Retest in progress."));
+    assert(!document.getElementById("settingsWhisperEligibility").textContent.includes("Paused pending retest"), "active retest does not display paused status");
+    assert(eligibility.get(selectedContext).status === "suspended", "running message does not release eligibility hold");
+    await ui.refresh();
+    assert(document.getElementById("settingsWhisperEligibility").textContent.startsWith("Retest in progress."), "active status survives refresh request");
     cancelButton().click();
     await waitFor(() => !runButton().disabled);
     const savedRetests = Object.keys(localStorage).filter(key => key.startsWith("memora.whisper-attempt.v1.")).map(key => JSON.parse(localStorage.getItem(key)));
     assert(savedRetests.some(record => record.deliberateRetest === true && record.status === "cancelled" && record.pageId), "deliberate action recorded before execution");
-    await waitFor(() => runButton().textContent === "Retest");
+    await waitFor(() => runButton().textContent === "Retest" && document.getElementById("settingsWhisperEligibility").textContent.includes("Paused pending retest"));
     const passing = id => ({ id: crypto.randomUUID(), startedAt: new Date().toISOString(), configuration: { id }, status: "passed", phase: "validation", result: { results: [{ status: "passed", transcriptionStatus: "passed", accuracyStatus: "passed", validation: { status: "passed" }, wer: 0 }] } });
     const otherId = getWhisperConfigurationDefinitions().find(item => item.platform === "desktop" && item.id !== selectedId && item.test.allowed).id;
     const otherContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === otherId));

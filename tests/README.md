@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through application build **2026-11-09.23**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-09.24**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -33,6 +33,8 @@ Whisper harnesses use synthetic workers/pipelines/audio or cancelled/stubbed net
 The independent `fixtures/whisper-registry-baseline-v2.json` was captured before baseline migration. Do not regenerate it from new production code to hide differences. The removed `whisper-test-worker.js` has no active test requirement; the two production workers remain covered.
 
 ## Latest recorded checks and acceptance
+
+Build .24: eight Settings groups passed, with active retest wording, unchanged suspended eligibility and idle-message restoration after cancellation. No inference or cooldown was introduced. User wording acceptance pending.
 
 - Build .20: four loader-gate and six diagnostics groups passed.
 - Build .21: 15 catalogue, six production-eligibility, seven database-integration, eight Settings and four selector groups passed (40 total).

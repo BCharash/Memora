@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 9 November 2026, production build **2026-11-09.23**.
+Reviewed against the checkout on 9 November 2026, candidate build **2026-11-09.24**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
