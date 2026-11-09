@@ -1,5 +1,5 @@
 // Canonical definitions now feed modelManager's legacy registry projection.
-// Resolver execution callers migrate in later checkpoints.
+// Production selection and the async resolver share the same selection rules.
 // No storage, worker, model download or runtime probing occurs on import.
 const families = {
     tiny: { label: "Tiny", repository: "onnx-community/whisper-tiny" },
@@ -106,7 +106,7 @@ export async function fingerprintWhisperConfiguration(configuration) {
     return `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
-export async function resolveWhisperConfiguration(request, environment, { purpose = "production", capabilities } = {}) {
+export function selectWhisperConfigurationDefinition(request, environment, { purpose = "production", capabilities } = {}) {
     if (purpose !== "production" && purpose !== "self-test") return { ok: false, code: "invalid-purpose", reason: "Expected production or self-test purpose." };
     if (typeof request !== "string" || !request) return { ok: false, code: "invalid-request", reason: "Provide an exact configuration ID or model family." };
     const exact = configurations.find(configuration => configuration.id === request);
@@ -116,10 +116,19 @@ export async function resolveWhisperConfiguration(request, environment, { purpos
     if (!configuration) return { ok: false, code: "incompatible-environment", reason: `No ${request} default targets ${environment?.operatingSystem || "unknown"}. No substitute selected.` };
     const issue = compatibility(configuration, environment, purpose, capabilities);
     if (issue) return { ok: false, ...issue };
+    return freezeDeep({ ok: true, configuration,
+        reason: exact ? "Exact compatible configuration selected." : "Existing family default selected for the operating system." });
+}
+
+export async function resolveWhisperConfiguration(request, environment, options = {}) {
+    const selected = selectWhisperConfigurationDefinition(request, environment, options);
+    if (!selected.ok) return selected;
+    const configuration = selected.configuration;
+    const { capabilities } = options;
     const fingerprint = await fingerprintWhisperConfiguration(configuration);
     return freezeDeep({
         ok: true,
-        reason: exact ? "Exact compatible configuration selected." : "Existing family default selected for the operating system.",
+        reason: selected.reason,
         configuration: { ...configuration, fingerprint },
         provenance: "Repository revision is unpinned; fingerprint identifies declared execution inputs, not immutable model weights.",
         validation: "unknown", // Definition resolution is never proof of successful execution.

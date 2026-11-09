@@ -10,6 +10,16 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 4. **Whisper configuration and testing: current priority.** 2A lifecycle safety and 2B WER ≤15% validation are implemented and accepted as recorded. 3A catalogue/resolver is implemented; 3B registry baseline and self-test option consumers now use catalogue definitions. Strict transcription eligibility and shared desktop production/self-test worker are implemented through build .16. Current priority is iPhone Settings/page stability and resource-lifecycle investigation. Automatic sequences are on hold.
 5. **Offline Tiny, sharing consolidation and iMuse integration: deferred.** Align their contracts with the above work before implementation.
 
+## Latest consolidation: canonical family metadata and production selection — 2026-11-09.21
+
+Removed hand-maintained family labels/repositories from modelManager MODEL_CATALOG: it is now an availability projection of canonical desktop defaults. Large's mixed-precision readiness map is cloned from the canonical definition; unused preferredDtype hints are gone. Existing availability behavior is preserved (generic matching ONNX pair for scalar/omitted dtype, exact map file check for Large); it remains separate from exact execution eligibility. No persisted record/schema migration.
+
+Extracted synchronous selectWhisperConfigurationDefinition inside the canonical module. Async resolver and production eligibility gate now share exact-ID/family/default/platform compatibility rules; production listing uses the canonical list API plus its existing family-default UI filter. Eligibility checks stay in place. Self-test's legacy iOS/non-iOS choice adapter remains intentionally unchanged for a later explicit policy review. Canonical execution data, worker/library revisions, compatibility/list functions and fingerprint algorithm were compared byte-for-byte with HEAD and are unchanged. No model revalidation, new inference settings or automatic sequences.
+
+Verification: 15 catalogue/resolver/availability, six production eligibility, seven isolated database integration (including evidence preservation), eight Settings and four selector groups passed (40 groups; synthetic/local fixtures, no model runs). Independent expected family mapping and mocked repository responses check preserved readiness behavior. Brief user Settings/qualified-dropdown check pending; no Small crash test or reset needed. Existing unrelated icons/apple-touch-icon.png modification was preserved. No commit/publication by agent.
+
+Remaining work: self-test selection adapter and legacy registry/eligibility presentation, then any further exact availability changes by explicit scope. Resource instability remains unresolved; automatic sequencing stays paused.
+
 ## Latest cleanup: unused page-side execution removed — 2026-11-09.20
 
 Removed unused loadTransformers()/transformers cache and unreachable direct-pipeline execution/disposal branches from whisper.js. Current iOS/desktop worker paths, reuse, message payloads, eligibility and termination are unchanged. Unexpected internal worker state now throws a clear error rather than entering the obsolete pipeline fallback. Worker scripts and fingerprints remain unchanged; no model revalidation or iPhone inference required for this deletion-only cleanup.

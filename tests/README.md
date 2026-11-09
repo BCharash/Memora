@@ -87,3 +87,5 @@ Device acceptance: fresh Tiny test on changed worker context; verify Cleanup det
 Obsolete-worker cleanup: removed whisper-test-worker.js and its single historical worker case. Diagnostics now has six groups; disposal retains 11 groups. Both pass. Active workers and production/self-test execution are unchanged.
 
 Build .20 dead-code cleanup: loader-gate suite now has four groups, including actual loader source with simulated iOS/desktop worker selection, reuse, transcription messages, idempotent termination and unloaded-call refusal. All four plus six diagnostics groups pass. Worker scripts/options/fingerprints are unchanged.
+
+Build .21 catalogue consolidation: 15 configuration groups include independent five-family availability projection/readiness checks and parity between synchronous selection and async resolver across supported/unsupported environments and exact/family/invalid requests. Six production eligibility, seven database integration, eight Settings and four selector groups also pass (40 total). Canonical execution/fingerprint source prefix compared unchanged with HEAD; no actual model runs or eligibility reset.

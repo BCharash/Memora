@@ -1,5 +1,5 @@
-import { getWhisperConfigurationDefinitions, listWhisperConfigurations, resolveWhisperConfiguration, fingerprintWhisperConfiguration } from "../js/whisperConfigurations.js";
-import { getModelRegistryBaseline } from "../js/modelManager.js";
+import { selectWhisperConfigurationDefinition, getWhisperConfigurationDefinitions, listWhisperConfigurations, resolveWhisperConfiguration, fingerprintWhisperConfiguration } from "../js/whisperConfigurations.js";
+import { getModelRegistryBaseline, getModelCatalog, checkModelAvailability } from "../js/modelManager.js";
 import { getWhisperSelfTestOptions } from "../js/whisperSelfTest.js";
 import { runtimeIdentity } from "../js/runtime.js";
 
@@ -33,6 +33,45 @@ try {
             assert(current, previous.id);
             for (const key of ["family", "label", "repository", "runtime", "platform"]) assert(current[key] === previous[key], `${previous.id} ${key}`);
             assert(canonical(current.loader.dtype) === canonical(previous.configuration.dtype), `${previous.id} dtype`);
+        }
+    });
+    await test("Availability family projection preserves labels, repositories and existing file-readiness checks", async () => {
+        const expected = {
+            tiny: { label: "Tiny", repository: "onnx-community/whisper-tiny" },
+            base: { label: "Base", repository: "onnx-community/whisper-base" },
+            small: { label: "Small", repository: "onnx-community/whisper-small" },
+            medium: { label: "Medium", repository: "Xenova/whisper-medium" },
+            large: { label: "Large", repository: "onnx-community/whisper-large-v3-ONNX", dtype: { encoder_model: "fp16", decoder_model_merged: "q4" } }
+        };
+        assert(JSON.stringify(getModelCatalog()) === JSON.stringify(expected), "independent family contract");
+        assert(getModelCatalog().large.dtype !== definitions.find(x => x.id === "large-webgpu-fp16-q4").loader.dtype, "no mutable canonical dtype alias");
+        const originalFetch = window.fetch, descriptor = Object.getOwnPropertyDescriptor(window, "caches");
+        let includeLargeEncoder = true;
+        try {
+            Object.defineProperty(window, "caches", { configurable: true, value: { keys: async () => [] } });
+            window.fetch = async url => ({ ok: true, json: async () => String(url).includes("/tree/")
+                ? ["config.json", "tokenizer.json", "tokenizer_config.json", "preprocessor_config.json", "onnx/encoder_model_quantized.onnx", "onnx/decoder_model_merged_quantized.onnx", "onnx/decoder_model_merged_q4.onnx", ...(includeLargeEncoder ? ["onnx/encoder_model_fp16.onnx"] : [])].map(path => ({ type: "file", path }))
+                : { sha: "fixture-revision" } });
+            for (const [family, definition] of Object.entries(expected)) {
+                const report = await checkModelAvailability(family);
+                assert(report.available && report.repository === definition.repository && !report.cached, family);
+            }
+            includeLargeEncoder = false;
+            const large = await checkModelAvailability("large");
+            assert(!large.available && large.missingFiles.includes("onnx/encoder_model_fp16.onnx"), "existing mixed-precision readiness preserved");
+        } finally {
+            window.fetch = originalFetch;
+            if (descriptor) Object.defineProperty(window, "caches", descriptor); else delete window.caches;
+        }
+    });
+    await test("Synchronous production selection and async resolver share defaults and rejection rules", async () => {
+        for (const operatingSystem of ["macos", "windows", "linux", "ios", "android", "unknown"]) {
+            for (const request of ["tiny", "medium", "large", "medium-webgpu-q4", "tiny-iphone-default", "typo", "constructor", ""]) {
+                const sync = selectWhisperConfigurationDefinition(request, { operatingSystem });
+                const asyncResult = await resolveWhisperConfiguration(request, { operatingSystem });
+                assert(sync.ok === asyncResult.ok && (sync.ok ? sync.configuration.id === asyncResult.configuration.id : sync.code === asyncResult.code), `${operatingSystem} ${request}`);
+                if (sync.ok) assert(Object.isFrozen(sync.configuration), "canonical immutable selection");
+            }
         }
     });
     await test("Nested catalogue and component dtype maps cannot be mutated", () => {

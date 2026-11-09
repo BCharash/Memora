@@ -1,14 +1,13 @@
-import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
+import { selectWhisperConfigurationDefinition, listWhisperConfigurations } from "./whisperConfigurations.js";
 import { runtimeIdentity } from "./runtime.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 
 // Injected dependencies let isolated fixtures exercise the actual selection gate.
 export function createWhisperProductionGate({ bridge = createWhisperEvidenceBridge(), contextFor = getWhisperEligibilityContext, environment = runtimeIdentity } = {}) {
     function definitionFor(request) {
-        const definitions = getWhisperConfigurationDefinitions();
-        const definition = definitions.find(item => item.id === request) || definitions.find(item => item.family === request && item.production.familyDefault && item.platform === (environment.operatingSystem === "ios" ? "ios" : "desktop"));
-        if (!definition || !definition.operatingSystems.includes(environment.operatingSystem)) throw new Error("This Whisper configuration does not support the current platform.");
-        return definition;
+        const selected = selectWhisperConfigurationDefinition(request, environment);
+        if (!selected.ok) throw new Error(selected.reason);
+        return selected.configuration;
     }
     async function requireEligible(request) {
         const definition = definitionFor(request);
@@ -19,7 +18,7 @@ export function createWhisperProductionGate({ bridge = createWhisperEvidenceBrid
     }
     async function list() {
         await bridge.sync();
-        const definitions = getWhisperConfigurationDefinitions().filter(item => item.production.familyDefault && item.operatingSystems.includes(environment.operatingSystem));
+        const definitions = listWhisperConfigurations(environment, { purpose: "production" }).filter(item => item.production.familyDefault);
         const choices = await Promise.all(definitions.map(async definition => ({ definition, evidence: bridge.get(await contextFor(definition)) })));
         return choices.filter(item => item.evidence.status === "eligible").map(item => item.definition);
     }

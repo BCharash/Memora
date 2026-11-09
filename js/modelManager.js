@@ -12,38 +12,20 @@ import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 // tiny, base, small, medium, large.
 // Repository names, revisions, and Transformers.js details stay internal.
 
-const MODEL_CATALOG = {
-    tiny: {
-        label: "Tiny",
-        repository: "onnx-community/whisper-tiny",
-        preferredDtype: "q8"
-    },
-    base: {
-        label: "Base",
-        repository: "onnx-community/whisper-base",
-        preferredDtype: "q8"
-    },
-    small: {
-        label: "Small",
-        repository: "onnx-community/whisper-small",
-        preferredDtype: "q8"
-    },
-    medium: {
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        // Preserve the pre-registry behavior: no explicit dtype is passed
-        // to Transformers.js. The repository/runtime chooses its default.
-        preferredDtype: "q4"
-    },
-    large: {
-        label: "Large",
-        repository: "onnx-community/whisper-large-v3-ONNX",
-        dtype: {
-            encoder_model: "fp16",
-            decoder_model_merged: "q4"
-        }
-    }
-};
+// Availability keeps its legacy family-level contract. All labels/repositories
+// and the existing mixed-precision file check now come from canonical data.
+// Scalar/omitted dtype readiness stays the legacy "any matching ONNX pair"
+// check in this checkpoint; it is not exact execution eligibility.
+const MODEL_CATALOG = Object.fromEntries(
+    getWhisperConfigurationDefinitions()
+        .filter(definition => definition.platform === "desktop" && definition.production.familyDefault)
+        .map(definition => [definition.family, {
+            label: definition.label,
+            repository: definition.repository,
+            ...(definition.loader.dtype && typeof definition.loader.dtype === "object"
+                ? { dtype: structuredClone(definition.loader.dtype) } : {})
+        }])
+);
 
 const MODEL_API_BASE = "https://huggingface.co/api/models/";
 
@@ -67,14 +49,8 @@ const MODEL_REGISTRY_BASELINE = getWhisperConfigurationDefinitions().map(definit
 }));
 
 
-/*
- * Availability follows the way whisper.js actually loads each family.
- * Tiny/Base/Small pass only the repository to Transformers.js.
- * Medium preserves the pre-registry behavior and passes no explicit dtype.
- * Large passes encoder fp16 + merged decoder q4.
- *
- * Cache status is reported separately from repository availability.
- */
+// Repository/cache availability is separate from production eligibility.
+// Preserve existing file-readiness behavior while consolidating definitions.
 
 async function getRepositoryFiles(repository) {
     const response = await fetch(
