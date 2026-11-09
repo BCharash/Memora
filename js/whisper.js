@@ -14,26 +14,6 @@ function terminateWhisperWorker(worker, role) {
     }
 }
 
-// --------------------------------------------------
-// Transformers.js
-// --------------------------------------------------
-
-let transformers = null;
-
-async function loadTransformers() {
-
-    if (transformers) {
-        return transformers;
-    }
-
-    transformers = await import(
-        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0"
-    );
-
-    return transformers;
-}
-
-
 let whisperWorker = null;
 let workerLoadPromise = null;
 let workerTranscriptionPromise = null;
@@ -502,9 +482,6 @@ export async function releaseTranscriber() {
         return;
     }
 
-    if (typeof current.dispose === "function") {
-        await current.dispose();
-    }
 }
 
 
@@ -589,14 +566,7 @@ export async function transcribeAudio(
         return desktopWorkerTranscriptionPromise.promise;
     }
 
-    return transcriber(
-        audio,
-        {
-            chunk_length_s: 30,
-            stride_length_s: 5,
-            ...options
-        }
-    );
+    throw new Error("Unsupported Whisper worker state.");
 }
 
 

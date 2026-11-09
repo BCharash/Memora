@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 9 November 2026, production build **2026-11-09.19**.
+Reviewed against the checkout on 9 November 2026, production build **2026-11-09.20**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -200,8 +200,8 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | Finding | Evidence and recommended next action |
 |---|---|
 | **Legacy duplicate worker — removed** | `whisper-test-worker.js` and its obsolete diagnostics case were removed. Active iOS/desktop worker coverage remains. Older cached pages using the historical filename need a refresh to the current app. |
-| **Unused loader inside an active file** | `whisper.js` still has a page-side `loadTransformers()` function and cached `transformers` variable with no call site in that module. The active libraries are loaded inside workers. Candidate for a small dead-code removal. |
-| **Old page-thread fallbacks** | `whisper.js` still contains callable-transcriber/dispose branches, but current assignments use worker markers or null. Audit/remove these together with the unused loader; do not remove active worker cleanup. |
+| **Unused page-side loader — removed in .20** | Removed `loadTransformers()` and its cached `transformers` variable from `whisper.js`. Active workers retain their own library loading. |
+| **Old page-thread fallbacks — removed in .20** | Removed unreachable direct pipeline execution/disposal branches. Active iOS/desktop worker loading, reuse, messages and termination are unchanged; unexpected worker state now reports an explicit error. |
 | **Two selection implementations** | `whisperConfigurations.js` has the tested resolver/list API; live selection uses `whisperProductionEligibility.js` plus direct definition filtering in self-test. Consolidate compatibility/default selection through one contract while preserving the eligibility guard and existing behavior. |
 | **Separate family catalogue** | `modelManager.js` repeats family labels/repositories/default information in `MODEL_CATALOG` for availability checks. It is still used, so deleting it would break Settings. Derive its required projection from canonical definitions instead. |
 | **Two model/evidence representations** | Legacy IndexedDB registry validation and newer local eligibility coexist. Reconcile their displayed meaning and ownership; do not delete either store or discard evidence as a shortcut. |
@@ -209,10 +209,10 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | **Similar embedding services** | Paragraphing and semantic search can each load MiniLM in separate workers. A shared service might reduce duplicated live resources, but this requires feature/lifecycle design and is not a safe file deletion. |
 | **Potentially regroupable small modules** | Activity ownership, report presentation and diagnostic formatting are small but have different callers/responsibilities. Optional later organization work; lower priority than eliminating genuinely duplicated selection/definitions. |
 
-Recommended order: remove remaining confirmed dead loader/fallback code in a small checkpoint; consolidate catalogue/default/compatibility ownership in another; reconcile evidence display separately. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
+Next: consolidate catalogue/default/compatibility ownership in a separate checkpoint; reconcile evidence display separately. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
 
 ## Scope of this review
 
 Checked the initial 41 `js/` filenames (40 remain after the authorized obsolete-worker removal), exports/imports, worker creation paths, entry pages, test references and complete-file hashes, with targeted source review of overlap candidates. Followed dynamic imports and worker filenames as well as ordinary imports. The old worker filename inside a test was also checked manually and removed with the worker.
 
-This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. The subsequent authorized cleanup deleted just the obsolete worker and its test case; active workers, HTML, CSS, databases, model options and build number are unchanged.
+This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. Subsequent authorized cleanups removed the obsolete worker/test case and unused page-side loader/fallback branches. Build .20 identifies the latter change. Active worker files, HTML, CSS, databases, model options and configuration fingerprints are unchanged.

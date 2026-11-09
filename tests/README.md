@@ -85,3 +85,5 @@ Open `/tests/whisper-disposal.html`: 11 groups cover request-ID matching, handle
 Device acceptance: fresh Tiny test on changed worker context; verify Cleanup details shows model disposal API acknowledged and worker termination invoked, then download report. Five-second disposal timeout is a bound, not a guaranteed memory cooldown. Review before further Small testing; no rapid sequences or repeated crashes.
 
 Obsolete-worker cleanup: removed whisper-test-worker.js and its single historical worker case. Diagnostics now has six groups; disposal retains 11 groups. Both pass. Active workers and production/self-test execution are unchanged.
+
+Build .20 dead-code cleanup: loader-gate suite now has four groups, including actual loader source with simulated iOS/desktop worker selection, reuse, transcription messages, idempotent termination and unloaded-call refusal. All four plus six diagnostics groups pass. Worker scripts/options/fingerprints are unchanged.

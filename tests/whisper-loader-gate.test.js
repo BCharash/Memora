@@ -1,8 +1,8 @@
 import { loadTranscriber, loadTranscriberConfiguration, releaseTranscriber } from "../js/whisper.js";
 import { setAllowed } from "./whisper-loader-gate-fixture.js";
 const lines=[],assert=(v,m)=>{if(!v)throw new Error(m);};
-let workers=0, messages=[];const original=window.Worker;
-window.Worker=class{constructor(){workers++;}postMessage(message){messages.push(message);queueMicrotask(()=>this.onmessage({data:{type:"loaded",model:message.model}}));}terminate(){}};
+let workers=0, terminations=0, messages=[];const original=window.Worker;
+window.Worker=class{constructor(path){workers++;this.ios=String(path).includes("ios");}postMessage(message){messages.push(message);queueMicrotask(()=>this.onmessage({data:message.type==="load"?{type:this.ios?"ready":"loaded",model:message.model}:{type:"transcription",text:"fixture",workerInferenceMs:1}}));}terminate(){terminations++;}};
 try{
  let denied=false;try{await loadTranscriber("tiny");}catch{denied=true;}
  assert(denied&&workers===0,"unqualified load creates no worker");lines.push("PASS eligibility guard precedes worker creation");
@@ -11,6 +11,25 @@ try{
  await releaseTranscriber();
  await loadTranscriberConfiguration({id:"medium-webgpu-q4",repository:"untrusted override",configuration:{dtype:"fp32"}});
  assert(messages[1].repository==="Xenova/whisper-medium"&&messages[1].dtype==="q4","override ignored");lines.push("PASS canonical identity and dtype cannot be overridden through eligibility bypass");
+ await releaseTranscriber();
+ for(const ios of [false,true]){
+  let source=await(await fetch("../js/whisper.js")).text();
+  source=source.replace('import { isIOS } from "./runtime.js";',`const isIOS = ${ios};`);
+  source=source.replace('"./whisperProductionEligibility.js"',JSON.stringify(new URL("./whisper-loader-gate-fixture.js",import.meta.url).href));
+  source=source.replace(/from "\.\/([^"\n]+)"/g,(_,file)=>`from ${JSON.stringify(new URL("../js/"+file,import.meta.url).href)}`);
+  const url=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));const loader=await import(url);
+  const beforeWorkers=workers,beforeMessages=messages.length,beforeTerminations=terminations;
+  try{
+   await loader.loadTranscriber("tiny");await loader.loadTranscriber("tiny");
+   assert(workers===beforeWorkers+1&&messages.length===beforeMessages+1&&loader.getWhisperLoadDiagnostics().reused,"same model reuses worker");
+   const result=await loader.transcribeAudio(new Float32Array([0]),{language:"en",task:"translate"});
+   const request=messages.at(-1);assert(result.text==="fixture","worker result retained");
+   assert(ios?request.audioData&&request.language==="en":request.audio&&request.options.language==="en"&&request.options.task==="translate","platform messages retained");
+   await loader.releaseTranscriber();await loader.releaseTranscriber();assert(terminations===beforeTerminations+1,"release exactly once");
+   let refused=false;try{await loader.transcribeAudio(new Float32Array([0]));}catch{refused=true;}assert(refused,"unloaded transcription rejected");
+   lines.push(`PASS ${ios?"iOS":"desktop"} worker reuse, transcription messages and idempotent release`);
+  }finally{await loader.releaseTranscriber();URL.revokeObjectURL(url);}
+ }
  document.body.dataset.result="passed";lines.push("ALL TESTS PASSED");
 }catch(error){document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}
 finally{await releaseTranscriber();window.Worker=original;}

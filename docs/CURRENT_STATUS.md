@@ -10,6 +10,12 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 4. **Whisper configuration and testing: current priority.** 2A lifecycle safety and 2B WER ≤15% validation are implemented and accepted as recorded. 3A catalogue/resolver is implemented; 3B registry baseline and self-test option consumers now use catalogue definitions. Strict transcription eligibility and shared desktop production/self-test worker are implemented through build .16. Current priority is iPhone Settings/page stability and resource-lifecycle investigation. Automatic sequences are on hold.
 5. **Offline Tiny, sharing consolidation and iMuse integration: deferred.** Align their contracts with the above work before implementation.
 
+## Latest cleanup: unused page-side execution removed — 2026-11-09.20
+
+Removed unused loadTransformers()/transformers cache and unreachable direct-pipeline execution/disposal branches from whisper.js. Current iOS/desktop worker paths, reuse, message payloads, eligibility and termination are unchanged. Unexpected internal worker state now throws a clear error rather than entering the obsolete pipeline fallback. Worker scripts and fingerprints remain unchanged; no model revalidation or iPhone inference required for this deletion-only cleanup.
+
+Four loader-gate groups (now covering simulated iOS/desktop reuse, messages and idempotent release) plus six active-worker/diagnostic groups passed in isolated Chrome. File map updated. Next proposed work is catalogue/default/compatibility consolidation, not more dead-code removal or resource experiments. No commit/publication by agent.
+
 ## Latest cleanup: obsolete desktop test worker removed
 
 User authorized removal of `js/whisper-test-worker.js` and its single case in `tests/whisper-diagnostics.test.js`. Current production and self-test already use the shared platform workers, which remain unchanged. File map counts now 40 application JS files, including 15 Whisper files. Remaining references in older documentation are historical. Six diagnostics and 11 disposal groups passed in isolated Chrome; no new device model run needed. Build stays .19 because active application code is unchanged. Previously created file map/documentation changes remain included in the working tree. No commit/publication by agent.
