@@ -1,5 +1,7 @@
 # Whisper configuration and standalone test design
 
+Acceptance update, 9 November 2026: user reports Tiny/Large self-tests passed on MacBook and Tiny on iPhone for checkpoint 2A. Cancellation/retry and ordinary transcription are not yet explicitly confirmed. Cleanup tracking: replace the duplicate desktop test worker with a disposable production-worker instance during 3B after configuration/protocol parity tests; keep it through the safety/accuracy checkpoints.
+
 Implementation update, 9 November 2026: checkpoint 2A is implemented locally and controlled tests pass; user acceptance is pending. See CURRENT_STATUS.md for limits, coverage and device checklist. Its lifecycle was extracted into whisperTestLifecycle.js with injected dependencies for failure testing; per-page activity exclusion lives in whisperActivity.js. Larger-model deadline calibration, output validation (2B), resolver and durable attempts remain future work.
 
 Step 1 review, 9 November 2026. Source baseline HEAD `3805951`, application build `2026-11-07.1`. Repository inspection only: no inference, model downloads, new device benchmarks, application edits or database changes. Runtime identification and canonical version-5 database ownership are completed prerequisites. Vite is deferred; its installation was discarded. This is the concrete next-phase design supplement to the [larger architecture proposal](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md), not authorization to implement all stages.
