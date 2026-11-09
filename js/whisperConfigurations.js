@@ -20,7 +20,7 @@ function freezeDeep(value) {
 function definition(id, family, platform, dtype, familyDefault, testOrder) {
     const ios = platform === "ios";
     return {
-        id, family, ...families[family], definitionRevision: 1,
+        id, family, ...families[family], definitionRevision: 2,
         repositoryRevision: null, // Existing URLs are unpinned; never invent provenance.
         platform,
         runtime: ios ? "wasm" : "webgpu", // Legacy registry vocabulary, not execution evidence.
@@ -28,7 +28,7 @@ function definition(id, family, platform, dtype, familyDefault, testOrder) {
         runtimeLibrary: { name: "@huggingface/transformers", version: ios ? "3.7.2" : "4.0.0" },
         worker: {
             script: ios ? "./js/whisper-ios-worker.js" : "./js/whisper-desktop-worker.js",
-            protocolRevision: 1, implementationRevision: 1
+            protocolRevision: 2, implementationRevision: 2
         },
         // null means OMIT, not an explicit WASM/q8 request. iOS currently relies on defaults.
         loader: { device: ios ? null : "webgpu", dtype, options: {} },

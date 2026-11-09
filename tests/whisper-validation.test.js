@@ -87,7 +87,7 @@ try {
         };
         let output = fourErrors;
         window.Worker = class {
-            postMessage(m) { this.onmessage({ data: m.type === "load" ? { type: "loaded" } : { type: "transcription", text: output } }); }
+            postMessage(m) { if (m.type === "dispose") { this.onmessage({ data: { type: "disposed", requestId: m.requestId, status: "completed" } }); return; } this.onmessage({ data: m.type === "load" ? { type: "loaded" } : { type: "transcription", text: output } }); }
             terminate() {}
         };
         const ui = initSettingsUI({ getStorageManager: async () => ({ getStorageReport: async () => report }), getStorage: async () => ({}) });

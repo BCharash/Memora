@@ -6,11 +6,35 @@ import { pipeline } from
 let transcriber = null;
 let loadedModel = null;
 let diagnostics = null;
+let disposing = false;
 
 self.onmessage = async event => {
 
     const message =
         event.data;
+
+    if (message.type === "dispose") {
+        // Detach model references before awaiting the library's release call.
+        // The owner always terminates this disposable worker afterward.
+        const current = transcriber;
+        transcriber = null;
+        diagnostics = null;
+        loadedModel = null;
+        disposing = true;
+        let status = "not-loaded", error = null;
+        try {
+            if (current) {
+                if (typeof current.dispose !== "function") status = "unavailable";
+                else { await current.dispose(); status = "completed"; }
+            }
+        } catch (failure) { status = "failed"; error = failure.message || String(failure); }
+        self.postMessage({ type: "disposed", requestId: message.requestId, status, error });
+        return;
+    }
+    if (disposing) {
+        self.postMessage({ type: "error", message: "This worker is disposing its model and cannot accept more work." });
+        return;
+    }
 
     if (message.type === "load") {
 

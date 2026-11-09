@@ -482,7 +482,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const log = detail.querySelector("#settingsWhisperStageLog");
         const currentStage = detail.querySelector("#settingsWhisperCurrentStage");
 
-        if (event.type === "preparing") {
+        if (event.type === "cleanup-start") {
+            currentStage.textContent = "Releasing model resources…";
+        } else if (event.type === "preparing") {
             log.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">${escapeHtml(event.message)}</div>`);
         } else if (event.type === "audio-ready") {
             log.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">Test audio ready · decode ${formatSeconds(event.decodeMs)}</div>`);
@@ -515,7 +517,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             } else if (r.error?.stack) {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Error details</summary><pre>${escapeHtml(r.error.stack)}</pre></details>`);
             }
-            card.insertAdjacentHTML("beforeend", `<details><summary>Cleanup details</summary><div class="settings-note">Cleanup: ${escapeHtml(r.releaseStatus)}${r.releaseError ? ` · ${escapeHtml(r.releaseError)}` : ""}. Worker termination does not verify memory reclamation.</div></details>`);
+            card.insertAdjacentHTML("beforeend", `<details><summary>Cleanup details</summary><div class="settings-note">Model disposal API: ${escapeHtml(r.disposal?.status || "not-requested")}${r.disposal?.error ? ` · ${escapeHtml(r.disposal.error)}` : ""}. Cleanup: ${escapeHtml(r.releaseStatus)}${r.releaseError ? ` · ${escapeHtml(r.releaseError)}` : ""}. Disposal acknowledgement and worker termination do not verify memory reclamation.</div></details>`);
         } else if (event.type === "run-complete") {
             const s = event.summary;
             currentStage.hidden = true;

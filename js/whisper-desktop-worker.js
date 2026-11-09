@@ -12,6 +12,7 @@ import { describeWhisperPipeline } from "./whisperDiagnostics.js";
 let pipeline = null;
 let transcriber = null;
 let diagnostics = null;
+let disposing = false;
 
 async function loadTransformers() {
     if (!pipeline) {
@@ -26,6 +27,29 @@ async function loadTransformers() {
 
 self.onmessage = async event => {
     const message = event.data;
+
+    if (message.type === "dispose") {
+        // Detach model references before awaiting the library's release call.
+        // The owner always terminates this disposable worker afterward.
+        const current = transcriber;
+        transcriber = null;
+        diagnostics = null;
+
+        disposing = true;
+        let status = "not-loaded", error = null;
+        try {
+            if (current) {
+                if (typeof current.dispose !== "function") status = "unavailable";
+                else { await current.dispose(); status = "completed"; }
+            }
+        } catch (failure) { status = "failed"; error = failure.message || String(failure); }
+        self.postMessage({ type: "disposed", requestId: message.requestId, status, error });
+        return;
+    }
+    if (disposing) {
+        self.postMessage({ type: "error", message: "This worker is disposing its model and cannot accept more work." });
+        return;
+    }
 
     try {
         if (message.type === "load") {

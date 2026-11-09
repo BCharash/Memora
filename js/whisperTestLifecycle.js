@@ -9,7 +9,7 @@ function stopError(name, message) {
     return error;
 }
 
-export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score, checkpoint, diagnostic }) {
+export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score, checkpoint, diagnostic, disposeWorker }) {
     let active = false;
     return async function run({ configuration, onEvent, signal, limits = {} }) {
         if (active) throw new Error("A Whisper self-test is already running.");
@@ -38,7 +38,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             dtype: configuration.configuration?.dtype ?? "repository default",
             loadMs: null, transcriptionMs: null, releaseMs: null,
             loadStatus: "not-run", transcriptionStatus: "not-run", accuracyStatus: "not-run", validation: null, wer: null, transcript: "",
-            status: "failed", failedPhase: null, releaseStatus: "not-attempted", releaseError: null, error: null
+            status: "failed", failedPhase: null, disposal: { status: "not-requested" }, releaseStatus: "not-attempted", releaseError: null, error: null
         };
         let modelStarted = false;
         const trace = (type, details = {}) => { try { diagnostic?.(type, { configurationId: configuration.id, ...details }); } catch { /* Observability cannot change a run. */ } };
@@ -168,6 +168,18 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             controller.abort(); // Aborts owned fixture fetches, including a sibling after failure.
             const releaseStarted = performance.now();
             if (worker) {
+                worker.onmessage = worker.onerror = worker.onmessageerror = null;
+                // Only dispose after inference has returned. Interrupted/busy
+                // workers are terminated immediately; never dispose in parallel.
+                if (disposeWorker && result.transcriptionStatus === "passed" && !signal?.aborted) {
+                    emit({ type: "cleanup-start" });
+                    trace("test-dispose-requested");
+                    try {
+                        const disposal = await disposeWorker(worker, { signal });
+                        result.disposal = disposal && typeof disposal.status === "string" ? disposal : { status: "failed", error: "Invalid disposal acknowledgement." };
+                    } catch (error) { result.disposal = { status: "failed", error: error.message || String(error) }; }
+                    trace("test-dispose-result", { status: result.disposal.status, elapsedMs: result.disposal.elapsedMs ?? null, error: result.disposal.error || null });
+                }
                 worker.onmessage = worker.onerror = worker.onmessageerror = null;
                 try {
                     trace("test-worker-terminate-requested");

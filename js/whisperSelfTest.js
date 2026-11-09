@@ -1,3 +1,4 @@
+import { requestWhisperDisposal } from "./whisperDisposal.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext, digestWhisperFixture } from "./whisperEligibilityEvidence.js";
 // --------------------------------------------------
@@ -61,7 +62,7 @@ export function getWhisperSelfTestOptions() {
 }
 
 const createStandalone = (checkpoint, eligibilityContext, diagnostic) => createWhisperTestRunner({
-    checkpoint, diagnostic,
+    checkpoint, diagnostic, disposeWorker: requestWhisperDisposal,
     loadFixture: async signal => {
         const [audioFile, expectedText] = await Promise.all([loadTestAudio(signal), loadExpectedText(signal)]);
         eligibilityContext.fixtureDigest = await digestWhisperFixture(audioFile, expectedText);
