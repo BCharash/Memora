@@ -1,3 +1,4 @@
+import { createWhisperEvidenceBridge, getWhisperEligibilityContext, digestWhisperFixture } from "./whisperEligibilityEvidence.js";
 // --------------------------------------------------
 // Memora Whisper Self-Test
 // --------------------------------------------------
@@ -58,10 +59,11 @@ export function getWhisperSelfTestOptions() {
         .filter(Boolean);
 }
 
-const createStandalone = checkpoint => createWhisperTestRunner({
+const createStandalone = (checkpoint, eligibilityContext) => createWhisperTestRunner({
     checkpoint,
     loadFixture: async signal => {
         const [audioFile, expectedText] = await Promise.all([loadTestAudio(signal), loadExpectedText(signal)]);
+        eligibilityContext.fixtureDigest = await digestWhisperFixture(audioFile, expectedText);
         return { audioFile, expectedText };
     },
     decode: decodeAudio,
@@ -75,13 +77,18 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits } = 
     const options = getWhisperSelfTestOptions();
     const selected = modelId ? options.find(configuration => configuration.id === modelId) : options[0];
     if (!selected) throw new Error("The requested Whisper self-test configuration is not available for this device.");
+    const bridge = createWhisperEvidenceBridge();
+    await bridge.sync(); // Persist adverse history before journal retention can prune it.
+    const eligibilityContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === selected.id));
     const journal = createWhisperAttemptJournal();
     const summary = await journal.run({
-        build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
+        eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
         configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
         executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js",
         fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }
-    }, checkpoint => createStandalone(checkpoint)({ configuration: selected, onEvent, signal, limits }));
-    onEvent?.({ type: "attempt-saved", persistence: summary.persistence });
+    }, checkpoint => createStandalone(checkpoint, eligibilityContext)({ configuration: selected, onEvent, signal, limits }));
+    try { await bridge.sync(); }
+    catch (error) { summary.eligibilityPersistence = { status: "failed", message: error.message }; }
+    onEvent?.({ type: "attempt-saved", persistence: summary.persistence, eligibilityPersistence: summary.eligibilityPersistence });
     return summary;
 }

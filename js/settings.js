@@ -1,3 +1,5 @@
+import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
+import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { presentWhisperAttempt } from "./whisperAttemptReport.js";
 import { createWhisperAttemptJournal } from "./whisperAttempts.js";
 // --------------------------------------------------
@@ -30,7 +32,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
     // Recover at app initialization, even before Settings is opened. Storage
     // failures do not prevent startup; the history panel reports them on open.
-    void Promise.resolve().then(() => createWhisperAttemptJournal().recover())
+    void Promise.resolve().then(() => createWhisperEvidenceBridge().sync())
         .catch(error => console.warn("Whisper attempt recovery unavailable:", error));
 
     let currentReport = null;
@@ -162,6 +164,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div id="settingsWhisperSelfTestCancel" class="whisper-self-test-cancel" hidden>
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
+            <div id="settingsWhisperEligibility" class="settings-note" role="status"></div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
             <details id="settingsWhisperAdvanced">
                 <summary>Advanced test settings</summary>
@@ -191,6 +194,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         renderRuntime();
         syncSelfTestControls();
         void renderWhisperAttempts();
+        const selector = document.getElementById("settingsWhisperSelfTestModel");
+        selector.onchange = () => void renderWhisperEligibility();
         storage.onclick = handleAction;
     }
 
@@ -311,11 +316,25 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         return `${configuration.label} · ${Object.values(dtype).join("/")}`;
     }
 
+    async function renderWhisperEligibility() {
+        const target = document.getElementById("settingsWhisperEligibility");
+        const id = document.getElementById("settingsWhisperSelfTestModel")?.value;
+        if (!target || !id) return;
+        try {
+            const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === id));
+            if (document.getElementById("settingsWhisperSelfTestModel")?.value !== id) return;
+            const evidence = createWhisperEvidenceBridge().get(context);
+            const status = { eligible: "Test-qualified", blocked: "Blocked pending review", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
+            target.textContent = `${status}: ${evidence.reason} Transcription choices are unchanged in this checkpoint.`;
+        } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
+    }
+
     async function renderWhisperAttempts() {
         const target = document.getElementById("settingsWhisperAttemptHistory");
         if (!target) return;
         try {
-            const records = await createWhisperAttemptJournal().recover();
+            const records = await createWhisperEvidenceBridge().sync();
+            await renderWhisperEligibility();
             target.replaceChildren();
             if (records.length) {
                 const title = document.createElement("p");
@@ -327,6 +346,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 clear.onclick = async () => {
                     clear.disabled = true;
                     try {
+                        await createWhisperEvidenceBridge().sync();
                         await createWhisperAttemptJournal().clearCompleted();
                         await renderWhisperAttempts();
                     } catch (error) {
@@ -420,6 +440,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (event.persistence.status === "failed") {
                 const warning = document.createElement("p");
                 warning.textContent = `Result is not durable: ${event.persistence.message}`;
+                detail.append(warning);
+            }
+            if (event.eligibilityPersistence?.status === "failed") {
+                const warning = document.createElement("p");
+                warning.textContent = `Eligibility was not saved: ${event.eligibilityPersistence.message}`;
                 detail.append(warning);
             }
             void renderWhisperAttempts();

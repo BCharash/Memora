@@ -51,3 +51,9 @@ Build 2026-11-09.10: ten journal and eight Settings groups pass. Covers normaliz
 ## Whisper eligibility foundation
 
 Open `/tests/whisper-eligibility.html`: eight groups use synthetic attempts and injected memory storage, with real browser Web Locks. No model execution or user eligibility storage. Covers inclusive WER gate, interruption/runtime/accuracy blocking, neutral cancellations/timeouts, deliberate retest, last success, replay ordering, history-clear isolation, context changes, concurrent updates and explicit write errors. Production does not consume the new module yet; this verifies rules, not active selector filtering or iPhone model suitability.
+
+## Eligibility evidence integration — build 2026-11-09.13
+
+Open `/tests/whisper-evidence.html`: seven groups verify actual test-worker fingerprint/recipe, shipped fixture bytes/digest, exact terminal evidence/idempotence, recovered/live-owner handling, conservative legacy review surviving cleared history, changed context and storage errors. Uses synthetic attempts and memory storage, plus fetched local fixture bytes; no models. The eight Settings groups also verify a visible legacy block and its survival after clearing history. Combined with eight eligibility and nine validation groups, 32 groups passed. Production choices are not filtered yet.
+
+Device check: selected-model status appears beneath controls and changes with model selection. Run Tiny, refresh and inspect saved context/digests/status. Existing blocks persist through ordinary passes until deliberate retest is implemented. Do not crash Medium again; retained old iPhone Medium interruptions are enough for a review block.

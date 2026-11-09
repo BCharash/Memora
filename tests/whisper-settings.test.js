@@ -1,3 +1,4 @@
+import { runtimeIdentity } from "../js/runtime.js";
 import { initSettingsUI } from "../js/settings.js";
 import { acquireWhisperActivity } from "../js/whisperActivity.js";
 import { transcribeRecording } from "../js/transcription.js";
@@ -65,7 +66,7 @@ try {
     lines.push("PASS actual production wrapper exclusion and failed-preparation cleanup");
     const recoveryKey = "memora.whisper-attempt.v1.settings-recovery-fixture";
     try {
-        localStorage.setItem(recoveryKey, JSON.stringify({ schemaVersion: 1, id: "settings-recovery-fixture", configuration: { id: "medium-fixture" }, startedAt: "2026-01-01", status: "running", phase: "inference" }));
+        localStorage.setItem(recoveryKey, JSON.stringify({ schemaVersion: 1, id: "settings-recovery-fixture", configuration: { id: document.getElementById("settingsWhisperSelfTestModel").value, label: "medium-fixture" }, environment: runtimeIdentity, startedAt: "2026-01-01", status: "running", phase: "inference" }));
         await ui.refresh();
         await waitFor(() => document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Interrupted—no final result recorded"));
         assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Last saved stage: transcription"), "model and stage visible");
@@ -89,12 +90,14 @@ try {
             else delete navigator.clipboard;
         }
         lines.push("PASS readable report, collapsed JSON and copy success/failure");
-        lines.push("PASS recovered interruption visible in Settings with model and stage");
+        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Blocked pending review"));
+        lines.push("PASS recovered interruption visible in Settings with model, stage and eligibility");
         const clearHistory = document.querySelector("[data-whisper-clear-history]");
         assert(clearHistory, "clear history control visible");
         clearHistory.click();
         await waitFor(() => !document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture"));
         assert(localStorage.getItem(recoveryKey) === null, "saved record removed");
+        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Blocked pending review"));
         lines.push("PASS clear saved history updates Settings and persisted records");
     } finally { localStorage.removeItem(recoveryKey); }
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
