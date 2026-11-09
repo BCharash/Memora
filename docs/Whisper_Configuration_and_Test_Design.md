@@ -157,3 +157,44 @@ Diagnostics acceptance now includes normal Mac Small/Large and iPhone Tiny, plus
 ## Durable interruption checkpoint — 9 November 2026
 
 Moved ahead of remaining resolver migration after iPhone Medium appeared to reload the app. Build 2026-11-09.7 adds a bounded localStorage attempt journal (`whisperAttempts.js`), pre-execution and pre-stage synchronous verified writes, saved terminal results and an expandable Settings history. Per-attempt Web Locks distinguish active owners from abandoned runs at startup/review; no lock support means tests/recovery fail closed. Record includes configuration/declared inputs, actual worker path, environment/build, fixture URLs/protocol, limits, last phase/observations and terminal summary. Start/checkpoint failure stops work; final-save failure is visible separately from inference outcome. Retains recent attempts plus latest success per configuration and pending records. No IndexedDB/schema change, automatic retry/continuation, eligibility changes or production recovery. Fixture byte hashing and full persisted eligibility/evidence schema remain later scope; saved declared definitions are not proof of backend execution. Browser storage clearing/eviction or OS disk loss can still remove records. Recover as interrupted with unknown cause, never infer an out-of-memory crash solely from page loss. Test using Tiny cancellation and controlled navigation, not repeated Medium crashes.
+
+## Sequential self-test and retry policy — 9 November 2026
+
+This records the proposed sequence discussed with the user, who requested at least one automatic retry after a failure and asked for this policy to be documented. It is a future implementation contract, not a description of the current single-run code. Complete interruption classification and explicit deliberate retesting before activating automatic sequences or production eligibility filtering.
+
+### Sequence behavior
+
+Run an ordered, explicit list of exact configurations, one at a time. Save the sequence ID, configuration list/context identities, current position, attempt IDs, retry allowance and sequence state before starting work. Keep per-attempt progress and outcomes. Never run overlapping model instances. Release the previous worker before moving to another attempt/configuration; terminating a worker does not prove memory reclamation.
+
+| Outcome | Planned action |
+|---|---|
+| Pass on initial attempt | Save result and advance to the next configuration. |
+| Runtime error, reference-accuracy failure or stage timeout during a recoverable test | End the attempt, terminate its worker, pause briefly, then allow one automatic retry using a fresh worker and the same configuration/fixture/recipe. Save the retry reservation before starting it. |
+| Retry also unsuccessful | Preserve both results, derive the appropriate eligibility outcome, and advance only if cleanup succeeded and the page remains healthy. A second timeout stays inconclusive; it is not proof of incompatibility. |
+| Cleanup failure, storage/checkpoint failure, or uncertain ability to continue safely | Pause the sequence and explain the reason; do not launch another model or consume unrecorded retries. Shared preparation/storage faults must not trigger a cascade of model retries. |
+| User cancellation | Stop the sequence without automatic retry. Preserve attempts already recorded. |
+| Page reload, browser crash or unexplained page loss | Recover the sequence as paused. Show the last saved stage and offer “Resume and retry interrupted test”; never automatically relaunch the interrupted model on startup. |
+
+The initial retry budget is one automatic retry per configuration within a sequence (two execution attempts total). Persist its consumption/reservation before execution, not after completion, so a page reload cannot reset the allowance. A failed retry launch must not silently replenish the budget. Explicit resumption after interruption must inspect the remaining budget; when exhausted, offer skip/stop or a separately recorded deliberate retest, not an implicit new allowance. Record any pause duration and keep it cancellable; the duration is an implementation/calibration choice, not a guarantee of recovered memory.
+
+### Eligibility and reporting
+
+Keep first failure and retry evidence separately. Display “Passed on retry” when appropriate; do not overwrite the failure or present the configuration as consistently reliable. A page interruption suspends suitability pending review because it cannot distinguish memory pressure, browser faults, manual refresh and development-server reload. It must not establish permanent model incompatibility or claim a specific crash cause.
+
+Recommended initial qualification rule: when an accuracy failure is followed by a passing retry, mark the sequence outcome provisional and require an additional successful verification before production eligibility. The exact confirmation rule and treatment of other intermittent failures must be agreed and tested before activation; one passing retry must not silently erase instability. Timeouts are inconclusive, cancellation is neutral, and confirmed execution/accuracy failures remain distinguishable from unexplained interruption. Preserve prior successful evidence alongside later failures.
+
+A deliberate Retest action must be able to restore eligibility under the agreed qualification rule, including release of conservatively imported legacy review blocks. Clearing displayed reports must not clear retry budgets, sequence recovery state or durable eligibility decisions. Model/runtime/worker/fixture/protocol/recipe/environment changes require fresh context validation and must not silently retry previously disruptive models.
+
+### Implementation order and verification
+
+1. Correct interruption classification/reporting and implement explicit deliberate retesting, with simulated qualification/recovery tests. Current .13 conservatively labels interruptions “blocked”; this is a safety hold pending review, not a finding of universal incompatibility.
+2. Review qualification/confirmation rules, then connect production filtering as a separate checkpoint. Preserve known local iPhone Medium adverse evidence without forcing another crash.
+3. Finish shared execution resolver/worker parity so sequence tests exercise the exact intended configurations.
+4. Implement the persisted sequence coordinator and retry/resume controls; verify with injected errors, bad output, timeouts, duplicate/late messages, cancellation, storage failure, cleanup failure and reload before/during retry reservation and execution.
+5. Perform limited sequential Tiny/Base/Small device acceptance, then deliberately broaden scope. Do not require repeated Medium/Large stress runs for infrastructure validation.
+
+During user acceptance runs, the agent must not edit files that can trigger Live Server reloads. Use a server without automatic reload when investigating unexplained interruptions. File reads alone are not evidence of a reload cause. User reported Mac Base/Small successful, an initial Tiny interruption followed by passes, and suspected a Live Server-related Medium interruption; cause is unconfirmed. These observations motivate recovery/retest behavior, not blanket exclusion of all models on the MacBook.
+
+## Deliberate retest checkpoint — build 2026-11-09.14
+
+Single-run Retest now persists explicit intent and can restore exact-context eligibility after a completed <=15% WER pass, including resolution of legacy review holds. Unexplained page interruptions suspend pending retest; confirmed test failures remain distinguishable and cannot be downgraded by subsequent interruptions. Historical .13 interruption blocks normalize without resetting evidence. Legacy resolution retains original review and qualifying retest identity; replay/clearing cannot silently re-block or re-enable the model, and changed contexts cannot inherit the resolution. Production filtering and automatic sequence/retry behavior remain unimplemented. This explicit retest is separate from the future automatic retry qualification/confirmation policy. See CURRENT_STATUS.md for acceptance and ordering.

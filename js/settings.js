@@ -164,6 +164,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div id="settingsWhisperSelfTestCancel" class="whisper-self-test-cancel" hidden>
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
+            <div class="whisper-self-test-cancel">
+                ${button("Retest selected model", "retest-whisper-self-test")}
+            </div>
             <div id="settingsWhisperEligibility" class="settings-note" role="status"></div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
             <details id="settingsWhisperAdvanced">
@@ -324,7 +327,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === id));
             if (document.getElementById("settingsWhisperSelfTestModel")?.value !== id) return;
             const evidence = createWhisperEvidenceBridge().get(context);
-            const status = { eligible: "Test-qualified", blocked: "Blocked pending review", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
+            const status = { eligible: "Test-qualified", blocked: "Failed test—retest required", suspended: "Paused pending retest", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
             target.textContent = `${status}: ${evidence.reason} Transcription choices are unchanged in this checkpoint.`;
         } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
     }
@@ -524,6 +527,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
         const cancel = storage.querySelector('[data-settings-action="cancel-whisper-self-test"]');
         if (run) run.disabled = busy;
+        const retest = storage.querySelector('[data-settings-action="retest-whisper-self-test"]');
+        if (retest) retest.disabled = busy;
         if (cancel) {
             cancel.disabled = !busy;
             cancel.hidden = !busy;
@@ -536,7 +541,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
     }
 
-    async function showWhisperSelfTest() {
+    async function showWhisperSelfTest(deliberateRetest = false) {
         if (selfTestController) return;
         const detail = document.getElementById("settingsWhisperSelfTestDetail");
         if (!detail) return;
@@ -555,7 +560,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 return value * 1000;
             };
             await runWhisperSelfTest({
-                modelId: modelSelect?.value,
+                deliberateRetest, modelId: modelSelect?.value,
                 signal: selfTestController.signal,
                 limits: { load: seconds("settingsWhisperLoadLimit"), inference: seconds("settingsWhisperInferenceLimit") },
                 onEvent: event => renderSelfTestEvent(document.getElementById("settingsWhisperSelfTestDetail"), event)
@@ -901,6 +906,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 return;
             }
             if (action === "toggle-transcripts") return await showTranscripts();
+            if (action === "retest-whisper-self-test") return await showWhisperSelfTest(true);
             if (action === "run-whisper-self-test") return await showWhisperSelfTest();
             if (action === "clear-whisper-resources") {
                 if (!confirm("Clear the active Whisper model and runtime resources? Cached Whisper model files will not be deleted. Do not use this while a transcription is in progress.")) return;

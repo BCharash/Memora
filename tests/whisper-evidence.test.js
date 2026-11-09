@@ -24,21 +24,50 @@ try {
         await bridge.sync();await bridge.sync();assert(bridge.get(context).status==="eligible","qualified");
         assert(createWhisperEligibilityStore({storage}).get(context).latestAttempt.id==="pass","durable");
     });
-    await test("Recovered interruption blocks; live records are ignored",async()=>{
+    await test("Recovered interruption suspends; live records are ignored",async()=>{
         const storage=memory(), interrupted={...pass,id:"interrupted",status:"interrupted",phase:"load"};
         const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>[interrupted]}});
-        await bridge.sync();assert(bridge.get(context).status==="blocked","blocked");
+        await bridge.sync();assert(bridge.get(context).status==="suspended","suspended");
         const live=createWhisperEvidenceBridge({storage:memory(),journal:{recover:async()=>[{...interrupted,status:"running"}]}});
         await live.sync();assert(live.get(context).status==="unverified","live untouched");
     });
-    await test("Legacy pass cannot qualify; legacy interruption remains blocked after history deletion",async()=>{
+    await test("Legacy pass cannot qualify; legacy interruption remains suspended after history deletion",async()=>{
         const storage=memory();let records=[{...pass,eligibilityContext:undefined,environment:context.environment,browser:context.browser}];
         const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>records}});
         await bridge.sync();assert(bridge.get(context).status==="unverified","no invented pass");
         records=[{...records[0],status:"interrupted",phase:"load"}];
         await bridge.sync();records=[];await bridge.sync();
-        assert(bridge.get(context).status==="blocked" && bridge.get(context).legacyReview,"review retained");
-        assert(bridge.get({...context,environment:{...context.environment,deviceType:"other"}}).status!=="blocked","environment isolation");
+        assert(bridge.get(context).status==="suspended" && bridge.get(context).legacyReview,"review retained");
+        assert(bridge.get({...context,environment:{...context.environment,deviceType:"other"}}).status!=="suspended","environment isolation");
+    });
+    await test("Deliberate pass resolves legacy hold durably; replay and cancellation cannot recreate it", async()=>{
+        const storage=memory();
+        const legacy={...pass,eligibilityContext:undefined,environment:context.environment,status:"interrupted",phase:"load"};
+        let records=[legacy];const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>records}});
+        await bridge.sync();assert(bridge.get(context).status==="suspended","initial hold");
+        const retest={...pass,id:"retest",startedAt:"2026-01-02T00:00:00Z",deliberateRetest:true};
+        records=[retest,legacy];await bridge.sync();await bridge.sync();
+        assert(bridge.get(context).status==="eligible" && bridge.get(context).legacyReview.resolvedBy.attemptId==="retest","resolved with evidence");
+        records=[{...pass,id:"cancel",startedAt:"2026-01-03T00:00:00Z",status:"cancelled",deliberateRetest:true},...records];await bridge.sync();
+        assert(bridge.get(context).status==="eligible","cancel neutral");
+        records=[];await bridge.sync();assert(bridge.get(context).status==="eligible","history clear retains resolution");
+        assert(bridge.get({...context,browser:"changed"}).status!=="eligible","resolution scoped to exact context");
+    });
+    await test("Unsuccessful deliberate retest does not resolve legacy hold; later legacy failure reopens review",async()=>{
+        const storage=memory();const legacy={...pass,eligibilityContext:undefined,environment:context.environment,status:"interrupted",phase:"load"};
+        let records=[legacy];const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>records}});
+        const failed={...pass,id:"bad-retest",startedAt:"2026-01-02T00:00:00Z",status:"failed",deliberateRetest:true,result:{results:[{status:"failed",failedPhase:"inference"}]}};
+        records=[failed,legacy];await bridge.sync();assert(bridge.get(context).status==="blocked" && !bridge.get(context).legacyReview.resolvedBy,"failure retained");
+        const good={...pass,id:"good",startedAt:"2026-01-03T00:00:00Z",deliberateRetest:true};
+        records=[good,...records];await bridge.sync();assert(bridge.get(context).status==="eligible","resolved");
+        records=[{...legacy,id:"new-loss",startedAt:"2026-01-04T00:00:00Z"},...records];await bridge.sync();
+        assert(bridge.get(context).status==="suspended","newer interruption reopens hold");
+    });
+    await test("Legacy confirmed failure is not downgraded by a subsequent unexplained interruption",async()=>{
+        const failed={...pass,eligibilityContext:undefined,environment:context.environment,status:"failed",result:{results:[{failedPhase:"inference"}]}};
+        const lost={...failed,id:"lost-later",startedAt:"2026-01-02T00:00:00Z",status:"interrupted",phase:"load"};
+        const bridge=createWhisperEvidenceBridge({storage:memory(),journal:{recover:async()=>[lost,failed]}});
+        await bridge.sync();assert(bridge.get(context).status==="blocked" && bridge.get(context).legacyReview.confirmedFailure.attemptId===failed.id,"confirmed evidence retained");
     });
     await test("Identity changes require fresh validation without inheriting a pass",async()=>{
         const bridge=createWhisperEvidenceBridge({storage:memory(),journal:{recover:async()=>[pass]}});

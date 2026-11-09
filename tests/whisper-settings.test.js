@@ -50,9 +50,14 @@ try {
     assert(document.getElementById("settingsWhisperSelfTestDetail").textContent.includes("1 cancelled"), "cancel terminal display");
     assert(cancelButton().disabled && cancelButton().hidden && document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel hidden after stop");
     lines.push("PASS Cancel during preparation, refresh safety and terminal display");
-    runButton().click(); await waitFor(() => !cancelButton().disabled); cancelButton().click();
+    const retest = document.querySelector('[data-settings-action="retest-whisper-self-test"]');
+    retest.click(); await waitFor(() => !cancelButton().disabled);
+    assert(retest.disabled && runButton().disabled, "both test actions disabled while active");
+    cancelButton().click();
     await waitFor(() => !runButton().disabled);
-    lines.push("PASS UI retry after cancellation");
+    const savedRetests = Object.keys(localStorage).filter(key => key.startsWith("memora.whisper-attempt.v1.")).map(key => JSON.parse(localStorage.getItem(key)));
+    assert(savedRetests.some(record => record.deliberateRetest === true && record.status === "cancelled"), "deliberate action recorded before execution");
+    lines.push("PASS deliberate Retest cancellation, ownership and durable intent");
     document.getElementById("settingsWhisperLoadLimit").value = "0";
     runButton().click(); await waitFor(() => !runButton().disabled);
     assert(document.getElementById("settingsWhisperSelfTestDetail").textContent.includes("between 1 and 86400"), "invalid bounds message");
@@ -90,14 +95,14 @@ try {
             else delete navigator.clipboard;
         }
         lines.push("PASS readable report, collapsed JSON and copy success/failure");
-        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Blocked pending review"));
+        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Paused pending retest"));
         lines.push("PASS recovered interruption visible in Settings with model, stage and eligibility");
         const clearHistory = document.querySelector("[data-whisper-clear-history]");
         assert(clearHistory, "clear history control visible");
         clearHistory.click();
         await waitFor(() => !document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture"));
         assert(localStorage.getItem(recoveryKey) === null, "saved record removed");
-        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Blocked pending review"));
+        await waitFor(() => document.getElementById("settingsWhisperEligibility").textContent.includes("Paused pending retest"));
         lines.push("PASS clear saved history updates Settings and persisted records");
     } finally { localStorage.removeItem(recoveryKey); }
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");

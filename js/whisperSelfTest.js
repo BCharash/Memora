@@ -73,7 +73,7 @@ const createStandalone = (checkpoint, eligibilityContext) => createWhisperTestRu
     environment: getEnvironment
 });
 
-export async function runWhisperSelfTest({ modelId, onEvent, signal, limits } = {}) {
+export async function runWhisperSelfTest({ modelId, onEvent, signal, limits, deliberateRetest = false } = {}) {
     const options = getWhisperSelfTestOptions();
     const selected = modelId ? options.find(configuration => configuration.id === modelId) : options[0];
     if (!selected) throw new Error("The requested Whisper self-test configuration is not available for this device.");
@@ -82,7 +82,7 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits } = 
     const eligibilityContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === selected.id));
     const journal = createWhisperAttemptJournal();
     const summary = await journal.run({
-        eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
+        deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
         configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
         executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-test-worker.js",
         fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }

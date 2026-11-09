@@ -13,7 +13,15 @@ export function eligibilityKey(context) {
     return PREFIX + encodeURIComponent(JSON.stringify(canonical(context)));
 }
 
+function normalizeInterruption(record) {
+    if (record?.status === "blocked" && record.lastDecision?.status === "interrupted") {
+        return { ...record, status: "suspended", reason: "Model work was interrupted; cause unknown. Paused pending deliberate retest." };
+    }
+    return record;
+}
+
 export function reduceWhisperEligibility(previous, attempt, { deliberateRetest = false } = {}) {
+    previous = normalizeInterruption(previous);
     if (!attempt?.id || !Number.isFinite(Date.parse(attempt.startedAt))) throw new Error("Eligibility evidence requires attempt identity and start time.");
     // Replay and late writes must not erase newer evidence, including cancellations.
     if (previous?.latestAttempt && (previous.latestAttempt.id === attempt.id || Date.parse(previous.latestAttempt.startedAt) > Date.parse(attempt.startedAt))) return previous;
@@ -25,15 +33,17 @@ export function reduceWhisperEligibility(previous, attempt, { deliberateRetest =
     const validPass = attempt.status === "passed" && result?.status === "passed" && result.transcriptionStatus === "passed" && result.accuracyStatus === "passed" && result.validation?.status === "passed" && Number.isFinite(wer) && wer >= 0 && wer <= 0.15;
     if (validPass) {
         next.lastSuccess = evidence;
-        if (previous?.status !== "blocked" || deliberateRetest) {
+        if (!["blocked", "suspended"].includes(previous?.status) || deliberateRetest) {
             next.status = "eligible";
             next.reason = "Completed reference test passed the inclusive 15% WER gate.";
             next.lastDecision = evidence;
         }
     } else if ((attempt.status === "interrupted" && ["load", "inference"].includes(phase)) ||
         (attempt.status === "failed" && (["load", "inference"].includes(result?.failedPhase) || result?.error?.name === "ValidationError" && result?.transcriptionStatus === "passed"))) {
-        next.status = "blocked";
-        next.reason = attempt.status === "interrupted" ? "Model work was interrupted; cause unknown. Deliberate retest required." : "Model execution or reference accuracy failed. Deliberate retest required.";
+        // An interruption does not downgrade a previously confirmed failure.
+        if (attempt.status === "interrupted" && previous?.status === "blocked") return next;
+        next.status = attempt.status === "interrupted" ? "suspended" : "blocked";
+        next.reason = attempt.status === "interrupted" ? "Model work was interrupted; cause unknown. Paused pending deliberate retest." : "Model execution or reference accuracy failed. Deliberate retest required.";
         next.lastDecision = evidence;
     } else if (attempt.status !== "cancelled") {
         next.reason = previous?.reason || "Inconclusive evidence; no eligibility granted.";
@@ -53,7 +63,7 @@ export function createWhisperEligibilityStore({ storage = globalThis.localStorag
         const key = eligibilityKey(context);
         const all = records();
         const exact = all.find(record => eligibilityKey(record.context) === key);
-        if (exact) return exact;
+        if (exact) return normalizeInterruption(exact);
         const prior = all.some(record => record.context.configurationId === context.configurationId);
         return { schemaVersion: 1, context, status: prior ? "needs-validation" : "unverified", reason: prior ? "Execution or environment context changed; old evidence does not qualify this context." : "No qualifying test evidence." };
     }

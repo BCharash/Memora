@@ -11,8 +11,8 @@ try {
         assert(reduceWhisperEligibility(null, attempt("passed")).status === "eligible", "15% passes");
         for (const wer of [.15001, NaN, -1, null]) { const a=attempt("passed"); a.result.results[0].wer=wer; assert(reduceWhisperEligibility(null,a).status === "unverified", "invalid pass"); }
     });
-    await test("Interruption during loading/inference blocks without inferring a crash cause", () => {
-        for (const phase of ["load","inference"]) assert(reduceWhisperEligibility(null,attempt("interrupted",phase)).status === "blocked", phase);
+    await test("Interruption during loading/inference suspends without inferring a crash cause", () => {
+        for (const phase of ["load","inference"]) assert(reduceWhisperEligibility(null,attempt("interrupted",phase)).status === "suspended", phase);
         assert(reduceWhisperEligibility(null,attempt("interrupted","prepare")).status === "unverified", "preparation inconclusive");
     });
     await test("Runtime/accuracy failure blocks; preparation, timeout and cancellation remain inconclusive", () => {
@@ -24,7 +24,7 @@ try {
     await test("Blocked status survives neutral outcomes; only deliberate qualifying retest restores it", () => {
         let blocked=reduceWhisperEligibility(null,attempt("interrupted"));
         for (const status of ["cancelled","timed-out","passed"]) blocked=reduceWhisperEligibility(blocked,attempt(status));
-        assert(blocked.status === "blocked", "not automatically restored");
+        assert(blocked.status === "suspended", "not automatically restored");
         assert(reduceWhisperEligibility(blocked,attempt("passed"),{deliberateRetest:true}).status === "eligible", "explicit recovery");
     });
     await test("Later failure retains last success; stale and duplicate evidence cannot overwrite newer decision", () => {
@@ -36,7 +36,15 @@ try {
         const storage=memory(), store=createWhisperEligibilityStore({storage});
         await store.record(context,attempt("interrupted","load"));
         await createWhisperAttemptJournal({storage}).clearCompleted();
-        assert(createWhisperEligibilityStore({storage}).get(context).status === "blocked", "independent evidence");
+        assert(createWhisperEligibilityStore({storage}).get(context).status === "suspended", "independent evidence");
+    });
+    await test("Old interruption blocks migrate to suspended; confirmed failure survives a later interruption", () => {
+        const interruption = attempt("interrupted");
+        const old = { status: "blocked", lastDecision: { status: "interrupted" }, latestAttempt: { id: interruption.id, startedAt: interruption.startedAt } };
+        assert(reduceWhisperEligibility(old, interruption).status === "suspended", "old hold normalized");
+        const failed = reduceWhisperEligibility(null, attempt("failed"));
+        assert(reduceWhisperEligibility(failed, attempt("interrupted")).status === "blocked", "confirmed failure retained");
+        assert(reduceWhisperEligibility(failed, attempt("passed"), { deliberateRetest: true }).status === "eligible", "deliberate pass restores confirmed failure");
     });
     await test("Configuration/browser/protocol/fixture/recipe/capability changes require validation", async () => {
         const store=createWhisperEligibilityStore({storage:memory()}); await store.record(context,attempt("passed"));
@@ -48,7 +56,7 @@ try {
     await test("Concurrent updates retain newer decision; storage failure and mismatched evidence are explicit", async () => {
         const storage=memory(),store=createWhisperEligibilityStore({storage}); const old=attempt("passed"), newer=attempt("interrupted");
         await Promise.all([store.record(context,newer),store.record(context,old)]);
-        assert(store.get(context).status === "blocked", "newer evidence retained");
+        assert(store.get(context).status === "suspended", "newer evidence retained");
         let rejected=false; try { await store.record(context,{...attempt("passed"),configuration:{id:"other"}}); } catch {rejected=true;} assert(rejected,"mismatch");
         storage.setItem=()=>{throw new Error("quota");}; rejected=false;
         try {await store.record(context,attempt("failed"));} catch {rejected=true;} assert(rejected,"write failure");
