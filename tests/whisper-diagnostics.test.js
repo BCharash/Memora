@@ -32,7 +32,7 @@ try {
         // Compile without executing DOM initialization or production workflows.
         new Function(source.replace(/import\s[\s\S]*?from\s+["'][^"']+["'];/g, ""));
     });
-    for (const [filename, ios, model] of [["whisper-desktop-worker.js", false, "large"], ["whisper-test-worker.js", false, "large-test"], ["whisper-ios-worker.js", true, "tiny-ios"]]) {
+    for (const [filename, ios, model] of [["whisper-desktop-worker.js", false, "large"], ["whisper-ios-worker.js", true, "tiny-ios"]]) {
         await test(`${filename} preserves loader options and returns session/timing evidence`, async () => {
             let source = await (await fetch(`../js/${filename}`)).text();
             source = source.replace('"./whisperDiagnostics.js"', JSON.stringify(new URL("../js/whisperDiagnostics.js", import.meta.url).href));

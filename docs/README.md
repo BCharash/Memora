@@ -4,6 +4,7 @@ Reviewed 9 November 2026. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Cur
 
 | Document | Role/status |
 |---|---|
+| [Plain-language file map](../filemap.md) | Every application JavaScript file, feature flows, tests and specific cleanup findings. |
 | [Current handoff](CURRENT_STATUS.md) | Current sequence and next action. |
 | [Runtime and database status](Runtime_and_Database_Status.md) | Completed foundation, ownership and verification limits. |
 | [Asset/deployment inventory](Asset_and_Deployment_Inventory.md) | Deferred release-consistency reference; no tooling installed. |
