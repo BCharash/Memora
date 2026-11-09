@@ -1,8 +1,10 @@
 # Database schema tests
 
-## Unused Whisper catalogue/resolver (3A)
+## Whisper catalogue/resolver and first baseline migration
 
-Open `/tests/whisper-configurations.html` using Live Server. Twelve groups passed in isolated Chrome on 9 November 2026. It compares all 13 new definitions against the legacy built-in registry, checks family/platform/test policy, omitted dtype/device semantics and SHA-256 execution fingerprints. It imports existing modules only to read built-in definitions/options; no registry persistence, workers, models or database writes are invoked. No actual backend/accuracy support is established. Existing production/self-test callers do not use the new resolver until 3B.
+Open `/tests/whisper-configurations.html` using Live Server. Initial 12 groups passed for unused 3A; after the first 3B migration, 13 groups passed including independent complete snapshot parity against `tests/fixtures/whisper-registry-baseline-v2.json`. That fixture was captured from the old source before replacing the baseline and must not be regenerated from the new projection to hide differences. No inference/backend support is established. modelManager now consumes definitions for legacy records; resolver execution callers are not migrated.
+
+The expanded database integration suite has seven groups, including saved validation/custom evidence preservation across registry refresh; all passed after this change. The nine accuracy/UI groups also passed. These tests use isolated data/synthetic responses and do not touch the user's registry.
 
 Serve the repository over localhost and open `/tests/database.html` in Chrome. The page runs automatically and should finish with `ALL TESTS PASSED`.
 

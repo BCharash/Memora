@@ -12,9 +12,13 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 
 ## Immediate next action
 
-Checkpoint **3A is implemented locally, unused by application callers**: `js/whisperConfigurations.js` defines 13 immutable configurations, derived option lists, explicit compatible ID/family resolution and SHA-256 execution fingerprints. Twelve groups passed in isolated Chrome, including legacy parity, defaults, exclusions, invalid/cross-platform requests and fingerprint materiality. See [resolver contract](Whisper_Catalogue_Resolver_Contract.md). No model downloads, worker operations or persistence occurred. Current app build remains 2026-11-09.3; no application behavior or existing callers changed.
+First **3B migration** implemented locally, candidate build **2026-11-09.4**: modelManager now projects its legacy built-in registry records from whisperConfigurations.js. All 13 IDs/fields/defaults are preserved; no fingerprint/schema fields are injected into saved records. Family MODEL_CATALOG, self-test ID lists, worker scripts and production/self-test resolver execution are unchanged. This is partial consolidation, not the completed single-source migration.
 
-Natural break reached. No user device test/publication is needed for 3A. Commit the unused foundation if desired, then review a small 3B caller-migration sequence. Do not switch consumers or delete old definitions automatically. The old and replacement catalogues temporarily coexist until migration proves parity; application-wide single-source consolidation is not complete yet. Explicit unknown/Android policy and iOS Medium identity correction need attention at migration boundaries. Keep prior evidence/IDs and version-5 schema ownership intact.
+Checks passed in isolated Chrome: 13 catalogue/resolver groups (including complete parity against an independent pre-change snapshot), seven production-module/database integration groups (including retained saved validation/custom evidence), and nine accuracy/UI groups. No actual models ran. New baseline adapter and returned records use independent dtype clones; canonical definitions stay immutable.
+
+Natural pause for user verification: reload build 2026-11-09.4 on desktop; Settings → Whisper Models → View should show the same registry entries, and Tiny should remain in the self-test selector. After publication, verify the iPhone registry still shows WASM/current-device entries and the same self-test choices. No Tiny/Large inference is required for this data-source-only checkpoint. No Rebuild Registry/reset. Do not migrate another caller until results are reviewed.
+
+Next separately review the self-test option source or legacy family-catalogue adapter, then route actual tests/production through the resolver with exact configuration parity. Android/unknown restriction and iOS Medium identity correction must remain explicit before execution migration; do not silently change unsupported-platform behavior while moving a list. Duplicate desktop test worker retirement remains after protocol parity in 3B. No commit/publication by the agent.
 
 ## Prior accepted checkpoints and context
 

@@ -1,4 +1,5 @@
-// Staged replacement catalogue/resolver. No application caller uses this yet.
+// Canonical definitions now feed modelManager's legacy registry projection.
+// Resolver execution callers migrate in later checkpoints.
 // No storage, worker, model download or runtime probing occurs on import.
 const families = {
     tiny: { label: "Tiny", repository: "onnx-community/whisper-tiny" },

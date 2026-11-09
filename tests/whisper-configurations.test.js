@@ -13,6 +13,17 @@ const mac = { operatingSystem: "macos", deviceClass: "desktop" };
 const ios = { operatingSystem: "ios", deviceClass: "mobile", deviceType: "tablet" };
 
 try {
+    await test("Complete registry projection matches independent pre-migration snapshot", async () => {
+        const snapshot = await (await fetch("./fixtures/whisper-registry-baseline-v2.json")).json();
+        const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === "object"
+            ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])])) : value;
+        assert(JSON.stringify(stable(getModelRegistryBaseline())) === JSON.stringify(stable(snapshot)), "all record fields preserved");
+        const mutable = getModelRegistryBaseline();
+        mutable[0].repository = "changed";
+        mutable.find(x => x.id === "large-webgpu-fp16-q4").configuration.dtype.encoder_model = "changed";
+        assert(getModelRegistryBaseline()[0].repository === snapshot[0].repository, "independent clones");
+        assert(definitions.find(x => x.id === "large-webgpu-fp16-q4").loader.dtype.encoder_model === "fp16", "canonical dtype unmodified");
+    });
     await test("All 13 legacy IDs, repositories, labels and dtype semantics preserved", () => {
         const old = getModelRegistryBaseline();
         assert(definitions.length === 13 && new Set(definitions.map(x => x.id)).size === 13, "unique catalogue");

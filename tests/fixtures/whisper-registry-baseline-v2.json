@@ -1,0 +1,242 @@
+[
+  {
+    "schemaVersion": 2,
+    "id": "tiny-webgpu-default",
+    "family": "tiny",
+    "label": "Tiny",
+    "repository": "onnx-community/whisper-tiny",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "base-webgpu-default",
+    "family": "base",
+    "label": "Base",
+    "repository": "onnx-community/whisper-base",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "small-webgpu-default",
+    "family": "small",
+    "label": "Small",
+    "repository": "onnx-community/whisper-small",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "medium-webgpu-default",
+    "family": "medium",
+    "label": "Medium",
+    "repository": "Xenova/whisper-medium",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "medium-webgpu-q4",
+    "family": "medium",
+    "label": "Medium",
+    "repository": "Xenova/whisper-medium",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": "q4"
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "medium-webgpu-q4f16",
+    "family": "medium",
+    "label": "Medium",
+    "repository": "Xenova/whisper-medium",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": "q4f16"
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "medium-webgpu-fp16-q4",
+    "family": "medium",
+    "label": "Medium",
+    "repository": "Xenova/whisper-medium",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": {
+        "encoder_model": "fp16",
+        "decoder_model_merged": "q4"
+      }
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "large-webgpu-fp16-q4",
+    "family": "large",
+    "label": "Large",
+    "repository": "onnx-community/whisper-large-v3-ONNX",
+    "runtime": "webgpu",
+    "platform": "desktop",
+    "configuration": {
+      "dtype": {
+        "encoder_model": "fp16",
+        "decoder_model_merged": "q4"
+      }
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "tiny-iphone-default",
+    "family": "tiny",
+    "label": "Tiny",
+    "repository": "onnx-community/whisper-tiny",
+    "runtime": "wasm",
+    "platform": "ios",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "base-iphone-default",
+    "family": "base",
+    "label": "Base",
+    "repository": "onnx-community/whisper-base",
+    "runtime": "wasm",
+    "platform": "ios",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "small-iphone-default",
+    "family": "small",
+    "label": "Small",
+    "repository": "onnx-community/whisper-small",
+    "runtime": "wasm",
+    "platform": "ios",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "medium-iphone-default",
+    "family": "medium",
+    "label": "Medium",
+    "repository": "Xenova/whisper-medium",
+    "runtime": "wasm",
+    "platform": "ios",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  },
+  {
+    "schemaVersion": 2,
+    "id": "large-iphone-default",
+    "family": "large",
+    "label": "Large",
+    "repository": "onnx-community/whisper-large-v3-ONNX",
+    "runtime": "wasm",
+    "platform": "ios",
+    "configuration": {
+      "dtype": null
+    },
+    "status": "known",
+    "validation": {
+      "status": "not-tested"
+    },
+    "updatedAt": null,
+    "source": "builtin"
+  }
+]

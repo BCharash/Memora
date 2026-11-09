@@ -1,5 +1,7 @@
 # Whisper configuration and standalone test design
 
+First 3B update, 9 November 2026: modelManager's legacy registry baseline now projects from canonical definitions; independent full-record snapshot parity, saved-evidence preservation and accuracy regressions passed. Candidate build 2026-11-09.4 awaits user registry/options display checks. Execution resolver migration, legacy family catalogue and duplicate desktop worker retirement remain separate later changes.
+
 3A update, 9 November 2026: unused catalogue/resolver and fingerprint foundation is implemented; 12 isolated browser groups passed. Existing application/modelManager/self-test loaders remain untouched. See [resolver contract](Whisper_Catalogue_Resolver_Contract.md). Next is a separately authorized 3B migration, including legacy shape adapters, configuration/worker parity and duplicate desktop worker retirement.
 
 2B acceptance, 9 November 2026 (user-reported build 2026-11-09.3): Mac Tiny self-test passed WER 6.38%, load 3.3s, inference 6.3s, initialized WebGPU/fp32 sessions; iPhone Tiny passed WER 0.00%, load 2.8s, inference 4.2s, initialized WASM/q8 sessions. Both use the existing 15.5s fixture and satisfy WER ≤15%. Mac Base production smoke transcription also succeeded (load 5.4s, inference 8.0s, worker 7.9s, 16.7s audio, WebGPU/fp32); no Base accuracy inference is implied. This supersedes pending-device-acceptance notes below. Next phase is canonical definitions/resolver; duplicate desktop test-worker cleanup remains tracked for 3B.

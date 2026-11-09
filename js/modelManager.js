@@ -7,6 +7,7 @@ import {
     listModelRegistryRecords,
     saveModelRegistryRecords
 } from "./storage.js";
+import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 // User-facing model families are intentionally stable:
 // tiny, base, small, medium, large.
 // Repository names, revisions, and Transformers.js details stay internal.
@@ -48,120 +49,19 @@ const MODEL_API_BASE = "https://huggingface.co/api/models/";
 
 const MODEL_REGISTRY_SCHEMA_VERSION = 2;
 
-const MODEL_REGISTRY_BASELINE = [
-    {
-        id: "tiny-webgpu-default",
-        family: "tiny",
-        label: "Tiny",
-        repository: "onnx-community/whisper-tiny",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: null },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "base-webgpu-default",
-        family: "base",
-        label: "Base",
-        repository: "onnx-community/whisper-base",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: null },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "small-webgpu-default",
-        family: "small",
-        label: "Small",
-        repository: "onnx-community/whisper-small",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: null },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "medium-webgpu-default",
-        family: "medium",
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: null },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "medium-webgpu-q4",
-        family: "medium",
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: "q4" },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "medium-webgpu-q4f16",
-        family: "medium",
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: { dtype: "q4f16" },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "medium-webgpu-fp16-q4",
-        family: "medium",
-        label: "Medium",
-        repository: "Xenova/whisper-medium",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: {
-            dtype: {
-                encoder_model: "fp16",
-                decoder_model_merged: "q4"
-            }
-        },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    {
-        id: "large-webgpu-fp16-q4",
-        family: "large",
-        label: "Large",
-        repository: "onnx-community/whisper-large-v3-ONNX",
-        runtime: "webgpu",
-        platform: "desktop",
-        configuration: {
-            dtype: {
-                encoder_model: "fp16",
-                decoder_model_merged: "q4"
-            }
-        },
-        status: "known",
-        validation: { status: "not-tested" }
-    },
-    ...["tiny", "base", "small", "medium", "large"].map(family => ({
-        id: `${family}-iphone-default`,
-        family,
-        label: MODEL_CATALOG[family].label,
-        repository: MODEL_CATALOG[family].repository,
-        runtime: "wasm",
-        platform: "ios",
-        configuration: { dtype: null },
-        status: "known",
-        validation: { status: "not-tested" }
-    }))
-].map(record => ({
+// Legacy persisted/UI shape projected from the canonical definitions. Keep
+// evidence migration and schema changes separate from this definition change.
+const MODEL_REGISTRY_BASELINE = getWhisperConfigurationDefinitions().map(definition => ({
     schemaVersion: MODEL_REGISTRY_SCHEMA_VERSION,
-    ...record,
-    validation: { status: "not-tested", ...(record.validation || {}) },
+    id: definition.id,
+    family: definition.family,
+    label: definition.label,
+    repository: definition.repository,
+    runtime: definition.runtime,
+    platform: definition.platform,
+    configuration: { dtype: structuredClone(definition.loader.dtype) },
+    status: "known",
+    validation: { status: "not-tested" },
     updatedAt: null,
     source: "builtin"
 }));

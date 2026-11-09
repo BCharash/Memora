@@ -51,6 +51,15 @@ try {
         await manager.clearCachedTranscript("new.txt");
         assert(!await storage.transcriptExists("new.txt"), "delete only target");
     });
+    await test("Catalogue projection refresh preserves saved registry evidence", async () => {
+        const record = (await getModelRegistry()).find(x => x.id === "tiny-webgpu-default");
+        const saved = { ...record, validation: { status: "passed", seconds: 6.3, detail: "prior fixture evidence" }, updatedAt: "2026-11-09T00:00:00Z", customEvidence: { retained: true } };
+        await storage.saveModelRegistryRecords([saved]);
+        const refreshed = (await getModelRegistry()).find(x => x.id === saved.id);
+        assert(JSON.stringify(refreshed) === JSON.stringify(saved), "saved evidence/fields retained");
+        const persisted = (await storage.listModelRegistryRecords()).find(x => x.id === saved.id);
+        assert(JSON.stringify(persisted) === JSON.stringify(saved), "persisted record not reset");
+    });
     await test("Semantic removal and write failure release connections", async () => {
         assert(await semantic.removeSemanticEntriesForTranscript("old-source", "old-hash") === 1, "target removal");
         assert((await semantic.getSemanticStoreStats()).entryCount === 0, "stats after removal");

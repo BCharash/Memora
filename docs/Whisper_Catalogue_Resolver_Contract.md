@@ -1,12 +1,12 @@
 # Whisper catalogue/resolver — staged contract (3A)
 
-9 November 2026. Implemented in `js/whisperConfigurations.js`, **unused by application callers**. This is a safe stopping point before 3B. No worker, model, database or runtime probe is opened on import. Current application behavior/build identifier is unchanged.
+9 November 2026. Implemented in `js/whisperConfigurations.js`. First 3B migration: modelManager consumes definitions through a legacy baseline projection; actual execution resolver callers remain unmigrated. Candidate build 2026-11-09.4 awaits user Settings/list verification. No worker, model, database or runtime probe is opened on import. Current application behavior/build identifier is unchanged.
 
 ## Authority and scope
 
 The replacement catalogue contains the same 13 built-in IDs, family labels, repositories, legacy platform/runtime labels and loader dtype semantics as modelManager's baseline. Each definition owns its loading instructions, platform restrictions, family-default flag and test permission/order. UI options can be derived from that metadata; no new parallel ID list is needed.
 
-During this staging checkpoint the old catalogue/baseline/options remain active. They deliberately coexist until caller migration and parity checks. Do not describe the whole application as consolidated yet. Do not remove persisted records, rename IDs or reset validation to adopt the new module.
+The old hand-written registry baseline has been removed and replaced by a projection from canonical definitions. Legacy family catalogue and self-test option lists remain active until their separate migrations. Do not describe the whole application as consolidated yet. Do not remove persisted records, rename IDs or reset validation to adopt the new module.
 
 ## API
 
@@ -41,6 +41,6 @@ Actual backend/session evidence, inference recipe/task/language, fixture and WER
 
 ## Verification and next break
 
-`tests/whisper-configurations.html` runs 12 groups in real browser JavaScript/Web Crypto. All passed in isolated Chrome: legacy record parity, deep immutability, five family defaults on three desktop OS fixtures plus iOS, legacy test-option order, every exact ID, exclusions, invalid/cross-platform requests, supplied missing APIs, SHA-256 stability, material identity changes, and truthful unknown provenance/evidence. These are simulated environment/definition checks, not model/hardware support tests.
+`tests/whisper-configurations.html` now runs 13 groups in real browser JavaScript/Web Crypto. All passed in isolated Chrome: legacy record parity, deep immutability, five family defaults on three desktop OS fixtures plus iOS, legacy test-option order, every exact ID, exclusions, invalid/cross-platform requests, supplied missing APIs, SHA-256 stability, material identity changes, and truthful unknown provenance/evidence. These are simulated environment/definition checks, not model/hardware support tests.
 
-No existing application module imports this replacement yet. No inference or storage tests are required from the user at this checkpoint. Next, 3B should introduce adapters/projections and migrate modelManager/read-only UI, self-test and production in separately reviewable changes. Keep schema owner and historical evidence intact. Use exact configuration/worker-boundary parity to retire Medium's workaround and duplicate desktop test worker safely. Do not migrate all callers automatically after 3A passes.
+modelManager now imports the canonical definitions; it does not call the resolver or fingerprint routine when creating legacy records. A saved-evidence integration test and independent baseline snapshot passed. User Settings/list verification is requested; no model inference is required. Next, 3B should introduce adapters/projections and migrate modelManager/read-only UI, self-test and production in separately reviewable changes. Keep schema owner and historical evidence intact. Use exact configuration/worker-boundary parity to retire Medium's workaround and duplicate desktop test worker safely. Do not migrate all callers automatically after 3A passes.
