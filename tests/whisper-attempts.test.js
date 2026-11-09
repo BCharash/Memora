@@ -1,3 +1,4 @@
+import { presentWhisperAttempt } from "../js/whisperAttemptReport.js";
 import { createWhisperAttemptJournal } from "../js/whisperAttempts.js";
 import { createWhisperTestRunner } from "../js/whisperTestLifecycle.js";
 const lines = [];
@@ -91,6 +92,13 @@ try {
             });
             await j.clearCompleted();
             assert(j.list().length === 0 && storage.getItem("unrelated") === "keep", "only journal history removed");
+        });
+        await test("Legacy placeholder display is normalized without changing stored or real failure evidence", () => {
+            const legacy = { status: "interrupted", observation: { status: "failed", error: null, failedPhase: null } };
+            assert(presentWhisperAttempt(legacy).observation.status === "in-progress", "placeholder normalized");
+            assert(legacy.observation.status === "failed", "historical record not mutated");
+            legacy.observation.error = { message: "real error" };
+            assert(presentWhisperAttempt(legacy).observation.status === "failed", "real failure preserved");
         });
         await test("Thrown orchestration error is saved and ownership released", async () => {
             const j = journal(memory());

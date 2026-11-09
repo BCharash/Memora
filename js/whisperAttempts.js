@@ -37,7 +37,7 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
             prune();
             const record = { schemaVersion: 1, ...metadata, id, startedAt: now(), updatedAt: now(), phase: "prepare", status: "running" };
             save(record); // Failure here prevents model work.
-            const checkpoint = async (phase, observation) => { record.phase = phase; record.observation = observation || null; record.updatedAt = now(); save(record); };
+            const checkpoint = async (phase, observation) => { record.phase = phase; record.observation = observation ? { ...observation, status: "in-progress" } : null; record.updatedAt = now(); save(record); };
             let summary;
             try {
                 summary = await execute(checkpoint);

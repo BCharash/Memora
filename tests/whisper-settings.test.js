@@ -68,7 +68,27 @@ try {
         localStorage.setItem(recoveryKey, JSON.stringify({ schemaVersion: 1, id: "settings-recovery-fixture", configuration: { id: "medium-fixture" }, startedAt: "2026-01-01", status: "running", phase: "inference" }));
         await ui.refresh();
         await waitFor(() => document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Interrupted—no final result recorded"));
-        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture · last saved stage: inference"), "model and stage visible");
+        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Last saved stage: transcription"), "model and stage visible");
+        const historyPanel = document.getElementById("settingsWhisperAttemptHistory");
+        const technical = [...historyPanel.querySelectorAll("details")].find(el => el.querySelector(":scope > summary")?.textContent === "Technical report");
+        assert(technical && !technical.open, "technical report separately collapsed");
+        const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+        let copied = "";
+        try {
+            Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { copied = text; } } });
+            const copy = technical.parentElement.querySelector("[data-whisper-copy-report]");
+            copy.click();
+            await waitFor(() => !!copied);
+            assert(JSON.parse(copied).schemaVersion === 1, "copy contains JSON report");
+            Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("denied"); } } });
+            copy.click();
+            await waitFor(() => technical.open);
+            assert(technical.parentElement.textContent.includes("Copy unavailable"), "copy failure offers manual recovery");
+        } finally {
+            if (clipboardDescriptor) Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+            else delete navigator.clipboard;
+        }
+        lines.push("PASS readable report, collapsed JSON and copy success/failure");
         lines.push("PASS recovered interruption visible in Settings with model and stage");
         const clearHistory = document.querySelector("[data-whisper-clear-history]");
         assert(clearHistory, "clear history control visible");

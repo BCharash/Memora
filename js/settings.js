@@ -1,3 +1,4 @@
+import { presentWhisperAttempt } from "./whisperAttemptReport.js";
 import { createWhisperAttemptJournal } from "./whisperAttempts.js";
 // --------------------------------------------------
 // Memora Settings UI
@@ -340,10 +341,47 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             for (const record of records) {
                 const details = document.createElement("details");
                 const label = document.createElement("summary");
-                label.textContent = `${record.status === "interrupted" ? "Interrupted—no final result recorded" : record.status} · ${record.configuration.id} · last saved stage: ${record.phase} · ${record.startedAt}`;
+                const outcome = { passed: "Passed", failed: "Failed", cancelled: "Cancelled", "timed-out": "Timed out", running: "Running", interrupted: "Interrupted—no final result recorded" }[record.status] || record.status;
+                const date = new Date(record.startedAt);
+                const localDate = Number.isNaN(date.getTime()) ? record.startedAt : date.toLocaleString();
+                const model = record.configuration.label ? formatSelfTestOption(record.configuration) : record.configuration.id;
+                label.textContent = `${outcome} · ${model} · ${localDate}`;
+                const description = document.createElement("p");
+                const phases = { prepare: "audio preparation", decode: "audio decoding", release: "previous model release", load: "model loading", inference: "transcription", validation: "accuracy validation" };
+                const result = record.result?.results?.[0];
+                description.textContent = `Last saved stage: ${phases[record.phase] || record.phase}. `;
+                if (record.status === "interrupted") description.textContent += "No final result was recorded. Cause unknown. No automatic retry.";
+                else if (result?.error?.message || record.error?.message) description.textContent += result?.error?.message || record.error.message;
+                else if (result?.status === "passed") description.textContent += `Load ${formatSeconds(result.loadMs)} · transcription ${formatSeconds(result.transcriptionMs)} · WER ${formatWhisperWer(result.wer)} (limit 15%).`;
+                const technical = document.createElement("details");
+                const technicalLabel = document.createElement("summary");
+                technicalLabel.textContent = "Technical report";
                 const body = document.createElement("pre");
-                body.textContent = JSON.stringify(record, null, 2);
-                details.append(label, body);
+                body.style.whiteSpace = "pre-wrap";
+                body.style.overflowWrap = "anywhere";
+                body.textContent = JSON.stringify(presentWhisperAttempt(record), null, 2);
+                const copy = document.createElement("button");
+                copy.type = "button";
+                copy.textContent = "Copy report";
+                copy.dataset.whisperCopyReport = "";
+                const feedback = document.createElement("span");
+                feedback.setAttribute("role", "status");
+                copy.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(body.textContent);
+                        feedback.textContent = " Report copied.";
+                    } catch {
+                        technical.open = true;
+                        const selection = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(body);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        feedback.textContent = " Copy unavailable. Select and copy the technical report below.";
+                    }
+                };
+                technical.append(technicalLabel, body);
+                details.append(label, description, copy, feedback, technical);
                 target.append(details);
             }
         } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }
