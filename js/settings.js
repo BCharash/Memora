@@ -40,6 +40,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     let modelAvailability = null;
     let latestDomDiagnostics = null;
     let selfTestController = null;
+    let registryRenderToken = 0;
+    let registryMode = "current";
 
     function formatBytes(bytes) {
         if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
@@ -69,16 +71,16 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             .join(" · ");
     }
 
-    function formatValidation(validation) {
-        const status = validation?.status || "not-tested";
-        if (status === "passed") {
-            return validation.seconds != null
-                ? `✓ Validated · ${validation.seconds}s`
-                : "✓ Validated";
-        }
-        if (status === "failed") return "⚠ Validation failed";
-        if (status === "slow") return "⚠ Slow";
-        return "Not tested";
+    function formatEligibilityStatus(evidence) {
+        return ({ eligible: "Test-qualified", blocked: "Failed test—retest required",
+            suspended: "Paused pending retest", "needs-validation": "Needs fresh validation",
+            unverified: "Not yet validated" })[evidence.status] || "Eligibility unavailable";
+    }
+
+    function sameDtype(left, right) {
+        const normalize = value => value && typeof value === "object"
+            ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value ?? null;
+        return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
     }
 
     function render(report) {
@@ -328,7 +330,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (document.getElementById("settingsWhisperSelfTestModel")?.value !== id) return;
             const evidence = createWhisperEvidenceBridge().get(context);
             if (run) run.textContent = ["blocked", "suspended"].includes(evidence.status) ? "Retest" : "Run test";
-            const status = { eligible: "Test-qualified", blocked: "Failed test—retest required", suspended: "Paused pending retest", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
+            const status = formatEligibilityStatus(evidence);
             target.textContent = `${status}: ${evidence.reason}`;
         } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
     }
@@ -459,6 +461,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 detail.append(warning);
             }
             void renderWhisperAttempts();
+            if (document.getElementById("settingsModelRegistryContainer") &&
+                !document.getElementById("settingsWhisperModelsDetail")?.hidden) void renderModelRegistry(registryMode);
             return;
         }
         if (event.type === "run-start") {
@@ -740,6 +744,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     async function renderModelRegistry(mode = "current") {
+        const token = ++registryRenderToken;
+        registryMode = mode;
         const detail = document.getElementById("settingsWhisperModelsDetail");
         if (!detail) return;
 
@@ -753,7 +759,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
         try {
             const registry = await getModelRegistry();
-            if (!registryContainer.isConnected) return;
+            if (!registryContainer.isConnected || token !== registryRenderToken) return;
             const families = ["tiny", "base", "small", "medium", "large"];
             const currentTarget = getCurrentRegistryTarget();
 
@@ -766,6 +772,28 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     ? registry.filter(matchesCurrentDevice)
                     : registry;
 
+            const definitions = getWhisperConfigurationDefinitions();
+            const statuses = new Map(await Promise.all(filteredRegistry.map(async record => {
+                const definition = definitions.find(item => item.id === record.id);
+                let text;
+                if (!definition || definition.repository !== record.repository || definition.family !== record.family ||
+                    definition.platform !== record.platform || definition.runtime !== record.runtime ||
+                    !sameDtype(definition.loader.dtype, record.configuration?.dtype)) {
+                    text = "Custom/older configuration—current eligibility not mapped.";
+                } else if (!definition.operatingSystems.includes(runtimeIdentity.operatingSystem)) {
+                    text = "Not evaluated on this device.";
+                } else {
+                    try {
+                        const evidence = createWhisperEvidenceBridge().get(await getWhisperEligibilityContext(definition));
+                        text = `${formatEligibilityStatus(evidence)}: ${evidence.reason}`;
+                        if (evidence.status === "eligible") text += definition.production.familyDefault
+                            ? " Available for transcription." : " Not the transcription default.";
+                    } catch (error) { text = `Eligibility unavailable: ${error.message}`; }
+                }
+                return [record.id, text];
+            })));
+            if (!registryContainer.isConnected || token !== registryRenderToken) return;
+
             const registryHtml = families.map(family => {
                 const records = filteredRegistry.filter(record => record.family === family);
                 if (!records.length) return "";
@@ -774,7 +802,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
                 return `
                     <div class="settings-item" style="display:block;">
-                        <div class="settings-item-name">${label}</div>
+                        <div class="settings-item-name">${escapeHtml(label)}</div>
                         ${records.map(record => {
                             const isCurrent =
                                 mode === "all" &&
@@ -782,11 +810,16 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
                             return `
                                 <div class="settings-item-detail" style="margin-top:8px;${isCurrent ? "font-weight:700;" : ""}">
-                                    ${formatRegistryRuntime(record.runtime)} · ${formatRegistryDtype(record.configuration?.dtype)} · ${formatValidation(record.validation)}
+                                    ${escapeHtml(formatRegistryRuntime(record.runtime))} · ${escapeHtml(formatRegistryDtype(record.configuration?.dtype))}
                                 </div>
                                 <div class="settings-item-detail" style="margin-bottom:8px;${isCurrent ? "font-weight:700;" : ""}">
-                                    ${record.repository}
+                                    ${escapeHtml(record.repository)}
                                 </div>
+                                <div class="settings-item-detail">${escapeHtml(statuses.get(record.id))}</div>
+                                <details class="settings-item-detail" style="margin-bottom:12px;">
+                                    <summary>Historical registry record</summary>
+                                    <p>Older registry validation: ${escapeHtml(record.validation?.status || "not-tested")}. This record does not determine current transcription eligibility.</p>
+                                </details>
                             `;
                         }).join("")}
                     </div>
@@ -829,7 +862,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 </div>
 
                 <div class="settings-note" style="margin-bottom:10px;">
-                    Showing ${targetLabel}.
+                    Showing ${targetLabel}. Current eligibility determines transcription choices. File availability and historical registry records are separate from test qualification.
                 </div>
 
                 <div class="settings-detail" style="display:block;">
@@ -841,7 +874,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             `;
         } catch (error) {
             console.error("Settings model registry error:", error);
-            if (registryContainer.isConnected) {
+            if (registryContainer.isConnected && token === registryRenderToken) {
                 registryContainer.innerHTML = `<strong>Model Registry unavailable</strong><p>${escapeHtml(error?.message || String(error))}</p>`;
             }
         }

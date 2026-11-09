@@ -3,6 +3,9 @@ import * as storage from "../js/storage.js";
 import * as semantic from "../js/semantic.js";
 import * as manager from "../js/storageManager.js";
 import { getModelRegistry } from "../js/modelManager.js";
+import { getWhisperConfigurationDefinitions } from "../js/whisperConfigurations.js";
+import { getWhisperEligibilityContext } from "../js/whisperEligibilityEvidence.js";
+import { eligibilityKey } from "../js/whisperEligibility.js";
 import { initSettingsUI } from "../js/settings.js";
 
 const lines = [];
@@ -97,6 +100,11 @@ try {
     await test("Settings registry renders and reports a later database failure visibly", async () => {
         const report = await manager.getStorageReport();
         const originalFetch = window.fetch;
+        const definition = getWhisperConfigurationDefinitions().find(item => item.id === "large-webgpu-fp16-q4");
+        const context = await getWhisperEligibilityContext(definition);
+        const key = eligibilityKey(context);
+        const previous = localStorage.getItem(key);
+        localStorage.setItem(key, JSON.stringify({ schemaVersion: 1, context, status: "eligible", reason: "Synthetic qualification fixture." }));
         // Availability checks are unrelated; avoid network/model downloads.
         window.fetch = async () => ({ ok: false, status: 503 });
         try {
@@ -105,13 +113,21 @@ try {
             document.querySelector('[data-settings-action="toggle-whisper-models"]').click();
             await waitFor(() => document.querySelector('[name="model-registry-scope"]'));
             assert(document.getElementById("settingsModelRegistryContainer").textContent.includes("This device · WebGPU"), "desktop filter visible");
+            const registry = document.getElementById("settingsModelRegistryContainer");
+            assert(registry.textContent.includes("Test-qualified: Synthetic qualification fixture. Available for transcription."), "current qualification displayed");
+            assert(registry.querySelector("details")?.textContent.includes("does not determine current transcription eligibility"), "historical validation separated");
+            assert(!registry.querySelector("details").open, "history collapsed");
+            document.querySelector('[name="model-registry-scope"][value="all"]').click();
+            await waitFor(() => registry.textContent.includes("Not evaluated on this device."));
+            assert(registry.textContent.includes("Test-qualified: Synthetic qualification fixture."), "all-devices keeps exact current qualification");
             // All manager connections should have closed, so this upgrade can finish.
             const request = indexedDB.open(testDatabaseName, 6);
             (await requestResult(request)).close();
-            document.querySelector('[name="model-registry-scope"][value="all"]').click();
+            document.querySelector('[name="model-registry-scope"][value="current"]').click();
             await waitFor(() => document.getElementById("settingsModelRegistryContainer").textContent.includes("Model Registry unavailable"));
         } finally {
             window.fetch = originalFetch;
+            if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);
         }
     });
     result = "passed"; lines.push("ALL TESTS PASSED");

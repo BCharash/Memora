@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 9 November 2026, production build **2026-11-09.22**.
+Reviewed against the checkout on 9 November 2026, production build **2026-11-09.23**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -96,7 +96,7 @@ The iOS and desktop workers are intentional platform variants, not interchangeab
 | [whisperEligibilityEvidence.js](js/whisperEligibilityEvidence.js) | Builds exact test identity, hashes the fixture, imports test outcomes and handles older review records. This connects reports to eligibility rules. | Production gate, self-test and Settings |
 | [modelManager.js](js/modelManager.js) | Registry projection/persistence and repository/cache availability reporting for Settings. Its family availability projection now derives from canonical definitions. | Settings and self-test option projection |
 
-These are different questions: **definition** = what model/configuration is requested; **availability** = can its files be found; **eligibility** = has the exact context qualified. The older IndexedDB registry and newer eligibility records are separate systems today. That split needs clearer consolidation; the old registry's validation display is not the production eligibility authority.
+These are different questions: **definition** = what model/configuration is requested; **availability** = can its files be found; **eligibility** = has the exact context qualified. The older IndexedDB registry and newer eligibility records are separate systems today. Settings now displays current eligibility as the authority; old registry validation is retained in collapsed historical disclosures.
 
 ### Running and checking a self-test
 
@@ -204,12 +204,12 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | **Old page-thread fallbacks — removed in .20** | Removed unreachable direct pipeline execution/disposal branches. Active iOS/desktop worker loading, reuse, messages and termination are unchanged; unexpected worker state now reports an explicit error. |
 | **Production selection — shared core in .21** | Production gate and async resolver now use the same canonical exact-ID/family/default selector and platform compatibility checks. Self-test now calls the same catalogue list API (.22). Its historical non-iOS menu fallback is an explicit list-only option; production/resolver compatibility stays strict. |
 | **Separate family catalogue — derived in .21** | `modelManager.js` now projects family labels/repositories and Large's mixed-precision readiness fields from canonical definitions. Unused preferredDtype hints were removed. Legacy generic ONNX-pair availability checks are preserved; exact per-configuration readiness would be a separate behavior change. |
-| **Two model/evidence representations** | Legacy IndexedDB registry validation and newer local eligibility coexist. Reconcile their displayed meaning and ownership; do not delete either store or discard evidence as a shortcut. |
+| **Two model/evidence representations** | Legacy IndexedDB registry validation and newer local eligibility coexist. Display meaning is clarified in .23: current eligibility is authoritative, older registry validation is historical. Both stores and their evidence remain intact. |
 | **Unused exported helpers** | `getModelCatalog()` has no caller found; `isMobile`/`isDesktop` have no current consumers. `loadTranscriberConfiguration()` is currently exercised by a loader test, not an app caller. These are function-level cleanup candidates, not reasons to delete their modules. |
 | **Similar embedding services** | Paragraphing and semantic search can each load MiniLM in separate workers. A shared service might reduce duplicated live resources, but this requires feature/lifecycle design and is not a safe file deletion. |
 | **Potentially regroupable small modules** | Activity ownership, report presentation and diagnostic formatting are small but have different callers/responsibilities. Optional later organization work; lower priority than eliminating genuinely duplicated selection/definitions. |
 
-Next: review the legacy registry-versus-eligibility display. Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
+Registry-versus-eligibility presentation is clarified in .23. Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
 
 ## Scope of this review
 
