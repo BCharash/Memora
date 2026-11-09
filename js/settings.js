@@ -151,6 +151,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     `).join("")}
                 </select>
                 ${button("Run test", "run-whisper-self-test")}
+            </div>
+            <div id="settingsWhisperSelfTestCancel" class="whisper-self-test-cancel" hidden>
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
             <p class="settings-note">Self-test releases the idle production Whisper model. Default load limit: 600 seconds; inference: 180 seconds. These are provisional Tiny safety limits, not measured limits for larger models.</p>
@@ -359,7 +361,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
         const cancel = storage.querySelector('[data-settings-action="cancel-whisper-self-test"]');
         if (run) run.disabled = busy;
-        if (cancel) cancel.disabled = !busy;
+        if (cancel) {
+            cancel.disabled = !busy;
+            cancel.hidden = !busy;
+        }
+        const cancelRow = document.getElementById("settingsWhisperSelfTestCancel");
+        if (cancelRow) cancelRow.hidden = !busy;
         for (const id of ["settingsWhisperSelfTestModel", "settingsWhisperLoadLimit", "settingsWhisperInferenceLimit"]) {
             const input = document.getElementById(id);
             if (input) input.disabled = busy;

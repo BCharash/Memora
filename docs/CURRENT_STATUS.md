@@ -12,11 +12,13 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 
 ## Immediate next action
 
+UI follow-up candidate **2026-11-09.5**: Cancel test is on a separate row below the model selector and is hidden (including its row) whenever no self-test is active. It appears/enables during a test and hides after completion/cancellation/failure. Five focused Settings/Cancel/retry checks passed in isolated Chrome; user iPhone visual acceptance pending. No model/worker/resolver changes in this UI follow-up. First 3B baseline migration in build 2026-11-09.4 has now passed the user's MacBook and iPhone registry/option checks. No further inference requested for that migration. Pause for user UI verification before another 3B change.
+
 First **3B migration** implemented locally, candidate build **2026-11-09.4**: modelManager now projects its legacy built-in registry records from whisperConfigurations.js. All 13 IDs/fields/defaults are preserved; no fingerprint/schema fields are injected into saved records. Family MODEL_CATALOG, self-test ID lists, worker scripts and production/self-test resolver execution are unchanged. This is partial consolidation, not the completed single-source migration.
 
 Checks passed in isolated Chrome: 13 catalogue/resolver groups (including complete parity against an independent pre-change snapshot), seven production-module/database integration groups (including retained saved validation/custom evidence), and nine accuracy/UI groups. No actual models ran. New baseline adapter and returned records use independent dtype clones; canonical definitions stay immutable.
 
-Natural pause for user verification: reload build 2026-11-09.4 on desktop; Settings → Whisper Models → View should show the same registry entries, and Tiny should remain in the self-test selector. After publication, verify the iPhone registry still shows WASM/current-device entries and the same self-test choices. No Tiny/Large inference is required for this data-source-only checkpoint. No Rebuild Registry/reset. Do not migrate another caller until results are reviewed.
+Acceptance of the baseline migration is complete: user reported unchanged registry/selector behavior on MacBook and iPhone. No Rebuild Registry/reset or larger-model inference was needed.
 
 Next separately review the self-test option source or legacy family-catalogue adapter, then route actual tests/production through the resolver with exact configuration parity. Android/unknown restriction and iOS Medium identity correction must remain explicit before execution migration; do not silently change unsupported-platform behavior while moving a list. Duplicate desktop test worker retirement remains after protocol parity in 3B. No commit/publication by the agent.
 

@@ -1159,6 +1159,14 @@ button:disabled {
     font: inherit;
 }
 
+.whisper-self-test-cancel {
+    margin-top: 10px;
+}
+
+.whisper-self-test-cancel[hidden] {
+    display: none;
+}
+
 @media (max-width: 600px) {
     .whisper-self-test-controls {
         align-items: center;

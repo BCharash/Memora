@@ -30,16 +30,18 @@ const cancelButton = () => document.querySelector('[data-settings-action="cancel
 try {
     const ui = initSettingsUI({ getStorageManager: async () => ({ getStorageReport: async () => report }), getStorage: async () => ({}) });
     await ui.refresh();
-    assert(!runButton().disabled && cancelButton().disabled, "initial controls");
+    assert(!runButton().disabled && cancelButton().disabled && cancelButton().hidden && document.getElementById("settingsWhisperSelfTestCancel").hidden, "initial controls");
     lines.push("PASS initial controls and production module parsing");
     runButton().click();
     await waitFor(() => runButton().disabled && !cancelButton().disabled);
+    assert(!cancelButton().hidden && !document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel shown only during test");
+    assert(!cancelButton().closest(".whisper-self-test-controls"), "cancel separate from selector row");
     await ui.refresh();
     assert(!cancelButton().disabled, "refresh preserves cancel");
     cancelButton().click();
     await waitFor(() => !runButton().disabled);
     assert(document.getElementById("settingsWhisperSelfTestDetail").textContent.includes("1 cancelled"), "cancel terminal display");
-    assert(cancelButton().disabled, "cancel restored");
+    assert(cancelButton().disabled && cancelButton().hidden && document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel hidden after stop");
     lines.push("PASS Cancel during preparation, refresh safety and terminal display");
     runButton().click(); await waitFor(() => !cancelButton().disabled); cancelButton().click();
     await waitFor(() => !runButton().disabled);
