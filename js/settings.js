@@ -1,3 +1,4 @@
+import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { presentWhisperAttempt } from "./whisperAttemptReport.js";
@@ -383,7 +384,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 const body = document.createElement("pre");
                 body.style.whiteSpace = "pre-wrap";
                 body.style.overflowWrap = "anywhere";
-                body.textContent = JSON.stringify(presentWhisperAttempt(record), null, 2);
+                const refreshReport = () => {
+                    body.textContent = JSON.stringify({ ...presentWhisperAttempt(record), runtimeDiagnostics: getRuntimeDiagnosticReport(record.pageId || null) }, null, 2);
+                };
+                refreshReport();
+                technical.addEventListener("toggle", () => { if (technical.open) refreshReport(); });
                 const copy = document.createElement("button");
                 copy.type = "button";
                 copy.textContent = "Copy report";
@@ -392,6 +397,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 feedback.setAttribute("role", "status");
                 copy.onclick = async () => {
                     try {
+                        refreshReport();
                         await navigator.clipboard.writeText(body.textContent);
                         feedback.textContent = " Report copied.";
                     } catch {
@@ -411,6 +417,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     let url;
                     const link = document.createElement("a");
                     try {
+                        refreshReport();
                         url = URL.createObjectURL(new Blob([body.textContent], { type: "application/json" }));
                         link.href = url;
                         const name = `whisper-test-${record.configuration.id}-${record.startedAt}-${record.id}`;

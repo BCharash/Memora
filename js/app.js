@@ -1,3 +1,4 @@
+import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
 import { displayBuildInfo } from "./build-info.js";
 import { formatWhisperDiagnostics, formatTranscriptionTimings } from "./whisperDiagnostics.js";
@@ -14,6 +15,7 @@ import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscript
 import { initCombineShareExportUI } from "./combineShareExport.js";
 import { initSettingsUI } from "./settings.js";
 
+startRuntimeDiagnostics();
 displayBuildInfo(document.getElementById("appBuild"));
 
 // --------------------------------------------------
@@ -1003,6 +1005,10 @@ if (
 
     let activePrimaryTab = transcriptionTab;
     let settingsOpen = false;
+    if (settingsPanel) {
+        new MutationObserver(() => recordRuntimeDiagnostic("settings-visibility", { hidden: settingsPanel.hidden, expectedOpen: settingsOpen }))
+            .observe(settingsPanel, { attributes: true, attributeFilter: ["hidden"] });
+    }
 
     function activateTab(activeTab) {
         activePrimaryTab = activeTab;
@@ -1024,9 +1030,10 @@ if (
         }
     }
 
-    function openSettings() {
+    function openSettings(reason = "unspecified", trusted = null) {
         if (settingsOpen) return;
 
+        recordRuntimeDiagnostic("settings-open-requested", { reason, trusted });
         settingsOpen = true;
         Object.values(tabConfig).forEach(config => {
             config.panel.hidden = true;
@@ -1045,12 +1052,14 @@ if (
             settingsButton.classList.add("active");
         }
 
+        recordRuntimeDiagnostic("settings-opened", { reason, trusted });
         settingsUI.refresh();
     }
 
-    function closeSettings() {
+    function closeSettings(reason = "unspecified", trusted = null) {
         if (!settingsOpen) return;
 
+        recordRuntimeDiagnostic("settings-close-requested", { reason, trusted });
         settingsOpen = false;
 
         if (settingsPanel) {
@@ -1067,29 +1076,30 @@ if (
         }
 
         activateTab(activePrimaryTab);
+        recordRuntimeDiagnostic("settings-closed", { reason, trusted, tab: activePrimaryTab?.id || "unknown" });
     }
 
-    transcriptionTab.addEventListener("click", () => {
-        if (settingsOpen) closeSettings();
+    transcriptionTab.addEventListener("click", event => {
+        if (settingsOpen) closeSettings("transcription-tab", event.isTrusted);
         activateTab(transcriptionTab);
     });
 
-    combineTab.addEventListener("click", () => {
-        if (settingsOpen) closeSettings();
+    combineTab.addEventListener("click", event => {
+        if (settingsOpen) closeSettings("combine-tab", event.isTrusted);
         activateTab(combineTab);
     });
 
-    searchTab.addEventListener("click", () => {
-        if (settingsOpen) closeSettings();
+    searchTab.addEventListener("click", event => {
+        if (settingsOpen) closeSettings("search-tab", event.isTrusted);
         activateTab(searchTab);
     });
 
     if (settingsButton) {
-        settingsButton.addEventListener("click", () => {
+        settingsButton.addEventListener("click", event => {
             if (settingsOpen) {
-                closeSettings();
+                closeSettings("settings-button", event.isTrusted);
             } else {
-                openSettings();
+                openSettings("settings-button", event.isTrusted);
             }
         });
     }

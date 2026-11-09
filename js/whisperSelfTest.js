@@ -1,3 +1,4 @@
+import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext, digestWhisperFixture } from "./whisperEligibilityEvidence.js";
 // --------------------------------------------------
 // Memora Whisper Self-Test
@@ -59,8 +60,8 @@ export function getWhisperSelfTestOptions() {
         .filter(Boolean);
 }
 
-const createStandalone = (checkpoint, eligibilityContext) => createWhisperTestRunner({
-    checkpoint,
+const createStandalone = (checkpoint, eligibilityContext, diagnostic) => createWhisperTestRunner({
+    checkpoint, diagnostic,
     loadFixture: async signal => {
         const [audioFile, expectedText] = await Promise.all([loadTestAudio(signal), loadExpectedText(signal)]);
         eligibilityContext.fixtureDigest = await digestWhisperFixture(audioFile, expectedText);
@@ -82,11 +83,12 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits, del
     const eligibilityContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === selected.id));
     const journal = createWhisperAttemptJournal();
     const summary = await journal.run({
-        executionMode: "manual", deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
+        pageId: startRuntimeDiagnostics().pageId, executionMode: "manual", deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
         configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
         executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-desktop-worker.js",
         fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }
-    }, checkpoint => createStandalone(checkpoint, eligibilityContext)({ configuration: selected, onEvent, signal, limits }));
+    }, (checkpoint, attempt) => createStandalone(checkpoint, eligibilityContext, (type, details) => recordRuntimeDiagnostic(type, { attemptId: attempt.id, ...details }))({ configuration: selected, onEvent, signal, limits }));
+    recordRuntimeDiagnostic("test-record-write", { attemptId: summary.persistence.attemptId, status: summary.persistence.status });
     try { await bridge.sync(); }
     catch (error) { summary.eligibilityPersistence = { status: "failed", message: error.message }; }
     window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));

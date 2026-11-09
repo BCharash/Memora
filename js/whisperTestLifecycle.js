@@ -9,7 +9,7 @@ function stopError(name, message) {
     return error;
 }
 
-export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score, checkpoint }) {
+export function createWhisperTestRunner({ loadFixture, decode, createWorker, prepareProduction, acquireActivity, environment, score, checkpoint, diagnostic }) {
     let active = false;
     return async function run({ configuration, onEvent, signal, limits = {} }) {
         if (active) throw new Error("A Whisper self-test is already running.");
@@ -41,9 +41,12 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             status: "failed", failedPhase: null, releaseStatus: "not-attempted", releaseError: null, error: null
         };
         let modelStarted = false;
+        const trace = (type, details = {}) => { try { diagnostic?.(type, { configurationId: configuration.id, ...details }); } catch { /* Observability cannot change a run. */ } };
+        trace("test-start");
 
         async function stage(name, task) {
             phase = name;
+            trace("test-stage", { phase: name });
             await checkpoint?.(name, { ...result });
             const startedAt = performance.now();
             const deadline = startedAt + deadlines[name];
@@ -125,7 +128,9 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             emit({ type: "model-start", result: { ...result } });
             const loadStarted = performance.now();
             const loaded = await stage("load", () => {
+                trace("test-worker-create-requested");
                 worker = createWorker();
+                trace("test-worker-created");
                 return workerStage(runtime.operatingSystem === "ios" ? "ready" : "loaded", {
                     type: "load", model: configuration.id, repository: configuration.repository,
                     ...(runtime.operatingSystem === "ios" ? {} : { dtype: configuration.configuration?.dtype ?? null })
@@ -146,6 +151,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             result.transcript = typeof reply.text === "string" ? reply.text : "";
             result.transcriptionStatus = "passed";
             phase = "validation";
+            trace("test-stage", { phase: "validation" });
             await checkpoint?.("validation", { ...result });
             result.validation = validateWhisperOutput(fixture.expectedText, reply.text, score);
             result.wer = result.validation.wer;
@@ -164,9 +170,12 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             if (worker) {
                 worker.onmessage = worker.onerror = worker.onmessageerror = null;
                 try {
+                    trace("test-worker-terminate-requested");
                     worker.terminate();
+                    trace("test-worker-termination-invoked");
                     result.releaseStatus = "termination-invoked";
                 } catch (error) {
+                    trace("test-worker-termination-failed", { message: error.message });
                     result.releaseStatus = "failed";
                     result.releaseError = error.message || String(error);
                 }
@@ -177,6 +186,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             releaseActivity();
             active = false;
         }
+        trace("test-finished", { status: result.status, phase: result.failedPhase || phase, cleanup: result.releaseStatus });
         if (modelStarted) {
             emit({ type: "model-released", index: 1, model: configuration.id, releaseMs: result.releaseMs, releaseStatus: result.releaseStatus });
             emit({ type: "model-complete", result: { ...result } });

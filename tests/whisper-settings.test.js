@@ -65,7 +65,7 @@ try {
     cancelButton().click();
     await waitFor(() => !runButton().disabled);
     const savedRetests = Object.keys(localStorage).filter(key => key.startsWith("memora.whisper-attempt.v1.")).map(key => JSON.parse(localStorage.getItem(key)));
-    assert(savedRetests.some(record => record.deliberateRetest === true && record.status === "cancelled"), "deliberate action recorded before execution");
+    assert(savedRetests.some(record => record.deliberateRetest === true && record.status === "cancelled" && record.pageId), "deliberate action recorded before execution");
     await waitFor(() => runButton().textContent === "Retest");
     const passing = id => ({ id: crypto.randomUUID(), startedAt: new Date().toISOString(), configuration: { id }, status: "passed", phase: "validation", result: { results: [{ status: "passed", transcriptionStatus: "passed", accuracyStatus: "passed", validation: { status: "passed" }, wer: 0 }] } });
     const otherId = getWhisperConfigurationDefinitions().find(item => item.platform === "desktop" && item.id !== selectedId && item.test.allowed).id;
@@ -107,7 +107,7 @@ try {
             const copy = technical.parentElement.querySelector("[data-whisper-copy-report]");
             copy.click();
             await waitFor(() => !!copied);
-            assert(JSON.parse(copied).schemaVersion === 1, "copy contains JSON report");
+            assert(JSON.parse(copied).schemaVersion === 1 && JSON.parse(copied).runtimeDiagnostics.currentPageId, "copy includes export-time page diagnostics");
             Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("denied"); } } });
             copy.click();
             await waitFor(() => technical.open);

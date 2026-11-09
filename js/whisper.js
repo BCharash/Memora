@@ -1,6 +1,18 @@
+import { recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { requireWhisperProductionEligibility } from "./whisperProductionEligibility.js";
 import { isIOS } from "./runtime.js";
 
+
+function terminateWhisperWorker(worker, role) {
+    recordRuntimeDiagnostic("production-worker-terminate-requested", { role });
+    try {
+        worker.terminate();
+        recordRuntimeDiagnostic("production-worker-termination-invoked", { role });
+    } catch (error) {
+        recordRuntimeDiagnostic("production-worker-termination-failed", { role, message: error.message });
+        throw error;
+    }
+}
 
 // --------------------------------------------------
 // Transformers.js
@@ -36,11 +48,13 @@ function createDesktopWhisperWorker() {
         return desktopWhisperWorker;
     }
 
+    recordRuntimeDiagnostic("production-worker-create-requested", { role: "desktop" });
     desktopWhisperWorker = new Worker(
         "./js/whisper-desktop-worker.js",
         { type: "module" }
     );
 
+    recordRuntimeDiagnostic("production-worker-created", { role: "desktop" });
     desktopWhisperWorker.onmessage = event => {
         const message = event.data;
 
@@ -118,6 +132,7 @@ function createWhisperWorker() {
         return whisperWorker;
     }
 
+    recordRuntimeDiagnostic("production-worker-create-requested", { role: "ios" });
     whisperWorker =
         new Worker(
             "./js/whisper-ios-worker.js",
@@ -126,6 +141,7 @@ function createWhisperWorker() {
             }
         );
 
+    recordRuntimeDiagnostic("production-worker-created", { role: "ios" });
     whisperWorker.onmessage =
         event => {
 
@@ -384,14 +400,14 @@ async function loadTranscriberDefinition(
         // after the worker reports a successful load.
         if (isIOS) {
             if (whisperWorker) {
-                whisperWorker.terminate();
+                terminateWhisperWorker(whisperWorker, "ios");
                 whisperWorker = null;
             }
             workerLoadPromise = null;
             workerTranscriptionPromise = null;
         } else {
             if (desktopWhisperWorker) {
-                desktopWhisperWorker.terminate();
+                terminateWhisperWorker(desktopWhisperWorker, "desktop");
                 desktopWhisperWorker = null;
             }
             desktopWorkerLoadPromise = null;
@@ -468,7 +484,7 @@ export async function releaseTranscriber() {
 
     if (current === "worker") {
         if (whisperWorker) {
-            whisperWorker.terminate();
+            terminateWhisperWorker(whisperWorker, "ios");
             whisperWorker = null;
         }
         workerLoadPromise = null;
@@ -478,7 +494,7 @@ export async function releaseTranscriber() {
 
     if (current === "desktop-worker") {
         if (desktopWhisperWorker) {
-            desktopWhisperWorker.terminate();
+            terminateWhisperWorker(desktopWhisperWorker, "desktop");
             desktopWhisperWorker = null;
         }
         desktopWorkerLoadPromise = null;

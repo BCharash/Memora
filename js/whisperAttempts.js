@@ -40,7 +40,7 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
             const checkpoint = async (phase, observation) => { record.phase = phase; record.observation = observation ? { ...observation, status: "in-progress" } : null; record.updatedAt = now(); save(record); };
             let summary;
             try {
-                summary = await execute(checkpoint);
+                summary = await execute(checkpoint, { id });
             } catch (error) {
                 record.status = "failed";
                 record.error = { name: error.name, message: error.message };
