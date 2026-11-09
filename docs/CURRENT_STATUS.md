@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-09.24** changes only active self-test status wording; local checks passed and user wording acceptance is pending. No commit/publication by agent.
+Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-09.25** adds the maintenance-button presentation change below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+
+## Latest narrow change — registry maintenance control (.25)
+
+The former Rebuild Registry action is now Reset stored model definitions, inside collapsed Advanced maintenance at the bottom of Model Registry. Explanation and confirmation make clear that it removes historical registry validation/customizations, preserves eligibility/reports/downloaded models, does not refresh test results and does not repair the database schema. The underlying reset is unchanged and is not needed after ordinary tests. Seven existing isolated database-integration groups passed. User check is visual only: expand Advanced maintenance and inspect wording; do not perform a reset merely to test placement. No model tests required.
 
 ## Latest narrow change — active retest wording (.24)
 

@@ -882,9 +882,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
                 <div class="settings-detail" style="display:block;">
                     ${registryHtml}
-                    <div class="action-row" style="margin-top:10px;">
-                        ${button("Rebuild Registry", "rebuild-model-registry")}
-                    </div>
+                    <details style="margin-top:10px;">
+                        <summary>Advanced maintenance</summary>
+                        <p class="settings-note">Troubleshooting only. Restores built-in model definitions and removes historical registry validation/customizations. Does not refresh test results or repair the database schema. Current eligibility, saved test reports and downloaded models are preserved.</p>
+                        <div class="action-row">
+                            ${button("Reset stored model definitions", "rebuild-model-registry")}
+                        </div>
+                    </details>
                 </div>
             `;
         } catch (error) {
@@ -981,7 +985,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 );
             }
             if (action === "rebuild-model-registry") {
-                if (!confirm("Rebuild the Whisper Model Registry from Memora's built-in defaults? Validation results and discovered registry changes will be reset.")) return;
+                if (!confirm("Reset stored model definitions to Memora's built-in defaults? Historical registry validation/customizations will be removed. Current eligibility, saved test reports and downloaded models will be preserved. This does not refresh test results or repair the database schema.")) return;
                 await rebuildModelRegistry();
                 await checkModels();
                 return;
