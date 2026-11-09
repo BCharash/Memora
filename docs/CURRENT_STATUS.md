@@ -7,12 +7,16 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 1. **Runtime identification: complete for the agreed scope.** Shared OS/device classification, consistent reporting, production/self-test consumers and Search audio detection are implemented. Do not restart runtime migration.
 2. **IndexedDB foundation: complete for the repair scope.** Canonical version-5 ownership and the missing-registry repair passed isolated tests and the user's Mac, iPhone and Windows checks.
 3. **Vite/release asset conversion: deferred for Memora.** The isolated installation was discarded, and remaining untracked tooling was moved outside the repository. No Vite configuration/dependencies remain in the checkout; normal Live Server/main-root publishing continues. Design documents are reference only.
-4. **Whisper configuration and testing: current priority.** 2A lifecycle safety and 2B WER ≤15% validation are implemented and accepted as recorded. 3A replacement catalogue/resolver is implemented but unused; next review/migrate callers in 3B. Durable evidence and automatic sequences remain later scope.
+4. **Whisper configuration and testing: current priority.** 2A lifecycle safety and 2B WER ≤15% validation are implemented and accepted as recorded. 3A catalogue/resolver is implemented; 3B registry baseline and self-test option consumers now use catalogue definitions. Execution resolver integration remains next. Durable evidence and automatic sequences remain later scope.
 5. **Offline Tiny, sharing consolidation and iMuse integration: deferred.** Align their contracts with the above work before implementation.
 
 ## Immediate next action
 
-UI follow-up candidate **2026-11-09.5**: Cancel test is on a separate row below the model selector and is hidden (including its row) whenever no self-test is active. It appears/enables during a test and hides after completion/cancellation/failure. Five focused Settings/Cancel/retry checks passed in isolated Chrome; user iPhone visual acceptance pending. No model/worker/resolver changes in this UI follow-up. First 3B baseline migration in build 2026-11-09.4 has now passed the user's MacBook and iPhone registry/option checks. No further inference requested for that migration. Pause for user UI verification before another 3B change.
+Candidate **2026-11-09.6**: self-test options now derive their IDs, platform policy and order from the canonical catalogue instead of separate desktop/iOS ID arrays. The legacy registry projection still supplies the result shape. Existing choices, iOS/non-iOS split, workers and execution settings are preserved; resolver OS/capability enforcement remains a later checkpoint. All 13 catalogue/registry regression groups and five Settings/lifecycle UI groups passed in isolated Chrome without model downloads. Pause for a selector/Tiny smoke check after this change.
+
+Build **2026-11-09.5** Cancel layout is user-accepted. First 3B baseline migration in **2026-11-09.4** passed the user's MacBook and iPhone registry/option checks.
+
+User excludes Medium from routine testing because earlier runs severely taxed resources and offered little practical benefit over Small. Keep that as a testing constraint; revisit model eligibility/selector policy separately. Current source still offers Medium self-test choices; this checkpoint does not change them or request Medium/Large inference.
 
 First **3B migration** implemented locally, candidate build **2026-11-09.4**: modelManager now projects its legacy built-in registry records from whisperConfigurations.js. All 13 IDs/fields/defaults are preserved; no fingerprint/schema fields are injected into saved records. Family MODEL_CATALOG, self-test ID lists, worker scripts and production/self-test resolver execution are unchanged. This is partial consolidation, not the completed single-source migration.
 
@@ -20,7 +24,7 @@ Checks passed in isolated Chrome: 13 catalogue/resolver groups (including comple
 
 Acceptance of the baseline migration is complete: user reported unchanged registry/selector behavior on MacBook and iPhone. No Rebuild Registry/reset or larger-model inference was needed.
 
-Next separately review the self-test option source or legacy family-catalogue adapter, then route actual tests/production through the resolver with exact configuration parity. Android/unknown restriction and iOS Medium identity correction must remain explicit before execution migration; do not silently change unsupported-platform behavior while moving a list. Duplicate desktop test worker retirement remains after protocol parity in 3B. No commit/publication by the agent.
+Next separately review the legacy family-catalogue adapter, then route actual tests/production through the resolver with exact configuration parity. Android/unknown restriction and iOS Medium identity correction must remain explicit before execution migration; do not silently change unsupported-platform behavior while moving a list. Duplicate desktop test worker retirement remains after protocol parity in 3B. No commit/publication by the agent.
 
 ## Prior accepted checkpoints and context
 

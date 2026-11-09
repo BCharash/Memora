@@ -4,6 +4,7 @@
 
 import { decodeAudio } from "./audioProcessor.js";
 import { getModelRegistryBaseline } from "./modelManager.js";
+import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { isIOS, runtimeIdentity, getRuntimeCapabilities } from "./runtime.js";
 import { clearWhisperResources } from "./whisper.js";
 import { acquireWhisperActivity } from "./whisperActivity.js";
@@ -11,26 +12,6 @@ import { createWhisperTestRunner } from "./whisperTestLifecycle.js";
 
 const TEST_AUDIO_URL = "./data/whisper-test/test-audio.m4a";
 const EXPECTED_TEXT_URL = "./data/whisper-test/expected-transcription.txt";
-// These are the registry configurations that can be selected for
-// self-testing on each platform. iPhone/iPad deliberately excludes Large
-// because it is not a realistic test target for the current WASM runtime.
-const DESKTOP_TEST_SEQUENCE = [
-    "tiny-webgpu-default",
-    "base-webgpu-default",
-    "small-webgpu-default",
-    "medium-webgpu-fp16-q4",
-    "medium-webgpu-q4f16",
-    "medium-webgpu-q4",
-    "large-webgpu-fp16-q4"
-];
-
-const IOS_TEST_SEQUENCE = [
-    "tiny-iphone-default",
-    "base-iphone-default",
-    "small-iphone-default",
-    "medium-iphone-default"
-];
-
 async function loadTestAudio(signal) {
     const response = await fetch(TEST_AUDIO_URL, { cache: "no-store", signal });
     if (!response.ok) {
@@ -63,13 +44,13 @@ function getEnvironment() {
 
 export function getWhisperSelfTestOptions() {
     const registry = getModelRegistryBaseline();
-    const sequence =
-        isIOS
-            ? IOS_TEST_SEQUENCE
-            : DESKTOP_TEST_SEQUENCE;
-
-    return sequence
-        .map(id => registry.find(record => record.id === id))
+    // Preserve the existing iOS/non-iOS split during this list-only migration.
+    // Resolver OS/capability checks belong to the later execution checkpoint.
+    const platform = isIOS ? "ios" : "desktop";
+    return getWhisperConfigurationDefinitions()
+        .filter(configuration => configuration.platform === platform && configuration.test.allowed)
+        .sort((a, b) => a.test.order - b.test.order)
+        .map(configuration => registry.find(record => record.id === configuration.id))
         .filter(Boolean);
 }
 
