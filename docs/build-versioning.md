@@ -8,6 +8,8 @@ The application populates “Memora build …” at the very bottom of the page,
 
 This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database version 5 and model configuration revisions remain separate identifiers.
 
-## Release consistency — next project
+## Release consistency — deferred
 
-The user confirmed an iPhone caching mismatch after this label was published. Reliable generated asset URLs and publication are now the next priority, before Whisper model validation changes. See [asset/deployment inventory](Asset_and_Deployment_Inventory.md) for scope and [current handoff](CURRENT_STATUS.md) for order. Build-tool configuration, old-asset retention and GitHub Pages settings still need a concrete proposal. The human-readable identifier remains useful alongside generated content hashes.
+The user confirmed an iPhone caching mismatch after this label was published. Generated asset URLs and a build/deployment conversion were proposed, but the isolated Vite setup was intentionally discarded. GitHub Pages remains `main` → `/(root)`; normal Live Server/source publishing continues. See the archived [asset inventory](archive/Asset_and_Deployment_Inventory.md) and [Vite plan](archive/Vite_Design_and_Rollout_Plan.md) if revisiting that separate project. They require a fresh audit; they are not prerequisites for current Whisper work.
+
+The current application build is **2026-11-09.23**. Documentation-only changes keep that identifier. The footer remains useful for diagnostics but does not establish that every cached module belongs to the same release. Current priorities are in [the handoff](CURRENT_STATUS.md).

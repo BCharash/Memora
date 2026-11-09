@@ -32,6 +32,6 @@ These are behavior differences to preserve during naming work and explicitly set
 
 ## Status and next use
 
-Reviewed 7 November 2026. Runtime identification is complete for the agreed scope and canonical IndexedDB ownership passed Mac/iPhone/Windows checks. No sharing extraction/consolidation has been implemented. Current next work is reliable asset publication; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Status reviewed 9 November 2026; the dependency inventory remains a dated overview, not a fresh exhaustive audit. Runtime identification is complete for the agreed scope and canonical IndexedDB ownership passed Mac/iPhone/Windows checks. No sharing extraction/consolidation has been implemented. No file-workflow change is currently underway; runtime/database and the agreed Whisper consolidation are complete for their scopes; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
 This document is an overview, not an exhaustive dependency audit. Before changing a file workflow, trace its preparation, UI state, delivery, cancellation and post-save effects end to end. Before migrating callers to a shared helper, audit all affected callers. Consider extending storage's helper and extracting transcription export controls only as separate authorized changes. Keep feature controls, pending batches, archive state and reindexing with feature owners. iPhone delivery changes need an explicit device checklist.

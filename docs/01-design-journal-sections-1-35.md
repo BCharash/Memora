@@ -1,3 +1,5 @@
+> Historical overlapping journal extract. Preserved without restructuring. The latest runtime/Whisper decisions are in [main journal section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923); use [CURRENT_STATUS.md](CURRENT_STATUS.md) for current work.
+
 # Memora Design Journal
 
 **Version:** 11

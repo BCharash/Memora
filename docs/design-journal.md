@@ -1,9 +1,12 @@
 # Memora Design Journal
 
-**Version:** 15
-**Status:** Living document  
+**Version:** 16
+**Status:** Living document; current through section 60 (9 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
+
+
+Latest decisions: [section 60](#60-runtime-and-whisper-consolidation-through-build-2026-11-0923). Earlier entries preserve historical behavior; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current resume boundary.
 
 ---
 
@@ -4134,3 +4137,72 @@ This distinction is important for multi-term queries. A transcript that exactly 
 The ranking change does not alter transcript text, lexical match qualification, the configured fuzzy threshold, embeddings, retrieval representations, contextual overlap suppression, transcript grouping, highlighting colors, or Search-to-Combine handoff. It changes ordering within the lexical tier and retains sentence-heavy RRF for semantic-only results.
 
 Source-level syntax checks have passed for the revised Search JavaScript. This is not equivalent to exhaustive end-to-end validation against the full transcript archive. Practical searches should confirm that exact lexical matches appear first, longer phrases win equal-score ties, and semantic-only results follow the weighted RRF order.
+
+---
+
+# 60. Runtime and Whisper Consolidation Through Build 2026-11-09.23
+
+**Date:** 9 November 2026
+**Status:** Completed consolidation checkpoint; latest registry presentation user-accepted. Normal-transcription failure feedback is proposed and deferred. Automatic sequences remain paused.
+
+## 60.1 Runtime and database foundation are complete
+
+Runtime identity now has one shared owner, with operating system separate from phone/tablet/desktop form factor and observed capabilities. Whisper, self-test, Settings and Search audio consume that identity. A tablet may run iOS, Android or another OS; device shape alone must not select the iOS implementation. API presence does not establish successful inference or a resolved operator backend.
+
+`database.js` owns Memora schema version 5, with `transcripts`, `semanticEntries`, `semanticMetadata` and `modelRegistry`. Its repair adds missing compatible stores/indexes, preserves records and refuses incompatible/future schemas instead of resetting them. The observed version-4/three-store Mac database became version 5/four stores; user Mac/iPhone/Windows checks passed. The separate iMuse database `imuse-recording-breadboard` remains untouched. Future audio migration requires inspecting both repositories and is not part of this completion.
+
+These scopes are closed. Do not restart runtime migration or routine database repair to resume Whisper work.
+
+## 60.2 What “one source of truth” now means
+
+`whisperConfigurations.js` owns 13 immutable built-in exact configurations, including repositories, loader options, platform rules, worker/library identity, family defaults and test ordering/permissions. The async resolver and production gate share a synchronous selection core. Self-test choices use the canonical list API. `modelManager` derives legacy registry shapes and family availability metadata from those definitions.
+
+Definitions, file availability, test reports and eligibility remain separate because they answer different questions. Removing duplicate execution definitions does not require deleting historical validation or merging all storage into one record. Cache/repository availability remains a limited check, not exact offline-readiness proof.
+
+Production and self-test use the same desktop/iOS worker scripts, while self-tests create disposable instances and production normally reuses its loaded model. The obsolete separate desktop test worker was removed, followed by unused page-side Transformers loading/direct-pipeline fallbacks. The file audit found no byte-identical application modules; the remaining 40 application JavaScript files, including 15 Whisper files, have documented responsibilities in [the file map](../filemap.md). Broad file merging/renaming is not a necessary next step.
+
+Builds .20–.23 completed the agreed dead-code, catalogue-selection, self-test-list and registry-presentation cleanup. Those cleanup builds did not change active worker execution inputs or fingerprints and did not require new model qualification.
+
+## 60.3 Test accuracy, reports and recovery
+
+Self-tests run one selected exact configuration at a time. They have cancellation, bounded stages, activity ownership, durable attempts and last-stage recovery after page loss. The agreed smoke-test accuracy gate is **WER ≤15%**, compared without rounding; inference completion and accuracy are separate outcomes. The short English fixture does not establish multilingual, translation, long-audio, offline or sequence reliability.
+
+Saved reports retain model/context, build, stages, timing, transcript/accuracy and cleanup observations. Settings puts current results first and saved history at the bottom, with readable summaries, Copy/Download, collapsed technical detail and visible separation. Cancel sits below the selector/action row and is hidden when idle. Clearing completed reports preserves independent eligibility/review decisions; it is not a reset of model suitability.
+
+Runtime diagnostics retain bounded page/navigation, Settings and worker lifecycle observations. Downloads take a fresh snapshot so page events after a saved success can be inspected. A passing inference can be followed by whole-page loss; these are separate facts, not grounds to relabel the saved pass as an accuracy failure.
+
+## 60.4 Qualification and manual recovery
+
+Current eligibility is local to an exact configuration, worker/library, protocol/fixture, recipe, browser/environment and observed capabilities. A qualifying self-test grants eligibility. Confirmed model execution/accuracy failure blocks; unexplained load/inference interruption suspends pending retest. Cancellation and timeout do not prove incompatibility or clear a hold. A newer adverse decision cannot be erased by replaying an older pass.
+
+The initial implementation required a `deliberateRetest` flag to release a hold. User reports exposed the confusing case of a genuinely passing manual test that did not restore eligibility. Build .17 simplified recovery: **any qualifying user-requested manual pass can restore its exact context**, regardless of the old flag or button label. Older withheld manual passes can be reprocessed conservatively. Manual attempts are unlimited; automatic/sequence attempts cannot inherit that manual rule.
+
+The transcription dropdown exposes only qualified **family-default configurations**. A pass of another Medium dtype does not replace or qualify the selected family default. The loader rechecks eligibility before creating/reusing a worker; unsupported OS targets do not silently become desktop configurations. Storage failure cannot grant eligibility.
+
+Build .23 made Settings registry wording agree with current eligibility. Historical IndexedDB validation is retained in collapsed disclosures; availability is labeled separately. Other platforms are not presented as tested on the current device, and a custom/older definition cannot borrow eligibility merely by reusing an ID. The user accepted this presentation.
+
+Normal transcription presently consumes eligibility but does **not** persist new eligibility decisions from its own failures. That feedback loop is remaining work, not an implemented promise.
+
+## 60.5 iPhone repeated-test instability remains unresolved
+
+Reports showed whole-page replacement around repeated disposable Small tests, sometimes during load/inference and sometimes after a saved successful result. Resource pressure or repeated model/worker creation/disposal is plausible but unproven. The user later rebooted and completed at least nine normal Small transcriptions without trouble using production reuse. This supports distinguishing normal reuse from disposable-test behavior; it does not identify a root cause.
+
+Build .19 added a bounded post-inference disposal request: await the pipeline disposal API if available, accept only a matching acknowledgement, wait at most five seconds, then always terminate. Active failed/cancelled/timed-out work uses forced termination. Tiny reports on Mac/iPhone acknowledged disposal. An API acknowledgement and termination request do not verify physical memory reclamation, and later Small page loss did not establish that cleanup solved the problem.
+
+The supplied Jetsam event did not correlate with the reported failure, and matching OS/WebKit evidence was unavailable. Remote Safari inspection was constrained by the missing cable. A proposed isolated reuse/resource lab was discarded at the user's request; it is absent and must not be recreated automatically. No rapid sequence or repeated Medium crash trial is requested. Stop editing watched files while the user tests, and use a non-reloading server for future agreed diagnosis; reading files alone does not demonstrate a Live Server reload cause.
+
+## 60.6 Sequential testing and retry policy are future work
+
+The intended design is an explicit saved sequence, one configuration at a time, with an initial attempt plus at most one automatic retry. Reserve the budget durably before retrying; preserve both outcomes, and distinguish “Passed on retry” from consistent success. Manual testing remains unlimited.
+
+A reload/page loss must recover paused and require explicit resume, not automatically relaunch the interrupted model. Cancellation stops; checkpoint/storage/cleanup uncertainty pauses. Shared preparation faults must not cascade through model retries. Qualification after an automatic failure/pass pair still needs an agreed confirmation rule. None of this automatic coordination is active, and it remains on hold pending stability decisions.
+
+## 60.7 Evidence, next boundary and documentation
+
+The recorded focused regressions were 40 groups for .21, 30 for .22 and 15 for .23. They exercised synthetic/local fixtures, not real model/GPU accuracy or memory reclamation. Earlier runtime/database acceptance covered Mac/iPhone/Windows; later Whisper acceptance must not be generalized to untested Windows or Android/iPad hardware. Exact run observations and historical counts remain in the [checkpoint archive](archive/Development_Checkpoints_2026-11-09.md) and [test history](archive/Test_Checkpoint_History_2026-11-09.md).
+
+The next proposed checkpoint is a **15–25 minute read-only audit of normal transcription error paths**, deferred by the user. Distinguish model faults from input/decode, cancellation, storage/export and page interruption before agreeing persistence/recovery rules. Implementation would be a separate authorized step. There is no need to begin it now; .23 is a stable stopping point.
+
+Vite/release conversion was intentionally discarded. Live Server and GitHub Pages `main` → `/(root)` publishing continue. The human build footer identifies its module, not full cached-asset consistency. Vite, asset publication and Offline Tiny plans are archived deferred work; sharing consolidation, Search research and iMuse integration are also outside the current scope.
+
+This documentation refresh preserves prior handoffs in the archive, adds current summaries and repairs links. It does not change application code, build .23, model options/fingerprints, storage or publishing. Start future sessions with [CURRENT_STATUS.md](CURRENT_STATUS.md); historical journal instructions do not override that handoff.

@@ -1,3 +1,5 @@
+> Historical overlapping journal extract. Preserved without restructuring. The latest runtime/Whisper decisions are in [main journal section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923); use [CURRENT_STATUS.md](CURRENT_STATUS.md) for current work.
+
 # 36. Persistent Search Storage and Future Optimization
 
 Persistent semantic storage is now implemented, but its long-term architecture remains an area for refinement.

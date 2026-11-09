@@ -2,18 +2,25 @@
 
 **Planning document:** 17 October 2026  
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  
-**Status:** Proposal for discussion and agreement — **not authorization to edit code yet**.
+**Status:** Broader design reference with partial implementation; current disposition below. **Not authorization to edit code.**
 
 
 ## Handoff summary — read this first when resuming
 
-**Current status — 9 November 2026:** runtime identification and canonical version-5 database repair are complete; user Mac/iPhone/Windows checks passed. Vite was deferred and its uncommitted setup discarded. Resume Whisper work with the concrete [step-1 configuration/test design](Whisper_Configuration_and_Test_Design.md): audit complete, output gate and deadlines proposed for review; no new code/inference or durable validation implemented. The detailed broader plan below remains proposed. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs order.
+**Implementation status — 9 November 2026, build 2026-11-09.23:** This remains the broader requirements/design record, not a current implementation checklist. Runtime identity and version-5 database ownership/repair are complete. Canonical model definitions, shared selection/listing, production/self-test worker parity, WER ≤15%, durable attempts/recovery, exact-context eligibility and production filtering are implemented. Availability metadata derives from definitions; Settings now separates current eligibility from historical registry validation. The user accepted the latest presentation.
 
-**Project goal:** Make Whisper model definitions, environment assessment, self-test evidence, eligibility, and production loading consistent and trustworthy across desktop and iPhone.
+**Project goal:** Keep model definitions, runtime identity, test evidence, eligibility and production loading consistent across platforms. The current [catalogue contract](Whisper_Catalogue_Resolver_Contract.md), [testing design](Whisper_Configuration_and_Test_Design.md) and [handoff](CURRENT_STATUS.md) supersede old “not implemented” or “first action” statements below.
 
-**Current status:** This is a design proposal. No implementation work is authorized by this document alone. Inspect the current repository and device builds before translating this plan into code; this document is not proof that the current code still behaves as described.
+| Requirement | Current disposition |
+|---|---|
+| Shared runtime and canonical database owner | Complete for agreed scope; do not repeat migration or reset storage. |
+| Canonical definitions and selection | Implemented; legacy registry/availability shapes are projections, not separate loader authorities. |
+| Trustworthy single-model tests and recovery | Implemented, including WER gate, stage limits, reports, diagnostics and manual recovery. |
+| Exact-context transcription eligibility | Implemented for self-test evidence and loader/selector checks. Normal-transcription failures do not yet write new decisions. |
+| Resource safety and automatic sequences | Repeated disposable iPhone-test instability unresolved. Disposal acknowledgement is not memory-reclamation proof. Sequences/automatic retry remain deferred. |
+| Offline readiness, immutable upstream assets and broader device support | Not established by the fixture or cache checks; require separate scope/evidence. |
 
-**First action when this phase resumes:** review the completed step-1 model/worker audit and capture the missing device timing/output baselines before approving thresholds. Vite is not a prerequisite. Reuse the completed database audit; inspect changes rather than restarting it. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
+**Next optional action:** The user deferred a proposed 15–25 minute read-only audit of normal transcription error paths. Do not implement automatic disqualification until input/decode, cancellation, model, storage/export and page-loss faults have been distinguished and rules agreed. No new implementation is authorized by this plan alone. Vite is deferred/discarded, not a prerequisite.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.
@@ -28,6 +35,8 @@
 ---
 
 ## 1. Executive summary
+
+> The numbered sections below preserve the original broader design, observations and proposed implementation sequence. They are not a current source audit. The implementation-status map above and CURRENT_STATUS.md govern where those sections describe superseded gaps.
 
 Memora needs to move from a registry that is becoming authoritative in some paths to a single, dependable model-management system that can explain what each Whisper implementation is, whether it is usable in a particular environment, what has actually been tested, and why a test succeeded or failed.
 

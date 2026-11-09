@@ -1,24 +1,25 @@
 # Memora documentation
 
-Reviewed 9 November 2026. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and actual test evidence take precedence over historical implementation claims.
+Reviewed 9 November 2026 through **build 2026-11-09.23**, whose registry presentation is user-accepted. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and recorded test evidence take precedence over historical implementation claims.
 
-| Document | Role/status |
+| Document | Role |
 |---|---|
-| [Plain-language file map](../filemap.md) | Every application JavaScript file, feature flows, tests and specific cleanup findings. |
-| [Current handoff](CURRENT_STATUS.md) | Current sequence and next action. |
-| [Runtime and database status](Runtime_and_Database_Status.md) | Completed foundation, ownership and verification limits. |
-| [Asset/deployment inventory](Asset_and_Deployment_Inventory.md) | Deferred release-consistency reference; no tooling installed. |
-| [Vite design and rollout](Vite_Design_and_Rollout_Plan.md) | Deferred design; isolated setup was discarded before asset adaptations. |
-| [Build numbering](build-versioning.md) | Active release identification. |
-| [Whisper step-1 design](Whisper_Configuration_and_Test_Design.md) | Current audit/contract, proposed PASS gate, lifecycle and checkpoints. |
-| [Whisper catalogue/resolver contract](Whisper_Catalogue_Resolver_Contract.md) | 3A implemented/unused, parity and fingerprint checks passed; caller migration remains 3B. |
-| [Whisper registry/self-test plan](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Subsequent proposal; database prerequisite already implemented. |
-| [Offline Tiny](Offline_Whisper_Tiny_Implementation_Plan.md) | Deferred proposal; align with generated assets/common configuration. |
-| [File workflows](File_Workflow_Inventory.md) | Overview for future dependency audits; sharing refactor deferred. |
-| [Search strategy](search%20model%20optimization.md) | Governing requirements; long experiments archived. |
-| [Test instructions](../tests/README.md) | Isolated harnesses and evidence. |
-| [Archive](archive/README.md) | Historical plans/research, not the current task queue. |
+| [Current status and resume instructions](CURRENT_STATUS.md) | Completed work, stable stopping point, unresolved iPhone issue and deferred next audit. |
+| [Plain-language file map](../filemap.md) | All 40 application JavaScript files, including 15 Whisper files, plus flows, storage and focused tests. |
+| [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |
+| [Whisper catalogue and selection contract](Whisper_Catalogue_Resolver_Contract.md) | Current canonical definitions, shared selection, projections, identity and limits. |
+| [Whisper testing and eligibility](Whisper_Configuration_and_Test_Design.md) | Current PASS/recovery/eligibility rules and deferred sequence/retry design. |
+| [Broader registry/self-test architecture](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Long-term requirements; implementation-status map at the top distinguishes completed and future work. |
+| [File workflows](File_Workflow_Inventory.md) | Overview for future full dependency audits; sharing consolidation remains deferred. |
+| [Search strategy](search%20model%20optimization.md) | Governing Search requirements and research provenance; no new Search refactor requested. |
+| [Build numbering](build-versioning.md) | Active release identification, distinct from schema/configuration versions. |
+| [Test guide](../tests/README.md) | Safe isolated browser harnesses, focused verification and real-device boundaries. |
+| [Archive](archive/README.md) | Historical checkpoints/research and deferred Vite, asset-publication, Offline Tiny and iMuse plans. |
 
-Five journals remain unchanged: [main](design-journal.md), [1–35](01-design-journal-sections-1-35.md), [36–43](02-design-journal-sections-36-43.md), [44–48](03-design-journal-sections-44-48.md), [49–51](04-design-journal-sections-49-51.md). They overlap; restructuring is deferred. Split files do not necessarily cover all later main-journal entries.
+## Design journals
 
-Cleanup preserved historical evidence and changed no application code, build number, database or hosting configuration.
+The [main journal](design-journal.md) now has **section 60**, recording runtime/database completion, Whisper consolidation through .23, eligibility/reporting, device evidence and deferred work. Older entries are chronological history and may describe superseded behavior.
+
+The four overlapping split journals remain in place without restructuring: [1–35](01-design-journal-sections-1-35.md), [36–43](02-design-journal-sections-36-43.md), [44–48](03-design-journal-sections-44-48.md), [49 onward](04-design-journal-sections-49-51.md). The last filename understates its content; it includes sections through 59. New section 60 is in the main journal only, avoiding another duplicate update.
+
+This refresh preserves unique history in the archive rather than deleting it. No application code, build ID, database, model settings or deployment configuration changed.

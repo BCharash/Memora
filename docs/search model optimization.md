@@ -55,7 +55,7 @@ The earlier comparison favoring sentence-heavy RRF is evidence for choosing a se
 
 ## Status and research provenance
 
-Reviewed 7 November 2026. This document preserves the governing production requirements; it is not authorization for another Search refactor. Current priorities are in [CURRENT_STATUS.md](CURRENT_STATUS.md). The design journal records subsequent implemented ranking/UI decisions, including sentence-heavy RRF, lexical priority and incremental display; inspect current code before modifying them.
+Status reviewed 9 November 2026. No Search implementation change is part of the runtime/Whisper consolidation. This document preserves the governing production requirements; it is not authorization for another Search refactor. Current priorities are in [CURRENT_STATUS.md](CURRENT_STATUS.md). The design journal records subsequent implemented ranking/UI decisions, including sentence-heavy RRF, lexical priority and incremental display; inspect current code before modifying them.
 
 The primary research benchmark must be blind and target-free when queries are created; target-known queries are a separate diagnostic track. Corpus-informed query themes are not a corpus-independent sample. Do not treat a syntax-checked lab as a completed browser/model benchmark.
 

@@ -209,7 +209,7 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | **Similar embedding services** | Paragraphing and semantic search can each load MiniLM in separate workers. A shared service might reduce duplicated live resources, but this requires feature/lifecycle design and is not a safe file deletion. |
 | **Potentially regroupable small modules** | Activity ownership, report presentation and diagnostic formatting are small but have different callers/responsibilities. Optional later organization work; lower priority than eliminating genuinely duplicated selection/definitions. |
 
-Registry-versus-eligibility presentation is clarified in .23. Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
+Registry-versus-eligibility presentation is clarified in .23 and user-accepted. The next proposed normal-transcription error audit is deferred; see [current status](docs/CURRENT_STATUS.md). Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
 
 ## Scope of this review
 

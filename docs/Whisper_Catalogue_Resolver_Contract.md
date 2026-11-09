@@ -1,62 +1,51 @@
-# Whisper catalogue/resolver — staged contract (3A)
+# Whisper catalogue and selection contract
 
-9 November 2026. Implemented in `js/whisperConfigurations.js`. First 3B migration: modelManager consumes definitions through a legacy baseline projection; actual execution resolver callers remain unmigrated. Candidate build 2026-11-09.4 awaits user Settings/list verification. No worker, model, database or runtime probe is opened on import. Current application behavior/build identifier is unchanged.
+Current through build **2026-11-09.23**, reviewed 9 November 2026. This replaces the earlier staged 3A/3B handoff wording. See [current status](CURRENT_STATUS.md) for what is complete, deferred and authorized.
 
-## Authority and scope
+## Ownership
 
-The replacement catalogue contains the same 13 built-in IDs, family labels, repositories, legacy platform/runtime labels and loader dtype semantics as modelManager's baseline. Each definition owns its loading instructions, platform restrictions, family-default flag and test permission/order. UI options can be derived from that metadata; no new parallel ID list is needed.
+`js/whisperConfigurations.js` owns the 13 immutable built-in definitions: exact ID, family/label, repository/revision, library and worker identity, platform/OS restrictions, loader device/dtype/options, production family-default flag and self-test permission/order. Definitions contain no test results.
 
-The old hand-written registry baseline has been removed and replaced by a projection from canonical definitions. Legacy family catalogue and self-test option lists remain active until their separate migrations. Do not describe the whole application as consolidated yet. Do not remove persisted records, rename IDs or reset validation to adopt the new module.
+`modelManager.js` projects those definitions into legacy registry record shapes and availability family metadata. It preserves saved registry validation/custom evidence; those fields are not another editable execution authority. The former Medium production shortcut and hand-maintained self-test ID arrays are gone. Production and tests use the same desktop/iOS worker scripts; the obsolete separate desktop test worker is removed.
 
-## API
-
-| Export | Contract |
+| API | Contract |
 |---|---|
-| getWhisperConfigurationDefinitions() | Synchronous deeply immutable list of all 13 definitions. Definitions contain no test results. |
-| listWhisperConfigurations(environment, options) | Synchronous immutable compatibility/policy-filtered list; purpose defaults to self-test and uses definition test order. No inference, downloads or validation lookup. |
-| resolveWhisperConfiguration(request, environment, options) | Async exact-ID/family resolution; success returns a frozen full definition with SHA-256 fingerprint and explicit provenance/unknown validation. Selection problems return ok:false with code/reason. Technical fingerprint failures reject rather than masquerading as incompatibility. |
-| fingerprintWhisperConfiguration(definition) | Async SHA-256 over canonical execution inputs; requires Web Crypto (HTTPS/localhost). Does not read model files or persist evidence. |
+| `getWhisperConfigurationDefinitions()` | Synchronous deeply immutable list of 13 definitions. |
+| `selectWhisperConfigurationDefinition(request, environment, options)` | Shared synchronous exact-ID/family/default/platform selection core; explicit error result for invalid or incompatible selection. |
+| `listWhisperConfigurations(environment, options)` | Shared synchronous listing with purpose/policy and canonical test ordering. No inference or eligibility lookup. |
+| `resolveWhisperConfiguration(request, environment, options)` | Async wrapper over selection, returning immutable definition, SHA-256 fingerprint and explicit provenance; technical hash failures reject. |
+| `fingerprintWhisperConfiguration(definition)` | SHA-256 of canonical declared execution inputs; requires Web Crypto. No downloads or storage mutation. |
 
-Environment is supplied from shared runtimeIdentity; the module does not classify devices again. Options purpose is production or self-test. Optional capability observations explicitly reject absent workers/WebGPU where required. Omitting observations does not establish support; success reports that capability/initialization/execution remain unverified.
+Production uses the shared selector through `whisperProductionEligibility.js`, not the async wrapper as its direct loader entry. Exact-context evidence construction uses the same fingerprint function. A single selection core matters more than routing every consumer through an unnecessarily asynchronous wrapper.
 
-The canonical dtype owner is `loader.dtype`; the old `configuration.dtype` storage/UI shape will be projected at the legacy adapter boundary during 3B, not maintained as a second editable field in this catalogue.
+## Selection policy
 
-## Preserved selection semantics and limitations
+- Desktop OS definitions cover Windows, macOS and Linux; iOS is separate from phone/tablet form factor. Android/unknown targets have no qualified production definition; there is no silent execution fallback.
+- Desktop family defaults: Tiny/Base/Small omit dtype; Medium uses q4; Large uses fp16 encoder/q4 decoder. iOS defaults omit device/dtype and retain their existing library/default behavior. The intended WASM label is not an explicit backend execution trace.
+- Self-test uses `purpose: "self-test", legacyNonIOSChoices: true` to preserve its historical non-iOS menu. That list-only exception cannot enable unsupported production or exact-ID resolution.
+- Desktop Medium's non-testable default-dtype variant stays excluded; iOS self-tests offer Tiny/Base/Small/Medium, excluding Large. Definition membership alone is not eligibility or advice to run resource-heavy trials.
+- Exact incompatible IDs fail explicitly. They cannot silently become Tiny or another platform/configuration.
+- Transcription choices include only currently qualified **family defaults**. Testing an alternative variant does not qualify or replace the family default. Exact configuration loading remains guarded against caller repository/dtype overrides.
 
-- Known desktop OS targets: Windows, macOS, Linux. Desktop defaults: Tiny/Base/Small omit dtype, Medium selects existing q4, Large selects encoder fp16/decoder q4.
-- iOS family defaults use the existing `*-iphone-default` IDs, library 3.7.2 and omit device/dtype. Legacy runtime label wasm records intended routing, not an explicit backend request or execution trace.
-- iOS Medium now resolves to its correctly labelled iOS definition rather than a desktop q4 ID; the new resolver is unused, so the current production shortcut remains unchanged until a deliberate 3B migration. Actual iOS loading options are still repository/default only.
-- Existing iOS Large definition is retained for production compatibility; existing self-test exclusion is retained. A definition/default is not a recommendation or evidence of stability. No additional device/model trial is requested by 3A.
-- Desktop self-test's medium-default exclusion and mixed-precision/q4f16/q4 order are preserved; iOS test list remains Tiny/Base/Small/Medium. These are policy/option lists, not automatic test sequences.
-- Wrong-platform exact IDs fail explicitly; they never switch worker or become another model. Unknown IDs/families/purpose fail explicitly. Android/unknown targets are rejected by this conservative staged resolver; current broad non-iOS production routing is untouched. Review this intentional restriction before migrating unverified platforms.
-- No GPU-to-WASM fallback, dtype upgrade, eligibility gate or cached-model availability assertion is introduced.
+## Identity and evidence
 
-## Identity and freshness
+Fingerprint inputs include repository/revision, library name/version, worker script/protocol/implementation revision, loader device/dtype/options and fingerprint schema. Keys are canonicalized recursively; omitted/null defaults retain omission semantics. Labels, ordering and timestamps do not change execution identity.
 
-Fingerprint inputs: repository/revision, runtime library name/version, worker script/protocol/implementation revision, loader device/dtype/options, plus fingerprint-schema version. Object keys are sorted recursively; null/omitted device/dtype and empty loader options canonicalize to existing omission semantics. Per-component dtype order does not affect identity. Labels, timestamps, validation summaries and test ordering do not change execution fingerprints. Configuration ID and definitionRevision are recorded separately.
+The eligibility context additionally records actual execution worker, validation protocol, fixture digest, inference recipe, browser user agent, shared runtime identity and observed capabilities. Changed contexts require fresh validation. Upstream repository revisions remain unpinned; declared fingerprints do not freeze downloaded weights. Worker revisions are maintained metadata, not automatic source hashes.
 
-All upstream repository revisions currently remain null/unpinned. Hashing declared inputs does not prove immutable downloaded weights; results explicitly report that limitation. Worker implementation revisions are maintained metadata, not automatic hashes of source files: bump them for material execution changes. Future generated asset filenames must not become accidental model identity changes; use a deliberate worker identity/protocol policy when build conversion is revisited.
+Keep four questions separate:
 
-Actual backend/session evidence, inference recipe/task/language, fixture and WER protocol remain run-level observations. No validation is inherited merely because a definition resolves. Persisted attempt history and schema changes remain later checkpoints.
+| Question | Authority |
+|---|---|
+| What is requested? | Canonical definition and shared selection policy. |
+| Can files be found? | Availability/cache checks, which do not prove offline readiness or execution. |
+| What happened in a test? | Durable attempts and observational diagnostics. |
+| May this configuration transcribe here now? | Current-context eligibility and production gate. |
 
-## Verification and next break
+Legacy scalar/omitted-dtype availability still accepts the existing generic ONNX-pair readiness check; Large uses its cloned component map. Exact per-configuration cache manifests are not implemented. Settings now shows current eligibility, with older registry validation in collapsed historical disclosures. Other platforms are labeled not evaluated on this device; custom/older records cannot borrow a canonical ID's qualification when definition fields differ.
 
-`tests/whisper-configurations.html` now runs 13 groups in real browser JavaScript/Web Crypto. All passed in isolated Chrome: legacy record parity, deep immutability, five family defaults on three desktop OS fixtures plus iOS, legacy test-option order, every exact ID, exclusions, invalid/cross-platform requests, supplied missing APIs, SHA-256 stability, material identity changes, and truthful unknown provenance/evidence. These are simulated environment/definition checks, not model/hardware support tests.
+## Verification and remaining scope
 
-modelManager now imports the canonical definitions; it does not call the resolver or fingerprint routine when creating legacy records. A saved-evidence integration test and independent baseline snapshot passed. User Settings/list verification is requested; no model inference is required. Next, 3B should introduce adapters/projections and migrate modelManager/read-only UI, self-test and production in separately reviewable changes. Keep schema owner and historical evidence intact. Use exact configuration/worker-boundary parity to retire Medium's workaround and duplicate desktop test worker safely. Do not migrate all callers automatically after 3A passes.
+Independent pre-migration full-record snapshot parity, saved-evidence preservation, selection/list compatibility and fingerprint checks are in [the test guide](../tests/README.md). Builds .20–.23 removed unused execution code and completed the agreed selection/availability-projection/display cleanup without changing worker inputs or fingerprints. No revalidation was required for those cleanup builds.
 
-### 3B self-test option checkpoint — 9 November 2026
-
-Build 2026-11-09.6 removes the duplicate desktop/iOS self-test ID arrays. whisperSelfTest now filters canonical definitions by the existing iOS/non-iOS platform split and test.allowed, sorts by test.order, then returns the legacy registry projection. Choices and execution remain unchanged; the stricter resolver OS/capability gates are not activated by this list migration. Thirteen catalogue and five Settings groups passed; user device acceptance remains pending. Medium resource/benefit policy is deferred and Medium inference is not requested.
-
-### Strict production eligibility — build 2026-11-09.16
-
-Production family/default selection and exact configuration loads now derive from canonical definitions through `whisperProductionEligibility.js`, which checks current-context persisted eligibility before worker initialization. The UI lists only qualified family defaults; empty/stale/held evidence cannot be used. Desktop self-tests now use the production desktop worker, so the fingerprint is shared; old separate-worker evidence needs fresh validation. Existing iOS worker context is unchanged. Medium's desktop-only registry shortcut is replaced by platform-correct defaults. Core asynchronous resolver API is still not the execution entry point: remaining adapter/availability cleanup is separate, and this checkpoint is not a claim that every catalogue duplicate is retired.
-
-### Shared canonical selection and availability projection — .21
-
-`selectWhisperConfigurationDefinition` is the synchronous exact-ID/family/default/platform-selection core. Both the async fingerprint resolver and production eligibility gate use it. Production UI listing uses the canonical list function and retains the family-default-only filter. modelManager now derives its availability family projection from canonical defaults, preserving its existing generic scalar/omitted-dtype ONNX-pair checks and cloned Large mixed-precision map. Unused preferredDtype metadata was removed; it was never a loader option. Execution definitions, worker revisions, fingerprint algorithm and stored evidence are unchanged. Legacy self-test iOS/non-iOS adapter and old registry evidence display remain separate follow-ups; .21 does not silently change those policies.
-
-### Shared self-test list — .22
-
-Self-test now calls listWhisperConfigurations with purpose self-test and explicit legacyNonIOSChoices:true to preserve its historical menu policy. Filtering and ordering live in the canonical module. The option affects only self-test listing, not production or exact-ID resolution; default compatibility remains strict. No worker/fingerprint/evidence changes.
+Normal-transcription failure feedback, exact offline manifests, variant-selection policy changes, automatic sequences/retries and further resource diagnosis are separate future work. They are not prerequisites for keeping the completed consolidation checkpoint.

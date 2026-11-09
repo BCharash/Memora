@@ -1,3 +1,5 @@
+> Archived deferred proposal, 9 November 2026. Not an active implementation instruction. Re-audit current source and dependencies before reuse; [current status](../CURRENT_STATUS.md) governs priorities.
+
 # Asset and deployment inventory
 
 Reviewed 7 November 2026 at commit `7cfb099` (Build history implementation). Repository inspection only; no build configuration, application code, hosting settings or storage changed. This is a proposal checkpoint, not authorization to deploy a new toolchain. No new browser/device tests were run.

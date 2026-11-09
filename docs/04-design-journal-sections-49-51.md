@@ -1,3 +1,5 @@
+> Historical overlapping journal extract. Preserved without restructuring. The latest runtime/Whisper decisions are in [main journal section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923); use [CURRENT_STATUS.md](CURRENT_STATUS.md) for current work.
+
 # 49. Latest Development Milestone: Whisper Model Testing, Desktop Worker Isolation, and Medium q4 Resolution
 
 The recent Whisper investigation established several important pieces of the desktop transcription architecture and resolved a significant Medium-model loading problem. The work was deliberately diagnostic and incremental because the same Medium q4 configuration had previously worked successfully for hundreds of real Memora transcriptions.

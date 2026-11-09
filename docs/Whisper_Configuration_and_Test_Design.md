@@ -1,226 +1,66 @@
-# Whisper configuration and standalone test design
+# Whisper testing and eligibility — current design
 
-First 3B update, 9 November 2026: modelManager's legacy registry baseline now projects from canonical definitions; independent full-record snapshot parity, saved-evidence preservation and accuracy regressions passed. Candidate build 2026-11-09.4 awaits user registry/options display checks. Execution resolver migration, legacy family catalogue and duplicate desktop worker retirement remain separate later changes.
+Reviewed 9 November 2026 through build **2026-11-09.23**. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
 
-3A update, 9 November 2026: unused catalogue/resolver and fingerprint foundation is implemented; 12 isolated browser groups passed. Existing application/modelManager/self-test loaders remain untouched. See [resolver contract](Whisper_Catalogue_Resolver_Contract.md). Next is a separately authorized 3B migration, including legacy shape adapters, configuration/worker parity and duplicate desktop worker retirement.
+## Current execution and PASS gate
 
-2B acceptance, 9 November 2026 (user-reported build 2026-11-09.3): Mac Tiny self-test passed WER 6.38%, load 3.3s, inference 6.3s, initialized WebGPU/fp32 sessions; iPhone Tiny passed WER 0.00%, load 2.8s, inference 4.2s, initialized WASM/q8 sessions. Both use the existing 15.5s fixture and satisfy WER ≤15%. Mac Base production smoke transcription also succeeded (load 5.4s, inference 8.0s, worker 7.9s, 16.7s audio, WebGPU/fp32); no Base accuracy inference is implied. This supersedes pending-device-acceptance notes below. Next phase is canonical definitions/resolver; duplicate desktop test-worker cleanup remains tracked for 3B.
+One user-selected exact configuration runs per self-test. Test choices and ordering come from the canonical catalogue; tests use a fresh instance of the same worker script as production. Production normally reuses its loaded worker/model. Shared activity ownership prevents overlapping self-test and production work on the page.
 
-Latest checkpoint, 9 November 2026: user approved WER ≤15%; 2B is implemented locally in candidate build 2026-11-09.3, with controlled checks passing and real Tiny device acceptance pending. This supersedes the earlier provisional 25% discussion. No configuration/resolver/evidence-store implementation is implied. See CURRENT_STATUS.md.
+A completed functional pass requires successful fixture preparation/decode, load and inference; non-empty valid output; finite word error rate **≤15%** using the unrounded score. The normalization/protocol is versioned; do not relax the limit or alter the reference silently. Raw output and accuracy failure details remain available. The bundled English fixture is about 15.5 seconds; a pass is a smoke qualification, not a general-language, translation, long-recording, offline or sequence-stability guarantee.
 
-Acceptance update, 9 November 2026: user reports Tiny/Large self-tests passed on MacBook and Tiny on iPhone for checkpoint 2A. Cancellation/retry and ordinary transcription are not yet explicitly confirmed. Cleanup tracking: replace the duplicate desktop test worker with a disposable production-worker instance during 3B after configuration/protocol parity tests; keep it through the safety/accuracy checkpoints.
+| Stage | Default limit |
+|---|---:|
+| Prepare fixture | 60 seconds |
+| Decode audio | 60 seconds |
+| Release prior production resources | 30 seconds |
+| Load test model | 600 seconds |
+| Inference | 180 seconds |
 
-Implementation update, 9 November 2026: checkpoint 2A is implemented locally and controlled tests pass; user acceptance is pending. See CURRENT_STATUS.md for limits, coverage and device checklist. Its lifecycle was extracted into whisperTestLifecycle.js with injected dependencies for failure testing; per-page activity exclusion lives in whisperActivity.js. Larger-model deadline calibration, output validation (2B), resolver and durable attempts remain future work.
+These are independent stage ceilings, not expected durations. Settings permits load/inference adjustment. After completed inference, disposable tests request model disposal, wait at most **5 seconds** for a matching acknowledgement, and always terminate the worker. This bounded cleanup wait is separate from the 30-second pre-test release limit. Active errors, cancellation and timeout use forced termination rather than concurrent disposal. Cleanup observations do not change the accuracy verdict into a memory-release guarantee.
 
-Step 1 review, 9 November 2026. Source baseline HEAD `3805951`, application build `2026-11-07.1`. Repository inspection only: no inference, model downloads, new device benchmarks, application edits or database changes. Runtime identification and canonical version-5 database ownership are completed prerequisites. Vite is deferred; its installation was discarded. This is the concrete next-phase design supplement to the [larger architecture proposal](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md), not authorization to implement all stages.
+## Reports, recovery and model eligibility
 
-## Current ownership and execution map
+Attempts persist before risky work and at stage transitions. Recovery of an unfinished attempt reports **Interrupted—no final result recorded**, preserving last stage and unknown cause. A passing result saved before subsequent page loss remains a passing inference result; the later page event is separate diagnostic evidence.
 
-| Path | Current flow | Gap |
-|---|---|---|
-| Production family selection | transcription.transcribeRecording → whisper.loadTranscriber → getModelDefinition from MODEL_CATALOG, except Medium | Family catalogue competes with registry definitions. |
-| Production Medium | Unconditionally chooses built-in medium-webgpu-q4 → loadTranscriberConfiguration → loadTranscriberDefinition | Shortcut occurs before iOS routing. Preserve known desktop fix until a compatible resolver replaces it. |
-| Exact production configuration | loadTranscriberConfiguration passes label/repository/dtype into loader; worker/backend still selected using isIOS | Configuration's declared platform/runtime are not enforced. |
-| Production desktop worker | Transformers.js 4.0.0, explicit device webgpu, optional dtype, task/language options forwarded | No shared configuration fingerprint; pending load/transcription slots are not a concurrent request queue. |
-| Production iOS worker | Transformers.js 3.7.2, pipeline called with repository only; load emits ready; inference receives language and fixes task to transcribe | WASM is the intended labelled route, not explicit/confirmed backend evidence. dtype and task parity are not guaranteed. |
-| Self-test selection | getWhisperSelfTestOptions → hardcoded platform ID list → getModelRegistryBaseline | Uses built-in records rather than persisted registry/resolver; an unmatched requested ID silently falls back to first option. |
-| Self-test execution | Decode bundled M4A; iOS uses fresh production iOS worker, desktop uses separate whisper-test-worker | Separate desktop implementation can drift. One selected configuration runs alone; constants named SEQUENCE are option lists, not an active all-model sequence. |
-| Test result | transcription reply → WER calculation → unconditional passed → worker.terminate → Settings display | Empty/inaccurate text can pass; no watchdog/cancel or durable attempt. Termination does not prove memory reclaimed. |
-| Persisted registry | modelManager → storage registry APIs → canonical database owner | Registry schemaVersion 2 is a record format, distinct from database version 5. Existing validation fields/updater are not used by current self-test flow. |
-| Availability | modelManager family API checks plus cached-file matching | Repository reachable or any cached file does not establish exact configuration availability, offline readiness or execution. |
+Settings shows the selected model and Run test/Retest, with Cancel below and visible only while running. Current results precede advanced options and saved reports. Saved history is at the bottom with readable summaries, Copy/Download, collapsed technical JSON and a separator per report. Clearing completed report history preserves eligibility/review decisions and unrelated storage. Export-time diagnostics can include page events after the saved outcome.
 
-All relevant local modules were inspected, including transcription, loader, three Whisper workers, self-test, Settings, modelManager and audioProcessor. Existing fixture files are present. No claim about current library behavior beyond the code's requested parameters is inferred from this inspection.
-
-### Concrete discrepancies to retain as regression cases
-
-- Tiny/Base/Small catalogue preferredDtype q8 is logged but desktop load uses definition.dtype, so it currently omits dtype; do not silently turn that preference into an enforced option. Their desktop baseline records also omit dtype intentionally.
-- Medium on iOS can carry a desktop q4 ID while using the iOS worker, which ignores dtype. That is inconsistent identity, not evidence of q4 executing on iOS. Do not run Medium on iPhone merely to reproduce it.
-- Large has a built-in iOS definition but is excluded from offered self-test options. A definition's existence is not test eligibility.
-- Production desktop forwards requested transcription task/language; the iOS path currently forwards language but fixes task to transcribe. Translation parity is a separate decision/regression, not something an English transcription fixture can validate.
-- Both tests and production use decodeAudio; its already-16-kHz branch reads channel zero. Do not bundle resampling/stereo changes into test safety work; record input provenance and test shared preprocessing separately if changed.
-- Non-iOS routing remains WebGPU-intended regardless of operating system. Android/unknown environments are represented by runtime identity but are not verified implementations.
-
-## Proposed single configuration contract
-
-One definition catalogue and one resolver, owned by model management, should serve production and tests. Persisted records must not become another unreviewed definition source. Normalize legacy records under an explicit merge/version policy; preserve old validation evidence and mark it stale when execution identity changes. Keep existing configuration IDs initially.
-
-The resolver accepts a family or exact ID plus the shared environment and purpose (production/manual test). It returns either a complete immutable resolved configuration with selection reason, or an explicit unsupported/not-found result. An explicit unknown/incompatible ID must never silently select Tiny. During rollout, a family request uses documented existing defaults; do not suddenly require fresh passes for every working model.
-
-Required resolved fields:
-
-- Stable configuration ID/family and definition revision/fingerprint.
-- Repository and immutable upstream revision when actually known. Use explicit unknown/unpinned provenance when it is not; a fingerprint of a floating repository URL cannot freeze its weights.
-- Exact Transformers.js version, worker implementation/protocol revision and requested backend policy. Distinguish explicit backend options from a legacy runtime default; do not claim the current iOS worker explicitly forces WASM.
-- dtype: null meaning omit the option, explicit string, or per-component map; material loader/model-file options and platform restrictions.
-- Test capability flags (standalone allowed, manual-only where relevant); catalogue membership alone does not authorize a resource-heavy test.
-
-Hash a canonical, sorted representation of execution-critical fields. Keep descriptive label/updatedAt outside the hash. Preserve null/omitted semantics deliberately; do not collapse defaults across library versions. Retain diagnostic fingerprint inputs alongside the hash. Record inference recipe/task/language/chunk/stride separately in each attempt; changes to that recipe or fixture create a new validation protocol revision.
-
-Freeze the resolved object for each run. Cache reuse in production must compare exact execution identity, not merely family. Both callers pass that definition through a common worker adapter; retain disposable workers for tests and production reuse for normal transcription. Prefer fresh instances of the production worker scripts once protocol parity is verified, rather than sharing an active production worker or retaining a duplicate desktop loader indefinitely.
-
-## What PASS should mean
-
-Separate four dimensions: load completion, inference completion, output correctness, and cleanup observation. A performance measurement is not a quality verdict. Proposed functional PASS requires:
-
-1. Valid non-empty audio and non-empty reference fixture, with recorded hashes and decoded sample rate/length.
-2. The expected worker load acknowledgement for the frozen configuration, then an inference reply for that run. Record requested options; actual backend stays unknown unless independently observable evidence supports it.
-3. Non-empty normalized transcript, finite WER and the agreed fixture-specific WER gate satisfied.
-4. No timeout, cancellation, worker/protocol failure or interruption before validation completes. Late/duplicate messages cannot reverse a terminal result.
-
-Cleanup is a separate field. A passed transcription with uncertain cleanup is not sequence-safe or automatically recommended. Report “worker termination invoked” only if a worker existed and termination was actually invoked. Never equate elapsed terminate() call time with confirmed memory release.
-
-### Approved output gate — WER ≤15%
-
-Retain existing case/Unicode-apostrophe/punctuation normalization and word-level Levenshtein WER initially. Version that algorithm. Do not silently equate digit spellings with written-out numbers or remove arbitrary words to improve results. Preserve raw output and normalized reference/output for explanation.
-
-The user approved **WER ≤15%** on 9 November 2026. Exactly 15% passes; compare the unrounded score. This replaces the earlier provisional 25% candidate. Capture Tiny device output/WER as acceptance evidence; do not relax the threshold automatically when a model fails. Number formatting in the Moon-landing reference can affect scores; inspect and deliberately version any later fixture/normalization correction. Empty or malformed outputs and invalid scores must never pass. Inference completion and output accuracy are separate outcomes, and an accuracy failure retains the transcript for review.
-
-This short English fixture validates a smoke-test transcription, not general language accuracy, translation, long audio, model size suitability, offline readiness or sequence stability. No universal support badge should follow from one pass.
-
-## Outcomes and lifecycle
-
-Stages: preparing fixture → decoding → creating/loading worker → inference → output validation → cleanup → terminal result. Use monotonic elapsed timing and wall-clock start/end, recording last confirmed stage.
-
-| Terminal outcome | Meaning |
+| Current evidence | Qualification behavior |
 |---|---|
-| passed | Functional fixture gate satisfied; cleanup/stability remain separately described. |
-| failed | Confirmed worker/runtime error, invalid input/output, protocol error or accuracy failure, with phase/reason. |
-| timed-out | Explicit stage/deadline exceeded; not confirmed incompatibility. |
-| cancelled | User stopped the run; not a model failure. |
-| interrupted | A started attempt did not finish reliably (reload/crash/worker loss as appropriate). |
-| unsupported | Resolver rejects the requested configuration/environment before execution. |
+| Valid completed manual pass | Qualifies exact context and restores a prior hold if no newer adverse evidence supersedes it. |
+| Confirmed model load/inference or accuracy failure | Blocks exact context pending successful manual testing. |
+| Unexplained load/inference page loss | Suspends pending retest; does not prove permanent incompatibility or memory failure. |
+| Cancellation, timeout or shared preparation fault | Does not grant qualification or clear an existing hold; cancellation/timeout does not establish incompatibility. |
+| Changed configuration/runtime/worker/fixture/recipe/environment | Prior evidence does not qualify the changed context; fresh validation is needed. |
 
-Unknown actual backend, unavailable resource telemetry and persistence failure are separate evidence fields. Never turn inability to save a result into a claim that inference failed; clearly show that evidence is not durable.
+Manual tests are unlimited. The old `deliberateRetest` flag remains historical/internal compatibility metadata; **a user-requested qualifying manual pass does not depend on that flag or button label**. Explicit automatic/sequence attempts cannot borrow this manual recovery rule. Older adverse reports without exact identity create conservatively scoped review holds; old passes do not acquire invented identity. Legacy resolutions retain original evidence.
 
-### Timeouts and cancellation
+Eligibility is separate browser-local storage, checked by both the transcription selector and loader. Only qualified canonical family defaults appear; other tested variants do not replace them. No qualified default means the selector/action is disabled with Settings guidance. A self-test failure can remove a previously qualified choice. **Normal transcription failures currently do not write new eligibility decisions.** Their classification/persistence is proposed, deferred work.
 
-Every asynchronous stage needs an explicit bound, not one global model-support cutoff. Measure Tiny load/inference baselines, distinguish cold download from warm cache, then agree the limits. No current timings were gathered in this design review. For initial safety-harness implementation, inject short deadlines into mocks; do not treat those test deadlines as production values.
+See [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) for identity/selection and [file map](../filemap.md) for storage ownership. Never infer qualification from cache presence or the historical IndexedDB registry validation field.
 
-Practical proposal for the first Tiny-only device trial: configurable ceilings of 10 minutes for worker boot/download/load and 3 minutes for this short-fixture inference, plus finite fixture-fetch/decode guards. These are conservative safety ceilings for review, not measured performance expectations; they must be shown/recorded and can be revised before trials. Other models retain manual-only testing until justified stage limits are assigned; do not apply Tiny limits indiscriminately to Large/Medium.
+## Diagnostics and iPhone instability
 
-Watchdogs use an absolute monotonic deadline, since background tabs can throttle callbacks. A timeout records the last stage, actual elapsed time, visibility and configured limit. Cancellation aborts owned fetches, settles exactly once, clears watchdogs/listeners and terminates only the disposable test worker. Decode cancellation may only abandon a late result, not physically stop a browser decoder. Handle worker error/messageerror and exceptions from worker construction/postMessage. An error before a worker exists must not report successful termination.
+Reports distinguish requested backend, initialized session settings and actual operator backend, which remains unknown without tracing. They include stage timing, worker inference time, model disposal acknowledgement and termination separately. Page IDs/navigation/Settings events and worker lifecycle logs can distinguish a panel close from a new page instance. Missing callbacks cannot establish a crash cause.
 
-Keep one active self-test; starting a test must not compete silently with an active production transcription or retained production model. At first require production to be idle and explicitly release its app-owned worker before a heavy test, with honest limits on reclamation. No automatic multi-model sequences in this implementation stage.
+The user supplied iPhone Small reports showing repeated disposable-test page loss, including after a completed pass and during later work. Tiny disposal acknowledgements were observed on Mac/iPhone; they do not verify memory reclamation. Normal Small production reuse later completed at least nine recordings without trouble after reboot. A creation/disposal/resource-pressure explanation is plausible but unproven. The supplied Jetsam report did not match the observed failure. No matching OS trace or remote Safari inspection established a root cause.
 
-## Durable evidence — later checkpoint
+Do not automate or stress this pattern now. The proposed isolated reuse lab was discarded and is absent. Stop edits while the user tests; investigate with bounded trials on a server without automatic reload when agreed. Do not repeatedly crash Medium to rediscover known evidence.
 
-Each attempt should carry run ID, app build and known revision, shared environment/browser details, configuration ID/fingerprint/provenance, fixture/protocol identity, requested/observed backend evidence, stage times, terminal reason, output score and cleanup observation. Save “started” before work when persistence is introduced, then terminal result. Recover unfinished attempts as interrupted after reload; preserve the last successful attempt when later runs fail or are inconclusive.
+## Future sequences and retries
 
-A separate model-test-runs store is the preferred direction, requiring a deliberate future migration through database.js; do not overload definition records or open another database. Exact schema/history limits and cross-tab run ownership must be reviewed before that checkpoint. Legacy validation without run/config/environment provenance remains legacy evidence, never silently upgraded into a current pass.
+**Deferred; not implemented or activated.** Preserve this agreed direction while the repeated-test instability remains unresolved:
 
-Eligibility remains derived: compatibility, asset availability, validation freshness and stability are distinct. No automatic disabling of currently working selections while the evidence system is being bootstrapped.
+1. Run an explicit ordered list one configuration at a time, preserving exact identities, sequence position and per-attempt evidence.
+2. Allow an initial attempt plus **at most one automatic retry** for a recoverable model/accuracy/timeout outcome, with a fresh worker. Reserve/persist retry consumption before execution so reload cannot reset it. A pause is not proof of recovered memory.
+3. Keep both attempts; show “Passed on retry” rather than erase failure. Qualification after an automatic failure/pass pair requires a separately agreed confirmation rule; the earlier proposal for another verification is not yet finalized or implemented.
+4. Stop on cancellation. Pause on cleanup/storage/checkpoint failure or uncertain page health rather than launching another model. Shared fixture faults must not trigger cascaded retries.
+5. After page loss, recover paused and require explicit resume. Never automatically reload the interrupted model on startup. Exhausted retry budget must offer skip/stop or a separately recorded manual retest, not an implicit allowance reset.
+6. Clearing visible reports must not reset future sequence state/retry budgets. Manual tests remain unlimited independently.
 
-## Incremental implementation and natural breaks
+Before implementation: settle production-failure classification and automatic-retry qualification, then establish a justified stability/cleanup policy. Verify sequence recovery using synthetic errors, duplicate/late messages, timeouts, cancellation, storage failure and reload around retry reservation. Limited device acceptance must be separately agreed; do not use repeated Medium/Large crashes as infrastructure tests.
 
-| Checkpoint | Scope and acceptance | Estimate |
-|---|---|---|
-| Step 1 (this document) | Audit/design complete; agree output gate, initial deadlines and supported trial scope before behavior changes | Completed design; no device execution |
-| 2A | Single-run lifecycle, watchdog/cancel/error handling and visible outcomes; deterministic failure injection; Tiny only in real-device verification | 1–2 hours |
-| 2B | Versioned output validator, non-empty/finite checks, agreed WER gate and clear Settings result; fixtures for correct/empty/wrong output | 1–2 hours |
-| 3A | Canonical definition/resolver API, exact-ID rejection and configuration fingerprints, unused by production initially | 1–2 hours |
-| 3B | Migrate test then production in separate reviewable changes; worker contract parity; Medium q4 regression and unchanged Tiny defaults | 2–3 hours |
-| 4 | Review evidence schema; persist start/terminal/interruption and bounded history; display last attempt/last success | 3–5 hours |
-| 5 | Cross-platform configuration parity, reload recovery, selected model trials; broaden only after safe Tiny baseline | 2–4 hours active testing |
+## Next proposed checkpoint and evidence
 
-All estimates exclude publication waits, downloads and unattended inference. Each checkpoint can stop safely; do not bundle all production/worker/schema edits together. Avoid iPhone publication after purely unused/mocked utilities; publish when a coherent changed device path needs acceptance. No larger-model automatic sequence is required to close standalone safety work.
+The user deferred the proposed 15–25 minute read-only audit of normal transcription error paths. When resumed, distinguish model faults from bad input/decode, cancellation, export/storage and page loss before proposing eligibility updates. No code change is authorized by this document alone.
 
-For step 2, compare current known-working Tiny fixture outputs before activating the accuracy threshold. After timeout/cancellation changes, test normal Tiny completion and one controlled cancellation on desktop/iPhone; simulate stalls/errors instead of crashing Safari. For resolver integration compare ID/revision/repository/dtype/options at both worker boundaries; the desktop Medium q4 regression needs its own test, not an iPhone stress run.
-
-## Release verification without Vite
-
-Vite is optional/deferred, not a prerequisite. Continue source publication from main/root. Advance the human build ID for changed released application contents and verify it on the test device. Because the footer alone cannot detect mixed cached modules, retain exact configuration/protocol identifiers in diagnostic evidence and inspect/cache-troubleshoot inconsistencies before attributing them to models. Do not clear IndexedDB/model caches as routine deployment troubleshooting or add unplanned URL-versioning hacks in this phase.
-
-## Decisions for the user
-
-Recommended starting scope: **Tiny standalone safety first, existing workers/options preserved**, with the user-approved WER ≤15% fixture gate. Initial Tiny watchdog ceilings above require agreement before real trials. 2A and 2B were separately authorized and implemented; later stages still require their own checkpoints. No actual backend-confirmation claim, upstream model revision pin or durable history has been implemented here.
-
-
-## User performance observations — build 2026-11-09.2, 9 November 2026
-
-User-supplied diagnostic output; no new agent-run inference. MacBook is the previously identified 2018 MacBook Pro, Chrome; exact browser version, power/thermal state and competing workloads were not recorded. iPhone/browser version not supplied. These are observations, not controlled benchmarks or evidence that all graph operators ran on one backend.
-
-| Device/path | Selection and initialized session settings | Audio | Load | Caller inference / worker inference | Other evidence |
-|---|---|---:|---:|---:|---|
-| Mac self-test | small-webgpu-default; onnx-community/whisper-small; model webgpu/fp32, decoder_model_merged webgpu/fp32 | 15.5s | 15.0s | 26.3s / 26.1s | WER 0.0%; passed; 41.4s total; termination invoked |
-| Mac self-test | large-webgpu-fp16-q4; onnx-community/whisper-large-v3-ONNX; model webgpu/fp16, decoder_model_merged webgpu/q4 | Not supplied in latest Large excerpt | Not supplied | Not supplied | Initialized settings match production Large; no latest WER supplied |
-| Mac production | small; same repository/default dtype request; model webgpu/fp32, decoder_model_merged webgpu/fp32 | 16.7s | 12.1s, new | 20.2s / 20.2s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s |
-| Mac production | large; requested encoder fp16/decoder q4; model webgpu/fp16, decoder_model_merged webgpu/q4 | 16.7s | 39.4s, new | 76.2s / 76.0s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s; user reports window switching/typing sluggish |
-| Mac production, English selected | Same Large settings | 16.7s | 0.0s, reused | 81.7s / 81.6s | Metadata 0.0s, decode 0.1s, paragraphing 0.0s |
-| iPhone production | tiny; onnx-community/whisper-tiny; runtime-default backend (WASM intended), Transformers.js 3.7.2; model wasm/q8, decoder_model_merged wasm/q8 | 16.6s | 2.1s, new | 3.8s / 3.8s | Metadata/decode/paragraphing displayed 0.0s |
-
-Desktop sessions use Transformers.js 4.0.0. Worker-level time closely matches caller inference time, localizing the reported delay to the pipeline invocation rather than messaging, metadata, audio decoding or paragraphing. Reusing Large did not eliminate the slow inference. Selecting English did not improve the supplied repeat, but these are not controlled comparisons and do not establish causality. Small test and production inputs have different reported durations, so do not compare their times as an exact same-input regression benchmark.
-
-There is no evidence here of desktop WASM fallback: both session components report selected WebGPU settings. actual operator backend remains unknown without runtime profiling. System contention/shared GPU or memory pressure is a plausible hypothesis for sluggish UI, not measured/proven. Do not claim a watchdog regression, thermal fault, memory leak, or GPU-only execution from these data. Large may be unsuitable as the routine default on this device; do not alter model/quantization/eligibility automatically. Small currently selects fp32 when dtype is omitted; evaluating an explicit quantized variant is separate configuration/test work.
-
-Diagnostics acceptance now includes normal Mac Small/Large and iPhone Tiny, plus Mac Small self-test. Further repeated Large runs are not required for this checkpoint. Next planned change is 2B output validation after reviewing Tiny fixture WER/reference outputs; retain the deferred desktop-test-worker consolidation in 3B. Large performance tuning/profiling is a separate optional investigation, not a prerequisite for implementing reliable quality verdicts.
-
-## Durable interruption checkpoint — 9 November 2026
-
-Moved ahead of remaining resolver migration after iPhone Medium appeared to reload the app. Build 2026-11-09.7 adds a bounded localStorage attempt journal (`whisperAttempts.js`), pre-execution and pre-stage synchronous verified writes, saved terminal results and an expandable Settings history. Per-attempt Web Locks distinguish active owners from abandoned runs at startup/review; no lock support means tests/recovery fail closed. Record includes configuration/declared inputs, actual worker path, environment/build, fixture URLs/protocol, limits, last phase/observations and terminal summary. Start/checkpoint failure stops work; final-save failure is visible separately from inference outcome. Retains recent attempts plus latest success per configuration and pending records. No IndexedDB/schema change, automatic retry/continuation, eligibility changes or production recovery. Fixture byte hashing and full persisted eligibility/evidence schema remain later scope; saved declared definitions are not proof of backend execution. Browser storage clearing/eviction or OS disk loss can still remove records. Recover as interrupted with unknown cause, never infer an out-of-memory crash solely from page loss. Test using Tiny cancellation and controlled navigation, not repeated Medium crashes.
-
-## Sequential self-test and retry policy — 9 November 2026
-
-This records the proposed sequence discussed with the user, who requested at least one automatic retry after a failure and asked for this policy to be documented. It is a future implementation contract, not a description of the current single-run code. Complete interruption classification and explicit deliberate retesting before activating automatic sequences or production eligibility filtering.
-
-### Sequence behavior
-
-Run an ordered, explicit list of exact configurations, one at a time. Save the sequence ID, configuration list/context identities, current position, attempt IDs, retry allowance and sequence state before starting work. Keep per-attempt progress and outcomes. Never run overlapping model instances. Release the previous worker before moving to another attempt/configuration; terminating a worker does not prove memory reclamation.
-
-| Outcome | Planned action |
-|---|---|
-| Pass on initial attempt | Save result and advance to the next configuration. |
-| Runtime error, reference-accuracy failure or stage timeout during a recoverable test | End the attempt, terminate its worker, pause briefly, then allow one automatic retry using a fresh worker and the same configuration/fixture/recipe. Save the retry reservation before starting it. |
-| Retry also unsuccessful | Preserve both results, derive the appropriate eligibility outcome, and advance only if cleanup succeeded and the page remains healthy. A second timeout stays inconclusive; it is not proof of incompatibility. |
-| Cleanup failure, storage/checkpoint failure, or uncertain ability to continue safely | Pause the sequence and explain the reason; do not launch another model or consume unrecorded retries. Shared preparation/storage faults must not trigger a cascade of model retries. |
-| User cancellation | Stop the sequence without automatic retry. Preserve attempts already recorded. |
-| Page reload, browser crash or unexplained page loss | Recover the sequence as paused. Show the last saved stage and offer “Resume and retry interrupted test”; never automatically relaunch the interrupted model on startup. |
-
-The initial retry budget is one automatic retry per configuration within a sequence (two execution attempts total). Persist its consumption/reservation before execution, not after completion, so a page reload cannot reset the allowance. A failed retry launch must not silently replenish the budget. Explicit resumption after interruption must inspect the remaining budget; when exhausted, offer skip/stop or a separately recorded deliberate retest, not an implicit new allowance. Record any pause duration and keep it cancellable; the duration is an implementation/calibration choice, not a guarantee of recovered memory.
-
-### Eligibility and reporting
-
-Keep first failure and retry evidence separately. Display “Passed on retry” when appropriate; do not overwrite the failure or present the configuration as consistently reliable. A page interruption suspends suitability pending review because it cannot distinguish memory pressure, browser faults, manual refresh and development-server reload. It must not establish permanent model incompatibility or claim a specific crash cause.
-
-Recommended initial qualification rule: when an accuracy failure is followed by a passing retry, mark the sequence outcome provisional and require an additional successful verification before production eligibility. The exact confirmation rule and treatment of other intermittent failures must be agreed and tested before activation; one passing retry must not silently erase instability. Timeouts are inconclusive, cancellation is neutral, and confirmed execution/accuracy failures remain distinguishable from unexplained interruption. Preserve prior successful evidence alongside later failures.
-
-A deliberate Retest action must be able to restore eligibility under the agreed qualification rule, including release of conservatively imported legacy review blocks. Clearing displayed reports must not clear retry budgets, sequence recovery state or durable eligibility decisions. Model/runtime/worker/fixture/protocol/recipe/environment changes require fresh context validation and must not silently retry previously disruptive models.
-
-### Implementation order and verification
-
-1. Correct interruption classification/reporting and implement explicit deliberate retesting, with simulated qualification/recovery tests. Current .13 conservatively labels interruptions “blocked”; this is a safety hold pending review, not a finding of universal incompatibility.
-2. Review qualification/confirmation rules, then connect production filtering as a separate checkpoint. Preserve known local iPhone Medium adverse evidence without forcing another crash.
-3. Finish shared execution resolver/worker parity so sequence tests exercise the exact intended configurations.
-4. Implement the persisted sequence coordinator and retry/resume controls; verify with injected errors, bad output, timeouts, duplicate/late messages, cancellation, storage failure, cleanup failure and reload before/during retry reservation and execution.
-5. Perform limited sequential Tiny/Base/Small device acceptance, then deliberately broaden scope. Do not require repeated Medium/Large stress runs for infrastructure validation.
-
-During user acceptance runs, the agent must not edit files that can trigger Live Server reloads. Use a server without automatic reload when investigating unexplained interruptions. File reads alone are not evidence of a reload cause. User reported Mac Base/Small successful, an initial Tiny interruption followed by passes, and suspected a Live Server-related Medium interruption; cause is unconfirmed. These observations motivate recovery/retest behavior, not blanket exclusion of all models on the MacBook.
-
-## Deliberate retest checkpoint — build 2026-11-09.14
-
-Single-run Retest now persists explicit intent and can restore exact-context eligibility after a completed <=15% WER pass, including resolution of legacy review holds. Unexplained page interruptions suspend pending retest; confirmed test failures remain distinguishable and cannot be downgraded by subsequent interruptions. Historical .13 interruption blocks normalize without resetting evidence. Legacy resolution retains original review and qualifying retest identity; replay/clearing cannot silently re-block or re-enable the model, and changed contexts cannot inherit the resolution. Production filtering and automatic sequence/retry behavior remain unimplemented. This explicit retest is separate from the future automatic retry qualification/confirmation policy. See CURRENT_STATUS.md for acceptance and ordering.
-
-## Stability investigation takes priority — 9 November 2026, after build .16
-
-This update supersedes the earlier implementation order for automatic sequencing. The user recalls that sequential tests previously caused instability and were deliberately replaced by individual tests. Resource release was suspected; no causal measurement is available. Do not reactivate sequences or assume worker termination/fixed delays guarantee reclamation.
-
-Latest iPhone Small evidence includes both inference interruption (5.183s completed load, no terminal result) and a completed pass (6.608s load, 19.655s inference, WER 0%, final saved outcome after worker termination invocation). User reports leaving Settings even after passing and rebooting. The reports share exact configuration/fixture identity but do not distinguish a panel-close action from full page loss after result persistence. User separately verified reload -> removal from selector -> successful retest -> restoration, so that eligibility recovery path is working.
-
-Next proposed diagnostic checkpoint: bounded persisted page-start/session and navigation observations, explicit Settings-open/close reason, test stage/outcome and worker creation/termination events, visibility/pagehide/pageshow observations. Persist important observations before model work; no dependency on guaranteed unload delivery. Verify with simulated lifecycle events and Tiny, then decide if one controlled Small run is warranted. Keep diagnostics separate from inference/memory tuning and eligibility policy. No source edits while the user tests; avoid development-server auto-reload during reproduction. Missing telemetry is unknown, not proof of a particular crash or successful memory release.
-
-Manual eligibility proposal: a passing manual reference test (completed output and inclusive WER <=15%, matching exact context) should restore eligibility whether the button said Run test or Retest, while retaining prior failures and resolved legacy-review identity. Current implementation still requires deliberateRetest to clear a hold; do not describe the proposed simplification as implemented. A report with deliberateRetest:false does not prove a hold existed. Automatic retries must be identified separately and retain their agreed qualification/reliability rules; manual testing remains unlimited. Ordinary production-transcription failures still do not generate eligibility records and require separate future design.
-
-Resume order: (1) diagnose Settings/page/resource lifecycle, (2) separately simplify manual recovery semantics, (3) implement fixes justified by evidence and complete shared configuration cleanup, (4) revisit automatic sequence/retry design after stability acceptance. No additional Small/Medium stress runs requested now.
-
-## Manual-pass recovery implemented — build 2026-11-09.17
-
-Supersedes the earlier deliberateRetest requirement for user-requested single tests: a qualifying manual pass restores exact-context eligibility, regardless of the button label or old flag. New attempts record executionMode:manual; historical standalone attempts without sequence/automatic markers are recognized as manual. Automatic/sequence attempts remain subject to separate future rules. The adapter enables recovery only for manual evidence, while preserving low-level conservative defaults for other callers. Saved previously withheld manual passes can be reprocessed, retaining a later neutral cancellation/timeout and refusing to supersede any newer adverse decision. Ordinary manual success also resolves legacy review identity durably without discarding reports. Resource behavior is unchanged; the next step is diagnostic instrumentation, and automatic sequencing remains paused.
-
-## Runtime diagnostics implemented — build 2026-11-09.18
-
-This is observation, not a resource-release fix. Browser-local per-page logs record page-start/navigation identity, lifecycle/visibility, Settings navigation reasons/hidden state, test stages, worker creation/termination requests/results and saved outcome. Attempt pageId and event attemptId/configurationId permit correlation; report exports take a fresh snapshot to include post-result observations and later page instances. Per-page event ring is 100; startup/export retention is six pages. Independent keys prevent tabs overwriting a shared event log. Logging failures are nonfatal and visible in export metadata; reports do not infer crash cause or memory reclamation from absent callbacks or termination invocation. No pipeline, resource-release, eligibility or sequence behavior changed. Validate with Tiny/open-close/reload/download, review evidence, then consider one Small reproduction. See CURRENT_STATUS.md and tests/README.md.
-
-## Bounded model disposal experiment — build 2026-11-09.19
-
-Disposable self-tests now request a worker disposal acknowledgement after inference has returned (including validation failure). The worker detaches its model references, checks for and awaits pipeline.dispose(), and reports API completion/failure/unavailability with matching request ID. Parent waits at most 5s then always terminates; cancellation, missing/late/duplicate/wrong-ID replies, post/worker/message errors and stalled disposal retain forced termination. Active runtime errors/timeouts/cancellation skip graceful disposal to avoid a concurrent model operation. Existing production idle resource release is unchanged. API completion is not OS/browser memory-reclamation verification. Primary iOS API source: [Transformers.js 3.7.2 Pipeline.dispose](https://raw.githubusercontent.com/huggingface/transformers.js/3.7.2/src/pipelines.js). Desktop method availability is checked at runtime rather than assumed.
-
-Record disposal separately from inference/accuracy and termination; hold activity ownership throughout cleanup. Add trace events and visible releasing status. Protocol/implementation revisions advanced to 2 for both shared workers, requiring fresh-context validation while retaining old evidence. Eleven disposal, 22 lifecycle, nine accuracy, eight Settings, seven diagnostics, 13 catalogue and 13 evidence groups passed in isolated Chrome (83 total). Review an iPhone Tiny acknowledgement report before another controlled Small trial. No automatic sequence or retries; no claim that this fixes repeated-run page loss.
+Recorded results and test pages are in [test instructions](../tests/README.md); detailed run observations remain in [checkpoint history](archive/Development_Checkpoints_2026-11-09.md) and [design history](archive/Whisper_Configuration_and_Test_Design_History.md). Current .23 presentation is user-accepted. No application tests or publication are required for documentation-only edits.

@@ -1,6 +1,8 @@
+> Archived deferred proposal, 9 November 2026. Not an active implementation instruction. Re-audit current source and dependencies before reuse; [current status](../CURRENT_STATUS.md) governs priorities.
+
 # Vite design and rollout plan
 
-Status update, 9 November 2026: deferred for Memora. The isolated step-2 setup was discarded before source adaptations; leftover tooling was moved outside the repository. No build/package files or deployment changes remain. This document preserves the design for possible later reuse; its installation steps are not the current task. See [current handoff](CURRENT_STATUS.md).
+Status update, 9 November 2026: deferred for Memora. The isolated step-2 setup was discarded before source adaptations; leftover tooling was moved outside the repository. No build/package files or deployment changes remain. This document preserves the design for possible later reuse; its installation steps are not the current task. See [current handoff](../CURRENT_STATUS.md).
 
 Step 1 design checkpoint, 7 November 2026. Repository baseline `bc43b76`, application build `2026-11-07.1` in `7cfb099`. This document proposes implementation decisions; nothing is installed, application code is unchanged and hosting remains untouched. Read [asset inventory](Asset_and_Deployment_Inventory.md) for the complete dependency map.
 

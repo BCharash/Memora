@@ -1,6 +1,6 @@
 # Runtime and database foundation — completed
 
-Closed for the agreed scopes as of 7 November 2026. Next work is release consistency, followed by Whisper configuration/testing. See [current handoff](CURRENT_STATUS.md).
+Closed for the agreed scopes as of 7 November 2026; reviewed again 9 November through build .23. Whisper configuration/testing has since progressed; release conversion remains deferred. See [current handoff](CURRENT_STATUS.md).
 
 ## Runtime ownership
 
@@ -10,7 +10,7 @@ Production Whisper, self-test, Settings and Search audio use shared detection. g
 
 Self-test reports environment, requested backend, WebGPU presence and unknown actual backend. Existing worker policy/model options are preserved. Explicitly identified iPads now use the existing iOS audio path. File access stays source/capability-driven; old local names such as isIPhoneSource do not constitute independent device detection.
 
-User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks passed. Separate Android/iPad hardware tests were not reported. Exact model/backend configuration and execution evidence belong to the next Whisper phase, not unfinished identity work.
+User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks passed. Separate Android/iPad hardware tests were not reported. Exact model/backend configuration and execution evidence now belong to the implemented Whisper testing/eligibility layer, not unfinished identity work. See the [current catalogue contract](Whisper_Catalogue_Resolver_Contract.md).
 
 ## Database ownership and schema
 
