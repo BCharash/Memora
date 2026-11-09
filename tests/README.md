@@ -47,3 +47,7 @@ User acceptance: confirm build .7, run/cancel Tiny and verify saved records surv
 Build 2026-11-09.8: nine journal and seven Settings groups pass, including terminal-history clearing, preservation of a live owned attempt/unrelated keys, and immediate Settings refresh. User check: clear saved history and refresh; records should stay cleared. This intentionally removes prior successful evidence too, while leaving model caches and IndexedDB intact.
 
 Build 2026-11-09.10: ten journal and eight Settings groups pass. Covers normalized legacy provisional snapshots without mutating history/real failures, readable saved report/technical disclosure, and clipboard success and denial fallback. For user acceptance, expand existing saved reports, check local dates/stages, and use Copy report on Mac/iPhone. No model execution required.
+
+## Whisper eligibility foundation
+
+Open `/tests/whisper-eligibility.html`: eight groups use synthetic attempts and injected memory storage, with real browser Web Locks. No model execution or user eligibility storage. Covers inclusive WER gate, interruption/runtime/accuracy blocking, neutral cancellations/timeouts, deliberate retest, last success, replay ordering, history-clear isolation, context changes, concurrent updates and explicit write errors. Production does not consume the new module yet; this verifies rules, not active selector filtering or iPhone model suitability.
