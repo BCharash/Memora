@@ -19,3 +19,9 @@ Open `/tests/whisper-lifecycle.html` and `/tests/whisper-settings.html` using Li
 On 9 November 2026, 22 lifecycle groups and five Settings/production-entry groups passed in isolated headless Chrome. Covered desktop/iOS protocols, cancellation before and during stages, all stage watchdogs, absolute deadlines, late/duplicate messages, constructor/post/error/messageerror handling, cleanup failures, exclusivity, retry, invalid limits and refresh during an active test. Existing 12 schema and six database integration groups also passed after this change.
 
 Candidate build 2026-11-09.1 awaits real user Tiny completion/cancellation/retry and short production transcription checks on desktop/iPhone. These controlled tests do not establish model accuracy or hardware/backend support. Runtime/library/model options are unchanged; output gates and persistent history are later checkpoints.
+
+## Whisper timing/session diagnostics checkpoint
+
+Open `/tests/whisper-diagnostics.html` using Live Server. Seven groups verify safe session-metadata extraction, unavailable/getter-error handling, production timing boundaries and unchanged task/language forwarding, application display parsing, and all three real worker scripts using synthetic pipelines substituted for remote ML imports. No actual models/GPU inference are exercised. On 9 November 2026 all seven groups passed in isolated Chrome; the 22 lifecycle and five Settings regressions also passed with HTTP caching disabled in that isolated profile.
+
+Candidate app build 2026-11-09.2 awaits the user's MacBook Large timing sample and normal iPhone Tiny check. Timing/session metadata does not constitute operator-level WebGPU profiling. Inspected pinned source: Transformers.js 4.0.0 src/models/session.js constructs selected device/dtype; src/backends/onnx.js attaches session.config. Missing metadata in any runtime stays unknown; no private undocumented getter is required for inference to work.

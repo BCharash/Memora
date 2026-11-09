@@ -1,3 +1,5 @@
+import { describeWhisperPipeline } from "./whisperDiagnostics.js";
+
 // --------------------------------------------------
 // Memora Whisper Isolated Test Worker
 // --------------------------------------------------
@@ -8,6 +10,7 @@
 
 let pipeline = null;
 let transcriber = null;
+let diagnostics = null;
 
 async function loadTransformers() {
     if (!pipeline) {
@@ -51,8 +54,13 @@ self.onmessage = async event => {
                 pipelineOptions
             );
 
+            diagnostics = describeWhisperPipeline(transcriber, {
+                model: message.model, repository: message.repository, dtype: message.dtype ?? null,
+                requestedBackend: "webgpu", transformersVersion: "4.0.0", worker: "desktop test worker"
+            });
+
             self.postMessage({
-                type: "loaded"
+                type: "loaded", diagnostics
             });
 
             self.postMessage({
@@ -68,6 +76,7 @@ self.onmessage = async event => {
                 throw new Error("Whisper test worker has not loaded a model.");
             }
 
+            const inferenceStarted = performance.now();
             const result = await transcriber(
                 message.audio,
                 {
@@ -79,6 +88,8 @@ self.onmessage = async event => {
 
             self.postMessage({
                 type: "transcription",
+                diagnostics,
+                workerInferenceMs: performance.now() - inferenceStarted,
                 text: result?.text || ""
             });
         }

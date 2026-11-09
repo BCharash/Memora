@@ -10,6 +10,7 @@ import {
     loadTranscriber,
     transcribeAudio
 } from "./whisper.js";
+import * as whisperRuntime from "./whisper.js";
 
 async function transcribeRecordingInternal(
     file,
@@ -18,22 +19,34 @@ async function transcribeRecordingInternal(
     operation,
     statusCallback
 ) {
+    const timings = {};
     if (statusCallback) {
         statusCallback(
             `Preparing ${file.name}…`
         );
     }
 
+    let started = performance.now();
     const metadata =
         await readAudioMetadata(file);
+    timings.metadataMs = performance.now() - started;
 
+    started = performance.now();
     const audio =
         await decodeAudio(file);
+    timings.decodeMs = performance.now() - started;
+    timings.audioDurationMs = audio.length / 16000 * 1000;
 
+    started = performance.now();
     await loadTranscriber(
         model,
         statusCallback
     );
+    timings.loadMs = performance.now() - started;
+    // An older cached loader can still transcribe; diagnostic additions should
+    // degrade to unavailable evidence rather than break module startup.
+    const loaded = whisperRuntime.getWhisperLoadDiagnostics?.() || { diagnostics: null, reused: null };
+    timings.reused = loaded.reused;
 
     const task =
         operation === "translate"
@@ -56,18 +69,25 @@ async function transcribeRecordingInternal(
         );
     }
 
+    started = performance.now();
     const result =
         await transcribeAudio(
             audio,
             whisperOptions
         );
+    timings.inferenceMs = performance.now() - started;
+    timings.workerInferenceMs = result.workerInferenceMs;
+    const diagnostics = result.diagnostics || loaded.diagnostics;
+    console.info("[Whisper transcription timings]", { filename: file.name, timings, diagnostics });
 
     return {
         file,
         filename: file.name,
         metadata,
         transcript: result.text,
-        model
+        model,
+        timings,
+        diagnostics
     };
 }
 

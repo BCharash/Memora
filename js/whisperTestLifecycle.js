@@ -120,13 +120,14 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             modelStarted = true;
             emit({ type: "model-start", result: { ...result } });
             const loadStarted = performance.now();
-            await stage("load", () => {
+            const loaded = await stage("load", () => {
                 worker = createWorker();
                 return workerStage(runtime.operatingSystem === "ios" ? "ready" : "loaded", {
                     type: "load", model: configuration.id, repository: configuration.repository,
                     ...(runtime.operatingSystem === "ios" ? {} : { dtype: configuration.configuration?.dtype ?? null })
                 });
             });
+            result.diagnostics = loaded.diagnostics || null;
             result.loadMs = performance.now() - loadStarted;
             result.loadStatus = "passed";
             emit({ type: "load-complete", index: 1, model: configuration.id, loadMs: result.loadMs });
@@ -135,6 +136,9 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
                 ? { type: "transcribe", audioData: audio, language: null }
                 : { type: "transcribe", audio }));
             result.transcriptionMs = performance.now() - inferenceStarted;
+            result.workerInferenceMs = reply.workerInferenceMs;
+            result.audioDurationMs = audio.length / 16000 * 1000;
+            result.diagnostics = reply.diagnostics || result.diagnostics;
             result.transcript = reply.text || "";
             result.wer = score(fixture.expectedText, result.transcript);
             // Output acceptance is deliberately unchanged until checkpoint 2B.

@@ -1,8 +1,11 @@
+import { describeWhisperPipeline } from "./whisperDiagnostics.js";
+
 import { pipeline } from
     "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
 let transcriber = null;
 let loadedModel = null;
+let diagnostics = null;
 
 self.onmessage = async event => {
 
@@ -17,6 +20,7 @@ self.onmessage = async event => {
         ) {
             self.postMessage({
                 type: "ready",
+                diagnostics,
                 model: message.model
             });
             return;
@@ -39,8 +43,15 @@ self.onmessage = async event => {
             loadedModel =
                 message.model;
 
+            diagnostics = describeWhisperPipeline(transcriber, {
+                model: message.model, repository: message.repository,
+                requestedBackend: "runtime default (WASM intended)",
+                transformersVersion: "3.7.2", worker: "production iOS worker"
+            });
+
             self.postMessage({
                 type: "ready",
+                diagnostics,
                 model: message.model
             });
 
@@ -73,6 +84,7 @@ self.onmessage = async event => {
 
         try {
 
+            const inferenceStarted = performance.now();
             const result =
                 await transcriber(
                     message.audioData,
@@ -86,6 +98,8 @@ self.onmessage = async event => {
 
             self.postMessage({
                 type: "transcription",
+                diagnostics,
+                workerInferenceMs: performance.now() - inferenceStarted,
                 text: result.text
             });
 

@@ -11,6 +11,7 @@ import { getRuntimeInfo, runtimeIdentity, isIOS, getRuntimeCapabilities } from "
 import { clearWhisperResources } from "./whisper.js";
 import { getWhisperSelfTestOptions, runWhisperSelfTest } from "./whisperSelfTest.js";
 import { collectDomDiagnostics, formatDomDiagnostics } from "./domDiagnostics.js";
+import { formatWhisperDiagnostics } from "./whisperDiagnostics.js";
 
 // Describes current routing policy, not confirmation of model execution.
 function getWhisperRuntimeDescription() {
@@ -331,6 +332,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ? `PASS · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${(r.wer * 100).toFixed(1)}%`
                 : `${r.status === "cancelled" ? "CANCELLED" : r.status === "timed-out" ? "TIMED OUT" : "FAIL"} · ${r.failedPhase || "unknown stage"} · ${r.error?.message || "Unknown error"}`;
             card.querySelector(".whisper-self-test-status").textContent = status;
+            card.insertAdjacentHTML("beforeend", `<details><summary>Timing and model diagnostics</summary><p class="settings-note">${escapeHtml(formatWhisperDiagnostics(r.diagnostics))}</p><p class="settings-note">Worker inference: ${Number.isFinite(r.workerInferenceMs) ? formatSeconds(r.workerInferenceMs) : "unavailable"} · audio: ${Number.isFinite(r.audioDurationMs) ? formatSeconds(r.audioDurationMs) : "unavailable"}</p></details>`);
             if (r.status === "passed") {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Transcript</summary><pre>${escapeHtml(r.transcript)}</pre></details>`);
             } else if (r.error?.stack) {

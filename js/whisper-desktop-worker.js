@@ -1,3 +1,5 @@
+import { describeWhisperPipeline } from "./whisperDiagnostics.js";
+
 // --------------------------------------------------
 // Memora Desktop Whisper Worker
 // --------------------------------------------------
@@ -9,6 +11,7 @@
 
 let pipeline = null;
 let transcriber = null;
+let diagnostics = null;
 
 async function loadTransformers() {
     if (!pipeline) {
@@ -47,8 +50,14 @@ self.onmessage = async event => {
                 pipelineOptions
             );
 
+            diagnostics = describeWhisperPipeline(transcriber, {
+                model: message.model, repository: message.repository, dtype: message.dtype ?? null,
+                requestedBackend: "webgpu", transformersVersion: "4.0.0", worker: "production desktop worker"
+            });
+
             self.postMessage({
                 type: "loaded",
+                diagnostics,
                 model: message.model
             });
 
@@ -77,6 +86,7 @@ self.onmessage = async event => {
                 options.language = message.options.language;
             }
 
+            const inferenceStarted = performance.now();
             const result = await transcriber(
                 message.audio,
                 options
@@ -84,6 +94,8 @@ self.onmessage = async event => {
 
             self.postMessage({
                 type: "transcription",
+                diagnostics,
+                workerInferenceMs: performance.now() - inferenceStarted,
                 text: result?.text || ""
             });
         }

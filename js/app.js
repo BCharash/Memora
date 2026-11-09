@@ -1,4 +1,5 @@
 import { displayBuildInfo } from "./build-info.js";
+import { formatWhisperDiagnostics, formatTranscriptionTimings } from "./whisperDiagnostics.js";
 
 import {
     displayTranscriptFiles,
@@ -817,11 +818,13 @@ transcribeButton.addEventListener(
                     const paragraphing =
                         await getParagraphingModule();
 
+                    const paragraphStarted = performance.now();
                     processedTranscript =
                         await paragraphing.paragraphize(
                             record.transcript,
                             setTranscriptionBusy
                         );
+                    if (record.timings) record.timings.paragraphMs = performance.now() - paragraphStarted;
                 }
 
                 const transcript =
@@ -858,7 +861,8 @@ transcribeButton.addEventListener(
 
                 appendTranscription(
                     record.file,
-                    processedTranscript
+                    processedTranscript,
+                    record
                 );
             }
 
@@ -2195,7 +2199,8 @@ function sanitizeFilename(name) {
 
 function appendTranscription(
     file,
-    text
+    text,
+    record
 ) {
 
     const block =
@@ -2218,6 +2223,19 @@ function appendTranscription(
 
     block.appendChild(heading);
     block.appendChild(paragraph);
+    if (record?.timings) {
+        const detail = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = "Timing and model diagnostics";
+        const timing = document.createElement("p");
+        timing.className = "settings-note";
+        timing.textContent = formatTranscriptionTimings(record.timings);
+        const configuration = document.createElement("p");
+        configuration.className = "settings-note";
+        configuration.textContent = formatWhisperDiagnostics(record.diagnostics);
+        detail.append(summary, timing, configuration);
+        block.appendChild(detail);
+    }
 
     transcriptionOutput.appendChild(
         block

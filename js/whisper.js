@@ -53,6 +53,7 @@ function createDesktopWhisperWorker() {
         }
 
         if (message.type === "loaded") {
+            loadedDiagnostics = message.diagnostics || null;
             if (desktopWorkerLoadPromise) {
                 const resolve = desktopWorkerLoadPromise.resolve;
                 desktopWorkerLoadPromise = null;
@@ -66,7 +67,7 @@ function createDesktopWhisperWorker() {
             if (desktopWorkerTranscriptionPromise) {
                 const resolve = desktopWorkerTranscriptionPromise.resolve;
                 desktopWorkerTranscriptionPromise = null;
-                resolve({ text: message.text });
+                resolve({ text: message.text, diagnostics: message.diagnostics || loadedDiagnostics, workerInferenceMs: message.workerInferenceMs });
             }
             return;
         }
@@ -146,6 +147,7 @@ function createWhisperWorker() {
             }
 
             if (message.type === "ready") {
+                loadedDiagnostics = message.diagnostics || null;
 
                 if (workerLoadPromise) {
 
@@ -175,7 +177,7 @@ function createWhisperWorker() {
                         null;
 
                     resolve(
-                        { text: message.text }
+                        { text: message.text, diagnostics: message.diagnostics || loadedDiagnostics, workerInferenceMs: message.workerInferenceMs }
                     );
                 }
 
@@ -259,6 +261,12 @@ function createWhisperWorker() {
 
 let transcriber = null;
 let loadedModel = null;
+let loadedDiagnostics = null;
+let lastLoadReused = false;
+
+export function getWhisperLoadDiagnostics() {
+    return { diagnostics: loadedDiagnostics, reused: lastLoadReused };
+}
 
 
 async function loadTranscriberDefinition(
@@ -274,18 +282,21 @@ async function loadTranscriberDefinition(
     // Keep the currently loaded model for repeated transcriptions. Only
     // replace it when the requested implementation actually changes.
     if (transcriber && loadedModel === identity) {
+        lastLoadReused = true;
         return transcriber;
     }
 
     if (transcriber) {
         await releaseTranscriber();
     }
+    lastLoadReused = false;
+    loadedDiagnostics = null;
 
     console.log("[Whisper diagnostic] Resolved model configuration:", {
         requestedModel: identity,
         repository: definition.repository,
-        dtype: definition.dtype ?? definition.preferredDtype ?? null,
-        transformersVersion: "4.0.0",
+        dtype: isIOS ? null : definition.dtype ?? null,
+        transformersVersion: isIOS ? "3.7.2" : "4.0.0",
         runtime: isIOS ? "iphone-worker" : "webgpu",
     });
 
@@ -486,6 +497,8 @@ export async function releaseTranscriber() {
     // reused by a subsequent load.
     transcriber = null;
     loadedModel = null;
+    loadedDiagnostics = null;
+    lastLoadReused = false;
 
     if (!current) {
         return;
