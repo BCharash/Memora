@@ -10,6 +10,7 @@ Reviewed 9 November 2026. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Cur
 | [Vite design and rollout](Vite_Design_and_Rollout_Plan.md) | Deferred design; isolated setup was discarded before asset adaptations. |
 | [Build numbering](build-versioning.md) | Active release identification. |
 | [Whisper step-1 design](Whisper_Configuration_and_Test_Design.md) | Current audit/contract, proposed PASS gate, lifecycle and checkpoints. |
+| [Whisper catalogue/resolver contract](Whisper_Catalogue_Resolver_Contract.md) | 3A implemented/unused, parity and fingerprint checks passed; caller migration remains 3B. |
 | [Whisper registry/self-test plan](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Subsequent proposal; database prerequisite already implemented. |
 | [Offline Tiny](Offline_Whisper_Tiny_Implementation_Plan.md) | Deferred proposal; align with generated assets/common configuration. |
 | [File workflows](File_Workflow_Inventory.md) | Overview for future dependency audits; sharing refactor deferred. |

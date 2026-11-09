@@ -1,5 +1,9 @@
 # Database schema tests
 
+## Unused Whisper catalogue/resolver (3A)
+
+Open `/tests/whisper-configurations.html` using Live Server. Twelve groups passed in isolated Chrome on 9 November 2026. It compares all 13 new definitions against the legacy built-in registry, checks family/platform/test policy, omitted dtype/device semantics and SHA-256 execution fingerprints. It imports existing modules only to read built-in definitions/options; no registry persistence, workers, models or database writes are invoked. No actual backend/accuracy support is established. Existing production/self-test callers do not use the new resolver until 3B.
+
 Serve the repository over localhost and open `/tests/database.html` in Chrome. The page runs automatically and should finish with `ALL TESTS PASSED`.
 
 Tests use unique `Memora-schema-test-…` database names and remove those fixtures afterward. They never open or delete the `Memora` database. Closing the page mid-run may leave temporary fixtures; they do not affect Memora. The manager is now integrated into application code; opening the normal app can upgrade its database to version 5.
@@ -30,4 +34,4 @@ Candidate app build 2026-11-09.2 awaits the user's MacBook Large timing sample a
 
 Open `/tests/whisper-validation.html` using Live Server. Nine groups cover exact 15% inclusion, above-boundary rejection without rounding into PASS, unchanged normalization, empty/malformed output, invalid references/scores, WER above 100%, lifecycle quality failure versus inference completion, no-worker fixture failure, Settings transcript inspection and retry. All nine groups passed on 9 November 2026 in isolated headless Chrome. The 22 lifecycle, five Settings and seven diagnostics groups also passed. These use synthetic replies/audio and no model downloads or databases.
 
-Candidate build 2026-11-09.3 requires one real standalone Tiny self-test on MacBook and iPhone. User explicitly approved WER ≤15%; no provisional 25% gate remains. Production transcription settings/workers are unchanged. Capture output/WER and verdict; failures are evidence to inspect, not justification to tune the reference or limit silently.
+User accepted build 2026-11-09.3 after real Tiny standalone self-tests on MacBook (WER 6.38%) and iPhone (WER 0.00%). User explicitly approved WER ≤15%; no provisional 25% gate remains. Production transcription settings/workers are unchanged. Capture output/WER and verdict; failures are evidence to inspect, not justification to tune the reference or limit silently.
