@@ -161,14 +161,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div id="settingsWhisperSelfTestCancel" class="whisper-self-test-cancel" hidden>
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
+            <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
+            <details id="settingsWhisperAdvanced">
+                <summary>Advanced test settings</summary>
             <p class="settings-note">Self-test releases the idle production Whisper model. Default load limit: 600 seconds; inference: 180 seconds. These are provisional Tiny safety limits, not measured limits for larger models.</p>
             <p class="settings-note">Accuracy passes only with non-empty text and WER ≤15% against the test reference. Inference completion alone is not an accuracy pass.</p>
             <div class="whisper-self-test-controls">
                 <label>Load limit (seconds) <input id="settingsWhisperLoadLimit" type="number" min="1" max="86400" value="600"></label>
                 <label>Inference limit (seconds) <input id="settingsWhisperInferenceLimit" type="number" min="1" max="86400" value="180"></label>
             </div>
-            <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
-            <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
+
+            </details>
+            <details id="settingsWhisperHistorySection">
+                <summary>Saved results and interruption reports</summary>
+                <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
+            </details>
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
@@ -359,31 +366,37 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             detail.hidden = false;
             detail.innerHTML = `
                 <div class="whisper-self-test-output">
+                    <div id="settingsWhisperCurrentStage" class="settings-note" role="status">Preparing audio…</div>
+                    <div id="settingsWhisperSelfTestResults"></div>
+                    <details><summary>Test diagnostics and stage log</summary>
                     <div class="settings-note">Environment: ${escapeHtml(environment.operatingSystem)} · ${escapeHtml(environment.deviceType)} · requested backend: ${escapeHtml(environment.requestedBackend)} · WebGPU API: ${environment.webgpu ? "present" : "not present"} · actual backend: ${escapeHtml(environment.actualBackend)}</div>
                     <div class="settings-note">Running ${event.sequence.length} tests: ${event.sequence.map(escapeHtml).join(" → ")}</div>
-                    <div id="settingsWhisperSelfTestResults"></div>
+                    <div id="settingsWhisperStageLog"></div>
+                    </details>
                 </div>`;
             return;
         }
 
         const results = detail.querySelector("#settingsWhisperSelfTestResults");
         if (!results) return;
+        const log = detail.querySelector("#settingsWhisperStageLog");
+        const currentStage = detail.querySelector("#settingsWhisperCurrentStage");
 
         if (event.type === "preparing") {
-            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">${escapeHtml(event.message)}</div>`);
+            log.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">${escapeHtml(event.message)}</div>`);
         } else if (event.type === "audio-ready") {
-            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">Test audio ready · decode ${formatSeconds(event.decodeMs)}</div>`);
+            log.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-log">Test audio ready · decode ${formatSeconds(event.decodeMs)}</div>`);
         } else if (event.type === "model-start") {
             const r = event.result;
             results.insertAdjacentHTML("beforeend", `
                 <div class="whisper-self-test-result" id="whisper-self-test-${r.index}">
                     <div class="settings-item-name">${r.index}. ${escapeHtml(r.label)}</div>
                     <div class="settings-item-detail">${escapeHtml(r.repository)} · ${escapeHtml(formatSelfTestDtype(r.dtype))}</div>
-                    <div class="whisper-self-test-status">Loading…</div>
+                    <div class="whisper-self-test-status" hidden></div>
                 </div>`);
         } else if (event.type === "load-complete") {
             const card = detail.querySelector(`#whisper-self-test-${event.index}`);
-            if (card) card.querySelector(".whisper-self-test-status").textContent = `Load PASS · ${formatSeconds(event.loadMs)} · transcribing…`;
+            if (card) log.insertAdjacentHTML("beforeend", `<div class="settings-note">Model loaded · ${formatSeconds(event.loadMs)}</div>`);
         } else if (event.type === "model-complete") {
             const r = event.result;
             const card = detail.querySelector(`#whisper-self-test-${r.index}`);
@@ -391,6 +404,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const status = r.status === "passed"
                 ? `PASS · inference completed · accuracy passed · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${formatWhisperWer(r.wer)} (limit 15%)`
                 : `${r.status === "cancelled" ? "CANCELLED" : r.status === "timed-out" ? "TIMED OUT" : "FAIL"} · ${r.failedPhase || "unknown stage"} · ${r.error?.message || "Unknown error"}`;
+            card.querySelector(".whisper-self-test-status").hidden = false;
             card.querySelector(".whisper-self-test-status").textContent = status;
             if (r.status !== "passed" && r.transcriptionStatus === "passed") {
                 card.insertAdjacentHTML("beforeend", `<div class="settings-note">Inference completed; accuracy failed${Number.isFinite(r.wer) ? ` · WER ${formatWhisperWer(r.wer)} (limit 15%)` : ""}.</div>`);
@@ -401,14 +415,18 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             } else if (r.error?.stack) {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Error details</summary><pre>${escapeHtml(r.error.stack)}</pre></details>`);
             }
-            card.insertAdjacentHTML("beforeend", `<div class="settings-note">Cleanup: ${escapeHtml(r.releaseStatus)}${r.releaseError ? ` · ${escapeHtml(r.releaseError)}` : ""}. Worker termination does not verify memory reclamation.</div>`);
+            card.insertAdjacentHTML("beforeend", `<details><summary>Cleanup details</summary><div class="settings-note">Cleanup: ${escapeHtml(r.releaseStatus)}${r.releaseError ? ` · ${escapeHtml(r.releaseError)}` : ""}. Worker termination does not verify memory reclamation.</div></details>`);
         } else if (event.type === "run-complete") {
             const s = event.summary;
+            currentStage.hidden = true;
             results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-summary"><strong>Complete:</strong> ${s.passed} passed · ${s.failed} failed · ${s.cancelled} cancelled · ${s.timedOut} timed out · total ${formatSeconds(s.elapsedMs)}</div>`);
         } else if (event.type === "run-error") {
+            currentStage.hidden = true;
             results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-error">Self-test stopped: ${escapeHtml(event.error?.message || "Unknown error")}</div>`);
         } else if (event.type === "stage-start") {
-            results.insertAdjacentHTML("beforeend", `<div class="settings-note">${escapeHtml(event.phase)} · limit ${event.timeoutMs / 1000} seconds</div>`);
+            const labels = { prepare: "Preparing audio…", decode: "Decoding audio…", release: "Releasing the previous model…", load: "Loading model…", inference: "Transcribing…", validation: "Checking accuracy…" };
+            currentStage.textContent = labels[event.phase] || event.phase;
+            log.insertAdjacentHTML("beforeend", `<div class="settings-note">${escapeHtml(event.phase)} · limit ${event.timeoutMs / 1000} seconds</div>`);
         }
     }
 

@@ -31,7 +31,13 @@ try {
     const ui = initSettingsUI({ getStorageManager: async () => ({ getStorageReport: async () => report }), getStorage: async () => ({}) });
     await ui.refresh();
     assert(!runButton().disabled && cancelButton().disabled && cancelButton().hidden && document.getElementById("settingsWhisperSelfTestCancel").hidden, "initial controls");
-    lines.push("PASS initial controls and production module parsing");
+    const advanced = document.getElementById("settingsWhisperAdvanced");
+    const history = document.getElementById("settingsWhisperHistorySection");
+    const result = document.getElementById("settingsWhisperSelfTestDetail");
+    assert(!advanced.open && !history.open, "secondary sections collapsed");
+    assert(result.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING, "result before settings");
+    assert(advanced.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING, "history last");
+    lines.push("PASS initial controls, section order and collapsed secondary sections");
     runButton().click();
     await waitFor(() => runButton().disabled && !cancelButton().disabled);
     assert(!cancelButton().hidden && !document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel shown only during test");
