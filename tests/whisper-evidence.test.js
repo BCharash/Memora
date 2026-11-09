@@ -69,6 +69,34 @@ try {
         const bridge=createWhisperEvidenceBridge({storage:memory(),journal:{recover:async()=>[lost,failed]}});
         await bridge.sync();assert(bridge.get(context).status==="blocked" && bridge.get(context).legacyReview.confirmedFailure.attemptId===failed.id,"confirmed evidence retained");
     });
+    await test("Manual pass without retest flag restores exact and legacy holds and survives replay",async()=>{
+        const storage=memory();const lost={...pass,id:"loss",startedAt:"2025-12-30T00:00:00Z",status:"interrupted",phase:"inference"};
+        const legacy={...lost,id:"legacy",eligibilityContext:undefined,environment:context.environment};
+        let records=[lost,legacy];const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>records}});
+        await bridge.sync();assert(bridge.get(context).status==="suspended","hold");
+        records=[{...pass,deliberateRetest:false,executionMode:"manual"},...records];await bridge.sync();await bridge.sync();
+        assert(bridge.get(context).status==="eligible"&&bridge.get(context).legacyReview.resolvedBy.attemptId===pass.id,"ordinary manual pass restores");
+        records=[];await bridge.sync();assert(bridge.get(context).status==="eligible","clear history neutral");
+    });
+    await test("Previously withheld saved manual pass recovers without rerunning; newer failure still wins",async()=>{
+        const storage=memory(), store=createWhisperEligibilityStore({storage});
+        const lost={...pass,id:"loss",startedAt:"2025-12-30T00:00:00Z",status:"interrupted",phase:"inference"};
+        await store.record(context,lost);await store.record(context,{...pass,deliberateRetest:false});
+        assert(store.get(context).status==="suspended","old rule recreated");
+        const neutral={...pass,id:"later-cancel",startedAt:"2026-01-01T12:00:00Z",status:"cancelled"};
+        await store.record(context,neutral);
+        let records=[neutral,{...pass,deliberateRetest:false},lost];const bridge=createWhisperEvidenceBridge({storage,store,journal:{recover:async()=>records}});
+        await bridge.sync();assert(bridge.get(context).status==="eligible"&&bridge.get(context).latestAttempt.id==="later-cancel","saved pass migrated with later cancellation retained");
+        const newer={...lost,id:"new-loss",startedAt:"2026-01-02T00:00:00Z"};
+        records=[newer,...records];await bridge.sync();await bridge.sync();assert(bridge.get(context).status==="suspended","newer interruption wins");
+    });
+    await test("Automatic attempts cannot clear holds by borrowing manual recovery or retest flag",async()=>{
+        for(const marker of [{executionMode:"automatic"},{sequenceId:"sequence"},{automaticRetry:true}]){
+            const storage=memory(), lost={...pass,id:"loss",startedAt:"2025-12-30T00:00:00Z",status:"interrupted",phase:"inference"};
+            const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>[{...pass,...marker,deliberateRetest:true},lost]}});
+            await bridge.sync();assert(bridge.get(context).status==="suspended","automatic does not clear");
+        }
+    });
     await test("Identity changes require fresh validation without inheriting a pass",async()=>{
         const bridge=createWhisperEvidenceBridge({storage:memory(),journal:{recover:async()=>[pass]}});
         await bridge.sync();assert(bridge.get({...context,fixtureDigest:"changed"}).status==="needs-validation","changed bytes");

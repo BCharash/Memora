@@ -24,6 +24,13 @@ export async function getWhisperEligibilityContext(definition) {
     };
 }
 
+export function isManualWhisperAttempt(attempt) {
+    // All pre-mode standalone attempts were manual. Explicit automatic/sequence
+    // records must never inherit manual recovery, even if marked as a retest.
+    return !attempt.sequenceId && !attempt.automatic && !attempt.automaticRetry
+        && (attempt.executionMode === "manual" || attempt.executionMode === undefined);
+}
+
 const REVIEW_PREFIX = "memora.whisper-eligibility-review.v1.";
 export function createWhisperEvidenceBridge({ storage = globalThis.localStorage, journal = createWhisperAttemptJournal({ storage }), store = createWhisperEligibilityStore({ storage }), locks = globalThis.navigator?.locks } = {}) {
     const reviewKey = (id, environment) => REVIEW_PREFIX + encodeURIComponent(JSON.stringify([id, environment?.operatingSystem, environment?.deviceType]));
@@ -38,10 +45,11 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
             if (attempt.status === "running") continue;
             if (attempt.eligibilityContext) {
                 const context = attempt.eligibilityContext;
-                const decision = await store.record(context, attempt, { deliberateRetest: attempt.deliberateRetest === true });
+                const manual = isManualWhisperAttempt(attempt);
+                const decision = await store.record(context, attempt, { deliberateRetest: manual });
                 const key = reviewKey(context.configurationId, context.environment);
                 const rawReview = storage.getItem(key);
-                if (rawReview && attempt.deliberateRetest === true && decision.status === "eligible" && decision.lastDecision?.id === attempt.id) {
+                if (rawReview && manual && decision.status === "eligible" && decision.lastDecision?.id === attempt.id) {
                     const review = JSON.parse(rawReview);
                     if (Date.parse(attempt.startedAt) > Date.parse(review.startedAt)) {
                         saveReview(key, { ...review, resolvedBy: { attemptId: attempt.id, startedAt: attempt.startedAt, contextKey: eligibilityKey(context) } });
@@ -58,7 +66,7 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
                     ? { attemptId: attempt.id, startedAt: attempt.startedAt }
                     : !current?.resolvedBy ? current?.confirmedFailure || (current?.adverseStatus === "failed" ? { attemptId: current.attemptId, startedAt: current.startedAt } : null) : null;
                 saveReview(key, { schemaVersion: 1, confirmedFailure, status: confirmedFailure ? "blocked" : "suspended", adverseStatus: attempt.status, attemptId: attempt.id, startedAt: attempt.startedAt,
-                    reason: confirmedFailure ? "Earlier test failed without exact historical identity. Deliberate retest required." : "Earlier model work was interrupted; cause unknown. Paused pending deliberate retest; exact historical identity is unavailable." });
+                    reason: confirmedFailure ? "Earlier test failed without exact historical identity. A successful manual test can restore eligibility." : "Earlier model work was interrupted; cause unknown. A successful manual test can restore eligibility; exact historical identity is unavailable." });
             }
         }
         return attempts;
@@ -77,7 +85,7 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
         // unless a confirmed failure was recorded; never claim incompatibility.
         const legacyStatus = legacy.confirmedFailure || legacy.adverseStatus === "failed" ? "blocked" : "suspended";
         if (exact.status === "blocked") return { ...exact, legacyReview: legacy };
-        return { ...exact, status: legacyStatus, reason: legacyStatus === "suspended" ? "Earlier interruption needs review. Paused pending deliberate retest; cause unknown." : legacy.reason, legacyReview: legacy };
+        return { ...exact, status: legacyStatus, reason: legacyStatus === "suspended" ? "Earlier model work was interrupted; cause unknown. A successful manual test can restore eligibility." : legacy.reason, legacyReview: legacy };
     }
     return { sync, get };
 }

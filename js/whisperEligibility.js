@@ -15,7 +15,7 @@ export function eligibilityKey(context) {
 
 function normalizeInterruption(record) {
     if (record?.status === "blocked" && record.lastDecision?.status === "interrupted") {
-        return { ...record, status: "suspended", reason: "Model work was interrupted; cause unknown. Paused pending deliberate retest." };
+        return { ...record, status: "suspended", reason: "Model work was interrupted; cause unknown. A successful manual test can restore eligibility." };
     }
     return record;
 }
@@ -23,14 +23,19 @@ function normalizeInterruption(record) {
 export function reduceWhisperEligibility(previous, attempt, { deliberateRetest = false } = {}) {
     previous = normalizeInterruption(previous);
     if (!attempt?.id || !Number.isFinite(Date.parse(attempt.startedAt))) throw new Error("Eligibility evidence requires attempt identity and start time.");
-    // Replay and late writes must not erase newer evidence, including cancellations.
-    if (previous?.latestAttempt && (previous.latestAttempt.id === attempt.id || Date.parse(previous.latestAttempt.startedAt) > Date.parse(attempt.startedAt))) return previous;
     const result = attempt.result?.results?.[0];
     const phase = attempt.phase || result?.failedPhase;
     const evidence = { id: attempt.id, startedAt: attempt.startedAt, status: attempt.status, phase };
-    const next = { schemaVersion: 1, status: "unverified", reason: "No qualifying test result.", ...previous, latestAttempt: evidence };
     const wer = result?.wer;
     const validPass = attempt.status === "passed" && result?.status === "passed" && result.transcriptionStatus === "passed" && result.accuracyStatus === "passed" && result.validation?.status === "passed" && Number.isFinite(wer) && wer >= 0 && wer <= 0.15;
+    // Migrate an already-ingested manual pass that the old flag rule withheld.
+    // A newer adverse decision always wins; later neutral attempts stay visible.
+    const recoverSavedPass = deliberateRetest && validPass && ["blocked", "suspended"].includes(previous?.status)
+        && Date.parse(attempt.startedAt) > Date.parse(previous.lastDecision?.startedAt || "1970-01-01")
+        && (previous.latestAttempt?.id === attempt.id || ["cancelled", "timed-out"].includes(previous.latestAttempt?.status));
+    if (previous?.latestAttempt && (previous.latestAttempt.id === attempt.id || Date.parse(previous.latestAttempt.startedAt) > Date.parse(attempt.startedAt)) && !recoverSavedPass) return previous;
+    const latestAttempt = previous?.latestAttempt && Date.parse(previous.latestAttempt.startedAt) > Date.parse(attempt.startedAt) ? previous.latestAttempt : evidence;
+    const next = { schemaVersion: 1, status: "unverified", reason: "No qualifying test result.", ...previous, latestAttempt };
     if (validPass) {
         next.lastSuccess = evidence;
         if (!["blocked", "suspended"].includes(previous?.status) || deliberateRetest) {
@@ -43,7 +48,7 @@ export function reduceWhisperEligibility(previous, attempt, { deliberateRetest =
         // An interruption does not downgrade a previously confirmed failure.
         if (attempt.status === "interrupted" && previous?.status === "blocked") return next;
         next.status = attempt.status === "interrupted" ? "suspended" : "blocked";
-        next.reason = attempt.status === "interrupted" ? "Model work was interrupted; cause unknown. Paused pending deliberate retest." : "Model execution or reference accuracy failed. Deliberate retest required.";
+        next.reason = attempt.status === "interrupted" ? "Model work was interrupted; cause unknown. A successful manual test can restore eligibility." : "Model execution or reference accuracy failed. A successful manual test can restore eligibility.";
         next.lastDecision = evidence;
     } else if (attempt.status !== "cancelled") {
         next.reason = previous?.reason || "Inconclusive evidence; no eligibility granted.";

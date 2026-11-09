@@ -82,7 +82,7 @@ export async function runWhisperSelfTest({ modelId, onEvent, signal, limits, del
     const eligibilityContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === selected.id));
     const journal = createWhisperAttemptJournal();
     const summary = await journal.run({
-        deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
+        executionMode: "manual", deliberateRetest: deliberateRetest === true, eligibilityContext, build: APP_BUILD, environment: getEnvironment(), browser: navigator.userAgent,
         configuration: selected, declaredDefinition: getWhisperConfigurationDefinitions().find(item => item.id === selected.id), protocol: WHISPER_VALIDATION_PROTOCOL,
         executionWorker: isIOS ? "./js/whisper-ios-worker.js" : "./js/whisper-desktop-worker.js",
         fixture: { audio: TEST_AUDIO_URL, reference: EXPECTED_TEXT_URL }, limits: { ...DEFAULT_TEST_LIMITS, ...limits }
