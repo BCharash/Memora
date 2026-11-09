@@ -64,6 +64,12 @@ try {
         await waitFor(() => document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Interrupted—no final result recorded"));
         assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture · last saved stage: inference"), "model and stage visible");
         lines.push("PASS recovered interruption visible in Settings with model and stage");
+        const clearHistory = document.querySelector("[data-whisper-clear-history]");
+        assert(clearHistory, "clear history control visible");
+        clearHistory.click();
+        await waitFor(() => !document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture"));
+        assert(localStorage.getItem(recoveryKey) === null, "saved record removed");
+        lines.push("PASS clear saved history updates Settings and persisted records");
     } finally { localStorage.removeItem(recoveryKey); }
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) {

@@ -312,7 +312,23 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (records.length) {
                 const title = document.createElement("p");
                 title.textContent = "Saved self-test attempts (local to this browser)";
-                target.append(title);
+                const clear = document.createElement("button");
+                clear.type = "button";
+                clear.textContent = "Clear saved test history";
+                clear.dataset.whisperClearHistory = "";
+                clear.onclick = async () => {
+                    clear.disabled = true;
+                    try {
+                        await createWhisperAttemptJournal().clearCompleted();
+                        await renderWhisperAttempts();
+                    } catch (error) {
+                        const message = document.createElement("p");
+                        message.textContent = `Could not clear test history: ${error.message}`;
+                        target.append(message);
+                        clear.disabled = false;
+                    }
+                };
+                target.append(title, clear);
             }
             for (const record of records) {
                 const details = document.createElement("details");

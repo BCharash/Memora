@@ -70,5 +70,14 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
         }
         return list();
     }
-    return { run, recover, list };
+    async function clearCompleted() {
+        // Read again under each owner lock: another tab may still be finishing.
+        for (const record of list()) {
+            await withLock(record.id, () => {
+                const current = JSON.parse(storage.getItem(PREFIX + record.id));
+                if (current && current.status !== "running") storage.removeItem(PREFIX + record.id);
+            }, true);
+        }
+    }
+    return { run, recover, list, clearCompleted };
 }

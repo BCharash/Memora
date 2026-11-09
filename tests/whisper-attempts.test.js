@@ -79,6 +79,19 @@ try {
             const result = await run({ configuration: { id: "fixture" } });
             assert(!touched && released && result.results[0].status === "failed", "stop and release");
         });
+        await test("Clear removes terminal history while preserving a live owner and unrelated storage", async () => {
+            const storage = memory(), j = journal(storage);
+            storage.setItem("unrelated", "keep");
+            await j.run(metadata, async () => summary("passed"));
+            await j.run(metadata, async checkpoint => {
+                await checkpoint("inference");
+                await journal(storage).clearCompleted();
+                assert(j.list().length === 1 && j.list()[0].status === "running", "live attempt retained");
+                return summary("cancelled");
+            });
+            await j.clearCompleted();
+            assert(j.list().length === 0 && storage.getItem("unrelated") === "keep", "only journal history removed");
+        });
         await test("Thrown orchestration error is saved and ownership released", async () => {
             const j = journal(memory());
             try { await j.run(metadata, async () => { throw new Error("fixture failure"); }); } catch {}
