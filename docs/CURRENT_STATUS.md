@@ -20,6 +20,10 @@ Planned sequence: one exact configuration at a time; one automatic retry after r
 
 That prerequisite is implemented in candidate .14 below and awaits user acceptance. Then qualify/filter production choices, finish execution parity, and implement persisted sequences separately. Clearing report history must not reset eligibility or retry budgets. User Mac Base/Small passed; initial Tiny interruption followed by passes. Suspected Live Server involvement in Medium interruption is unconfirmed. Pause model sweeps; do not edit source during user inference tests. No further heavy-model trial required now.
 
+## Latest UI follow-up — 2026-11-09.15
+
+The single main action now reads Retest only when the exact selected configuration/current context is suspended or blocked; otherwise Run test. It returns to Run test after a qualifying recovery. Separate Retest button removed; selector size and position preserved. Click-time evidence is re-read to determine deliberate intent rather than relying on potentially stale label text. Eight Settings groups (including selection switching, cancellation/intent and recovery) and nine validation groups passed. User visual/Tiny acceptance pending; no Medium tests. No changes to eligibility rules, model execution, production choices or automatic sequence policy. Agent stops edits during user tests.
+
 ## Current candidate: deliberate Retest — 2026-11-09.14
 
 Implemented interruption classification and explicit **Retest selected model** below the existing selector/Run row. Unexplained loading/inference interruptions now suspend eligibility (“Paused pending retest”), while confirmed execution/accuracy failures show “Failed test—retest required.” Existing .13 interruption blocks normalize on read; confirmed failures are not downgraded by a later interruption. Cancellation and timeouts do not clear holds.

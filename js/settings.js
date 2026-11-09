@@ -164,9 +164,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div id="settingsWhisperSelfTestCancel" class="whisper-self-test-cancel" hidden>
                 ${button("Cancel test", "cancel-whisper-self-test", true)}
             </div>
-            <div class="whisper-self-test-cancel">
-                ${button("Retest selected model", "retest-whisper-self-test")}
-            </div>
             <div id="settingsWhisperEligibility" class="settings-note" role="status"></div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
             <details id="settingsWhisperAdvanced">
@@ -323,10 +320,13 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const target = document.getElementById("settingsWhisperEligibility");
         const id = document.getElementById("settingsWhisperSelfTestModel")?.value;
         if (!target || !id) return;
+        const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
+        if (run) run.textContent = "Run test";
         try {
             const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === id));
             if (document.getElementById("settingsWhisperSelfTestModel")?.value !== id) return;
             const evidence = createWhisperEvidenceBridge().get(context);
+            if (run) run.textContent = ["blocked", "suspended"].includes(evidence.status) ? "Retest" : "Run test";
             const status = { eligible: "Test-qualified", blocked: "Failed test—retest required", suspended: "Paused pending retest", "needs-validation": "Needs fresh validation", unverified: "Not yet validated" }[evidence.status];
             target.textContent = `${status}: ${evidence.reason} Transcription choices are unchanged in this checkpoint.`;
         } catch (error) { target.textContent = `Eligibility unavailable: ${error.message}`; }
@@ -527,8 +527,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
         const cancel = storage.querySelector('[data-settings-action="cancel-whisper-self-test"]');
         if (run) run.disabled = busy;
-        const retest = storage.querySelector('[data-settings-action="retest-whisper-self-test"]');
-        if (retest) retest.disabled = busy;
         if (cancel) {
             cancel.disabled = !busy;
             cancel.hidden = !busy;
@@ -541,7 +539,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
     }
 
-    async function showWhisperSelfTest(deliberateRetest = false) {
+    async function showWhisperSelfTest() {
         if (selfTestController) return;
         const detail = document.getElementById("settingsWhisperSelfTestDetail");
         if (!detail) return;
@@ -559,6 +557,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 if (!Number.isFinite(value) || value < 1 || value > 86400) throw new Error("Test limits must be between 1 and 86400 seconds.");
                 return value * 1000;
             };
+            // Re-read the exact selected context at click time. Button text may
+            // still be refreshing, and another tab can have updated evidence.
+            const bridge = createWhisperEvidenceBridge();
+            await bridge.sync();
+            const context = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === modelSelect?.value));
+            const deliberateRetest = ["blocked", "suspended"].includes(bridge.get(context).status);
             await runWhisperSelfTest({
                 deliberateRetest, modelId: modelSelect?.value,
                 signal: selfTestController.signal,
@@ -906,7 +910,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 return;
             }
             if (action === "toggle-transcripts") return await showTranscripts();
-            if (action === "retest-whisper-self-test") return await showWhisperSelfTest(true);
             if (action === "run-whisper-self-test") return await showWhisperSelfTest();
             if (action === "clear-whisper-resources") {
                 if (!confirm("Clear the active Whisper model and runtime resources? Cached Whisper model files will not be deleted. Do not use this while a transcription is in progress.")) return;
