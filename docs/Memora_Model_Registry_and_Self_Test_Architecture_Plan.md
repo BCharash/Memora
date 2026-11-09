@@ -7,13 +7,13 @@
 
 ## Handoff summary — read this first when resuming
 
-**Current status — 7 November 2026:** runtime identification is closed for its agreed scope; canonical version-5 database ownership is implemented and user-verified on Mac, iPhone and Windows. These prerequisites do not need rebuilding. Reliable generated asset versioning/publication is the next priority after a confirmed iPhone HTTP-cache mismatch. The model resolver, meaningful output validation, timeout/cancellation, durable test attempts and eligibility work below remain proposed. Read [CURRENT_STATUS.md](CURRENT_STATUS.md), [foundation record](Runtime_and_Database_Status.md) and [asset inventory](Asset_and_Deployment_Inventory.md).
+**Current status — 9 November 2026:** runtime identification and canonical version-5 database repair are complete; user Mac/iPhone/Windows checks passed. Vite was deferred and its uncommitted setup discarded. Resume Whisper work with the concrete [step-1 configuration/test design](Whisper_Configuration_and_Test_Design.md): audit complete, output gate and deadlines proposed for review; no new code/inference or durable validation implemented. The detailed broader plan below remains proposed. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs order.
 
 **Project goal:** Make Whisper model definitions, environment assessment, self-test evidence, eligibility, and production loading consistent and trustworthy across desktop and iPhone.
 
 **Current status:** This is a design proposal. No implementation work is authorized by this document alone. Inspect the current repository and device builds before translating this plan into code; this document is not proof that the current code still behaves as described.
 
-**First action when this phase resumes:** after release consistency is verified, audit the current model/worker/evidence paths and produce a baseline report. Reuse the completed database audit; inspect changes rather than restarting it. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
+**First action when this phase resumes:** review the completed step-1 model/worker audit and capture the missing device timing/output baselines before approving thresholds. Vite is not a prerequisite. Reuse the completed database audit; inspect changes rather than restarting it. Trace the selected model from the UI through configuration resolution, worker execution, result validation, cleanup, and persisted evidence. Separately trace every IndexedDB open/upgrade path and inventory all stores.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.

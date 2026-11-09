@@ -1,24 +1,28 @@
 # Memora — current status and resume instructions
 
-Updated 7 November 2026. Read this first, inspect Git status/current source, then consult the linked plan. Archived plans and journals preserve history; this file gives the current sequence.
+Updated 9 November 2026. Read this first, inspect Git status/current source, then consult the linked plan. Archived plans and journals preserve history; this file gives the current sequence.
 
 ## Current sequence
 
 1. **Runtime identification: complete for the agreed scope.** Shared OS/device classification, consistent reporting, production/self-test consumers and Search audio detection are implemented. Do not restart runtime migration.
 2. **IndexedDB foundation: complete for the repair scope.** Canonical version-5 ownership and the missing-registry repair passed isolated tests and the user's Mac, iPhone and Windows checks.
-3. **Reliable release assets: next priority.** Asset/deployment inventory is complete. Review a concrete build proposal before implementation. No build tool or hosting change is installed.
-4. **Whisper configuration and testing: subsequent project.** Agree exact configuration identity and PASS criteria; then safe standalone testing, shared resolution, durable evidence and controlled sequences.
+3. **Vite/release asset conversion: deferred for Memora.** The isolated installation was discarded, and remaining untracked tooling was moved outside the repository. No Vite configuration/dependencies remain in the checkout; normal Live Server/main-root publishing continues. Design documents are reference only.
+4. **Whisper configuration and testing: current priority.** Step 1 audit/design is prepared; review PASS criteria and deadlines before implementing safe standalone Tiny tests, then common resolution and durable evidence. Automatic sequences remain later scope.
 5. **Offline Tiny, sharing consolidation and iMuse integration: deferred.** Align their contracts with the above work before implementation.
 
 ## Immediate next action
 
 Vite step 1 design is prepared in [Vite design and rollout plan](Vite_Design_and_Rollout_Plan.md). Proposed Node 24 LTS, pinned local Vite/npm lockfile, `/Memora/` output, explicit module workers, preserved remote runtime versions, inactive setup first and five-prior-release asset retention. Public HTML was observed with max-age=600; hashing alone does not force HTML freshness. User confirmed Pages publishes from the main branch at the existing /Memora/ URL. The user confirmed the folder is /(root). Current publication details are complete; isolated step 2 does not change them. No Node/npm were found on PATH. No installation or app/hosting changes occurred. Review the design before authorizing isolated step 2; normal development remains available at this breakpoint.
 
-Review [Asset and deployment inventory](Asset_and_Deployment_Inventory.md) and agree a conventional build/deployment proposal. Cover five workers, dynamic chunks, fetched fixtures, icons/manifest, external imports, `/Memora/` base paths, test isolation and retention/recovery for older open pages. Inspect GitHub Pages settings before preparing hosting changes; server-side settings have not been inspected.
+Whisper checkpoint 2A is implemented locally and awaits user acceptance. Candidate build **2026-11-09.1** (not committed/published by the agent). It adds disposable test lifecycle watchdogs, Cancel, truthful cleanup and per-page production/test exclusion; model options, worker URLs/runtime versions and output-accuracy acceptance are unchanged. Exact invalid test IDs now reject rather than silently falling back to Tiny. Registry consolidation/persistence remain unimplemented.
 
-The user confirmed caching was involved when the new iPhone HTML showed “Build not identified” without its initializer. Mac displayed the footer. Actual cache headers and the complete update path have not been measured. Acceptance must test an A-to-B publication with existing cache intact, not just a Private tab.
+Defaults: fixture prepare/decode 60 seconds each, idle production release 30 seconds, load 600 seconds, inference 180 seconds. Load/inference limits are visible and adjustable for manual trials; the defaults are provisional Tiny safety ceilings, not measured limits for larger models. Self-test releases an idle production model after acquiring the per-page activity guard; a subsequent production transcription reloads as needed. Cross-tab exclusion and durable interruption recovery are not implemented.
 
-Current application checkpoint: **`7cfb099`**, build **2026-11-07.1**, owned by `js/build-info.js`. The UTC `YYYY-MM-DD.N` sequence is independent of iMuse and the database version. Documentation-only changes do not advance it. A displayed identifier does not certify the entire loaded dependency graph.
+Agent verification: 22 controlled lifecycle groups, five Settings/production-entry groups, 12 existing schema groups and six existing database integration groups passed in isolated headless Chrome, with mocked workers/fixtures for Whisper tests. No model downloads/inference or real-device acceptance occurred. See tests/README.md. Step 2B WER/output validation is deliberately deferred; current PASS still follows successful inference reply and is not an accuracy certification.
+
+Next user checklist on desktop, then iPhone after publication: verify footer 2026-11-09.1; run one Tiny standalone test and record load/inference times and WER; start another and Cancel while loading/inferencing, confirming cancelled state and Run re-enabled; run Tiny again; transcribe a short recording normally to verify the activity guard releases. No larger-model sequence or forced timeout required. Keep default limits initially. If a test completes before cancellation, cancel an immediate fresh attempt rather than force a resource crash. User checks and publication are pending; do not proceed to 2B until results are reviewed.
+
+The step-1 [design](Whisper_Configuration_and_Test_Design.md) records resolver, identity and future evidence contracts. WER ≤25% remains only a candidate requiring baseline calibration, not implemented. Vite remains deferred and removed; normal Live Server/main-root publication continues. No data resets or hosting changes.
 
 ## Completed evidence
 
@@ -44,4 +48,4 @@ These checks do not validate all model families, sequences, backends or browsers
 - Sharing inventory is an overview; trace full dependencies immediately before changing workflows. No sharing extraction is implemented.
 - Leave five design journals intact pending a separate restructuring request. Their historical statements do not override current source/status.
 
-Start from [documentation index](README.md). Completed planning records are in [archive](archive/README.md). Suggested resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Runtime and database repair are complete. Review the asset/build proposal next; preserve small changes and test checkpoints. Do not restart completed work or implement Whisper/offline plans yet.”
+Start from [documentation index](README.md). Completed planning records are in [archive](archive/README.md). Suggested resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Runtime and database repair are complete. Review docs/Whisper_Configuration_and_Test_Design.md next. Step 1 design is complete; agree the proposed PASS gate/deadlines before step 2. Vite is deferred. Preserve small changes and test checkpoints.”

@@ -1,3 +1,5 @@
+import { acquireWhisperActivity } from "./whisperActivity.js";
+
 // --------------------------------------------------
 // Transcription workflow
 // --------------------------------------------------
@@ -9,7 +11,7 @@ import {
     transcribeAudio
 } from "./whisper.js";
 
-export async function transcribeRecording(
+async function transcribeRecordingInternal(
     file,
     model,
     language,
@@ -67,4 +69,15 @@ export async function transcribeRecording(
         transcript: result.text,
         model
     };
+}
+
+// A self-test may release idle model resources; never overlap that with an
+// active recording transcription (including preparation and metadata work).
+export async function transcribeRecording(file, model, language, operation, statusCallback) {
+    const release = acquireWhisperActivity("transcription");
+    try {
+        return await transcribeRecordingInternal(file, model, language, operation, statusCallback);
+    } finally {
+        release();
+    }
 }

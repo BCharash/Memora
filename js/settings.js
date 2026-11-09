@@ -27,6 +27,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     let currentReport = null;
     let modelAvailability = null;
     let latestDomDiagnostics = null;
+    let selfTestController = null;
 
     function formatBytes(bytes) {
         if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
@@ -148,6 +149,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     `).join("")}
                 </select>
                 ${button("Run test", "run-whisper-self-test")}
+                ${button("Cancel test", "cancel-whisper-self-test", true)}
+            </div>
+            <p class="settings-note">Self-test releases the idle production Whisper model. Default load limit: 600 seconds; inference: 180 seconds. These are provisional Tiny safety limits, not measured limits for larger models.</p>
+            <div class="whisper-self-test-controls">
+                <label>Load limit (seconds) <input id="settingsWhisperLoadLimit" type="number" min="1" max="86400" value="600"></label>
+                <label>Inference limit (seconds) <input id="settingsWhisperInferenceLimit" type="number" min="1" max="86400" value="180"></label>
             </div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
 
@@ -162,6 +169,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         `;
 
         renderRuntime();
+        syncSelfTestControls();
         storage.onclick = handleAction;
     }
 
@@ -321,36 +329,59 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (!card) return;
             const status = r.status === "passed"
                 ? `PASS · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${(r.wer * 100).toFixed(1)}%`
-                : `FAIL · ${escapeHtml(r.error?.name || "Error")}: ${escapeHtml(r.error?.message || "Unknown error")}`;
+                : `${r.status === "cancelled" ? "CANCELLED" : r.status === "timed-out" ? "TIMED OUT" : "FAIL"} · ${r.failedPhase || "unknown stage"} · ${r.error?.message || "Unknown error"}`;
             card.querySelector(".whisper-self-test-status").textContent = status;
             if (r.status === "passed") {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Transcript</summary><pre>${escapeHtml(r.transcript)}</pre></details>`);
             } else if (r.error?.stack) {
                 card.insertAdjacentHTML("beforeend", `<details><summary>Error details</summary><pre>${escapeHtml(r.error.stack)}</pre></details>`);
             }
+            card.insertAdjacentHTML("beforeend", `<div class="settings-note">Cleanup: ${escapeHtml(r.releaseStatus)}${r.releaseError ? ` · ${escapeHtml(r.releaseError)}` : ""}. Worker termination does not verify memory reclamation.</div>`);
         } else if (event.type === "run-complete") {
             const s = event.summary;
-            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-summary"><strong>Complete:</strong> ${s.passed} passed · ${s.failed} failed · total ${formatSeconds(s.elapsedMs)}</div>`);
+            results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-summary"><strong>Complete:</strong> ${s.passed} passed · ${s.failed} failed · ${s.cancelled} cancelled · ${s.timedOut} timed out · total ${formatSeconds(s.elapsedMs)}</div>`);
         } else if (event.type === "run-error") {
             results.insertAdjacentHTML("beforeend", `<div class="whisper-self-test-error">Self-test stopped: ${escapeHtml(event.error?.message || "Unknown error")}</div>`);
+        } else if (event.type === "stage-start") {
+            results.insertAdjacentHTML("beforeend", `<div class="settings-note">${escapeHtml(event.phase)} · limit ${event.timeoutMs / 1000} seconds</div>`);
+        }
+    }
+
+    function syncSelfTestControls() {
+        const busy = !!selfTestController;
+        const run = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
+        const cancel = storage.querySelector('[data-settings-action="cancel-whisper-self-test"]');
+        if (run) run.disabled = busy;
+        if (cancel) cancel.disabled = !busy;
+        for (const id of ["settingsWhisperSelfTestModel", "settingsWhisperLoadLimit", "settingsWhisperInferenceLimit"]) {
+            const input = document.getElementById(id);
+            if (input) input.disabled = busy;
         }
     }
 
     async function showWhisperSelfTest() {
+        if (selfTestController) return;
         const detail = document.getElementById("settingsWhisperSelfTestDetail");
         if (!detail) return;
 
         detail.hidden = false;
         detail.innerHTML = `<p class="settings-note">Starting Whisper self-test…</p>`;
 
-        const runButton = storage.querySelector('[data-settings-action="run-whisper-self-test"]');
-        if (runButton) runButton.disabled = true;
+        selfTestController = new AbortController();
+        syncSelfTestControls();
 
         try {
             const modelSelect = storage.querySelector("#settingsWhisperSelfTestModel");
+            const seconds = id => {
+                const value = Number(document.getElementById(id)?.value);
+                if (!Number.isFinite(value) || value < 1 || value > 86400) throw new Error("Test limits must be between 1 and 86400 seconds.");
+                return value * 1000;
+            };
             await runWhisperSelfTest({
                 modelId: modelSelect?.value,
-                onEvent: event => renderSelfTestEvent(detail, event)
+                signal: selfTestController.signal,
+                limits: { load: seconds("settingsWhisperLoadLimit"), inference: seconds("settingsWhisperInferenceLimit") },
+                onEvent: event => renderSelfTestEvent(document.getElementById("settingsWhisperSelfTestDetail"), event)
             });
         } catch (error) {
             console.error("Whisper self-test error:", error);
@@ -358,7 +389,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 detail.innerHTML = `<div class="whisper-self-test-error">${escapeHtml(error?.message || String(error))}</div>`;
             }
         } finally {
-            if (runButton) runButton.disabled = false;
+            selfTestController = null;
+            syncSelfTestControls();
         }
     }
 
@@ -644,6 +676,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         if (!target) return;
         const action = target.dataset.settingsAction;
         try {
+            if (action === "cancel-whisper-self-test") { selfTestController?.abort(); return; }
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
@@ -789,6 +822,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
 
     async function refresh() {
         if (!status) return;
+        if (selfTestController) {
+            status.textContent = "A Whisper self-test is running. Finish or cancel it before refreshing storage information.";
+            return;
+        }
 
         renderRuntime();
         status.innerHTML = `<span class="transcription-spinner" aria-hidden="true"></span><span>Reading Memora storage information…</span>`;
@@ -796,6 +833,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         try {
             const manager = await getStorageManager();
             const report = await manager.getStorageReport();
+            if (selfTestController) return;
             render(report);
 
             modelAvailability = await checkAllModels();
