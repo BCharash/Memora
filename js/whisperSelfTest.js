@@ -11,7 +11,7 @@ import { DEFAULT_TEST_LIMITS } from "./whisperTestLifecycle.js";
 import { WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
 import { decodeAudio } from "./audioProcessor.js";
 import { getModelRegistryBaseline } from "./modelManager.js";
-import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
+import { getWhisperConfigurationDefinitions, listWhisperConfigurations } from "./whisperConfigurations.js";
 import { isIOS, runtimeIdentity, getRuntimeCapabilities } from "./runtime.js";
 import { clearWhisperResources } from "./whisper.js";
 import { acquireWhisperActivity } from "./whisperActivity.js";
@@ -51,12 +51,9 @@ function getEnvironment() {
 
 export function getWhisperSelfTestOptions() {
     const registry = getModelRegistryBaseline();
-    // Preserve the existing iOS/non-iOS split during this list-only migration.
-    // Resolver OS/capability checks belong to the later execution checkpoint.
-    const platform = isIOS ? "ios" : "desktop";
-    return getWhisperConfigurationDefinitions()
-        .filter(configuration => configuration.platform === platform && configuration.test.allowed)
-        .sort((a, b) => a.test.order - b.test.order)
+    return listWhisperConfigurations(runtimeIdentity, {
+        purpose: "self-test", legacyNonIOSChoices: true
+    })
         .map(configuration => registry.find(record => record.id === configuration.id))
         .filter(Boolean);
 }

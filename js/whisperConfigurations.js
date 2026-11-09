@@ -53,9 +53,14 @@ export function getWhisperConfigurationDefinitions() {
     return configurations;
 }
 
-function compatibility(configuration, environment, purpose, capabilities) {
+function compatibility(configuration, environment, purpose, capabilities, legacyNonIOSChoices = false) {
     if (purpose !== "production" && purpose !== "self-test") return { code: "invalid-purpose", reason: "Expected production or self-test purpose." };
-    if (!configuration.operatingSystems.includes(environment?.operatingSystem)) {
+    // The existing Settings menu shows desktop choices for every non-iOS
+    // identity. Preserve that list-only policy without enabling execution or
+    // weakening production/resolver compatibility on Android/unknown devices.
+    const legacyDesktopChoice = purpose === "self-test" && legacyNonIOSChoices
+        && environment?.operatingSystem !== "ios" && configuration.platform === "desktop";
+    if (!configuration.operatingSystems.includes(environment?.operatingSystem) && !legacyDesktopChoice) {
         return { code: "incompatible-environment", reason: `Configuration ${configuration.id} does not target ${environment?.operatingSystem || "unknown"}. Android/unknown execution is not enabled by this resolver.` };
     }
     if (purpose === "self-test" && !configuration.test.allowed) {
@@ -69,8 +74,8 @@ function compatibility(configuration, environment, purpose, capabilities) {
 }
 
 // UI lists are derived from each definition's policy/order, not another ID list.
-export function listWhisperConfigurations(environment, { purpose = "self-test", capabilities } = {}) {
-    return Object.freeze(configurations.filter(configuration => !compatibility(configuration, environment, purpose, capabilities))
+export function listWhisperConfigurations(environment, { purpose = "self-test", capabilities, legacyNonIOSChoices = false } = {}) {
+    return Object.freeze(configurations.filter(configuration => !compatibility(configuration, environment, purpose, capabilities, legacyNonIOSChoices))
         .sort((a, b) => purpose === "self-test" ? a.test.order - b.test.order : configurations.indexOf(a) - configurations.indexOf(b)));
 }
 

@@ -56,3 +56,7 @@ Production family/default selection and exact configuration loads now derive fro
 ### Shared canonical selection and availability projection — .21
 
 `selectWhisperConfigurationDefinition` is the synchronous exact-ID/family/default/platform-selection core. Both the async fingerprint resolver and production eligibility gate use it. Production UI listing uses the canonical list function and retains the family-default-only filter. modelManager now derives its availability family projection from canonical defaults, preserving its existing generic scalar/omitted-dtype ONNX-pair checks and cloned Large mixed-precision map. Unused preferredDtype metadata was removed; it was never a loader option. Execution definitions, worker revisions, fingerprint algorithm and stored evidence are unchanged. Legacy self-test iOS/non-iOS adapter and old registry evidence display remain separate follow-ups; .21 does not silently change those policies.
+
+### Shared self-test list — .22
+
+Self-test now calls listWhisperConfigurations with purpose self-test and explicit legacyNonIOSChoices:true to preserve its historical menu policy. Filtering and ordering live in the canonical module. The option affects only self-test listing, not production or exact-ID resolution; default compatibility remains strict. No worker/fingerprint/evidence changes.

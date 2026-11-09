@@ -108,6 +108,21 @@ try {
         assert(JSON.stringify(listWhisperConfigurations(ios).map(x => x.id)) === JSON.stringify(mobile), "iOS order");
         assert(JSON.stringify(listWhisperConfigurations(runtimeIdentity).map(x => x.id)) === JSON.stringify(getWhisperSelfTestOptions().map(x => x.id)), "real current environment parity");
     });
+    await test("Shared list preserves Settings choices across identities without enabling unsupported production", () => {
+        const desktop = ["tiny-webgpu-default", "base-webgpu-default", "small-webgpu-default", "medium-webgpu-fp16-q4", "medium-webgpu-q4f16", "medium-webgpu-q4", "large-webgpu-fp16-q4"];
+        const mobile = ["tiny-iphone-default", "base-iphone-default", "small-iphone-default", "medium-iphone-default"];
+        for (const operatingSystem of ["ios", "macos", "windows", "linux", "android", "unknown"]) {
+            for (const deviceType of ["phone", "tablet", "desktop"]) {
+                const environment = { operatingSystem, deviceType };
+                const choices = listWhisperConfigurations(environment, { purpose: "self-test", legacyNonIOSChoices: true });
+                assert(JSON.stringify(choices.map(x => x.id)) === JSON.stringify(operatingSystem === "ios" ? mobile : desktop), `${operatingSystem} ${deviceType}`);
+                if (["android", "unknown"].includes(operatingSystem)) {
+                    assert(listWhisperConfigurations(environment).length === 0, "strict list still strict");
+                    assert(listWhisperConfigurations(environment, { purpose: "production", legacyNonIOSChoices: true }).length === 0, "menu compatibility cannot enable production");
+                }
+            }
+        }
+    });
     await test("Every exact definition resolves and test exclusions remain explicit", async () => {
         for (const d of definitions) {
             const environment = d.platform === "ios" ? ios : mac;

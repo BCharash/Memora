@@ -10,6 +10,12 @@ Updated 9 November 2026. Read this first, inspect Git status/current source, the
 4. **Whisper configuration and testing: current priority.** 2A lifecycle safety and 2B WER ≤15% validation are implemented and accepted as recorded. 3A catalogue/resolver is implemented; 3B registry baseline and self-test option consumers now use catalogue definitions. Strict transcription eligibility and shared desktop production/self-test worker are implemented through build .16. Current priority is iPhone Settings/page stability and resource-lifecycle investigation. Automatic sequences are on hold.
 5. **Offline Tiny, sharing consolidation and iMuse integration: deferred.** Align their contracts with the above work before implementation.
 
+## Latest consolidation: shared self-test list — 2026-11-09.22
+
+Self-test choices now use listWhisperConfigurations instead of an independent platform filter/sort. Existing choices, order and legacy registry projection are preserved. The catalogue's explicit legacyNonIOSChoices list-only option retains the historical desktop menu for non-iOS identities, including unsupported ones; it cannot weaken production or exact resolver compatibility. This preserves behavior rather than silently expanding/restricting Android/unknown execution. Worker settings, fingerprints and eligibility evidence are unchanged.
+
+Sixteen catalogue/selection, six production eligibility and eight Settings groups passed (30 groups; no models). Simulated phone/tablet/desktop identities verify iOS routing depends on OS, list order/exclusions stay the same and the legacy menu option cannot enable unsupported production. User check: confirm .22 and inspect Settings choices; no inference/revalidation required. Next separate task: clarify the older registry display versus current eligibility authority. Automatic sequencing remains paused. No commit/publication by agent.
+
 ## Latest consolidation: canonical family metadata and production selection — 2026-11-09.21
 
 Removed hand-maintained family labels/repositories from modelManager MODEL_CATALOG: it is now an availability projection of canonical desktop defaults. Large's mixed-precision readiness map is cloned from the canonical definition; unused preferredDtype hints are gone. Existing availability behavior is preserved (generic matching ONNX pair for scalar/omitted dtype, exact map file check for Large); it remains separate from exact execution eligibility. No persisted record/schema migration.
