@@ -103,15 +103,23 @@ try {
         const history = document.createElement("div"), linked = document.createElement("div"); fixture.append(history, linked);
         await renderWhisperExecutionHistory(history, { journal }); renderWhisperExecutionReport(linked, result.executionId, { journal });
         assert(history.textContent.includes("tiny-fixture") && linked.textContent.includes(result.executionId), "both reference one record");
+        const reportButton = label => [...linked.querySelectorAll("button")].find(button => button.textContent === label);
+        const view = reportButton("View report"), technical = linked.querySelector("details");
+        assert(!technical.open && view.getAttribute("aria-expanded") === "false", "view starts collapsed");
+        view.click();
+        assert(technical.open && view.textContent === "Hide report" && JSON.parse(technical.querySelector("pre").textContent).id === result.executionId, "view expands same saved JSON");
+        view.click(); assert(!technical.open && view.textContent === "View report", "hide collapses report");
+        technical.open = true; await new Promise(resolve => setTimeout(resolve, 20));
+        assert(view.textContent === "Hide report" && view.getAttribute("aria-expanded") === "true", "native disclosure synchronizes view button");
         const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
         const originalClick = HTMLAnchorElement.prototype.click; let copied, filename;
         try {
             Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { copied = JSON.parse(text); } } });
-            linked.querySelector("button").click(); await new Promise(resolve => setTimeout(resolve, 0));
+            reportButton("Copy report").click(); await new Promise(resolve => setTimeout(resolve, 0));
             assert(copied.id === result.executionId && copied.origin === "production", "copy exact saved record");
             HTMLAnchorElement.prototype.click = function() { filename = this.download; };
-            linked.querySelectorAll("button")[1].click(); assert(filename.startsWith("whisper-execution-") && filename.endsWith(".json"), "download naming");
-            await journal.clearCompleted(); linked.querySelector("button").click(); await new Promise(resolve => setTimeout(resolve, 0));
+            reportButton("Download report").click(); assert(filename.startsWith("whisper-execution-") && filename.endsWith(".json"), "download naming");
+            await journal.clearCompleted(); reportButton("Copy report").click(); await new Promise(resolve => setTimeout(resolve, 0));
             assert(linked.textContent.includes("no longer available"), "cleared record not exported from stale view");
             await renderWhisperExecutionHistory(history, { journal }); assert(history.textContent.includes("No saved"), "empty state after clear");
         } finally {

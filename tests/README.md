@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through candidate application build **2026-11-10.3**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-10.4**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -62,3 +62,5 @@ Build 2026-11-10.1: eight Settings and seven isolated database-integration group
 Build 2026-11-10.2: four new failure-contract/workflow, six expanded loader-gate, six diagnostics, eight Settings, six production-eligibility and four selector groups passed (34 total). Actual production source is exercised with injected metadata/decode/model and worker reply/event/post faults, including simulated iOS/desktop. No real models or user evidence writes. No eligibility decision or page-loss recovery is added.
 
 Build 2026-11-10.3: 44 groups passed (seven execution journal/UI/navigation, four failure/workflow, six diagnostics, eight Settings, seven database-integration, six production-eligibility and six loader-gate). Execution tests use in-memory fixtures and a dedicated `memora-execution-navigation-test.*` localStorage wrapper for real iframe page replacement, cleaning it afterward. Diagnostics/failure workflow pages substitute `whisper-executions-fixture.js` so normal production history is not modified. No models or real user qualification changes. User check: one short transcription/save, linked Copy/Download, same execution ID in Settings and persistence after refresh on Mac/iPhone; no deliberate interruption needed.
+
+Build 2026-11-10.4: seven execution-history groups passed, adding View/Hide, native-disclosure synchronization and accessibility assertions to the existing shared report control coverage. No model run required.

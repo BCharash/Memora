@@ -15,7 +15,21 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
         body.textContent = JSON.stringify(record, null, 2);
         return record;
     }
-    technical.addEventListener("toggle", () => { if (technical.open) try { refresh(); } catch (error) { body.textContent = error.message; } });
+    technical.id = `whisper-execution-report-${crypto.randomUUID()}`;
+    const view = document.createElement("button"); view.type = "button";
+    view.setAttribute("aria-controls", technical.id);
+    const syncView = () => {
+        view.textContent = technical.open ? "Hide report" : "View report";
+        view.setAttribute("aria-expanded", String(technical.open));
+    };
+    const showReport = () => { try { refresh(); } catch (error) { body.textContent = error.message; } };
+    view.onclick = () => {
+        technical.open = !technical.open;
+        if (technical.open) showReport();
+        syncView();
+    };
+    technical.addEventListener("toggle", () => { if (technical.open) showReport(); syncView(); });
+    syncView(); actions.append(view);
     for (const label of ["Copy report", "Download report"]) {
         const button = document.createElement("button"); button.type = "button"; button.textContent = label;
         button.onclick = async () => {

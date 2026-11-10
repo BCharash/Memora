@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.3** adds durable production execution history below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.4** adds inline View/Hide report below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+
+## Latest presentation change — View/Hide execution report (2026-11-10.4)
+
+Completed-transcription diagnostics and Settings execution history now offer View report beside Copy/Download. It expands the existing saved JSON inline and becomes Hide report. The button follows native disclosure changes and reports aria-expanded/aria-controls. Seven execution-history groups passed, including View/Hide, copy/download and recovery. This is presentation-only: no new model test or qualification needed; inspect an existing execution report. The user supplied a correct .3 Mac Settings report matching the completed transcription's ID/timings; refresh persistence/iPhone acceptance was not explicitly confirmed in that exchange.
 
 ## Latest checkpoint — transcription execution history (2026-11-10.3)
 
