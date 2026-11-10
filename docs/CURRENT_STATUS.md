@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against candidate **2026-11-10.10**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+Reviewed 10 November 2026 against candidate **2026-11-10.11**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+
+## Latest grouping correction — refresh with storage, double line below (.11)
+
+Moved the storage explanation and its existing refresh button together below Whisper Models and above Whisper Self-Test. No divider separates the pair from the storage/model categories; a double line below the button marks the start of Self-Test. The same button DOM node is moved into a rendered slot, preserving its listener and busy-state handling across rerenders. Refresh behavior is unchanged. Existing Settings regression suite passed; inspect grouping only, no model test needed.
 
 ## Latest presentation follow-up — storage refresh separator (.9)
 

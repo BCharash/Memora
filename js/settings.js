@@ -165,7 +165,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
 
-            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div id="settingsStorageRefreshGroup">
+                <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
+                <div id="settingsStorageRefreshSlot" class="action-row"></div>
+            </div>
+            <div class="settings-section-divider" style="border-top:3px double currentColor; opacity:.3; margin:16px 0;" aria-hidden="true"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Whisper Self-Test</span>
             </div>
@@ -209,10 +213,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
             </details>
 
-            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
-            <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
 
+        // Move the existing button so its original listener and busy state survive rerenders.
+        if (refreshButton) document.getElementById("settingsStorageRefreshSlot").append(refreshButton);
         renderRuntime();
         syncSelfTestControls();
         void renderWhisperAttempts();
