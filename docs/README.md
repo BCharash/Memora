@@ -5,9 +5,10 @@ Reviewed 9 November 2026 through **build 2026-11-09.23**, whose registry present
 | Document | Role |
 |---|---|
 | [Current status and resume instructions](CURRENT_STATUS.md) | Completed work, stable stopping point, unresolved iPhone issue and deferred next audit. |
-| [Plain-language file map](../filemap.md) | All 40 application JavaScript files, including 15 Whisper files, plus flows, storage and focused tests. |
+| [Plain-language file map](../filemap.md) | All 41 application JavaScript files, including 16 Whisper files, plus flows, storage and focused tests. |
 | [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |
 | [Whisper catalogue and selection contract](Whisper_Catalogue_Resolver_Contract.md) | Current canonical definitions, shared selection, projections, identity and limits. |
+| [Execution-failure contract](Whisper_Execution_Failure_Contract.md) | Shared production classification, unknown-cause limits and separately planned eligibility/recovery. |
 | [Whisper testing and eligibility](Whisper_Configuration_and_Test_Design.md) | Current PASS/recovery/eligibility rules and deferred sequence/retry design. |
 | [Broader registry/self-test architecture](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Long-term requirements; implementation-status map at the top distinguishes completed and future work. |
 | [File workflows](File_Workflow_Inventory.md) | Overview for future full dependency audits; sharing consolidation remains deferred. |

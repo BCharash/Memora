@@ -1,3 +1,4 @@
+import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
 import { displayBuildInfo } from "./build-info.js";
@@ -865,10 +866,10 @@ transcribeButton.addEventListener(
 
                     const paragraphStarted = performance.now();
                     processedTranscript =
-                        await paragraphing.paragraphize(
+                        await atWhisperFailureBoundary({ stage: "paragraphing" }, () => paragraphing.paragraphize(
                             record.transcript,
                             setTranscriptionBusy
-                        );
+                        ));
                     if (record.timings) record.timings.paragraphMs = performance.now() - paragraphStarted;
                 }
 
@@ -884,14 +885,14 @@ transcribeButton.addEventListener(
                     );
 
                 const savedFilename =
-                    await saveTranscript(
+                    await atWhisperFailureBoundary({ stage: "save" }, () => saveTranscript(
                         transcriptionFolder,
                         record.file,
                         record.metadata,
                         transcript,
                         record.model,
                         operation
-                    );
+                    ));
 
                 if (isIPhoneSource) {
                     pendingIPhoneExports.push(

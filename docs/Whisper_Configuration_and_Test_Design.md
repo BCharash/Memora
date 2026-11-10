@@ -59,8 +59,8 @@ Do not automate or stress this pattern now. The proposed isolated reuse lab was 
 
 Before implementation: settle production-failure classification and automatic-retry qualification, then establish a justified stability/cleanup policy. Verify sequence recovery using synthetic errors, duplicate/late messages, timeouts, cancellation, storage failure and reload around retry reservation. Limited device acceptance must be separately agreed; do not use repeated Medium/Large crashes as infrastructure tests.
 
-## Next proposed checkpoint and evidence
+## Current production-failure checkpoint
 
-The user deferred the proposed 15–25 minute read-only audit of normal transcription error paths. When resumed, distinguish model faults from bad input/decode, cancellation, export/storage and page loss before proposing eligibility updates. No code change is authorized by this document alone.
+The error-path audit and classification-only implementation are complete in candidate 2026-11-10.2. See [execution-failure contract](Whisper_Execution_Failure_Contract.md). No production errors update eligibility yet. Worker-reported cause remains unknown where only text is available; normal transcription success cannot replace a reference fixture pass. Review acceptance before connecting decisions or adding durable production interruption recovery.
 
-Recorded results and test pages are in [test instructions](../tests/README.md); detailed run observations remain in [checkpoint history](archive/Development_Checkpoints_2026-11-09.md) and [design history](archive/Whisper_Configuration_and_Test_Design_History.md). Current .23 presentation is user-accepted. No application tests or publication are required for documentation-only edits.
+Recorded results and test pages are in [test instructions](../tests/README.md); detailed earlier observations remain in [checkpoint history](archive/Development_Checkpoints_2026-11-09.md). Cooldown and automatic sequences remain separate, deferred work.

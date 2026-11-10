@@ -1,3 +1,4 @@
+import { annotateWhisperFailure, atWhisperFailureBoundary } from "./whisperFailures.js";
 import { recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { requireWhisperProductionEligibility } from "./whisperProductionEligibility.js";
 import { isIOS } from "./runtime.js";
@@ -17,6 +18,8 @@ function terminateWhisperWorker(worker, role) {
 let whisperWorker = null;
 let workerLoadPromise = null;
 let workerTranscriptionPromise = null;
+
+let pendingConfigurationId = null;
 
 let desktopWhisperWorker = null;
 let desktopWorkerLoadPromise = null;
@@ -64,9 +67,9 @@ function createDesktopWhisperWorker() {
         }
 
         if (message.type === "error") {
-            const error = new Error(
-                message.message || "Desktop Whisper worker error."
-            );
+            const error = annotateWhisperFailure(new Error(message.message || "Desktop Whisper worker error."), {
+                stage: desktopWorkerLoadPromise ? "load" : "inference", source: "worker-reply", configurationId: pendingConfigurationId || loadedModel
+            });
 
             if (desktopWorkerLoadPromise) {
                 const reject = desktopWorkerLoadPromise.reject;
@@ -84,9 +87,9 @@ function createDesktopWhisperWorker() {
     };
 
     desktopWhisperWorker.onerror = error => {
-        const workerError = new Error(
-            error?.message || "Desktop Whisper worker error."
-        );
+        const workerError = annotateWhisperFailure(new Error(error?.message || "Desktop Whisper worker error."), {
+            stage: desktopWorkerLoadPromise ? "load" : "inference", source: "worker-event", configurationId: pendingConfigurationId || loadedModel
+        });
 
         if (desktopWorkerLoadPromise) {
             const reject = desktopWorkerLoadPromise.reject;
@@ -179,11 +182,9 @@ function createWhisperWorker() {
 
             if (message.type === "error") {
 
-                const error =
-                    new Error(
-                        message.message ||
-                        "Whisper worker error."
-                    );
+                const error = annotateWhisperFailure(new Error(message.message || "Whisper worker error."), {
+                    stage: workerLoadPromise ? "load" : "inference", source: "worker-reply", configurationId: pendingConfigurationId || loadedModel
+                });
 
                 if (workerLoadPromise) {
 
@@ -214,11 +215,9 @@ function createWhisperWorker() {
     whisperWorker.onerror =
         error => {
 
-            const workerError =
-                new Error(
-                    error?.message ||
-                    "Whisper worker error."
-                );
+            const workerError = annotateWhisperFailure(new Error(error?.message || "Whisper worker error."), {
+                stage: workerLoadPromise ? "load" : "inference", source: "worker-event", configurationId: pendingConfigurationId || loadedModel
+            });
 
             if (workerLoadPromise) {
 
@@ -301,6 +300,7 @@ async function loadTranscriberDefinition(
         );
     }
 
+    pendingConfigurationId = identity;
     try {
 
         if (isIOS) {
@@ -403,7 +403,9 @@ async function loadTranscriberDefinition(
             );
         }
 
-        throw new Error(details);
+        throw annotateWhisperFailure(error, { stage: "load", source: "loader", configurationId: identity });
+    } finally {
+        pendingConfigurationId = null;
     }
 
     loadedModel = identity;
@@ -425,7 +427,7 @@ export async function loadTranscriber(
     statusCallback
 ) {
 
-    const definition = await requireWhisperProductionEligibility(model);
+    const definition = await atWhisperFailureBoundary({ stage: "eligibility", source: "eligibility" }, () => requireWhisperProductionEligibility(model));
     return loadTranscriberDefinition(
         { label: definition.label, repository: definition.repository, dtype: definition.loader.dtype },
         definition.id,
@@ -492,7 +494,7 @@ export async function clearWhisperResources() {
     await releaseTranscriber();
 }
 
-export async function transcribeAudio(
+async function transcribeAudioInternal(
     audio,
     options = {}
 ) {
@@ -570,3 +572,8 @@ export async function transcribeAudio(
 }
 
 
+// Preserve local posting/state failures as well as asynchronous worker replies.
+export async function transcribeAudio(audio, options = {}) {
+    return atWhisperFailureBoundary({ stage: "inference", source: "loader", configurationId: loadedModel },
+        () => transcribeAudioInternal(audio, options));
+}

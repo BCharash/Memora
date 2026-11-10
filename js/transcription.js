@@ -1,3 +1,4 @@
+import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { acquireWhisperActivity } from "./whisperActivity.js";
 
 // --------------------------------------------------
@@ -28,20 +29,17 @@ async function transcribeRecordingInternal(
 
     let started = performance.now();
     const metadata =
-        await readAudioMetadata(file);
+        await atWhisperFailureBoundary({ stage: "metadata" }, () => readAudioMetadata(file));
     timings.metadataMs = performance.now() - started;
 
     started = performance.now();
     const audio =
-        await decodeAudio(file);
+        await atWhisperFailureBoundary({ stage: "decode" }, () => decodeAudio(file));
     timings.decodeMs = performance.now() - started;
     timings.audioDurationMs = audio.length / 16000 * 1000;
 
     started = performance.now();
-    await loadTranscriber(
-        model,
-        statusCallback
-    );
+    await atWhisperFailureBoundary({ stage: "load" }, () => loadTranscriber(model, statusCallback));
     timings.loadMs = performance.now() - started;
     // An older cached loader can still transcribe; diagnostic additions should
     // degrade to unavailable evidence rather than break module startup.
@@ -71,10 +69,7 @@ async function transcribeRecordingInternal(
 
     started = performance.now();
     const result =
-        await transcribeAudio(
-            audio,
-            whisperOptions
-        );
+        await atWhisperFailureBoundary({ stage: "inference" }, () => transcribeAudio(audio, whisperOptions));
     timings.inferenceMs = performance.now() - started;
     timings.workerInferenceMs = result.workerInferenceMs;
     const diagnostics = result.diagnostics || loaded.diagnostics;

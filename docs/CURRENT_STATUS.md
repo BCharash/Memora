@@ -1,6 +1,12 @@
 # Memora — current status and resume instructions
 
-Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.1** moves/clarifies the unload control below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.2** adds production failure classification below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+
+## Latest checkpoint — production failure classification (2026-11-10.2)
+
+Implemented the first [execution-failure contract](Whisper_Execution_Failure_Contract.md) checkpoint. A pure shared classifier annotates normal transcription errors with stage/source/category, original details and canonical configuration ID where known. Metadata/decode, eligibility checks and paragraphing/save boundaries remain distinct from worker failures; generic worker/runtime text stays cause unknown. Original messages, model reuse and actual worker inputs are preserved. No production eligibility changes, durable production records, recovery, cooldown or retries are introduced. Existing self-test policy is unchanged.
+
+Thirty-four focused browser groups passed with synthetic fixtures. User acceptance pending: one normal short transcription using an already-qualified model on Mac/iPhone and its usual save path. No model revalidation or intentional crash is needed. Stop here for review before connecting production failures to eligibility or adding interruption recovery. Worker scripts, catalogue definitions, fingerprints and database schema are unchanged; no agent commit/publication.
 
 ## Latest presentation change — unload control (2026-11-10.1)
 
@@ -30,7 +36,7 @@ User check: start one needed retest and confirm the active wording; after finish
 | Self-test | One selected configuration per run; stage deadlines/cancellation, WER ≤15%, timing/session diagnostics, durable attempt recovery and separate cleanup observations. |
 | Eligibility | Browser-local exact-context qualification feeds the transcription selector and loader. Unverified/stale/suspended/failed configurations are withheld. A successful manual test restores eligibility; manual attempts are unlimited. |
 | Settings presentation | Current eligibility is authoritative; historical registry validation is collapsed and explicitly separate. Saved reports are at the bottom, with Copy/Download and clearable history. |
-| File map | [filemap.md](../filemap.md) explains all 40 application JavaScript files, including the 15 Whisper files, dependencies and cleanup findings. |
+| File map | [filemap.md](../filemap.md) explains all 41 application JavaScript files, including the 16 Whisper files, dependencies and cleanup findings. |
 
 “Single source of truth” does not mean combining definitions, downloaded files, test reports and eligibility into one database record. They answer different questions. Definition/selection duplication addressed in builds .20–.23 is complete for that cleanup scope. Exact availability/offline guarantees and production-failure feedback remain separate work.
 
@@ -52,13 +58,13 @@ The user rebooted and reported at least nine normal Small transcriptions without
 
 The proposed resource lab was discarded at the user's request and is absent. Do not recreate it automatically, ask for repeated Small/Medium crash trials, or activate automatic sequences. Avoid editing watched files during user inference; use a server without automatic reload for future controlled diagnosis. File reads alone are not evidence that Live Server caused a reload.
 
-## Next optional checkpoint — not started
+## Next checkpoint — after classification acceptance
 
-The last proposal was a **read-only audit of normal transcription error paths**, estimated **15–25 minutes**, to decide which failures should affect eligibility. The user deferred this work. Resume only when requested.
+The read-only error-path audit and first classification implementation are complete. Review [the failure contract](Whisper_Execution_Failure_Contract.md) and confirm normal transcription still works before adding new eligibility decisions. Current workers report mostly textual errors; preserve unknown cause rather than equating every loading/inference error with model incompatibility.
 
-The audit should distinguish model execution failure, invalid audio/decode/input faults, cancellation, storage/export errors and page interruption. Then propose exact persistence/recovery rules and tests before a separate implementation checkpoint. Do not apply one blanket failure rule or assume a production journal already exists.
+Next separately review trustworthy failure provenance and connect production evidence to the shared eligibility policy. Successful ordinary transcription must not become a reference-test pass. Then add durable production interruption recovery, finishing the model-work checkpoint before paragraphing/saving. Use injected faults; do not wait for real crashes. Existing self-test record/reducer assumptions must not silently ingest production success as manual validation.
 
-Afterward, revisit the iPhone stability investigation only with a bounded, agreed diagnostic plan. Durable automatic sequences remain future scope: one configuration at a time, an initial attempt plus at most one automatic retry, saved retry budget, explicit resume after page loss, and separate retry qualification policy. See [testing design](Whisper_Configuration_and_Test_Design.md#future-sequences-and-retries).
+The iPhone cooldown study and resource investigation remain separate. Automatic sequences/retries stay deferred. No automatic page-loss retry, production deadline policy or new cancellation UI is introduced by classification.
 
 ## Verification recorded so far
 
@@ -75,4 +81,4 @@ Proceed in small, independently testable steps and stop at natural breakpoints. 
 
 Start with [documentation index](README.md), [file map](../filemap.md), [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) and [test guide](../tests/README.md). Detailed chronological handoffs are in the [archive](archive/README.md); the [design journal, section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923) records the decisions.
 
-Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Build .23 was accepted; runtime, database and the agreed catalogue/display cleanup are complete. Normal-transcription failure feedback is proposed but deferred. Review its error paths without changing code first. Keep automatic sequences and resource experiments paused.”
+Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Candidate 2026-11-10.2 implements production failure classification only. Review its acceptance and execution-failure contract before connecting eligibility decisions. Runtime/database/catalogue cleanup is complete. Keep interruption recovery, cooldown and automatic sequences separate.”
