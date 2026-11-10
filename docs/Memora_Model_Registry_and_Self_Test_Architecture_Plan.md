@@ -7,7 +7,7 @@
 
 ## Handoff summary — read this first when resuming
 
-**Implementation status — 10 November 2026, source build 2026-11-10.6:** Runtime identity/database ownership, canonical definitions/selection, worker parity, WER validation, durable self-test evidence/eligibility, production classification and separate execution history/recovery/reporting are implemented. The user confirmed iOS execution-report sharing and accepted pending transcript-save emphasis. Production records do not yet change eligibility. Next is trustworthy worker error provenance without changing decisions, followed by eligibility integration after acceptance. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the precise resume boundary.
+**Implementation status — 10 November 2026, candidate 2026-11-10.8:** Runtime/database/catalogue, worker parity/provenance and durable execution history are implemented. The user accepted .7 on both devices. Checkpoint 2 now evaluates new production evidence through the existing bridge: mandatory reference retest for clear runtime failure, persistent user reviews for uncertain active-model incidents, and separate nonblocking stability observations after completion. Definitions/model inputs are unchanged; .8 normal-use acceptance is pending. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the resume boundary.
 
 **Project goal:** Keep model definitions, runtime identity, test evidence, eligibility and production loading consistent across platforms. The current [catalogue contract](Whisper_Catalogue_Resolver_Contract.md), [testing design](Whisper_Configuration_and_Test_Design.md) and [handoff](CURRENT_STATUS.md) supersede old “not implemented” or “first action” statements below.
 
@@ -16,11 +16,11 @@
 | Shared runtime and canonical database owner | Complete for agreed scope; do not repeat migration or reset storage. |
 | Canonical definitions and selection | Implemented; legacy registry/availability shapes are projections, not separate loader authorities. |
 | Trustworthy single-model tests and recovery | Implemented, including WER gate, stage limits, reports, diagnostics and manual recovery. |
-| Exact-context transcription eligibility | Implemented for self-test evidence and loader/selector checks. Normal-transcription failures do not yet write new decisions. |
+| Exact-context transcription eligibility | Implemented for self-test evidence and loader/selector checks. New context-complete production evidence now contributes through the bridge; legacy records without exact context do not acquire invented identity. |
 | Resource safety and automatic sequences | Repeated disposable iPhone-test instability unresolved. Disposal acknowledgement is not memory-reclamation proof. Sequences/automatic retry remain deferred. |
 | Offline readiness, immutable upstream assets and broader device support | Not established by the fixture or cache checks; require separate scope/evidence. |
 
-**Next agreed sequence:** (1) enrich reliable worker failure provenance through the shared contract with eligibility unchanged, using injected tests; (2) after acceptance, connect production failure/startup recovery to the existing eligibility mechanism. The error-path audit and parent classification/history work are already complete. Preserve unknown cause, exact configuration identity and post-inference completion. No deliberate crashes, database reset, automatic retries or Vite conversion are prerequisites. Future candidate discovery/variant selection is in Appendix C and is not the next implementation.
+**Current boundary:** Confirm .8 normal transcription/save/report and new Settings review-area behavior on Mac/iPhone; do not induce failures. Future candidate discovery/preferred variants, automatic sequences/retries, cooldown and source-folder loading diagnosis remain separate. Review records/notes must preserve uncertainty and must never qualify an unverified model or override newer mandatory failures. No new work is authorized by this historical plan alone.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.

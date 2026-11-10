@@ -1,3 +1,4 @@
+import { createWhisperProductionEvidence } from "./whisperProductionEvidence.js";
 import { fingerprintWhisperConfiguration } from "./whisperConfigurations.js";
 import { WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
 import { createWhisperEligibilityStore, eligibilityKey } from "./whisperEligibility.js";
@@ -33,6 +34,7 @@ export function isManualWhisperAttempt(attempt) {
 
 const REVIEW_PREFIX = "memora.whisper-eligibility-review.v1.";
 export function createWhisperEvidenceBridge({ storage = globalThis.localStorage, journal = createWhisperAttemptJournal({ storage }), store = createWhisperEligibilityStore({ storage }), locks = globalThis.navigator?.locks } = {}) {
+    const production = createWhisperProductionEvidence({ storage, locks });
     const reviewKey = (id, environment) => REVIEW_PREFIX + encodeURIComponent(JSON.stringify([id, environment?.operatingSystem, environment?.deviceType]));
     function saveReview(key, review) {
         const value = JSON.stringify(review);
@@ -47,6 +49,7 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
                 const context = attempt.eligibilityContext;
                 const manual = isManualWhisperAttempt(attempt);
                 const decision = await store.record(context, attempt, { deliberateRetest: manual });
+                if (manual && decision.status === "eligible" && decision.lastDecision?.id === attempt.id) await production.recordReference(context, attempt);
                 const key = reviewKey(context.configurationId, context.environment);
                 const rawReview = storage.getItem(key);
                 if (rawReview && manual && decision.status === "eligible" && decision.lastDecision?.id === attempt.id) {
@@ -69,13 +72,14 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
                     reason: confirmedFailure ? "Earlier test failed without exact historical identity. A successful manual test can restore eligibility." : "Earlier model work was interrupted; cause unknown. A successful manual test can restore eligibility; exact historical identity is unavailable." });
             }
         }
+        await production.sync();
         return attempts;
     }
     async function sync() {
         if (!locks?.request) throw new Error("Safe evidence ingestion requires Web Locks.");
         return locks.request(REVIEW_PREFIX + "writer", ingest);
     }
-    function get(context) {
+    function baseGet(context) {
         const exact = store.get(context);
         const review = storage.getItem(reviewKey(context.configurationId, context.environment));
         if (!review) return exact;
@@ -87,5 +91,10 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
         if (exact.status === "blocked") return { ...exact, legacyReview: legacy };
         return { ...exact, status: legacyStatus, reason: legacyStatus === "suspended" ? "Earlier model work was interrupted; cause unknown. A successful manual test can restore eligibility." : legacy.reason, legacyReview: legacy };
     }
-    return { sync, get };
+    function get(context) { return production.apply(context, baseGet(context)); }
+    async function decide(id, action, explanation) {
+        await sync();
+        return locks.request(REVIEW_PREFIX + "writer", () => production.decide(id, action, explanation, baseGet));
+    }
+    return { productionEvidenceRevision: 1, sync, get, listProductionReviews: production.list, decideProductionReview: decide, addStabilityNote: production.addStabilityNote };
 }

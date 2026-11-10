@@ -1,9 +1,12 @@
-import { isIOS } from "./runtime.js";
+import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
+import { eligibilityKey } from "./whisperEligibility.js";
+import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
+import { isIOS, runtimeIdentity } from "./runtime.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 
 // Shared view for Settings and completed-transcription diagnostics. Both fetch
 // the same saved record; no parallel copy of execution evidence is maintained.
-export function renderWhisperExecutionReport(container, id, { journal = createWhisperExecutionJournal() } = {}) {
+export function renderWhisperExecutionReport(container, id, { journal = createWhisperExecutionJournal(), bridge = createWhisperEvidenceBridge(), includeStability = true } = {}) {
     const technical = document.createElement("details");
     const title = document.createElement("summary"); title.textContent = "Technical execution report";
     const body = document.createElement("pre"); body.style.whiteSpace = "pre-wrap"; body.style.overflowWrap = "anywhere";
@@ -13,7 +16,9 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
     function refresh() {
         const record = journal.list().find(item => item.id === id);
         if (!record) throw new Error("Execution record is no longer available; it may have been cleared or aged out of history.");
-        body.textContent = JSON.stringify(record, null, 2);
+        const reviews = bridge.listProductionReviews().filter(row => row.id === record.eligibilityEvaluation?.incidentId || row.execution?.id === id)
+            .map(({ execution, ...review }) => review);
+        body.textContent = JSON.stringify(reviews.length ? { ...record, productionReviews: reviews } : record, null, 2);
         return record;
     }
     technical.id = `whisper-execution-report-${crypto.randomUUID()}`;
@@ -75,10 +80,24 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
         actions.append(button);
     }
     const reference = document.createElement("p"); reference.className = "settings-note"; reference.textContent = `Execution ID: ${id}`;
+    const stability = document.createElement("details"), stabilityTitle = document.createElement("summary");
+    stabilityTitle.textContent = "Report session instability after completion";
+    const stabilityNote = document.createElement("p"); stabilityNote.textContent = "Optional observation only; does not change model eligibility. Cause remains unknown.";
+    const stabilityInput = document.createElement("textarea"); stabilityInput.rows = 2; stabilityInput.maxLength = 2000; stabilityInput.setAttribute("aria-label", "Post-completion stability observation");
+    stabilityInput.style.width = "100%"; stabilityInput.style.boxSizing = "border-box";
+    const saveNote = document.createElement("button"); saveNote.type = "button"; saveNote.textContent = "Save stability observation";
+    saveNote.onclick = async () => {
+        saveNote.disabled = true;
+        try { await bridge.addStabilityNote(id, stabilityInput.value); stabilityNote.textContent = "Observation saved in Settings reviews. Model eligibility is unchanged."; }
+        catch (error) { stabilityNote.textContent = error.message; }
+        finally { saveNote.disabled = false; }
+    };
+    stability.append(stabilityTitle, stabilityNote, stabilityInput, saveNote);
     container.append(reference, actions, feedback, technical);
+    if (includeStability) container.append(stability);
 }
 
-export async function renderWhisperExecutionHistory(container, { journal = createWhisperExecutionJournal() } = {}) {
+export async function renderWhisperExecutionHistory(container, { journal = createWhisperExecutionJournal(), beforeClear = async () => createWhisperEvidenceBridge().sync() } = {}) {
     container.replaceChildren();
     try {
         const records = await journal.recover();
@@ -90,7 +109,7 @@ export async function renderWhisperExecutionHistory(container, { journal = creat
         const clear = document.createElement("button"); clear.type = "button"; clear.textContent = "Clear transcription execution history";
         clear.onclick = async () => {
             clear.disabled = true;
-            try { await journal.clearCompleted(); await renderWhisperExecutionHistory(container, { journal }); }
+            try { await beforeClear(); await journal.clearCompleted(); await renderWhisperExecutionHistory(container, { journal, beforeClear }); }
             catch (error) { note.textContent = `Could not clear history: ${error.message}`; clear.disabled = false; }
         };
         container.append(clear);
@@ -104,4 +123,98 @@ export async function renderWhisperExecutionHistory(container, { journal = creat
             detail.append(summary, description); renderWhisperExecutionReport(detail, record.id, { journal }); container.append(detail);
         }
     } catch (error) { container.textContent = `Transcription execution history unavailable: ${error.message}`; }
+}
+
+async function currentReviewContexts(rows) {
+    const ids = new Set(rows.map(row => row.configurationId));
+    const definitions = getWhisperConfigurationDefinitions().filter(definition => ids.has(definition.id) && definition.operatingSystems.includes(runtimeIdentity.operatingSystem));
+    return new Set(await Promise.all(definitions.map(async definition => eligibilityKey(await getWhisperEligibilityContext(definition)))));
+}
+const noticeVersions = new WeakMap();
+const reviewVersions = new WeakMap();
+
+// Reviews are independent of clearable execution history; deferred choices and
+// user explanations stay available after reload or history clearing.
+export async function renderWhisperEligibilityReviews(container, { bridge = createWhisperEvidenceBridge() } = {}) {
+    const version = Symbol(); reviewVersions.set(container, version);
+    const drafts = new Map([...container.querySelectorAll("[data-production-review-id]")].map(item => [item.dataset.productionReviewId, { value: item.querySelector("textarea")?.value || "", open: item.open }]));
+    container.replaceChildren();
+    try {
+        await bridge.sync();
+        if (!container.isConnected || reviewVersions.get(container) !== version) return;
+        const rows = bridge.listProductionReviews();
+        const currentContexts = await currentReviewContexts(rows);
+        if (!container.isConnected || reviewVersions.get(container) !== version) return;
+        const note = document.createElement("p");
+        note.textContent = "Unclear model-work incidents stay on hold until reviewed or retested. Confirmed runtime failures require a reference retest. Saved contexts are independent; older-context reviews do not qualify a changed configuration.";
+        container.append(note);
+        if (!rows.length) { const empty = document.createElement("p"); empty.textContent = "No production eligibility reviews or stability observations."; container.append(empty); }
+        for (const kind of ["incident", "stability"]) {
+            const group = document.createElement("details"), title = document.createElement("summary");
+            const items = rows.filter(row => row.kind === kind);
+            title.textContent = `${kind === "incident" ? "Model eligibility reviews" : "Session stability observations (no eligibility effect)"} · ${items.length}`;
+            group.open = kind === "incident" && items.some(row => ["pending", "deferred", "retest-required"].includes(row.state));
+            group.append(title); container.append(group);
+            for (const row of items) {
+                const item = document.createElement("details"), label = document.createElement("summary");
+                item.dataset.productionReviewId = row.id; item.open = drafts.get(row.id)?.open || false;
+                const isCurrent = row.kind !== "incident" || currentContexts.has(row.contextKey);
+                const stateLabel = !isCurrent ? "Historical context—current choices unaffected" : { pending: "Awaiting review", deferred: "Decide later—hold remains", "retest-required": "Retest required", kept: "Previous eligibility preserved for this incident", "reference-passed": "Resolved by reference test", observation: "Observation only" }[row.state] || row.state;
+                label.textContent = `${row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
+                const explanation = document.createElement("p"); explanation.textContent = `Original event: ${row.reason} Last saved stage: ${row.execution?.phase || "unknown"}. Model completion: ${row.execution?.modelOutcome || "unknown"}.`;
+                const input = document.createElement("textarea"); input.maxLength = 2000; input.rows = 2; input.setAttribute("aria-label", "Your explanation or observation");
+                input.value = drafts.get(row.id)?.value || "";
+                input.placeholder = kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Your explanation (required to keep previous eligibility).";
+                input.style.width = "100%"; input.style.boxSizing = "border-box";
+                const feedback = document.createElement("p"); feedback.setAttribute("role", "status");
+                const actions = document.createElement("div"); actions.className = "whisper-report-actions";
+                const unresolved = isCurrent && ["pending", "deferred", "retest-required"].includes(row.state);
+                const choices = row.kind === "incident" && unresolved && row.effect !== "blocked" && row.state !== "retest-required"
+                    ? [["Require a retest", "retest"], ["Keep previous eligibility", "keep"], ["Decide later", "defer"], ["Save observation", "note"]]
+                    : [["Save observation", "note"]];
+                for (const [text, action] of choices) {
+                    const button = document.createElement("button"); button.type = "button"; button.textContent = text;
+                    button.disabled = action === "keep" && (row.previousQualification?.status !== "eligible" || !row.previousQualification?.lastSuccess);
+                    button.onclick = async () => {
+                        button.disabled = true;
+                        try {
+                            await bridge.decideProductionReview(row.id, action, input.value);
+                            window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
+                            await renderWhisperEligibilityReviews(container, { bridge });
+                        } catch (error) { feedback.textContent = error.message; button.disabled = false; }
+                    };
+                    actions.append(button);
+                }
+                if (row.kind === "incident" && unresolved) {
+                    const test = document.createElement("button"); test.type = "button"; test.textContent = "Find reference test";
+                    test.onclick = () => window.dispatchEvent(new CustomEvent("memora-whisper-review-retest", { detail: { configurationId: row.configurationId } }));
+                    actions.append(test);
+                }
+                const history = document.createElement("ul");
+                for (const event of row.events) { const entry = document.createElement("li"); entry.textContent = `${new Date(event.at).toLocaleString()} · ${event.actor} · ${event.action}${event.explanation ? ": " + event.explanation : ""}`; history.append(entry); }
+                item.append(label, explanation, input, actions, feedback, history);
+                const provenance = document.createElement("p"); provenance.textContent = "Report uses the preserved incident snapshot plus current decision history; it remains available after execution history is cleared.";
+                item.append(provenance);
+                renderWhisperExecutionReport(item, row.execution.id, { journal: { list: () => [row.execution] }, bridge, includeStability: false });
+                group.append(item);
+            }
+        }
+    } catch (error) { if (reviewVersions.get(container) === version) container.textContent = `Eligibility review data unavailable: ${error.message}`; }
+}
+
+export async function renderWhisperReviewNotice(container, { bridge = createWhisperEvidenceBridge() } = {}) {
+    const version = Symbol(); noticeVersions.set(container, version);
+    container.replaceChildren();
+    try {
+        const rows = bridge.listProductionReviews();
+        const currentContexts = await currentReviewContexts(rows);
+        if (noticeVersions.get(container) !== version || !container.isConnected) return;
+        const pending = rows.filter(row => row.kind === "incident" && currentContexts.has(row.contextKey) && ["pending", "deferred", "retest-required"].includes(row.state));
+        container.hidden = !pending.length;
+        if (!pending.length) return;
+        const text = document.createElement("span"); text.textContent = `${pending.length} saved model incident${pending.length === 1 ? " needs" : "s need"} review or a reference retest. `;
+        const button = document.createElement("button"); button.type = "button"; button.textContent = "Review in Settings";
+        button.onclick = () => window.dispatchEvent(new Event("memora-whisper-review-requested"));
+        container.append(text, button);
+    } catch (error) { if (noticeVersions.get(container) === version) { container.hidden = false; container.textContent = `Eligibility reviews unavailable: ${error.message}`; } }
 }

@@ -1,14 +1,14 @@
 # Memora documentation
 
-Reviewed 10 November 2026 through candidate source build **2026-11-10.7**. The user confirmed the iOS execution-report sharing fix and accepted pending transcript-save emphasis. Worker error provenance is implemented with eligibility unchanged; next is its Mac/iPhone acceptance before eligibility integration. Candidate discovery/variant ranking remain future design. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and recorded test evidence take precedence over historical implementation claims.
+Reviewed 10 November 2026 through candidate source build **2026-11-10.8**. The user confirmed the iOS execution-report sharing fix and accepted pending transcript-save emphasis. Worker provenance (.7) passed both devices. Production eligibility/reviews and nonblocking session-stability observations are implemented in .8, awaiting normal-use acceptance. Candidate discovery/variant ranking remain future design. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and recorded test evidence take precedence over historical implementation claims.
 
 | Document | Role |
 |---|---|
 | [Current status and resume instructions](CURRENT_STATUS.md) | Accepted work, remaining folder-loading uncertainty and the next two worker/eligibility checkpoints. |
-| [Plain-language file map](../filemap.md) | All 43 application JavaScript files, including 18 Whisper files, plus flows, storage and focused tests. |
+| [Plain-language file map](../filemap.md) | All 44 application JavaScript files, including 19 Whisper files, plus flows, storage and focused tests. |
 | [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |
 | [Whisper catalogue and selection contract](Whisper_Catalogue_Resolver_Contract.md) | Current canonical definitions/selection plus future candidate discovery and device-specific variant roadmap. |
-| [Execution-failure contract](Whisper_Execution_Failure_Contract.md) | Shared classification and saved production history/recovery, with eligibility feedback still separate. |
+| [Execution-failure contract](Whisper_Execution_Failure_Contract.md) | Shared classification, saved execution history, production decisions, human reviews and separate session-stability observations. |
 | [Whisper testing and eligibility](Whisper_Configuration_and_Test_Design.md) | Current PASS/recovery/eligibility rules and deferred sequence/retry design. |
 | [Broader registry/self-test architecture](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Long-term requirements; implementation-status map at the top distinguishes completed and future work. |
 | [File workflows](File_Workflow_Inventory.md) | Overview for future full dependency audits; sharing consolidation remains deferred. |

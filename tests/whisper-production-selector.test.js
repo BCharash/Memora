@@ -25,6 +25,15 @@ try{
   list=async()=>{throw new Error("storage unavailable");};await controller.refresh();
   assert(select.options.length===0&&button.disabled&&select.disabled,"no stale choice");
  });
+ await test("Automatic qualification refresh preserves pending exports; manual selection still resets",async()=>{
+  let resets=0;
+  const start=source.indexOf('    modelSelect.addEventListener("change", event => {');
+  const end=source.indexOf('    });',start)+7;
+  assert(start>=0,"actual model selection handler found");
+  new Function("modelSelect","resetIPhoneExportState",source.slice(start,end))(select,()=>{resets++;});
+  select.dispatchEvent(new CustomEvent("change",{detail:{preserveExports:true}}));assert(resets===0,"automatic refresh preserves unsaved batch");
+  select.dispatchEvent(new Event("change"));assert(resets===1,"manual change behavior retained");
+ });
  document.body.dataset.result="passed";lines.push("ALL TESTS PASSED");
 }catch(error){document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}
 document.getElementById("results").textContent=lines.join("\n");

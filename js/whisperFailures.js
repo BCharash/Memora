@@ -109,3 +109,23 @@ export function whisperErrorFromWorkerEvent(event, expected) {
     }) });
     return error;
 }
+
+// Production evidence policy only; ordinary success is never a reference pass.
+export function classifyWhisperProductionExecution(record) {
+    if (record?.origin !== "production" || record.status === "running") return { effect: "none", reason: "No terminal production evidence." };
+    if (record.modelOutcome === "completed") return record.status === "interrupted"
+        ? { effect: "stability", reason: "Model work completed before the later workflow interruption; cause unknown." }
+        : { effect: "none", reason: "Model work completed; later faults do not revoke qualification." };
+    const failure = record.failure;
+    const stage = failure?.stage || record.phase;
+    if (!["load", "inference"].includes(stage) || record.modelOutcome === "not-started") return { effect: "none", reason: "No active model-work failure." };
+    const worker = failure?.workerEvidence;
+    if (worker?.status === "matched" && worker.boundary === "module-import") return { effect: "none", reason: "Runtime library import failed before model initialization; qualification preserved." };
+    if (worker?.status === "matched" && worker.kind === "wasm-runtime-error" && failure.category === "runtime-failure" &&
+        failure.certainty === "type-observed" && failure.configurationId === record.configuration?.id &&
+        ["pipeline-create", "pipeline-call"].includes(worker.boundary)) return { effect: "blocked", reason: "Observed model runtime failure. A successful reference retest is required." };
+    if (record.status === "aborted" || ["input-preparation", "post-processing", "eligibility-check", "aborted"].includes(failure?.category) ||
+        failure?.error?.name === "ExecutionPersistenceError" || failure?.error?.name === "DataCloneError") return { effect: "none", reason: "Non-model fault; qualification preserved." };
+    if (worker?.status === "matched" && worker.kind === "dom-exception" && worker.error?.name === "NetworkError") return { effect: "none", reason: "Worker reported a network exception; no model failure established." };
+    return { effect: "review", reason: "Model work did not complete reliably; cause unknown. Review the incident or run a reference retest." };
+}

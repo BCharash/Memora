@@ -1,5 +1,5 @@
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
-import { renderWhisperExecutionHistory } from "./whisperExecutionReports.js";
+import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews } from "./whisperExecutionReports.js";
 import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
@@ -38,8 +38,17 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     void Promise.resolve().then(() => createWhisperEvidenceBridge().sync())
         .catch(error => console.warn("Whisper attempt recovery unavailable:", error));
 
-    void Promise.resolve().then(() => createWhisperExecutionJournal().recover())
+    void Promise.resolve().then(() => createWhisperEvidenceBridge().sync())
         .catch(error => console.warn("Transcription history recovery unavailable:", error));
+
+    window.addEventListener("memora-whisper-review-retest", event => {
+        const selector = document.getElementById("settingsWhisperSelfTestModel");
+        if (!selector) return;
+        if (![...selector.options].some(option => option.value === event.detail?.configurationId)) {
+            status.textContent = "This exact configuration is not currently offered for reference testing. No other model was selected."; return;
+        }
+        selector.value = event.detail.configurationId; selector.dispatchEvent(new Event("change")); selector.scrollIntoView({ block: "center" });
+    });
 
     let currentReport = null;
     let modelAvailability = null;
@@ -48,6 +57,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     let activeSelfTestStatus = null;
     let registryRenderToken = 0;
     let registryMode = "current";
+    let showReviewsOnRender = false;
 
     function formatBytes(bytes) {
         if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
@@ -190,6 +200,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
             </details>
 
+            <details id="settingsWhisperEligibilityReviewsSection">
+                <summary>Model eligibility reviews and session stability</summary>
+                <div id="settingsWhisperEligibilityReviews" class="settings-note"></div>
+            </details>
             <details id="settingsWhisperExecutionHistorySection">
                 <summary>Transcription execution history</summary>
                 <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
@@ -201,6 +215,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         renderRuntime();
         syncSelfTestControls();
         void renderWhisperAttempts();
+        const reviewSection = document.getElementById("settingsWhisperEligibilityReviewsSection");
+        reviewSection.addEventListener("toggle", () => { if (reviewSection.open) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews")); });
+        if (showReviewsOnRender) { showReviewsOnRender = false; reviewSection.open = true; reviewSection.scrollIntoView({ block: "start" }); }
         const executionSection = document.getElementById("settingsWhisperExecutionHistorySection");
         executionSection.addEventListener("toggle", () => {
             if (executionSection.open) void renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
@@ -354,6 +371,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         try {
             const records = await createWhisperEvidenceBridge().sync();
             await renderWhisperEligibility();
+            if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.open) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
             target.replaceChildren();
             if (records.length) {
@@ -1113,5 +1131,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     refreshButton?.addEventListener("click", refresh);
-    return { refresh };
+    function showProductionReviews() {
+        showReviewsOnRender = true;
+        const section = document.getElementById("settingsWhisperEligibilityReviewsSection");
+        if (section) { section.open = true; section.scrollIntoView({ block: "start" }); }
+    }
+    return { refresh, showProductionReviews };
 }

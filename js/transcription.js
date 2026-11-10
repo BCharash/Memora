@@ -1,3 +1,4 @@
+import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 import { selectWhisperConfigurationDefinition, fingerprintWhisperConfiguration } from "./whisperConfigurations.js";
 import { runtimeIdentity } from "./runtime.js";
@@ -107,7 +108,12 @@ export async function transcribeRecording(file, model, language, operation, stat
         let configurationFingerprint = null;
         try { if (configuration) configurationFingerprint = await fingerprintWhisperConfiguration(configuration); }
         catch (error) { console.warn("Execution fingerprint unavailable:", error); }
+        const bridge = createWhisperEvidenceBridge();
+        const eligibilityContext = configuration ? await getWhisperEligibilityContext(configuration) : null;
+        const previous = eligibilityContext ? bridge.get(eligibilityContext) : null;
         const metadata = {
+            eligibilityContext,
+            previousQualification: previous ? { status: previous.status, lastSuccess: previous.lastSuccess || null } : null,
             build: APP_BUILD, pageId: startRuntimeDiagnostics().pageId, environment: runtimeIdentity,
             browser: navigator.userAgent, requestedModel: model, configuration, configurationFingerprint,
             recipe: { task: operation === "translate" ? "translate" : "transcribe", language: language || "auto", sampleRate: 16000, chunk_length_s: 30, stride_length_s: 5,
@@ -118,7 +124,8 @@ export async function transcribeRecording(file, model, language, operation, stat
         let journal;
         try { journal = createWhisperExecutionJournal(); }
         catch (error) { journal = createWhisperExecutionJournal({ storage: null, locks: null }); }
-        return await journal.run(metadata, async execution => {
+        let value, failure;
+        try { value = await journal.run(metadata, async execution => {
             let record;
             try { record = await transcribeRecordingInternal(file, model, language, operation, statusCallback, execution); }
             finally { release(); } // Preserve the existing model activity boundary.
@@ -126,6 +133,15 @@ export async function transcribeRecording(file, model, language, operation, stat
             if (afterInference) await afterInference(record, execution);
             execution.checkpoint("complete", { timings: record.timings, diagnostics: record.diagnostics });
             return record;
-        });
+        }); } catch (error) { failure = error; }
+        try { await bridge.sync(); }
+        catch (error) {
+            console.warn("Production eligibility evaluation unavailable:", error);
+            if (value) value.eligibilityPersistenceError = error.message;
+            if (failure && typeof failure === "object") failure.eligibilityPersistenceError = error.message;
+        }
+        window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
+        if (failure) throw failure;
+        return value;
     } finally { release(); }
 }

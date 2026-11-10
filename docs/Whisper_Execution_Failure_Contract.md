@@ -1,10 +1,10 @@
 # Whisper execution-failure contract
 
-10 November 2026, candidate **2026-11-10.7**. Shared classification (.2), separate durable history/recovery (.3) and structured worker provenance (.7) are implemented. **No new eligibility decisions, retries or cooldown are activated.**
+10 November 2026, candidate **2026-11-10.8**. Shared classification/history/provenance and production eligibility/reviews are implemented. **No retries or cooldown are activated.**
 
 ## One authority per responsibility
 
-Canonical definitions remain in `whisperConfigurations.js`. `whisperFailures.js` owns the shared boundary/category vocabulary and error annotation. Execution evidence belongs to a future durable execution record, while permission remains owned by the existing eligibility system. A local failure never edits global model definitions or establishes universal device incompatibility.
+Canonical definitions remain in `whisperConfigurations.js`. `whisperFailures.js` owns the shared boundary/category vocabulary and error annotation. Execution evidence belongs to a future durable execution record, while permission remains owned by the existing eligibility bridge. Its production-review overlay preserves the existing reference-qualified base record, as the legacy-review overlay already does; it is not a second model catalogue or independent decision authority. A local failure never edits global model definitions or establishes universal device incompatibility.
 
 The first checkpoint keeps original user-facing error messages and attaches `error.whisperFailure`. Original error identity/details are retained through `cause` and serialized name/message/stack. The description and diagnostic payload are frozen. Outer workflow catches preserve more specific inner worker evidence. No audio/transcript bytes are included in this description.
 
@@ -23,7 +23,7 @@ Metadata/decode errors are preparation boundaries. Paragraphing/save errors occu
 
 Production wrapper annotations cover both platform reply/event handlers, local posting/state failures, load failure cleanup/rethrow, metadata/decode and app paragraph/save calls. Errors remain visible through the existing console/UI path. They are saved in the separate production execution journal and **never in the self-test report journal**. Legacy replies may lack typed details; the .7 envelope below preserves original error provenance conservatively. Production watchdog/messageerror behavior remains unchanged. Existing model reuse, messages, model parameters and worker/fingerprint revisions are unchanged.
 
-## Future decision policy — not activated
+## Current production decision policy — .8
 
 | Established event | Intended treatment |
 |---|---|
@@ -33,7 +33,7 @@ Production wrapper annotations cover both platform reply/event handlers, local p
 | Unexplained worker/page loss during active model work | Suspend with cause unknown, preserving prior success and diagnostics. |
 | Ordinary transcription success | Not a reference-test pass; must not grant or restore WER-based qualification. |
 
-The present classifier does not pretend to distinguish confirmed model runtime errors from network failures when current workers only provide text. Review structured worker/library evidence before applying either rule. Existing self-test eligibility policy is unchanged; adopting this contract there requires a separate parity/behavior review. Do not create a conflicting second eligibility reducer.
+Typed matching runtime evidence is now actionable. Legacy/text-only failures remain uncertain and require review; text/name alone never proves model incompatibility. Own runtime-module-import failures occur before model initialization and are neutral, as are matched native NetworkError exceptions. Existing self-test eligibility policy is unchanged; adopting this contract there requires a separate parity/behavior review. Do not create a conflicting second eligibility reducer.
 
 ## Durable execution records — .3
 
@@ -43,17 +43,13 @@ Stages: prepare → metadata → decode → load → inference → model-complet
 
 Keep the latest **20 terminal records plus active work**, pruning oldest terminal records under per-record Web Locks. Startup and history opening recover ownerless running records as interrupted, cause unknown. Live tabs are neither recovered nor cleared/pruned. Clearing finished history does not touch self-test reports, model caches, registry definitions, diagnostics logs or eligibility. Records are local to the browser/origin/profile and can be lost with website data/eviction.
 
-In this observation-only checkpoint, unavailable storage/locking does not disable an otherwise working transcription: execution continues once, with a warning on its result/error. Failed writes can leave the last durable stage; recovery cannot invent later success. Before any eligibility integration, settle how an inability to persist model decisions should affect continuing work.
+Historical .3 policy (superseded for context-complete .8 operations): unavailable storage/locking did not disable an otherwise working transcription: execution continues once, with a warning on its result/error. Failed writes can leave the last durable stage; recovery cannot invent later success. Before any eligibility integration, settle how an inability to persist model decisions should affect continuing work.
 
 `whisperExecutionReports.js` supplies both views of the same saved record: Settings' collapsed Transcription execution history, and completed results' existing Timing and model diagnostics. Both have collapsed technical JSON, Copy and Download. The Settings view can clear completed history; old result links then show unavailable rather than export a stale copy. Copy denial exposes manual report text; Download reports only that a download was requested.
 
-## Next checkpoints — agreed 10 November 2026
+## Checkpoint status
 
-1. **Reliable worker failure provenance—implemented in .7, acceptance pending; eligibility unchanged.** Preserve original error details and load/inference origin, exact canonical configuration and a versioned structured payload across both workers and parent adapters. Reuse `whisperFailures.js`; legacy messages remain unknown. Do not infer cause from wording or treat a generic JavaScript error name as proof of model incompatibility. Use injected worker/runtime/network/unknown/abort cases and normal success, avoiding intentional crashes. Explicitly review worker revisions/fingerprint freshness before changing the worker contract.
-2. **Connect production observations to shared eligibility.** Evaluate on failure immediately and on startup recovery; refresh the dropdown after decisions. Existing loader rechecks and manual reference-pass recovery remain authoritative. Preserve eligibility for non-model faults, withhold only confirmed model failures, and suspend uncertain active-model interruption. Preserve completed model outcomes across postprocessing/page loss. Settle durable-write failure handling, event ordering and manual-pass precedence before activation. Ordinary success never becomes a reference pass.
-3. Keep candidate discovery/preferred-variant selection, source-folder investigation, cooldown, automatic sequences/retry and production cancellation/deadline policies separate. No manual registry rebuild or external AI process is needed to consume evidence once checkpoint 2 is connected.
-
-Classification/history/reporting are implemented. User confirmed the iOS .5 report-save fix and accepted .6 save-button emphasis. Mac execution JSON from Settings matched the completed transcript diagnostics. Dedicated refresh persistence was not explicitly reported; do not invent that result. No further code change is authorized by this contract alone.
+Worker provenance (.7) passed normal transcription on Mac/iPhone. Production review integration (.8) implements the agreed policy below; user normal-use acceptance is pending. No intentional failure is requested. The separate cooldown/source-folder/automatic-sequence/candidate-selection work is not activated.
 
 ## Verification
 
@@ -75,3 +71,19 @@ Production decoders match ID and stage, validate stage/boundary consistency and 
 The worker distinguishes actual WebAssembly.RuntimeError instances from generic names/text. Matching observed runtime instances are described as runtime-failure/type-observed, not universal incompatibility or an identified memory/hardware fault. TypeError and NetworkError alone remain uncertain; no keyword parsing or automatic eligibility decisions are added. Production preserves original AbortError without assigning user intent. Self-tests retain the legacy outer Error/verdict semantics, attaching richer diagnostics as `result.error.failure`; a worker AbortError/TimeoutError must not silently become a user cancellation/deadline verdict. Ordinary production success still cannot qualify a model.
 
 Production journal truncation covers both root and nested worker diagnostics. The self-test eligibility reducer is unchanged; richer fields are observational until the separately reviewed integration. .7 verification: 104 focused browser groups passed, including actual worker source with injected load/inference/module-import faults, typed parent round-trip, legacy/mismatch handling and self-test verdict parity. User Mac/iPhone normal transcription/save acceptance is pending; no real failure or fresh reference test is requested.
+
+## Production review integration — .8
+
+**Single eligibility authority:** `createWhisperEvidenceBridge().sync/get` now ingests production observations as well as self-test evidence. `whisperProductionEvidence.js` stores durable incidents/decisions/reference-pass certificates under `memora.whisper-production-evidence.v1.*`; it never edits model definitions or grants WER qualification. Existing base eligibility and self-test reducer remain unchanged. The bridge overlays exact-context production holds on the existing qualified base, so an explained review can preserve that base without inventing a pass.
+
+**Identity and ordering:** new executions store qualification context and prior qualification/last-success proof. Configuration ID/fingerprint, browser and OS must match that context. Legacy records lacking it are not assigned imagined capability/recipe/fixture identity. A failure uses its recorded event time; recovered page loss uses the last durable pre-recovery checkpoint time, not recovery time. A successful manual reference run must start after the adverse observation to resolve it. Reference certificates survive report clearing, so delayed recovery cannot undo a newer reference pass. Automatic/ordinary production success cannot create those certificates. All active holds are considered; an older review cannot undo another newer runtime hold or base self-test failure.
+
+**Mandatory versus human review:** matching observed Wasm runtime failure in pipeline create/call blocks pending retest. Generic active-model failures/interruption suspend pending review. Keep previous eligibility requires prior eligible state, retained last-success proof, currently eligible reference base and a nonempty explanation; it cannot override runtime/self-test holds or qualify a new context. Require retest becomes mandatory until a later reference pass. Decide later retains the hold and records the timestamp/note. Notes can be appended to resolved/mandatory records without changing their effect. No user text rewrites the original event.
+
+**Consumer timing:** production evaluates after operation completion/failure and before dropdown refresh; startup and pre-load bridge synchronization recover/ingest unfinished work. The existing loader still checks qualification before reuse/load. Required evidence storage/ownership failure stops new work before risky phases. Decision-persistence failure remains explicit and fail-closed at the next gate. Late post-completion history trouble does not turn successful inference into a model fault. The gate checks production-adapter revision 1, refusing a cached older bridge rather than silently ignoring review support.
+
+**Retention and UI:** unprocessed incidents cannot be pruned/cleared until a durable incident snapshot/ack exists; then execution history retains 20 evaluated terminal records. Incident snapshots, reference certificates and decision/observation events are independent of clearable execution/self-test reports. Transcribe links to Settings reviews; deferred reviews survive refresh without repeated dialogs. Historical-context records remain auditable without a current hold notice. Find reference test selects the exact available configuration but does not start it or silently pick another. Report exports include related review events and explanations without duplicating the original execution inside itself. Automatic selector updates preserve already generated iPhone exports; manual model changes retain existing reset behavior.
+
+**Session stability:** interrupted work after model completion creates an observation only. Completed reports offer a stability-note action, retaining cause-unknown comments and at most five available same-page production summaries plus five retained self-test summaries. Missing page identity or cleared/pruned test history is reported/left absent rather than recreated. No heartbeat, resource-pressure attribution, memory-reclamation guarantee or automatic cooldown is introduced. A fully completed workflow followed by page loss is not automatically called a crash; the retained diagnostics and optional user observation provide context. Local save completion still does not certify an external share destination.
+
+**Verification/acceptance:** 163 focused browser groups passed, including 11 new review-policy/UI groups, selector export preservation, cached-adapter refusal and previous journal/worker/lifecycle/eligibility regressions. Review controls were inspected at phone width. Test one ordinary short transcription/save/report on Mac/iPhone, inspect the (possibly empty) Settings review area, and optionally save a labeled stability note without changing eligibility. No deliberate crash or fresh model validation is required.

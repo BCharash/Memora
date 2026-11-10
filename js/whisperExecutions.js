@@ -2,6 +2,7 @@
 // No storage access on import; live attempts are protected across tabs.
 const PREFIX = "memora.whisper-execution.v1.";
 export const WHISPER_EXECUTION_HISTORY_LIMIT = 20;
+const pending = record => !!record.eligibilityContext && record.eligibilityEvaluation?.status !== "processed";
 const PHASES = new Set(["prepare", "metadata", "decode", "load", "inference", "model-complete", "paragraphing", "save", "complete"]);
 export function createWhisperExecutionJournal({ storage = globalThis.localStorage, locks = globalThis.navigator?.locks, now = () => new Date().toISOString(), uuid = () => crypto.randomUUID() } = {}) {
     function list() {
@@ -22,16 +23,17 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
     }
     async function prune() {
         // Remove only terminal records, checking ownership again under each lock.
-        const completed = list().filter(record => record.status !== "running");
+        const completed = list().filter(record => record.status !== "running" && !pending(record));
         for (const record of completed.slice(WHISPER_EXECUTION_HISTORY_LIMIT)) await lock(record.id, () => {
             const current = JSON.parse(storage.getItem(PREFIX + record.id));
-            if (current && current.status !== "running") storage.removeItem(PREFIX + record.id);
+            if (current && current.status !== "running" && !pending(current)) storage.removeItem(PREFIX + record.id);
         }, true);
     }
     async function recover() {
         for (const record of list()) if (record.status === "running") await lock(record.id, () => {
             const current = JSON.parse(storage.getItem(PREFIX + record.id));
             if (current?.status !== "running") return;
+            current.evidenceAt ||= current.updatedAt || current.startedAt;
             current.status = "interrupted";
             if (["loading", "running"].includes(current.modelOutcome)) current.modelOutcome = "unknown";
             current.updatedAt = current.recoveredAt = now();
@@ -44,7 +46,7 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
     async function clearCompleted() {
         for (const record of list()) await lock(record.id, () => {
             const current = JSON.parse(storage.getItem(PREFIX + record.id));
-            if (current && current.status !== "running") storage.removeItem(PREFIX + record.id);
+            if (current && current.status !== "running" && !pending(current)) storage.removeItem(PREFIX + record.id);
         }, true);
     }
     async function run(metadata, execute) {
@@ -58,15 +60,21 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
                 build: metadata.build, pageId: metadata.pageId, environment: metadata.environment,
                 browser: metadata.browser, requestedModel: metadata.requestedModel,
                 configuration: metadata.configuration || null, configurationFingerprint: metadata.configurationFingerprint || null,
-                recipe: metadata.recipe, timings: {}, diagnostics: null
+                recipe: metadata.recipe, timings: {}, diagnostics: null,
+                eligibilityContext: metadata.eligibilityContext || null,
+                previousQualification: metadata.previousQualification || null,
+                eligibilityEvaluation: metadata.eligibilityContext ? { status: "pending" } : null
             };
             let persistenceError = owned ? null : "Safe history ownership unavailable; transcription continued without a durable record.";
-            const save = () => {
-                if (persistenceError) return;
-                try { write(record); }
+            const save = (required = false) => {
+                if (!persistenceError) try { write(record); }
                 catch (error) { persistenceError = error.message; console.warn("Transcription history unavailable:", error); }
+                if (persistenceError && required && metadata.eligibilityContext) {
+                    const error = new Error(`Required execution evidence could not be saved: ${persistenceError}`);
+                    error.name = "ExecutionPersistenceError"; throw error;
+                }
             };
-            save();
+            save(true);
             const execution = {
                 id,
                 checkpoint(phase, observations = {}) {
@@ -81,8 +89,8 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
                     }
                     if (phase === "load") record.modelOutcome = "loading";
                     if (phase === "inference") record.modelOutcome = "running";
-                    if (phase === "model-complete") record.modelOutcome = "completed";
-                    save();
+                    if (phase === "model-complete") { record.modelOutcome = "completed"; record.modelCompletedAt = record.updatedAt; }
+                    save(record.modelOutcome !== "completed");
                 }
             };
             let value;
@@ -102,7 +110,7 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
                     if (diagnostic.message) diagnostic.message = diagnostic.message.slice(0, 4000);
                     if (diagnostic.stack) diagnostic.stack = diagnostic.stack.slice(0, 8000);
                 }
-                record.finishedAt = record.updatedAt = now(); save();
+                record.finishedAt = record.updatedAt = record.evidenceAt = now(); save();
                 if (error && typeof error === "object") { error.executionId = id; error.executionPersistenceError = persistenceError; }
                 throw error;
             }
@@ -119,5 +127,13 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
             try { await prune(); } catch (error) { console.warn("Transcription history retention unavailable:", error); }
         }
     }
-    return { run, list, recover, clearCompleted };
+    async function markEvaluated(id, evaluation) {
+        return lock(id, () => {
+            const record = JSON.parse(storage.getItem(PREFIX + id));
+            if (!record || record.status === "running") return;
+            record.eligibilityEvaluation = { ...evaluation, at: now() };
+            write(record);
+        }, true);
+    }
+    return { run, list, recover, clearCompleted, markEvaluated, prune };
 }

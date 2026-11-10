@@ -2,7 +2,7 @@ import { createWhisperProductionGate } from "../js/whisperProductionEligibility.
 const lines=[],assert=(v,m)=>{if(!v)throw new Error(m);};
 const test=async(label,fn)=>{await fn();lines.push(`PASS ${label}`);};
 const states=new Map();let failing=false;
-const gate=os=>createWhisperProductionGate({environment:{operatingSystem:os},contextFor:async d=>({id:d.id}),bridge:{sync:async()=>{if(failing)throw new Error("storage unavailable");},get:c=>({status:states.get(c.id)||"unverified",reason:"fixture"})}});
+const gate=os=>createWhisperProductionGate({environment:{operatingSystem:os},contextFor:async d=>({id:d.id}),bridge:{productionEvidenceRevision:1,sync:async()=>{if(failing)throw new Error("storage unavailable");},get:c=>({status:states.get(c.id)||"unverified",reason:"fixture"})}});
 try{
  await test("No evidence yields empty production choices; all nonqualified states are refused",async()=>{
   const mac=gate("macos");assert((await mac.list()).length===0,"empty");
@@ -30,6 +30,10 @@ try{
  });
  await test("Storage failure refuses listing and execution instead of using stale choices",async()=>{
   failing=true;for(const task of [()=>gate("macos").list(),()=>gate("macos").requireEligible("tiny")]){let denied=false;try{await task();}catch{denied=true;}assert(denied,"fail closed");}
+ });
+ await test("An older cached eligibility adapter cannot bypass production review support",async()=>{
+  const old=createWhisperProductionGate({environment:{operatingSystem:"macos"},contextFor:async d=>({id:d.id}),bridge:{sync:async()=>{},get:()=>({status:"eligible"})}});
+  for(const operation of [()=>old.list(),()=>old.requireEligible("tiny")]){let denied=false;try{await operation();}catch(error){denied=error.message.includes("Reload Memora");}assert(denied,"stale adapter fails closed");}
  });
  document.body.dataset.result="passed";lines.push("ALL TESTS PASSED");
 }catch(error){document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}

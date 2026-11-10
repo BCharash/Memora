@@ -48,7 +48,7 @@ Legacy scalar/omitted-dtype availability still accepts the existing generic ONNX
 
 Independent pre-migration full-record snapshot parity, saved-evidence preservation, selection/list compatibility and fingerprint checks are in [the test guide](../tests/README.md). Builds .20–.23 removed unused execution code and completed the agreed selection/availability-projection/display cleanup without changing worker inputs or fingerprints. No revalidation was required for those cleanup builds.
 
-Normal-transcription failure feedback, exact offline manifests, variant-selection policy changes, automatic sequences/retries and further resource diagnosis are separate future work. They are not prerequisites for keeping the completed consolidation checkpoint.
+Production failure feedback/reviews are implemented in candidate .8 through the existing evidence bridge, without changing canonical definitions. Exact offline manifests, variant-selection changes, automatic sequences/retries and further resource diagnosis remain separate future work. They are not prerequisites for keeping the completed consolidation checkpoint.
 
 ## Future candidate discovery and device-specific variant selection
 

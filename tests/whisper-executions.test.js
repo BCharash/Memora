@@ -129,7 +129,7 @@ try {
     });
     await test("iOS saves execution reports through sharing without any download navigation", async () => {
         let source = await (await fetch("../js/whisperExecutionReports.js")).text();
-        source = source.replace('import { isIOS } from "./runtime.js";', 'const isIOS = true;');
+        source = source.replace('import { isIOS, runtimeIdentity } from "./runtime.js";', 'import { runtimeIdentity } from "./runtime.js"; const isIOS = true;');
         source = source.replace(/from "\.\/([^"\n]+)"/g, (_, file) => `from ${JSON.stringify(new URL("../js/" + file, import.meta.url).href)}`);
         const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
         const ios = await import(url);

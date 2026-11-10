@@ -1,4 +1,4 @@
-import { renderWhisperExecutionReport } from "./whisperExecutionReports.js";
+import { renderWhisperExecutionReport, renderWhisperReviewNotice } from "./whisperExecutionReports.js";
 import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
@@ -101,8 +101,10 @@ async function refreshQualifiedWhisperModels() {
         }
         modelSelect.disabled = !definitions.length;
         transcribeButton.disabled = !definitions.length;
-        if (previous !== modelSelect.value) modelSelect.dispatchEvent(new Event("change"));
+        if (previous !== modelSelect.value) modelSelect.dispatchEvent(new CustomEvent("change", { detail: { preserveExports: true } }));
         if (note) note.textContent = definitions.length ? "Only test-qualified models are shown." : "Open Settings → Whisper Self-Test and test a model to enable transcription.";
+        const reviewNotice = document.getElementById("modelReviewNotice");
+        if (reviewNotice) renderWhisperReviewNotice(reviewNotice);
     } catch (error) {
         if (version !== modelRefreshVersion || transcriptionBatchActive) return;
         modelSelect.replaceChildren();
@@ -113,7 +115,7 @@ async function refreshQualifiedWhisperModels() {
 window.addEventListener("memora-whisper-eligibility-changed", () => void refreshQualifiedWhisperModels());
 window.addEventListener("focus", () => void refreshQualifiedWhisperModels());
 window.addEventListener("storage", event => {
-    if (event.key === null || event.key?.startsWith("memora.whisper-eligibility")) void refreshQualifiedWhisperModels();
+    if (event.key === null || event.key?.startsWith("memora.whisper-eligibility") || event.key?.startsWith("memora.whisper-production-evidence")) void refreshQualifiedWhisperModels();
 });
 const languageSelect = document.getElementById("languageSelect");
 const operationSelect = document.getElementById("operationSelect");
@@ -737,8 +739,10 @@ updateOperationAvailability();
 // Changing the model invalidates any completed-but-not-yet-saved
 // iPhone transcript batch. A new model must start a new save batch.
 if (modelSelect) {
-    modelSelect.addEventListener("change", () => {
-        resetIPhoneExportState();
+    modelSelect.addEventListener("change", event => {
+        // Automatic eligibility refresh must not discard successful transcripts
+        // waiting for the user's Files share action.
+        if (!event.detail?.preserveExports) resetIPhoneExportState();
     });
 }
 
@@ -930,7 +934,7 @@ transcribeButton.addEventListener(
             );
 
             setTranscriptionError(
-                (error.message || String(error)) + (error.executionPersistenceError ? ` History unavailable: ${error.executionPersistenceError}` : "")
+                (error.message || String(error)) + (error.executionPersistenceError ? ` History unavailable: ${error.executionPersistenceError}` : "") + (error.eligibilityPersistenceError ? ` Eligibility update unavailable: ${error.eligibilityPersistenceError}` : "")
             );
 
             if (isIPhoneSource && pendingIPhoneExports.length > 0) {
@@ -1096,6 +1100,10 @@ if (
         activateTab(searchTab);
     });
 
+    window.addEventListener("memora-whisper-review-requested", () => {
+        settingsUI.showProductionReviews();
+        if (!settingsOpen) openSettings("eligibility-review");
+    });
     if (settingsButton) {
         settingsButton.addEventListener("click", event => {
             if (settingsOpen) {
@@ -2297,6 +2305,9 @@ function appendTranscription(
             const warning = document.createElement("p");
             warning.textContent = `Execution history unavailable: ${record.executionPersistenceError}`;
             detail.append(warning);
+        }
+        if (record.eligibilityPersistenceError) {
+            const warning = document.createElement("p"); warning.textContent = `Eligibility review update unavailable: ${record.eligibilityPersistenceError}`; detail.append(warning);
         }
         block.appendChild(detail);
     }
