@@ -4286,3 +4286,5 @@ The user reported normal transcription working so far and no eligibility reviews
 Correction in candidate 2026-11-10.10: moved that divider above the Browser storage usage description rather than between the description and Refresh Storage Information. Both now remain grouped below the model area. No behavior change.
 
 Grouping follow-up in 2026-11-10.11: the storage explanation and refresh button now sit below Whisper Models, with a double-line divider below them before Whisper Self-Test. The original button/listener is retained across Settings rerenders. Presentation only; existing Settings regression checks passed.
+
+Delimiter refinement in 2026-11-10.12: added a single standard rule above the refresh group, and replaced the compact double border below with the same two thin spaced rules used between Browser storage quota and Semantic Index (bottom border plus category divider). No behavior change.

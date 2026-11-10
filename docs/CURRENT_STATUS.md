@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against candidate **2026-11-10.11**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+Reviewed 10 November 2026 against candidate **2026-11-10.12**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+
+## Latest delimiter refinement — refresh group (.12)
+
+Added a single standard separator above the refresh description/button. Below the group, matched the Browser storage quota → Semantic Index treatment: a thin var(--border) bottom rule and the usual spaced single category separator, rather than a compact CSS double border. Padding/line styles follow that existing boundary. Presentation only; no storage, model or eligibility behavior change.
 
 ## Latest grouping correction — refresh with storage, double line below (.11)
 

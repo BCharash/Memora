@@ -165,11 +165,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsWhisperModelsDetail" class="settings-detail" hidden></div>
 
-            <div id="settingsStorageRefreshGroup">
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
+            <div id="settingsStorageRefreshGroup" style="padding:9px 0; border-bottom:1px solid var(--border);">
                 <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
                 <div id="settingsStorageRefreshSlot" class="action-row"></div>
             </div>
-            <div class="settings-section-divider" style="border-top:3px double currentColor; opacity:.3; margin:16px 0;" aria-hidden="true"></div>
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
             <div class="settings-disclosure">
                 <span class="settings-disclosure-title">Whisper Self-Test</span>
             </div>
