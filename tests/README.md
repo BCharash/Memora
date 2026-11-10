@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through candidate application build **2026-11-09.25**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-10.1**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -54,3 +54,5 @@ Automatic sequences/retries are not implemented. Repeated disposable iPhone test
 For scope, unresolved issues and the deferred production-error audit, read [CURRENT_STATUS.md](../docs/CURRENT_STATUS.md) and [testing design](../docs/Whisper_Configuration_and_Test_Design.md).
 
 Build .25: seven existing isolated database-integration groups passed after moving/clarifying the registry maintenance control. No reset behavior, inference or eligibility changes.
+
+Build 2026-11-10.1: eight Settings and seven isolated database-integration groups passed after moving/renaming the unload control. No real models, cache deletion or resource reset executed.

@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-09.25** adds the maintenance-button presentation change below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+Reviewed 9 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.1** moves/clarifies the unload control below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+
+## Latest presentation change — unload control (2026-11-10.1)
+
+Moved the standalone Whisper Resources control into Model Registry → Advanced maintenance, alongside Reset stored model definitions. Renamed it Unload active Whisper model, explaining that it stops the production worker while preserving downloaded files and test qualification; the model initializes again when needed. Confirmation/status wording now matches. Underlying release and cache/reset behavior is unchanged. Eight Settings and seven isolated database-integration groups passed; user visual acceptance pending. No model run/reset/cache clearing is needed to inspect this change.
 
 ## Latest narrow change — registry maintenance control (.25)
 

@@ -185,13 +185,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
             </details>
 
-            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
-            <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Whisper Resources</span>
-                <span>Unload the active Whisper model and runtime resources</span>
-                ${button("Clear resources", "clear-whisper-resources")}
-            </div>
-
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
 
@@ -884,6 +877,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     ${registryHtml}
                     <details style="margin-top:10px;">
                         <summary>Advanced maintenance</summary>
+                        <p class="settings-note">Stops the active Whisper worker. Downloaded model files and test qualification are preserved. The model will load again when needed.</p>
+                        <div class="action-row">
+                            ${button("Unload active Whisper model", "clear-whisper-resources")}
+                        </div>
                         <p class="settings-note">Troubleshooting only. Restores built-in model definitions and removes historical registry validation/customizations. Does not refresh test results or repair the database schema. Current eligibility, saved test reports and downloaded models are preserved.</p>
                         <div class="action-row">
                             ${button("Reset stored model definitions", "rebuild-model-registry")}
@@ -974,9 +971,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-transcripts") return await showTranscripts();
             if (action === "run-whisper-self-test") return await showWhisperSelfTest();
             if (action === "clear-whisper-resources") {
-                if (!confirm("Clear the active Whisper model and runtime resources? Cached Whisper model files will not be deleted. Do not use this while a transcription is in progress.")) return;
+                if (!confirm("Unload the active Whisper model? Downloaded model files and test qualification will be preserved. The model will load again when needed. Do not use this while a transcription is in progress.")) return;
                 await clearWhisperResources();
-                status.textContent = "Whisper resources cleared.";
+                status.textContent = "Active Whisper model unloaded. Downloaded model files and test qualification are preserved.";
                 return;
             }
             if (action === "model-registry-mode") {
