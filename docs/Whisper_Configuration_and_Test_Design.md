@@ -1,6 +1,6 @@
 # Whisper testing and eligibility — current design
 
-Reviewed 9 November 2026 through build **2026-11-09.23**. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
+Reviewed 10 November 2026 through source build **2026-11-10.14**. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
 
 ## Current execution and PASS gate
 
@@ -63,4 +63,4 @@ Before implementation: settle production-failure classification and automatic-re
 
 Worker provenance (.7) passed normal Mac/iPhone use. Candidate .8 now connects context-complete production evidence to the existing bridge, with persistent human review for uncertain active-model incidents and mandatory reference retest for confirmed runtime failure. Model completion is preserved across later faults; stability notes do not change qualification. Reference certificates and incident/decision history survive execution/self-test history clearing. Known non-model faults remain neutral, and ordinary production success cannot qualify a model.
 
-Required pre-model persistence now fails closed; late post-completion history failure remains separate from inference outcome. Review UI and safeguards are in [execution-failure contract](Whisper_Execution_Failure_Contract.md). User .8 normal transcription/save/report acceptance is pending; do not force failures. Candidate discovery, cooldown, source-folder diagnosis and automatic sequences remain separate.
+Required pre-model persistence now fails closed; late post-completion history failure remains separate from inference outcome. Review UI and safeguards are in [execution-failure contract](Whisper_Execution_Failure_Contract.md). The user reported normal use working and controlled reload reviews on both Mac/iPhone, then accepted saved-observation presentation and local .14 grouping. Final Pages/iPhone layout confirmation is pending; no further forced failures are needed. Candidate discovery, cooldown, source-folder diagnosis and automatic sequences remain separate.

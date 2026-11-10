@@ -2,6 +2,8 @@
 
 10 November 2026, candidate **2026-11-10.8**. Shared classification/history/provenance and production eligibility/reviews are implemented. **No retries or cooldown are activated.**
 
+Current handoff through source .14 (10 November): .7 normal transcription passed both devices; later controlled reload reviews appeared on Mac/iPhone and the user recorded deliberate-test explanations. Saved-observation presentation .13 was accepted; .14 grouping is accepted in Live Server with final Pages/iPhone layout confirmation pending. Do not infer that saving a note alone resolved eligibility. No further implementation is underway; [current status](CURRENT_STATUS.md) lists optional next work. Earlier checkpoint-specific pending statements below retain their original scope.
+
 ## One authority per responsibility
 
 Canonical definitions remain in `whisperConfigurations.js`. `whisperFailures.js` owns the shared boundary/category vocabulary and error annotation. Execution evidence belongs to a future durable execution record, while permission remains owned by the existing eligibility bridge. Its production-review overlay preserves the existing reference-qualified base record, as the legacy-review overlay already does; it is not a second model catalogue or independent decision authority. A local failure never edits global model definitions or establishes universal device incompatibility.

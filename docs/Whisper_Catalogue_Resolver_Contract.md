@@ -1,6 +1,6 @@
 # Whisper catalogue and selection contract
 
-Current through build **2026-11-09.23**, reviewed 9 November 2026. This replaces the earlier staged 3A/3B handoff wording. See [current status](CURRENT_STATUS.md) for what is complete, deferred and authorized.
+Current through source build **2026-11-10.14**, reviewed 10 November 2026. This replaces the earlier staged 3A/3B handoff wording. See [current status](CURRENT_STATUS.md) for what is complete, deferred and authorized.
 
 ## Ownership
 

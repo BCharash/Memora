@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 10 November 2026, candidate build **2026-11-10.14**.
+Reviewed against the checkout on 10 November 2026, source build **2026-11-10.14**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -230,3 +230,7 @@ This is a static dependency/organization audit, not a fresh device test, exhaust
 ## Current next checkpoint and future selection
 
 Current source uses fixed qualified family defaults, not automatic competition among passing variants. Worker failure provenance is implemented in .7 in the existing workers/classifier, with no eligibility changes; normal Mac/iPhone acceptance is next. Production-evidence ingestion/reviews are implemented in .8 through the existing bridge on failure/startup recovery; normal-use acceptance is next. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.
+
+## Stable pause — 10 November 2026
+
+Source .14 is accepted locally; final Pages/iPhone layout confirmation is pending. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.

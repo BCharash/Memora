@@ -7,7 +7,7 @@
 
 ## Handoff summary — read this first when resuming
 
-**Implementation status — 10 November 2026, candidate 2026-11-10.8:** Runtime/database/catalogue, worker parity/provenance and durable execution history are implemented. The user accepted .7 on both devices. Checkpoint 2 now evaluates new production evidence through the existing bridge: mandatory reference retest for clear runtime failure, persistent user reviews for uncertain active-model incidents, and separate nonblocking stability observations after completion. Definitions/model inputs are unchanged; .8 normal-use acceptance is pending. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the resume boundary.
+**Implementation status — 10 November 2026, source 2026-11-10.14:** Runtime/database/catalogue, worker parity/provenance and durable execution history are implemented. The user accepted .7 on both devices. Checkpoint 2 now evaluates new production evidence through the existing bridge: mandatory reference retest for clear runtime failure, persistent user reviews for uncertain active-model incidents, and separate nonblocking stability observations after completion. Definitions/model inputs remain unchanged. Controlled reload reviews were observed on both devices; later .13 observation presentation was accepted, and .14 grouping is accepted locally with final Pages/iPhone visual confirmation pending. This is a stable stopping point. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the resume boundary.
 
 **Project goal:** Keep model definitions, runtime identity, test evidence, eligibility and production loading consistent across platforms. The current [catalogue contract](Whisper_Catalogue_Resolver_Contract.md), [testing design](Whisper_Configuration_and_Test_Design.md) and [handoff](CURRENT_STATUS.md) supersede old “not implemented” or “first action” statements below.
 
@@ -20,7 +20,7 @@
 | Resource safety and automatic sequences | Repeated disposable iPhone-test instability unresolved. Disposal acknowledgement is not memory-reclamation proof. Sequences/automatic retry remain deferred. |
 | Offline readiness, immutable upstream assets and broader device support | Not established by the fixture or cache checks; require separate scope/evidence. |
 
-**Current boundary:** Confirm .8 normal transcription/save/report and new Settings review-area behavior on Mac/iPhone; do not induce failures. Future candidate discovery/preferred variants, automatic sequences/retries, cooldown and source-folder loading diagnosis remain separate. Review records/notes must preserve uncertainty and must never qualify an unverified model or override newer mandatory failures. No new work is authorized by this historical plan alone.
+**Current boundary:** Finish the .14 Pages/iPhone layout check using existing records, then pause for normal use; no more induced failures are requested. Future candidate discovery/preferred variants, automatic sequences/retries, cooldown and source-folder loading diagnosis remain separate. Review records/notes must preserve uncertainty and must never qualify an unverified model or override newer mandatory failures. No new work is authorized by this historical plan alone.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.
