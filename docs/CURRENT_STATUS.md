@@ -1,6 +1,12 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against candidate **2026-11-10.12**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+Reviewed 10 November 2026 against candidate **2026-11-10.13**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+
+## Latest review presentation — saved versus new information (.13)
+
+Saved review decisions/observations now appear above the text box in muted read-only text, with timestamps and human-readable action names. The action is Add additional information. Successful saves clear only the submitted draft; failed saves retain it, and newly typed text during an outstanding save is not erased. Earlier entries remain append-only. Adding information alone does not resolve a hold or change eligibility.
+
+The user reported controlled transcription reloads on both MacBook/iPhone produced the expected review opportunity and supplied a deliberate-test explanation. They did not explicitly state which eligibility action was selected; do not infer hold resolution solely from saving an observation. Eleven review groups passed with new presentation/draft-clear/append assertions; phone-width screenshot inspected. Inspect an existing review to accept .13; no new transcription or deliberate interruption needed.
 
 ## Latest delimiter refinement — refresh group (.12)
 

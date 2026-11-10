@@ -141,6 +141,15 @@ try {
         for (let i = 0; i < 100 && f.bridge.listProductionReviews()[0].state !== "deferred"; i++) await new Promise(resolve => setTimeout(resolve, 5));
         assert(f.bridge.listProductionReviews()[0].state === "deferred", "UI writes deferral");
         await f.journal.clearCompleted(); await renderWhisperEligibilityReviews(container, { bridge: f.bridge });
+        const saved = container.querySelector("[data-review-saved-information]"), freshInput = container.querySelector("textarea");
+        assert(saved.classList.contains("settings-note") && saved.textContent.includes("I need to check the external interruption."), "saved observation shown in muted read-only area");
+        assert(saved.compareDocumentPosition(freshInput) & Node.DOCUMENT_POSITION_FOLLOWING, "saved information above new input");
+        assert(freshInput.value === "" && container.textContent.includes("Add additional information"), "successful save clears submitted draft");
+        freshInput.value = "A follow-up observation.";
+        [...container.querySelectorAll("button")].find(button => button.textContent === "Add additional information").click();
+        for (let i = 0; i < 100 && !f.bridge.listProductionReviews()[0].events.some(event => event.explanation === "A follow-up observation."); i++) await new Promise(resolve => setTimeout(resolve, 5));
+        await renderWhisperEligibilityReviews(container, { bridge: f.bridge });
+        assert(f.bridge.listProductionReviews()[0].events.length === 2 && container.querySelector("[data-review-saved-information]").textContent.includes("A follow-up observation."), "follow-up appended without editing original");
         [...container.querySelectorAll("button")].find(button => button.textContent === "View report").click();
         const exported = JSON.parse(container.querySelector("pre").textContent);
         assert(exported.id === id && exported.productionReviews[0].events.some(event => event.action === "defer"), "durable review report includes user input after execution clearing");

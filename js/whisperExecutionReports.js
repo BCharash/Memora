@@ -162,23 +162,25 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                 const stateLabel = !isCurrent ? "Historical context—current choices unaffected" : { pending: "Awaiting review", deferred: "Decide later—hold remains", "retest-required": "Retest required", kept: "Previous eligibility preserved for this incident", "reference-passed": "Resolved by reference test", observation: "Observation only" }[row.state] || row.state;
                 label.textContent = `${row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
                 const explanation = document.createElement("p"); explanation.textContent = `Original event: ${row.reason} Last saved stage: ${row.execution?.phase || "unknown"}. Model completion: ${row.execution?.modelOutcome || "unknown"}.`;
-                const input = document.createElement("textarea"); input.maxLength = 2000; input.rows = 2; input.setAttribute("aria-label", "Your explanation or observation");
+                const input = document.createElement("textarea"); input.maxLength = 2000; input.rows = 2; input.setAttribute("aria-label", "Additional information");
                 input.value = drafts.get(row.id)?.value || "";
-                input.placeholder = kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Your explanation (required to keep previous eligibility).";
+                input.placeholder = kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Add new information here. Explain an external cause to keep previous eligibility.";
                 input.style.width = "100%"; input.style.boxSizing = "border-box";
                 const feedback = document.createElement("p"); feedback.setAttribute("role", "status");
                 const actions = document.createElement("div"); actions.className = "whisper-report-actions";
                 const unresolved = isCurrent && ["pending", "deferred", "retest-required"].includes(row.state);
                 const choices = row.kind === "incident" && unresolved && row.effect !== "blocked" && row.state !== "retest-required"
-                    ? [["Require a retest", "retest"], ["Keep previous eligibility", "keep"], ["Decide later", "defer"], ["Save observation", "note"]]
-                    : [["Save observation", "note"]];
+                    ? [["Require a retest", "retest"], ["Keep previous eligibility", "keep"], ["Decide later", "defer"], ["Add additional information", "note"]]
+                    : [["Add additional information", "note"]];
                 for (const [text, action] of choices) {
                     const button = document.createElement("button"); button.type = "button"; button.textContent = text;
                     button.disabled = action === "keep" && (row.previousQualification?.status !== "eligible" || !row.previousQualification?.lastSuccess);
                     button.onclick = async () => {
                         button.disabled = true;
                         try {
-                            await bridge.decideProductionReview(row.id, action, input.value);
+                            const submitted = input.value;
+                            await bridge.decideProductionReview(row.id, action, submitted);
+                            if (input.value === submitted) input.value = "";
                             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
                             await renderWhisperEligibilityReviews(container, { bridge });
                         } catch (error) { feedback.textContent = error.message; button.disabled = false; }
@@ -190,9 +192,18 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                     test.onclick = () => window.dispatchEvent(new CustomEvent("memora-whisper-review-retest", { detail: { configurationId: row.configurationId } }));
                     actions.append(test);
                 }
-                const history = document.createElement("ul");
-                for (const event of row.events) { const entry = document.createElement("li"); entry.textContent = `${new Date(event.at).toLocaleString()} · ${event.actor} · ${event.action}${event.explanation ? ": " + event.explanation : ""}`; history.append(entry); }
-                item.append(label, explanation, input, actions, feedback, history);
+                const saved = document.createElement("div"); saved.className = "settings-note"; saved.dataset.reviewSavedInformation = "";
+                if (row.events.length) {
+                    const heading = document.createElement("p"); heading.textContent = "Saved information (read-only)";
+                    const history = document.createElement("ul");
+                    const names = { note: "Additional information", keep: "Keep previous eligibility", defer: "Decide later", retest: "Require a retest", "reference-passed": "Reference test passed", "stability-note": "Stability observation" };
+                    for (const event of row.events) {
+                        const entry = document.createElement("li"); entry.textContent = `${new Date(event.at).toLocaleString()} · ${names[event.action] || event.action}${event.explanation ? ": " + event.explanation : ""}`; history.append(entry);
+                    }
+                    saved.append(heading, history);
+                }
+                const inputLabel = document.createElement("p"); inputLabel.textContent = "Additional information";
+                item.append(label, explanation, saved, inputLabel, input, actions, feedback);
                 const provenance = document.createElement("p"); provenance.textContent = "Report uses the preserved incident snapshot plus current decision history; it remains available after execution history is cleared.";
                 item.append(provenance);
                 renderWhisperExecutionReport(item, row.execution.id, { journal: { list: () => [row.execution] }, bridge, includeStability: false });
