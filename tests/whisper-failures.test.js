@@ -1,3 +1,4 @@
+import { createWhisperExecutionJournal } from "./whisper-executions-fixture.js";
 import { describeWhisperFailure, annotateWhisperFailure, atWhisperFailureBoundary } from "../js/whisperFailures.js";
 const lines = [], urls = [];
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -60,6 +61,15 @@ try {
         stage = "";
         const record = await workflow.transcribeRecording({ name: "fixture.wav" }, "tiny", "auto", "transcribe");
         assert(record.transcript === "fixture" && record.model === "tiny", "success and activity release unchanged");
+        const journal = createWhisperExecutionJournal();
+        assert(journal.list().find(item => item.id === record.executionId)?.modelOutcome === "completed", "same durable ID returned after model completion");
+        let saveError;
+        try { await workflow.transcribeRecording({ name: "fixture.wav" }, "tiny", "auto", "transcribe", null, async (_record, execution) => {
+            execution.checkpoint("save");
+            await atWhisperFailureBoundary({ stage: "save" }, () => { throw new Error("save failed fixture"); });
+        }); } catch (error) { saveError = error; }
+        const failedSave = journal.list().find(item => item.id === saveError?.executionId);
+        assert(failedSave?.phase === "save" && failedSave.modelOutcome === "completed" && failedSave.failure.category === "post-processing", "real workflow callback distinguishes saved model success from save failure");
     });
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }

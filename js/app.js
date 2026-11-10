@@ -1,3 +1,4 @@
+import { renderWhisperExecutionReport } from "./whisperExecutionReports.js";
 import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
@@ -848,68 +849,69 @@ transcribeButton.addEventListener(
                         model,
                         language,
                         operation,
-                        setTranscriptionBusy
+                        setTranscriptionBusy,
+                        async (record, execution) => {
+
+                            let processedTranscript =
+                                record.transcript;
+
+                            if (paragraphingCheckbox?.checked) {
+                                setTranscriptionBusy(
+                                    `Creating paragraphs for ${i + 1} of ` +
+                                    `${filesToTranscribe.length}: ` +
+                                    `${file.name}`
+                                );
+
+                                execution.checkpoint("paragraphing", { timings: record.timings });
+                                const paragraphing =
+                                    await getParagraphingModule();
+
+                                const paragraphStarted = performance.now();
+                                processedTranscript =
+                                    await atWhisperFailureBoundary({ stage: "paragraphing" }, () => paragraphing.paragraphize(
+                                        record.transcript,
+                                        setTranscriptionBusy
+                                    ));
+                                if (record.timings) record.timings.paragraphMs = performance.now() - paragraphStarted;
+                            }
+
+                            execution.checkpoint("save", { timings: record.timings });
+                            const transcript =
+                                buildTranscript(
+                                    record.file,
+                                    record.metadata,
+                                    processedTranscript,
+                                    record.model,
+                                    language,
+                                    operation,
+                                    transcriptionAudioPath
+                                );
+
+                            const savedFilename =
+                                await atWhisperFailureBoundary({ stage: "save" }, () => saveTranscript(
+                                    transcriptionFolder,
+                                    record.file,
+                                    record.metadata,
+                                    transcript,
+                                    record.model,
+                                    operation
+                                ));
+
+                            if (isIPhoneSource) {
+                                pendingIPhoneExports.push(
+                                    new File(
+                                        [transcript],
+                                        savedFilename,
+                                        { type: "text/plain" }
+                                    )
+                                );
+                                updateIPhoneExportButton();
+                            }
+
+                            record.processedTranscript = processedTranscript;
+                        }
                     );
-
-                let processedTranscript =
-                    record.transcript;
-
-                if (paragraphingCheckbox?.checked) {
-                    setTranscriptionBusy(
-                        `Creating paragraphs for ${i + 1} of ` +
-                        `${filesToTranscribe.length}: ` +
-                        `${file.name}`
-                    );
-
-                    const paragraphing =
-                        await getParagraphingModule();
-
-                    const paragraphStarted = performance.now();
-                    processedTranscript =
-                        await atWhisperFailureBoundary({ stage: "paragraphing" }, () => paragraphing.paragraphize(
-                            record.transcript,
-                            setTranscriptionBusy
-                        ));
-                    if (record.timings) record.timings.paragraphMs = performance.now() - paragraphStarted;
-                }
-
-                const transcript =
-                    buildTranscript(
-                        record.file,
-                        record.metadata,
-                        processedTranscript,
-                        record.model,
-                        language,
-                        operation,
-                        transcriptionAudioPath
-                    );
-
-                const savedFilename =
-                    await atWhisperFailureBoundary({ stage: "save" }, () => saveTranscript(
-                        transcriptionFolder,
-                        record.file,
-                        record.metadata,
-                        transcript,
-                        record.model,
-                        operation
-                    ));
-
-                if (isIPhoneSource) {
-                    pendingIPhoneExports.push(
-                        new File(
-                            [transcript],
-                            savedFilename,
-                            { type: "text/plain" }
-                        )
-                    );
-                    updateIPhoneExportButton();
-                }
-
-                appendTranscription(
-                    record.file,
-                    processedTranscript,
-                    record
-                );
+                appendTranscription(record.file, record.processedTranscript, record);
             }
 
             setTranscriptionComplete(
@@ -928,8 +930,7 @@ transcribeButton.addEventListener(
             );
 
             setTranscriptionError(
-                error.message ||
-                String(error)
+                (error.message || String(error)) + (error.executionPersistenceError ? ` History unavailable: ${error.executionPersistenceError}` : "")
             );
 
             if (isIPhoneSource && pendingIPhoneExports.length > 0) {
@@ -2288,6 +2289,12 @@ function appendTranscription(
         configuration.className = "settings-note";
         configuration.textContent = formatWhisperDiagnostics(record.diagnostics);
         detail.append(summary, timing, configuration);
+        if (record.executionId) renderWhisperExecutionReport(detail, record.executionId);
+        if (record.executionPersistenceError) {
+            const warning = document.createElement("p");
+            warning.textContent = `Execution history unavailable: ${record.executionPersistenceError}`;
+            detail.append(warning);
+        }
         block.appendChild(detail);
     }
 

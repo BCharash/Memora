@@ -61,6 +61,6 @@ Before implementation: settle production-failure classification and automatic-re
 
 ## Current production-failure checkpoint
 
-The error-path audit and classification-only implementation are complete in candidate 2026-11-10.2. See [execution-failure contract](Whisper_Execution_Failure_Contract.md). No production errors update eligibility yet. Worker-reported cause remains unknown where only text is available; normal transcription success cannot replace a reference fixture pass. Review acceptance before connecting decisions or adding durable production interruption recovery.
+The error-path audit/classification (.2) was user-accepted. Candidate 2026-11-10.3 adds separate production execution history and observational interruption recovery; see [execution-failure contract](Whisper_Execution_Failure_Contract.md). Completed-transcription diagnostics and Settings history reference the same record, with Copy/Download. No production errors update eligibility yet. Worker-reported cause remains unknown where only text is available; normal transcription success cannot replace a reference fixture pass. Review history/persistence acceptance before connecting eligibility decisions.
 
 Recorded results and test pages are in [test instructions](../tests/README.md); detailed earlier observations remain in [checkpoint history](archive/Development_Checkpoints_2026-11-09.md). Cooldown and automatic sequences remain separate, deferred work.

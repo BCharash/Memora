@@ -1,6 +1,16 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.2** adds production failure classification below; .24 active-test wording is also included. User acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.3** adds durable production execution history below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+
+## Latest checkpoint — transcription execution history (2026-11-10.3)
+
+Normal transcription now owns a separate `memora.whisper-execution.v1.*` history, with explicit production origin, canonical definition/fingerprint, actual operation recipe, stage, model outcome, timings and diagnostics. It starts before preparation/model work and marks model completion before optional paragraphing/saving. Failure or interruption after inference cannot erase the completed model outcome. Metadata and history exclude audio/transcript contents and source filenames; original technical error messages may contain incidental source details. Error message/stack storage is truncated at 4,000/8,000 characters with an explicit flag.
+
+Settings → Transcription execution history is collapsed beside self-test history. Completed-transcription Timing and model diagnostics links to the same execution ID. Both provide collapsed technical JSON, Copy and Download; Settings can clear finished history. Cleared/aged records are explicitly unavailable from older links rather than exporting stale copies. Keep 20 terminal records plus active work; live Web Locks protect other tabs during recovery/clear/prune. Startup/history recovery marks abandoned work Interrupted—cause unknown, preserving its last model outcome. No automatic retry or eligibility changes.
+
+History storage/locking failure warns visibly on the transcription result/error and continues transcription once; it never retries model work. Such failures can leave only the last durable stage, which recovery labels unknown interruption rather than inventing a final outcome. This observation-only fail-open policy must be reviewed before connecting durable failures to eligibility. Copy/Download exports saved execution data, not an audio/transcript copy. File-input save completion means local transcript/cache preparation; later user share-sheet delivery is outside this execution record.
+
+Forty-four focused browser groups passed, including true iframe navigation recovery, live-owner protection, bounded retention, initial/late storage failure, copy/download/clear, actual transcription callback/save-failure attribution and existing loader/Settings/eligibility/diagnostics/database regressions. No real models were loaded. User check: one short normal transcription/save on Mac and iPhone; expand its timing diagnostics to download the execution report, then find the same ID in Settings history. Refresh once after completion to confirm persistence. No crash, model revalidation, cache reset or cooldown trial required. Natural stopping point before any eligibility feedback.
 
 ## Latest checkpoint — production failure classification (2026-11-10.2)
 
@@ -36,7 +46,7 @@ User check: start one needed retest and confirm the active wording; after finish
 | Self-test | One selected configuration per run; stage deadlines/cancellation, WER ≤15%, timing/session diagnostics, durable attempt recovery and separate cleanup observations. |
 | Eligibility | Browser-local exact-context qualification feeds the transcription selector and loader. Unverified/stale/suspended/failed configurations are withheld. A successful manual test restores eligibility; manual attempts are unlimited. |
 | Settings presentation | Current eligibility is authoritative; historical registry validation is collapsed and explicitly separate. Saved reports are at the bottom, with Copy/Download and clearable history. |
-| File map | [filemap.md](../filemap.md) explains all 41 application JavaScript files, including the 16 Whisper files, dependencies and cleanup findings. |
+| File map | [filemap.md](../filemap.md) explains all 43 application JavaScript files, including the 18 Whisper files, dependencies and cleanup findings. |
 
 “Single source of truth” does not mean combining definitions, downloaded files, test reports and eligibility into one database record. They answer different questions. Definition/selection duplication addressed in builds .20–.23 is complete for that cleanup scope. Exact availability/offline guarantees and production-failure feedback remain separate work.
 
@@ -58,13 +68,11 @@ The user rebooted and reported at least nine normal Small transcriptions without
 
 The proposed resource lab was discarded at the user's request and is absent. Do not recreate it automatically, ask for repeated Small/Medium crash trials, or activate automatic sequences. Avoid editing watched files during user inference; use a server without automatic reload for future controlled diagnosis. File reads alone are not evidence that Live Server caused a reload.
 
-## Next checkpoint — after classification acceptance
+## Next checkpoint — after execution-history acceptance
 
-The read-only error-path audit and first classification implementation are complete. Review [the failure contract](Whisper_Execution_Failure_Contract.md) and confirm normal transcription still works before adding new eligibility decisions. Current workers report mostly textual errors; preserve unknown cause rather than equating every loading/inference error with model incompatibility.
+The error audit/classification and durable production-history implementation are complete. Confirm .3 reporting/persistence acceptance, then separately review trustworthy worker failure provenance and connect production observations to the existing eligibility policy. Current workers report mostly text; generic loading/inference failure is not proof of incompatibility. Ordinary transcription success has no reference WER and must not qualify a model. Keep the production journal distinct from self-test record/reducer assumptions.
 
-Next separately review trustworthy failure provenance and connect production evidence to the shared eligibility policy. Successful ordinary transcription must not become a reference-test pass. Then add durable production interruption recovery, finishing the model-work checkpoint before paragraphing/saving. Use injected faults; do not wait for real crashes. Existing self-test record/reducer assumptions must not silently ingest production success as manual validation.
-
-The iPhone cooldown study and resource investigation remain separate. Automatic sequences/retries stay deferred. No automatic page-loss retry, production deadline policy or new cancellation UI is introduced by classification.
+Interruption observation now exists, but it does not change eligibility yet. Agree fault classification, persistence-failure handling and exact-context decisions before activating that feedback. The iPhone cooldown study, production cancellation/deadline policy and automatic sequences remain separate/deferred.
 
 ## Verification recorded so far
 
@@ -81,4 +89,4 @@ Proceed in small, independently testable steps and stop at natural breakpoints. 
 
 Start with [documentation index](README.md), [file map](../filemap.md), [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) and [test guide](../tests/README.md). Detailed chronological handoffs are in the [archive](archive/README.md); the [design journal, section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923) records the decisions.
 
-Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Candidate 2026-11-10.2 implements production failure classification only. Review its acceptance and execution-failure contract before connecting eligibility decisions. Runtime/database/catalogue cleanup is complete. Keep interruption recovery, cooldown and automatic sequences separate.”
+Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Candidate 2026-11-10.3 adds durable production execution history without changing eligibility. Review its acceptance and execution-failure contract before connecting eligibility decisions. Runtime/database/catalogue cleanup is complete. Interruption recovery is observational only; keep eligibility decisions, cooldown and automatic sequences separate.”

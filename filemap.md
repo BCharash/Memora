@@ -1,14 +1,14 @@
 # Memora file map
 
-Reviewed against the checkout on 9 November 2026, candidate build **2026-11-10.2**.
+Reviewed against the checkout on 9 November 2026, candidate build **2026-11-10.3**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
 ## The short answer about the number of files
 
-There are **41 JavaScript files in `js/`**, including **16 whose names begin with `whisper`**. There are another **19 JavaScript files under `tests/`**. Test files are separate from the normal application.
+There are **43 JavaScript files in `js/`**, including **18 whose names begin with `whisper`**. There are another **21 JavaScript files under `tests/`**. Test files are separate from the normal application.
 
-**All 41 application files have a dependency path from the main page.** They support different features; they are not 41 separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+**All 43 application files have a dependency path from the main page.** They support different features; they are not 43 separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
 The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. There are also unused functions and overlapping selection/catalogue logic inside otherwise active files. See [cleanup findings](#cleanup-findings) before deleting anything.
 
@@ -74,12 +74,14 @@ The discarded worker-reuse lab is absent. There is no `whisper-reuse-test.html` 
 | [audioProcessor.js](js/audioProcessor.js) | Decodes audio and resamples it to the format Whisper expects. | Production transcription and self-test |
 | [metadata.js](js/metadata.js) | Reads recording metadata, including supported audio-container details. | Transcription and app export/record handling |
 
-## Whisper and its registry — 16 Whisper files plus modelManager
+## Whisper and its registry — 18 Whisper files plus modelManager
 
 ### Running the model
 
 | File | Responsibility | Status/callers |
 |---|---|---|
+| [whisperExecutions.js](js/whisperExecutions.js) | Separate durable production journal: stages, model outcome, recovery, live ownership and bounded retention; no eligibility changes. | Transcription and Settings |
+| [whisperExecutionReports.js](js/whisperExecutionReports.js) | Shared technical report/Copy/Download controls and Settings execution history. Reads the same record used by a completed result. | App and Settings |
 | [whisperFailures.js](js/whisperFailures.js) | Pure shared failure descriptions and boundary annotations; preserves unknown cause. No storage or eligibility mutation. | Production workflow and parent loader; contract tests |
 | [whisper.js](js/whisper.js) | Page-side production loader/transcriber. Checks eligibility, communicates with the selected worker and reuses a loaded model. | Active: transcription, Settings resource clearing, self-test preparation |
 | [whisper-ios-worker.js](js/whisper-ios-worker.js) | Actual iPhone/iPad model execution using Transformers.js 3.7.2. Supports loading, transcription and disposal acknowledgement. | Active: production and self-test |
@@ -165,6 +167,7 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 |---|---|
 | Memora IndexedDB | `transcripts`, `semanticEntries`, `semanticMetadata`, `modelRegistry`; schema in `database.js`. |
 | Browser model caches | Downloaded model assets. Cache presence does not prove eligibility or active model memory use. |
+| Local storage: `memora.whisper-execution.v1.*` | Normal transcription execution history, 20 terminal records plus active work; separate from self-test validation. |
 | Local storage: `memora.whisper-attempt.v1.*` | Saved self-test reports; `whisperAttempts.js`. |
 | Local storage: `memora.whisper-eligibility.v1.*` and `memora.whisper-eligibility-review.v1.*` | Qualification and older review/resolution evidence; eligibility modules. Clearing reports does not reset these decisions. |
 | Local storage: `memora.runtime-diagnostics.v1.*` | Bounded diagnostic page/event records; `runtimeDiagnostics.js`. |
@@ -172,10 +175,11 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 
 ## Developer tests — separate from the application
 
-There are **16 HTML test runners**. Each imports its matching `.test.js` file. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
+There are **17 HTML test runners**. Each imports its matching `.test.js` file. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
 
 | Test page | What it checks |
 |---|---|
+| [whisper-executions.html](tests/whisper-executions.html) | Production history ownership, retention, privacy, real navigation recovery and linked report controls. |
 | [whisper-failures.html](tests/whisper-failures.html) | Injected stage/source classification and actual workflow attribution without model runs. |
 | [database.html](tests/database.html) | Schema creation/upgrades and failure cases in temporary databases. |
 | [database-integration.html](tests/database-integration.html) | Application modules working with an isolated database fixture. |
@@ -193,7 +197,7 @@ There are **16 HTML test runners**. Each imports its matching `.test.js` file. O
 | [whisper-loader-gate.html](tests/whisper-loader-gate.html) | Loader guard and prevention of repository/dtype override bypasses. |
 | [whisper-disposal.html](tests/whisper-disposal.html) | Disposal handshake, deadlines and mandatory termination fallback. |
 
-The other three test JavaScript files are support fixtures: [database-adapter.js](tests/database-adapter.js), [whisper-loader-gate-fixture.js](tests/whisper-loader-gate-fixture.js) and [whisper-diagnostics-fixtures.js](tests/whisper-diagnostics-fixtures.js). They replace dependencies during tests. `tests/fixtures/whisper-registry-baseline-v2.json` is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
+The other four test JavaScript files are support fixtures: [whisper-executions-fixture.js](tests/whisper-executions-fixture.js), [database-adapter.js](tests/database-adapter.js), [whisper-loader-gate-fixture.js](tests/whisper-loader-gate-fixture.js) and [whisper-diagnostics-fixtures.js](tests/whisper-diagnostics-fixtures.js). They replace dependencies during tests. `tests/fixtures/whisper-registry-baseline-v2.json` is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
 
 ## Cleanup findings
 
@@ -211,10 +215,10 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | **Similar embedding services** | Paragraphing and semantic search can each load MiniLM in separate workers. A shared service might reduce duplicated live resources, but this requires feature/lifecycle design and is not a safe file deletion. |
 | **Potentially regroupable small modules** | Activity ownership, report presentation and diagnostic formatting are small but have different callers/responsibilities. Optional later organization work; lower priority than eliminating genuinely duplicated selection/definitions. |
 
-Registry-versus-eligibility presentation is clarified in .23 and user-accepted. The production error audit and classification-only checkpoint are implemented in .2; eligibility feedback and interruption recovery remain separate; see [current status](docs/CURRENT_STATUS.md). Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
+Registry-versus-eligibility presentation is clarified in .23 and user-accepted. The production error audit and classification-only checkpoint are implemented in .2; durable observational history/recovery is added in .3, while eligibility feedback remains separate; see [current status](docs/CURRENT_STATUS.md). Production default/compatibility selection and availability family metadata now share canonical definitions. Keep resource-stability investigation separate from cosmetic file grouping. Do not rename or merge all Whisper files in one change.
 
 ## Scope of this review
 
-Checked the initial 41 `js/` filenames (40 remained after obsolete-worker removal; the shared failure contract brings the current total to 41), exports/imports, worker creation paths, entry pages, test references and complete-file hashes, with targeted source review of overlap candidates. Followed dynamic imports and worker filenames as well as ordinary imports. The old worker filename inside a test was also checked manually and removed with the worker.
+Checked the initial 41 `js/` filenames (40 remained after obsolete-worker removal; failure classification plus production history/report views bring the current total to 43), exports/imports, worker creation paths, entry pages, test references and complete-file hashes, with targeted source review of overlap candidates. Followed dynamic imports and worker filenames as well as ordinary imports. The old worker filename inside a test was also checked manually and removed with the worker.
 
 This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. Subsequent authorized cleanups removed the obsolete worker/test case and unused page-side loader/fallback branches. Build .20 identifies the latter change. Active worker files, HTML, CSS, databases, model options and configuration fingerprints are unchanged.

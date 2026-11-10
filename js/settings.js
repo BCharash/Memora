@@ -1,3 +1,5 @@
+import { createWhisperExecutionJournal } from "./whisperExecutions.js";
+import { renderWhisperExecutionHistory } from "./whisperExecutionReports.js";
 import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
@@ -35,6 +37,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     // failures do not prevent startup; the history panel reports them on open.
     void Promise.resolve().then(() => createWhisperEvidenceBridge().sync())
         .catch(error => console.warn("Whisper attempt recovery unavailable:", error));
+
+    void Promise.resolve().then(() => createWhisperExecutionJournal().recover())
+        .catch(error => console.warn("Transcription history recovery unavailable:", error));
 
     let currentReport = null;
     let modelAvailability = null;
@@ -185,12 +190,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
             </details>
 
+            <details id="settingsWhisperExecutionHistorySection">
+                <summary>Transcription execution history</summary>
+                <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
+            </details>
+
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
 
         renderRuntime();
         syncSelfTestControls();
         void renderWhisperAttempts();
+        const executionSection = document.getElementById("settingsWhisperExecutionHistorySection");
+        executionSection.addEventListener("toggle", () => {
+            if (executionSection.open) void renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
+        });
         const selector = document.getElementById("settingsWhisperSelfTestModel");
         selector.onchange = () => void renderWhisperEligibility();
         storage.onclick = handleAction;

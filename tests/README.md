@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through candidate application build **2026-11-10.2**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-10.3**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -14,6 +14,7 @@ Whisper harnesses use synthetic workers/pipelines/audio or cancelled/stubbed net
 
 | Page | Coverage |
 |---|---|
+| [whisper-executions.html](whisper-executions.html) | Separate production journal, live ownership, page-navigation recovery, privacy projection, bounded retention and shared report controls. |
 | [whisper-failures.html](whisper-failures.html) | Shared failure vocabulary, original diagnostics and real workflow boundary attribution with injected dependencies. No model/storage access. |
 | [database.html](database.html) | Version-5 schema, incomplete upgrades, preservation, incompatible/future schemas, blocked requests, connection lifecycle and retry. |
 | [database-integration.html](database-integration.html) | Storage/semantic/registry consumers with a temporary database; evidence preservation and Settings registry status/error display. |
@@ -59,3 +60,5 @@ Build .25: seven existing isolated database-integration groups passed after movi
 Build 2026-11-10.1: eight Settings and seven isolated database-integration groups passed after moving/renaming the unload control. No real models, cache deletion or resource reset executed.
 
 Build 2026-11-10.2: four new failure-contract/workflow, six expanded loader-gate, six diagnostics, eight Settings, six production-eligibility and four selector groups passed (34 total). Actual production source is exercised with injected metadata/decode/model and worker reply/event/post faults, including simulated iOS/desktop. No real models or user evidence writes. No eligibility decision or page-loss recovery is added.
+
+Build 2026-11-10.3: 44 groups passed (seven execution journal/UI/navigation, four failure/workflow, six diagnostics, eight Settings, seven database-integration, six production-eligibility and six loader-gate). Execution tests use in-memory fixtures and a dedicated `memora-execution-navigation-test.*` localStorage wrapper for real iframe page replacement, cleaning it afterward. Diagnostics/failure workflow pages substitute `whisper-executions-fixture.js` so normal production history is not modified. No models or real user qualification changes. User check: one short transcription/save, linked Copy/Download, same execution ID in Settings and persistence after refresh on Mac/iPhone; no deliberate interruption needed.
