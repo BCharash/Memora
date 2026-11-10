@@ -2054,6 +2054,7 @@ function updateIPhoneExportButton(forceEnable = false) {
     }
 
     const count = pendingIPhoneExports.length;
+    iphoneExportButton.classList.toggle("has-pending-exports", count > 0);
 
     iphoneExportButton.textContent =
         `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
@@ -2069,6 +2070,7 @@ function resetIPhoneExportState() {
 
     if (iphoneExportButton) {
         iphoneExportButton.disabled = true;
+        iphoneExportButton.classList.remove("has-pending-exports");
         iphoneExportButton.textContent = "Save 0 Transcripts to Files";
     }
 
@@ -2081,6 +2083,7 @@ function resetIPhoneExportState() {
 
 function setIPhoneExportSavedStatus(count) {
     if (iphoneExportButton) {
+        iphoneExportButton.classList.toggle("has-pending-exports", pendingIPhoneExports.length > count);
         iphoneExportButton.disabled = count === 0;
         iphoneExportButton.textContent =
             `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;

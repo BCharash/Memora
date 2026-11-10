@@ -1409,9 +1409,9 @@ button:disabled {
 }
 
 
-/* Keep the existing Search Index button conspicuous while changes are pending.
+/* Keep Search Index updates and unsaved iPhone transcript exports conspicuous.
    The blue glow pulses independently from a separate thin black outline. */
-#searchIndexUpdateButton:not(:disabled) {
+:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled) {
     position: relative;
     isolation: isolate;
     background: #0878F9;
@@ -1422,7 +1422,7 @@ button:disabled {
     animation: search-index-blue-halo 2.4s ease-in-out infinite;
 }
 
-#searchIndexUpdateButton:not(:disabled)::after {
+:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled)::after {
     content: "";
     position: absolute;
     inset: -6px;
@@ -1432,13 +1432,13 @@ button:disabled {
     animation: search-index-black-outline 2.4s ease-in-out infinite;
 }
 
-#searchIndexUpdateButton:not(:disabled):hover {
+:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled):hover {
     background: #0067E8;
     border-color: #004FAF;
     opacity: 1;
 }
 
-#searchIndexUpdateButton:not(:disabled):focus-visible {
+:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled):focus-visible {
     outline: 3px solid #003F91;
     outline-offset: 9px;
 }
@@ -1466,8 +1466,8 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #searchIndexUpdateButton:not(:disabled),
-    #searchIndexUpdateButton:not(:disabled)::after {
+    :is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled),
+    :is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports):not(:disabled)::after {
         animation: none;
     }
 }

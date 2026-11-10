@@ -1,6 +1,12 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.5** changes iOS execution-report export below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.6** adds pending transcript-save emphasis below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+
+## Latest presentation change — pending iPhone transcript save (.6)
+
+The iPhone Save N Transcripts to Files button now reuses Search index-update styling: blue fill, strong border/independent outline and subtle pulse. A pending-export class enables emphasis only while a nonempty batch is ready; disabled/empty/reset states do not pulse, and successful share removes emphasis. Cancellation/failure preserves pending emphasis. Re-export remains available without pulsing after completion. Reduced-motion preference suppresses both animations. Existing share behavior is unchanged.
+
+Verified using the actual app state functions and computed styles at a 390px viewport, including matching Search appearance, outline, saved/reset/empty states and reduced motion; screenshot inspected. No new automated test files or model runs for this visual change. User iPhone check: the next normal unsaved transcript batch should show the prominent button; completed sharing removes emphasis. No model revalidation needed. Existing report-export .5 and separate intermittent source-folder observations remain documented below.
 
 ## Current iPhone fix candidate — report sharing (2026-11-10.5)
 
