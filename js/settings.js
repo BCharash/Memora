@@ -209,6 +209,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
             </details>
 
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
             <p class="settings-note">Browser storage usage is the authoritative overall figure. Category sizes are estimates or known byte counts and may not add exactly to the browser total.</p>
         `;
 

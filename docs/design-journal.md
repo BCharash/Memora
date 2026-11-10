@@ -4282,3 +4282,5 @@ Initial/required pre-model evidence failures stop risky work; late successful-re
 ## 60.19 Storage refresh separator — 10 November 2026, candidate .9
 
 The user reported normal transcription working so far and no eligibility reviews, then requested clearer separation above Refresh Storage Information. Added the same thin category divider used elsewhere, above the general refresh action. This only changes markup/build identification. Refresh rereads storage/cache/IndexedDB totals, model-file availability and Settings/runtime/history; it can synchronize saved evidence through existing history rendering, but does not test models, download weights, clear caches, reset definitions or reload the page. Settings opening already refreshes. No new model run/test required for this presentation edit; .8 device acceptance scope remains as reported, without inventing additional coverage.
+
+Correction in candidate 2026-11-10.10: moved that divider above the Browser storage usage description rather than between the description and Refresh Storage Information. Both now remain grouped below the model area. No behavior change.

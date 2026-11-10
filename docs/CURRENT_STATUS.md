@@ -1,10 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against candidate **2026-11-10.9**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+Reviewed 10 November 2026 against candidate **2026-11-10.10**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
 
 ## Latest presentation follow-up — storage refresh separator (.9)
 
-Added the existing category-divider styling immediately above Refresh Storage Information, separating this general Settings action from the model review/history area. No refresh/eligibility/storage behavior change. The user reports normal transcription is fine so far and reviews show zero; exact device coverage for .8 was not specified in that update. Continue the bounded .8 Mac/iPhone checks as needed; no new transcription is required just to inspect this separator.
+The .9 placement split the storage description from its button. Corrected in .10: the divider now precedes the Browser storage usage description, keeping description and Refresh Storage Information together below the model area. No refresh/eligibility/storage behavior change. The user reports normal transcription is fine so far and reviews show zero; exact device coverage for .8 was not specified in that update. Continue the bounded .8 Mac/iPhone checks as needed; no new transcription is required just to inspect this separator.
 
 Refresh Storage Information rereads browser usage, IndexedDB/cache accounting and repository/model-file availability, then rerenders Settings/runtime/history. Existing bridge synchronization can process saved evidence/recovery; it is not a model test, weight download, schema rebuild, cache clear or page reload. Settings opening already runs this refresh.
 
