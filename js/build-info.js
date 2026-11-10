@@ -1,5 +1,5 @@
 // Production build: UTC release date + daily sequence. See docs/build-versioning.md.
-export const APP_BUILD = "2026-11-10.4";
+export const APP_BUILD = "2026-11-10.5";
 
 export function displayBuildInfo(element) {
     if (element) element.textContent = `Memora build ${APP_BUILD}`;

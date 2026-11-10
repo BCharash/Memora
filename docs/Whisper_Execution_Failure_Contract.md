@@ -59,3 +59,7 @@ Build .3: 44 focused browser groups passed—seven execution journal/UI/navigati
 
 
 Thirty-four isolated browser groups passed: four failure-contract/workflow, six loader-gate (simulated iOS/desktop replies/events/posting failures, exact identity, reuse and cleanup), six worker/timing diagnostics, eight Settings, six production eligibility and four selector groups. Tests use injected dependencies, no real model execution or eligibility changes in the user's profile. The real worker scripts and canonical definitions are untouched. Device acceptance: one already-qualified short transcription on Mac and iPhone after publishing, including the usual save path; no deliberate Large/Medium crash or fresh self-test needed.
+
+## iOS execution-report export — .5 follow-up
+
+Execution report Save report uses the iOS file share sheet with a JSON File; desktop keeps Download report. There is no iOS blob-link fallback, after the user observed complete session loss on report download. Unsupported sharing offers Copy/inline text, cancellation is neutral, and completion means sharing returned, not independently verified destination. The same action is shared by normal-transcription diagnostics and Settings execution history. This does not change self-test export, model lifetime, eligibility or recording-source loading. Real iPhone acceptance is pending; eight execution-report groups passed with injected sharing paths.

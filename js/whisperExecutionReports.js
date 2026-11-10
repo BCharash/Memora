@@ -1,3 +1,4 @@
+import { isIOS } from "./runtime.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 
 // Shared view for Settings and completed-transcription diagnostics. Both fetch
@@ -31,23 +32,45 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
     technical.addEventListener("toggle", () => { if (technical.open) showReport(); syncView(); });
     syncView(); actions.append(view);
     for (const label of ["Copy report", "Download report"]) {
-        const button = document.createElement("button"); button.type = "button"; button.textContent = label;
+        const button = document.createElement("button"); button.type = "button";
+        button.textContent = label === "Download report" && isIOS ? "Save report" : label;
         button.onclick = async () => {
+            button.disabled = true;
             let url;
             try {
                 const record = refresh();
                 if (label === "Copy report") {
                     await navigator.clipboard.writeText(body.textContent); feedback.textContent = " Report copied.";
                 } else {
+                    const filename = `whisper-execution-${record.startedAt}-${record.id}.json`.replace(/[^a-zA-Z0-9._-]/g, "-");
+                    if (isIOS) {
+                        // Keep the app document in place. Blob-link downloads
+                        // can replace the iOS page and lose its unsaved session.
+                        const files = [new File([body.textContent], filename, { type: "application/json" })];
+                        if (!navigator.share || (navigator.canShare && !navigator.canShare({ files }))) {
+                            throw new Error("Report file sharing is unavailable here. Use Copy report instead.");
+                        }
+                        feedback.textContent = " Choose Save to Files in the share sheet.";
+                        await navigator.share({ files });
+                        feedback.textContent = " Report shared.";
+                        return;
+                    }
                     url = URL.createObjectURL(new Blob([body.textContent], { type: "application/json" }));
                     const link = document.createElement("a"); link.href = url;
-                    link.download = `whisper-execution-${record.startedAt}-${record.id}.json`.replace(/[^a-zA-Z0-9._-]/g, "-");
+                    link.download = filename;
                     document.body.append(link); try { link.click(); } finally { link.remove(); }
                     feedback.textContent = " Report download requested.";
                 }
             } catch (error) {
-                technical.open = true; feedback.textContent = ` ${error.message} Select and copy available report text manually.`;
-            } finally { if (url) setTimeout(() => URL.revokeObjectURL(url), 30000); }
+                if (isIOS && label === "Download report" && error?.name === "AbortError") {
+                    feedback.textContent = " Report sharing cancelled.";
+                    return;
+                }
+                technical.open = true; feedback.textContent = ` ${error?.message || String(error)} Select and copy available report text manually.`;
+            } finally {
+                button.disabled = false;
+                if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
+            }
         };
         actions.append(button);
     }

@@ -1,6 +1,14 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.4** adds inline View/Hide report below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.5** changes iOS execution-report export below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+
+## Current iPhone fix candidate — report sharing (2026-11-10.5)
+
+The user clarified that execution-report Download, not inline View, removed the whole iPhone session including source/recording selection. This is consistent with blob-link download navigation replacing the app document; an OS trace has not established the exact lifecycle mechanism. The execution-report component now uses shared runtime isIOS to label the action Save report and invoke navigator.share with the JSON File, from the click gesture. Choose Save to Files in the sheet. No blob URL/anchor download fallback on iOS: unsupported/error cases retain inline/copy access, cancellation is neutral, and the button is disabled while sharing. Desktop Download remains unchanged. This applies to both normal-transcription result and Settings execution-history report controls; the separate self-test report exporter is unchanged.
+
+Eight execution-report groups passed, adding simulated iOS file content, synchronous gesture-path share invocation, cancellation/error/unsupported cases and absence of anchor/blob fallback; desktop export and View/Hide regressions also pass. No real iPhone share sheet was exercised by these fixtures. User acceptance: publish .5, use an existing Settings execution record first, select Save report → Save to Files, and confirm the page/source selection remains. Cancel once if useful. No new transcription/self-test or storage clearing required. If unsaved transcript UI was lost, Settings → Cached Transcripts → View → Save Cached Transcripts may recover the existing local transcript copy.
+
+The earlier intermittent folder-selection issue is distinct: .4 sometimes returned to a blank Transcribe tab after selecting a 120-file folder, then worked repeatedly on the same build. File selection/list/metadata code and iOS worker are unchanged from .2, and report controls do not run in that handler. Full page loss versus list failure/root cause is not established. Do not claim the report-export change fixes folder loading. Preserve records; no stress/crash loops or eligibility integration until iPhone acceptance is reviewed.
 
 ## Latest presentation change — View/Hide execution report (2026-11-10.4)
 

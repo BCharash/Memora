@@ -127,6 +127,51 @@ try {
             if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else delete navigator.clipboard;
         }
     });
+    await test("iOS saves execution reports through sharing without any download navigation", async () => {
+        let source = await (await fetch("../js/whisperExecutionReports.js")).text();
+        source = source.replace('import { isIOS } from "./runtime.js";', 'const isIOS = true;');
+        source = source.replace(/from "\.\/([^"\n]+)"/g, (_, file) => `from ${JSON.stringify(new URL("../js/" + file, import.meta.url).href)}`);
+        const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+        const ios = await import(url);
+        const journal = factory(memory()), result = await journal.run(metadata, async execution => { execution.checkpoint("model-complete"); return {}; });
+        const container = document.createElement("div"), transcript = document.createElement("p"); transcript.textContent = "Unsaved transcript fixture";
+        container.append(transcript); fixture.append(container); ios.renderWhisperExecutionReport(container, result.executionId, { journal });
+        const save = [...container.querySelectorAll("button")].find(button => button.textContent === "Save report");
+        const originalShare = Object.getOwnPropertyDescriptor(navigator, "share"), originalCanShare = Object.getOwnPropertyDescriptor(navigator, "canShare");
+        const originalClick = HTMLAnchorElement.prototype.click, originalURL = URL.createObjectURL;
+        let anchorCalls = 0, urlCalls = 0, shareCalls = 0, shared, finish;
+        try {
+            HTMLAnchorElement.prototype.click = function() { anchorCalls++; };
+            URL.createObjectURL = function(...args) { urlCalls++; return originalURL.apply(this, args); };
+            Object.defineProperty(navigator, "canShare", { configurable: true, value: payload => payload.files[0] instanceof File });
+            Object.defineProperty(navigator, "share", { configurable: true, value: payload => { shareCalls++; shared = payload; return new Promise(resolve => { finish = resolve; }); } });
+            save.click();
+            assert(shareCalls === 1 && save.disabled, "share invoked from click and duplicate action disabled");
+            assert(shared.files[0].type === "application/json" && shared.files[0].name.endsWith(".json"), "correct report file");
+            assert(JSON.parse(await shared.files[0].text()).id === result.executionId, "same saved record shared");
+            finish(); await new Promise(resolve => setTimeout(resolve, 0));
+            assert(!save.disabled && container.textContent.includes("Report shared"), "success restores control");
+            Object.defineProperty(navigator, "share", { configurable: true, value: async () => { throw new DOMException("cancelled", "AbortError"); } });
+            save.click(); await new Promise(resolve => setTimeout(resolve, 0));
+            assert(!save.disabled && container.textContent.includes("sharing cancelled"), "cancellation is neutral");
+            Object.defineProperty(navigator, "share", { configurable: true, value: async () => { throw new Error("share failed"); } });
+            save.click(); await new Promise(resolve => setTimeout(resolve, 0));
+            assert(container.textContent.includes("share failed") && container.querySelector("details").open, "share error offers inline report");
+            Object.defineProperty(navigator, "canShare", { configurable: true, value: () => false });
+            save.click(); await new Promise(resolve => setTimeout(resolve, 0));
+            assert(container.textContent.includes("Use Copy report"), "unsupported payload offers copy");
+            Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+            save.click(); await new Promise(resolve => setTimeout(resolve, 0));
+            assert(container.textContent.includes("Use Copy report"), "missing sharing API offers copy");
+            assert(anchorCalls === 0 && urlCalls === 0, "no blob link or download fallback on iOS");
+            assert(transcript.isConnected && journal.list().some(item => item.id === result.executionId), "result and saved history retained");
+        } finally {
+            for (const [name, descriptor] of [["share", originalShare], ["canShare", originalCanShare]]) {
+                if (descriptor) Object.defineProperty(navigator, name, descriptor); else delete navigator[name];
+            }
+            HTMLAnchorElement.prototype.click = originalClick; URL.createObjectURL = originalURL; URL.revokeObjectURL(url);
+        }
+    });
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }
 finally { document.getElementById("results").textContent = lines.join("\n"); }

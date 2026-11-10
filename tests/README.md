@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through candidate application build **2026-11-10.4**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-10.5**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -64,3 +64,5 @@ Build 2026-11-10.2: four new failure-contract/workflow, six expanded loader-gate
 Build 2026-11-10.3: 44 groups passed (seven execution journal/UI/navigation, four failure/workflow, six diagnostics, eight Settings, seven database-integration, six production-eligibility and six loader-gate). Execution tests use in-memory fixtures and a dedicated `memora-execution-navigation-test.*` localStorage wrapper for real iframe page replacement, cleaning it afterward. Diagnostics/failure workflow pages substitute `whisper-executions-fixture.js` so normal production history is not modified. No models or real user qualification changes. User check: one short transcription/save, linked Copy/Download, same execution ID in Settings and persistence after refresh on Mac/iPhone; no deliberate interruption needed.
 
 Build 2026-11-10.4: seven execution-history groups passed, adding View/Hide, native-disclosure synchronization and accessibility assertions to the existing shared report control coverage. No model run required.
+
+Build 2026-11-10.5: eight execution-history/report groups passed. Simulated iOS source exercises Save report via native file-sharing API (injected), matching JSON File, gesture-path call, disabled pending action, success, cancel, rejection, unsupported payload/missing API and zero anchor/blob-download fallback. Existing desktop Download and View/Hide coverage remains. Real iPhone Save to Files acceptance is pending; use an existing record and verify source/session retention. Separate intermittent 120-file folder-selection behavior remains unresolved.
