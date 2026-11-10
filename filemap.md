@@ -1,12 +1,12 @@
 # Memora file map
 
-Reviewed against the checkout on 10 November 2026, source build **2026-11-10.6**.
+Reviewed against the checkout on 10 November 2026, candidate build **2026-11-10.7**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
 ## The short answer about the number of files
 
-There are **43 JavaScript files in `js/`**, including **18 whose names begin with `whisper`**. There are another **21 JavaScript files under `tests/`**. Test files are separate from the normal application.
+There are **43 JavaScript files in `js/`**, including **18 whose names begin with `whisper`**. There are another **22 JavaScript files under `tests/`**. Test files are separate from the normal application.
 
 **All 43 application files have a dependency path from the main page.** They support different features; they are not 43 separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
@@ -175,11 +175,12 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 
 ## Developer tests — separate from the application
 
-There are **17 HTML test runners**. Each imports its matching `.test.js` file. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
+There are **18 HTML test runners**. Each imports its matching `.test.js` file. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
 
 | Test page | What it checks |
 |---|---|
 | [whisper-executions.html](tests/whisper-executions.html) | Production history ownership, retention, privacy, real navigation recovery and linked report controls. |
+| [whisper-worker-failures.html](tests/whisper-worker-failures.html) | Typed actual-worker fault evidence, legacy/mismatched envelopes and self-test verdict preservation. |
 | [whisper-failures.html](tests/whisper-failures.html) | Injected stage/source classification and actual workflow attribution without model runs. |
 | [database.html](tests/database.html) | Schema creation/upgrades and failure cases in temporary databases. |
 | [database-integration.html](tests/database-integration.html) | Application modules working with an isolated database fixture. |
@@ -225,4 +226,4 @@ This is a static dependency/organization audit, not a fresh device test, exhaust
 
 ## Current next checkpoint and future selection
 
-Current source uses fixed qualified family defaults, not automatic competition among passing variants. Next is reliable worker failure provenance in the existing workers/classifier, with no eligibility changes. Production-evidence ingestion follows as a separate checkpoint; it will run on failure/startup recovery through the existing eligibility authority. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.
+Current source uses fixed qualified family defaults, not automatic competition among passing variants. Worker failure provenance is implemented in .7 in the existing workers/classifier, with no eligibility changes; normal Mac/iPhone acceptance is next. Production-evidence ingestion follows as a separate checkpoint; it will run on failure/startup recovery through the existing eligibility authority. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.

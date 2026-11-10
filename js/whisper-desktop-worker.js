@@ -1,3 +1,4 @@
+import { createWhisperWorkerErrorMessage } from "./whisperFailures.js";
 import { describeWhisperPipeline } from "./whisperDiagnostics.js";
 
 // --------------------------------------------------
@@ -13,6 +14,7 @@ let pipeline = null;
 let transcriber = null;
 let diagnostics = null;
 let disposing = false;
+let loadedConfigurationId = null;
 
 async function loadTransformers() {
     if (!pipeline) {
@@ -47,10 +49,11 @@ self.onmessage = async event => {
         return;
     }
     if (disposing) {
-        self.postMessage({ type: "error", message: "This worker is disposing its model and cannot accept more work." });
+        self.postMessage(createWhisperWorkerErrorMessage(new Error("This worker is disposing its model and cannot accept more work."), { stage: message.type === "load" ? "load" : "inference", configurationId: message.model || loadedConfigurationId, boundary: "worker-state" }));
         return;
     }
 
+    let failureBoundary = "worker-state";
     try {
         if (message.type === "load") {
             self.postMessage({
@@ -58,6 +61,7 @@ self.onmessage = async event => {
                 message: `Loading ${message.model} in the desktop Whisper worker…`
             });
 
+            failureBoundary = "module-import";
             const createPipeline = await loadTransformers();
 
             const pipelineOptions = {
@@ -68,12 +72,14 @@ self.onmessage = async event => {
                 pipelineOptions.dtype = message.dtype;
             }
 
+            failureBoundary = "pipeline-create";
             transcriber = await createPipeline(
                 "automatic-speech-recognition",
                 message.repository,
                 pipelineOptions
             );
 
+            loadedConfigurationId = message.model;
             diagnostics = describeWhisperPipeline(transcriber, {
                 model: message.model, repository: message.repository, dtype: message.dtype ?? null,
                 requestedBackend: "webgpu", transformersVersion: "4.0.0", worker: "production desktop worker"
@@ -110,6 +116,7 @@ self.onmessage = async event => {
                 options.language = message.options.language;
             }
 
+            failureBoundary = "pipeline-call";
             const inferenceStarted = performance.now();
             const result = await transcriber(
                 message.audio,
@@ -124,12 +131,10 @@ self.onmessage = async event => {
             });
         }
     } catch (error) {
-        self.postMessage({
-            type: "error",
-            message:
-                error?.stack ||
-                error?.message ||
-                String(error)
-        });
+        self.postMessage(createWhisperWorkerErrorMessage(error, {
+            stage: message.type === "load" ? "load" : "inference",
+            configurationId: message.type === "load" ? message.model : loadedConfigurationId,
+            boundary: failureBoundary
+        }));
     }
 };

@@ -1,3 +1,4 @@
+import { whisperErrorFromWorkerMessage } from "./whisperFailures.js";
 // Disposable self-test orchestration. Dependencies are injected for controlled
 // failure tests; no worker/model/database is opened merely by importing this file.
 import { hasWhisperReference, validateWhisperOutput, MAX_WHISPER_WER, WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
@@ -99,7 +100,14 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
                         if (reply.type === "status" || reply.type === "boot") {
                             emit({ type: "model-status", index: 1, model: configuration.id, message: reply.message });
                         } else if (reply.type === "error") {
-                            settle(reject, new Error(reply.message || "Whisper test worker error."));
+                            // Preserve legacy self-test outcome/name semantics. Typed
+                            // worker diagnostics must not become a cancellation verdict.
+                            const error = new Error(reply.message || "Whisper test worker error.");
+                            error.whisperFailure = whisperErrorFromWorkerMessage(reply, {
+                                stage: expected === "transcription" ? "inference" : "load",
+                                source: "worker-reply", configurationId: configuration.id
+                            }).whisperFailure;
+                            settle(reject, error);
                         } else if (reply.type === expected) {
                             settle(resolve, reply);
                         } else if (reply.type === "transcription" && expected !== "transcription") {
@@ -162,6 +170,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
             result.status = error.name === "AbortError" ? "cancelled" : error.name === "TimeoutError" ? "timed-out" : "failed";
             result.failedPhase = phase;
             result.error = { name: error.name || "Error", message: error.message || String(error), stack: error.stack || "", timeoutMs: error.timeoutMs, elapsedMs: error.elapsedMs, visibility: error.visibility };
+            if (error.whisperFailure) result.error.failure = error.whisperFailure;
             if (phase === "load") result.loadStatus = result.status;
             if (phase === "inference") result.transcriptionStatus = result.status;
         } finally {

@@ -66,3 +66,7 @@ The proposed stages are:
 Current WER ≤15% on one short English fixture is a qualification gate, **not a defensible ranking of general transcription accuracy**. Accuracy-based recommendations require broader representative evaluation; performance measurements and reliability observations remain separate dimensions. Do not recommend a model solely because it is larger or passed once. The user's observations that Medium was slower than Large and gave less useful accuracy on the MacBook motivate evidence-based selection, not universal removal of Medium.
 
 Until that policy is designed and tested, `production.familyDefault` and exact-context eligibility remain the production authority. Multiple passing Medium candidates do not automatically compete for the dropdown. This roadmap follows reliable failure provenance/eligibility work and is separate from automatic sequential testing and its future retry policy.
+
+### Diagnostic-only worker envelope — .7
+
+Optional structured worker failure evidence is versioned separately from successful execution/protocol identity. Error payload additions leave current worker execution revision/protocol 2 and configuration fingerprints unchanged because loader/inference/disposal behavior and successful messages are unchanged. Existing qualification is retained; matching schema/configuration/stage checks prevent new diagnostics borrowing another context. Future material execution changes still require an explicit revision/fresh-validation decision.

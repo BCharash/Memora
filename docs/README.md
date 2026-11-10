@@ -1,6 +1,6 @@
 # Memora documentation
 
-Reviewed 10 November 2026 through committed source build **2026-11-10.6**. The user confirmed the iOS execution-report sharing fix and accepted pending transcript-save emphasis. Next: reliable worker error provenance, then eligibility integration. Candidate discovery/variant ranking remain future design. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and recorded test evidence take precedence over historical implementation claims.
+Reviewed 10 November 2026 through candidate source build **2026-11-10.7**. The user confirmed the iOS execution-report sharing fix and accepted pending transcript-save emphasis. Worker error provenance is implemented with eligibility unchanged; next is its Mac/iPhone acceptance before eligibility integration. Candidate discovery/variant ranking remain future design. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md). Current source and recorded test evidence take precedence over historical implementation claims.
 
 | Document | Role |
 |---|---|

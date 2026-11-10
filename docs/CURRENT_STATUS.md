@@ -1,6 +1,16 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against committed build **2026-11-10.6** (`cdcfead`). Runtime/database/catalogue consolidation, production failure classification and execution history/reporting are implemented. The user confirmed the iPhone report-save fix preserves the session and accepted the pending transcript-save styling. Production eligibility feedback and richer worker failure provenance are not implemented. This is a documentation-only checkpoint; build number and code are unchanged.
+Reviewed 10 November 2026 against candidate **2026-11-10.7**, based on committed .6 (`cdcfead`). Runtime/database/catalogue consolidation, production failure classification and execution history/reporting are implemented. The user confirmed the iPhone report-save fix preserves the session and accepted the pending transcript-save styling. Richer worker failure provenance is now implemented in .7; production eligibility feedback is not. User .7 acceptance is pending. No commit/publication by agent.
+
+## Latest checkpoint 1 implemented — worker failure provenance (.7)
+
+Both workers now retain the legacy error message plus a version-1 optional structured failure payload: exact configuration, load/inference stage, owned call boundary (module import, pipeline creation/call or worker state), observed error kind and original name/message/stack/code when available. Parent production loaders accept it only after schema, stage/boundary and exact-ID checks. Legacy, malformed/future and mismatched payloads remain cause unknown. Worker error events retain available original details and script location without inventing an executed backend or root cause.
+
+An actual WebAssembly.RuntimeError instance observed inside the worker is distinguishable from an Error merely named RuntimeError. Generic TypeError, NetworkError wording and other names do not prove network/model cause. Abort information is preserved without claiming user intent. Production execution records carry the typed failure; nested diagnostic strings obey the existing truncation bounds. Self-test technical errors also gain a `failure` field, while legacy pass/fail/cancel/timeout verdict semantics and eligibility rules are preserved.
+
+This is a diagnostic-only, backward-compatible error-envelope addition. Successful worker messages, dtype/device/library/task/language inputs, disposal/reuse and canonical execution definitions are unchanged. Error-envelope schema is separate from worker execution/protocol revision 2; those revisions/fingerprints intentionally remain unchanged because no execution behavior changed. No model revalidation/reset is required.
+
+104 focused browser groups passed: four new actual-worker evidence/decoder/self-test-verdict groups, six diagnostics, six expanded loader-gate, 11 disposal, 22 lifecycle, four failure/workflow, eight execution-history/report, eight Settings, six production eligibility, 13 evidence and 16 catalogue groups. Injected pipelines cover iOS/desktop load/inference faults plus desktop module-import failure; no models or hardware-error stress tests. User check: one short normal transcription/save on Mac and iPhone with an already-qualified model, verify .7 and normal report access. Do not manufacture a crash or clear storage. Stop for acceptance before checkpoint 2.
 
 ## Current acceptance and resume boundary
 
@@ -97,9 +107,9 @@ The user rebooted and reported at least nine normal Small transcriptions without
 
 The proposed resource lab was discarded at the user's request and is absent. Do not recreate it automatically, ask for repeated Small/Medium crash trials, or activate automatic sequences. Avoid editing watched files during user inference; use a server without automatic reload for future controlled diagnosis. File reads alone are not evidence that Live Server caused a reload.
 
-## Next new checkpoint 1 — trustworthy worker failure details
+## Checkpoint 1 scope — implemented in .7, acceptance pending
 
-Implement richer error provenance at the existing worker/parent boundary: original error name/message/stack where available, exact configuration, load versus inference stage and a versioned structured description. Feed the existing shared failure-classification contract rather than creating per-model exceptions, a second registry or message-keyword rules. Keep unknown causes unknown: an original error name alone does not prove a network, hardware or model root cause. Legacy/cached workers without new fields must degrade conservatively. **Eligibility decisions stay unchanged in this checkpoint.**
+Implemented richer error provenance at the existing worker/parent boundary: original error name/message/stack where available, exact configuration, load versus inference stage and a versioned structured description. Feed the existing shared failure-classification contract rather than creating per-model exceptions, a second registry or message-keyword rules. Keep unknown causes unknown: an original error name alone does not prove a network, hardware or model root cause. Legacy/cached workers without new fields must degrade conservatively. **Eligibility decisions stay unchanged in this checkpoint.**
 
 Use injected iOS/desktop faults to verify successful paths, worker error replies/events/posting faults, unknown/legacy replies, aborts, and reliable network/runtime distinctions only where evidence supports them. Confirm no change to dtype, task/language, model reuse or library selection. Review worker protocol/implementation revision and fingerprint implications explicitly: if execution identity changes, retain existing evidence and explain any fresh qualification required; never reset storage or silently reuse incompatible evidence. Stop for one normal short Mac/iPhone transcription check; no deliberate crash required.
 
@@ -114,7 +124,7 @@ The user agrees with the existing decision rules. Connect verified observations 
 
 Preserve eligibility for input/decode, known download/network, cancellation and saving/paragraphing errors. Withhold exact configurations on confirmed model/runtime failure; record uncertainty/suspend for unexplained interruption during model work rather than invent incompatibility. Agree persistence-failure behavior before activating decisions. The production journal remains separate from manual self-test evidence. No button press, scheduled scan, background AI or Rebuild Registry action is required for evaluation.
 
-This integration follows checkpoint 1 acceptance. The iPhone source-folder investigation, cooldown duration study, automatic sequences/retries and candidate/variant selection below are separate future work.
+This integration is not implemented and follows .7 checkpoint 1 acceptance. The iPhone source-folder investigation, cooldown duration study, automatic sequences/retries and candidate/variant selection below are separate future work.
 
 ## Future model discovery and preferred-variant selection
 
@@ -137,4 +147,4 @@ Proceed in small, independently testable steps and stop at natural breakpoints. 
 
 Start with [documentation index](README.md), [file map](../filemap.md), [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) and [test guide](../tests/README.md). Detailed chronological handoffs are in the [archive](archive/README.md); the [design journal, section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923) records the decisions.
 
-Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Build 2026-11-10.6 includes accepted iOS execution-report sharing and transcript-save emphasis. Begin new checkpoint 1: preserve trustworthy worker failure details through the shared contract, with injected tests and no eligibility changes. Checkpoint 2 will evaluate production evidence through the existing eligibility mechanism after acceptance. Keep folder-loading diagnosis, cooldown, automatic sequences and candidate/variant recommendations separate.”
+Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Candidate 2026-11-10.7 implements reliable structured worker failure details only; eligibility is unchanged. Review Mac/iPhone normal-transcription acceptance before checkpoint 2 connects production evidence to the existing eligibility mechanism. Worker execution fingerprints remain unchanged for this additive diagnostic-only envelope. Keep folder-loading diagnosis, cooldown, automatic sequences and candidate/variant recommendations separate.”

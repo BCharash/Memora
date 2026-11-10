@@ -95,9 +95,10 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
                 // No file, audio, transcript or arbitrary returned record is stored.
                 record.failure = error?.whisperFailure || { schemaVersion: 1, stage: record.phase, category: "unknown", certainty: "unknown", error: { name: error?.name || "Error", message: error?.message || String(error) } };
                 record.failure = JSON.parse(JSON.stringify(record.failure));
-                if (record.failure.error) {
-                    const diagnostic = record.failure.error;
-                    record.failure.truncated = (diagnostic.message?.length || 0) > 4000 || (diagnostic.stack?.length || 0) > 8000;
+                record.failure.truncated = false;
+                for (const diagnostic of [record.failure.error, record.failure.workerEvidence?.error]) {
+                    if (!diagnostic) continue;
+                    record.failure.truncated ||= (diagnostic.message?.length || 0) > 4000 || (diagnostic.stack?.length || 0) > 8000;
                     if (diagnostic.message) diagnostic.message = diagnostic.message.slice(0, 4000);
                     if (diagnostic.stack) diagnostic.stack = diagnostic.stack.slice(0, 8000);
                 }

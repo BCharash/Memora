@@ -35,6 +35,7 @@ try {
     for (const [filename, ios, model] of [["whisper-desktop-worker.js", false, "large"], ["whisper-ios-worker.js", true, "tiny-ios"]]) {
         await test(`${filename} preserves loader options and returns session/timing evidence`, async () => {
             let source = await (await fetch(`../js/${filename}`)).text();
+            source = source.replace('"./whisperFailures.js"', JSON.stringify(new URL("../js/whisperFailures.js", import.meta.url).href));
             source = source.replace('"./whisperDiagnostics.js"', JSON.stringify(new URL("../js/whisperDiagnostics.js", import.meta.url).href));
             source = source.replace(/await import\(\s*"https:[^"]+"\s*\)/g, "({ pipeline: globalThis.__pipeline })");
             source = source.replace(/import \{ pipeline \} from\s*"https:[^"]+";/, "const pipeline = globalThis.__pipeline;");

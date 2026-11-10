@@ -1,6 +1,6 @@
 # Memora test guide
 
-Reviewed 9 November 2026 through candidate application build **2026-11-10.6**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
+Reviewed 9 November 2026 through candidate application build **2026-11-10.7**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 
 ## How to run safely
 
@@ -15,6 +15,7 @@ Whisper harnesses use synthetic workers/pipelines/audio or cancelled/stubbed net
 | Page | Coverage |
 |---|---|
 | [whisper-executions.html](whisper-executions.html) | Separate production journal, live ownership, page-navigation recovery, privacy projection, bounded retention and shared report controls. |
+| [whisper-worker-failures.html](whisper-worker-failures.html) | Actual worker source with injected typed faults, validated/legacy payloads, original diagnostics and unchanged self-test verdicts. |
 | [whisper-failures.html](whisper-failures.html) | Shared failure vocabulary, original diagnostics and real workflow boundary attribution with injected dependencies. No model/storage access. |
 | [database.html](database.html) | Version-5 schema, incomplete upgrades, preservation, incompatible/future schemas, blocked requests, connection lifecycle and retry. |
 | [database-integration.html](database-integration.html) | Storage/semantic/registry consumers with a temporary database; evidence preservation and Settings registry status/error display. |
@@ -68,3 +69,5 @@ Build 2026-11-10.4: seven execution-history groups passed, adding View/Hide, nat
 Build 2026-11-10.5: eight execution-history/report groups passed. Simulated iOS source exercises Save report via native file-sharing API (injected), matching JSON File, gesture-path call, disabled pending action, success, cancel, rejection, unsupported payload/missing API and zero anchor/blob-download fallback. Existing desktop Download and View/Hide coverage remains. Real iPhone Save to Files acceptance is pending; use an existing record and verify source/session retention. Separate intermittent 120-file folder-selection behavior remains unresolved.
 
 10 November acceptance update through .6: the user confirmed iPhone execution-report Save to Files preserves the session and accepted pending transcript-save emphasis. Mac Settings JSON matched transcript diagnostics/ID. A separate refresh-persistence result was not explicitly supplied. Source-folder selection intermittently returned to a blank iPhone Transcribe screen for a 120-file folder; cause remains unproven and must not count against Whisper eligibility. The next worker-provenance checkpoint should use injected faults/legacy replies and a bounded normal success smoke check; no new test run occurred for this documentation refresh.
+
+Build 2026-11-10.7: 104 focused groups passed—four worker-failure envelope/actual source/self-test-verdict, six diagnostics, six loader-gate, 11 disposal, 22 lifecycle, four failure/workflow, eight execution-history/report, eight Settings, six production-eligibility, 13 evidence and 16 catalogue. New worker cases cover pipeline load/inference on iOS/desktop, desktop runtime-import failures, RuntimeError instance vs forged name, TypeError/network-looking text, DOM aborts, thrown strings, malformed/future/mismatched schemas and original error identity through actual parent branches. Self-test AbortError/TimeoutError/NetworkError replies retain failed/Error outer verdicts with original diagnostics nested. No real models or user data reset. User .7 check: one short normal transcription/save on Mac/iPhone and normal report access; no induced failures or fresh qualification required.

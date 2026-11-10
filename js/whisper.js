@@ -1,4 +1,4 @@
-import { annotateWhisperFailure, atWhisperFailureBoundary } from "./whisperFailures.js";
+import { annotateWhisperFailure, atWhisperFailureBoundary, whisperErrorFromWorkerMessage, whisperErrorFromWorkerEvent } from "./whisperFailures.js";
 import { recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
 import { requireWhisperProductionEligibility } from "./whisperProductionEligibility.js";
 import { isIOS } from "./runtime.js";
@@ -67,7 +67,7 @@ function createDesktopWhisperWorker() {
         }
 
         if (message.type === "error") {
-            const error = annotateWhisperFailure(new Error(message.message || "Desktop Whisper worker error."), {
+            const error = whisperErrorFromWorkerMessage(message, {
                 stage: desktopWorkerLoadPromise ? "load" : "inference", source: "worker-reply", configurationId: pendingConfigurationId || loadedModel
             });
 
@@ -87,7 +87,7 @@ function createDesktopWhisperWorker() {
     };
 
     desktopWhisperWorker.onerror = error => {
-        const workerError = annotateWhisperFailure(new Error(error?.message || "Desktop Whisper worker error."), {
+        const workerError = whisperErrorFromWorkerEvent(error, {
             stage: desktopWorkerLoadPromise ? "load" : "inference", source: "worker-event", configurationId: pendingConfigurationId || loadedModel
         });
 
@@ -182,7 +182,7 @@ function createWhisperWorker() {
 
             if (message.type === "error") {
 
-                const error = annotateWhisperFailure(new Error(message.message || "Whisper worker error."), {
+                const error = whisperErrorFromWorkerMessage(message, {
                     stage: workerLoadPromise ? "load" : "inference", source: "worker-reply", configurationId: pendingConfigurationId || loadedModel
                 });
 
@@ -215,7 +215,7 @@ function createWhisperWorker() {
     whisperWorker.onerror =
         error => {
 
-            const workerError = annotateWhisperFailure(new Error(error?.message || "Whisper worker error."), {
+            const workerError = whisperErrorFromWorkerEvent(error, {
                 stage: workerLoadPromise ? "load" : "inference", source: "worker-event", configurationId: pendingConfigurationId || loadedModel
             });
 

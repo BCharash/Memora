@@ -57,7 +57,8 @@ try{
   await test(`${file} acknowledges actual dispose completion/error/unavailable without changing load options`,async()=>{
    for(const mode of ["complete","throw","unavailable"]){
     let source=await(await fetch(`../js/${file}`)).text();
-    source=source.replace('"./whisperDiagnostics.js"',JSON.stringify(new URL("../js/whisperDiagnostics.js",import.meta.url).href));
+    source = source.replace('"./whisperFailures.js"', JSON.stringify(new URL("../js/whisperFailures.js", import.meta.url).href));
+            source=source.replace('"./whisperDiagnostics.js"',JSON.stringify(new URL("../js/whisperDiagnostics.js",import.meta.url).href));
     source=source.replace(/await import\(\s*"https:[^"]+"\s*\)/g,"({pipeline:globalThis.__pipeline})").replace(/import \{ pipeline \} from\s*"https:[^"]+";/,"const pipeline=globalThis.__pipeline;");
     const prelude=`globalThis.__pipeline=async()=>{const fn=async()=>({text:"test"});fn.model={sessions:{}};${mode==="unavailable"?"":`fn.dispose=async()=>{self.postMessage({type:"dispose-entered"});await new Promise(r=>setTimeout(r,10));${mode==="throw"?'throw new Error("release failed");':''}};`}return fn;};\n`;
     const url=URL.createObjectURL(new Blob([prelude,source],{type:"text/javascript"})),worker=new Worker(url,{type:"module"});

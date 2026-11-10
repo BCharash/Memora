@@ -1,3 +1,4 @@
+import { createWhisperWorkerErrorMessage } from "./whisperFailures.js";
 import { describeWhisperPipeline } from "./whisperDiagnostics.js";
 
 import { pipeline } from
@@ -32,7 +33,7 @@ self.onmessage = async event => {
         return;
     }
     if (disposing) {
-        self.postMessage({ type: "error", message: "This worker is disposing its model and cannot accept more work." });
+        self.postMessage(createWhisperWorkerErrorMessage(new Error("This worker is disposing its model and cannot accept more work."), { stage: message.type === "load" ? "load" : "inference", configurationId: message.model || loadedModel, boundary: "worker-state" }));
         return;
     }
 
@@ -81,13 +82,7 @@ self.onmessage = async event => {
 
         } catch (error) {
 
-            self.postMessage({
-                type: "error",
-                message:
-                    error?.stack ||
-                    error?.message ||
-                    String(error)
-            });
+            self.postMessage(createWhisperWorkerErrorMessage(error, { stage: "load", configurationId: message.model, boundary: "pipeline-create" }));
         }
 
         return;
@@ -97,11 +92,7 @@ self.onmessage = async event => {
 
         if (!transcriber) {
 
-            self.postMessage({
-                type: "error",
-                message:
-                    "Whisper is not loaded."
-            });
+            self.postMessage(createWhisperWorkerErrorMessage(new Error("Whisper is not loaded."), { stage: "inference", configurationId: loadedModel, boundary: "worker-state" }));
 
             return;
         }
@@ -129,13 +120,7 @@ self.onmessage = async event => {
 
         } catch (error) {
 
-            self.postMessage({
-                type: "error",
-                message:
-                    error?.stack ||
-                    error?.message ||
-                    String(error)
-            });
+            self.postMessage(createWhisperWorkerErrorMessage(error, { stage: "inference", configurationId: loadedModel, boundary: "pipeline-call" }));
         }
     }
 };
