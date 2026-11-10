@@ -49,3 +49,20 @@ Legacy scalar/omitted-dtype availability still accepts the existing generic ONNX
 Independent pre-migration full-record snapshot parity, saved-evidence preservation, selection/list compatibility and fingerprint checks are in [the test guide](../tests/README.md). Builds .20–.23 removed unused execution code and completed the agreed selection/availability-projection/display cleanup without changing worker inputs or fingerprints. No revalidation was required for those cleanup builds.
 
 Normal-transcription failure feedback, exact offline manifests, variant-selection policy changes, automatic sequences/retries and further resource diagnosis are separate future work. They are not prerequisites for keeping the completed consolidation checkpoint.
+
+## Future candidate discovery and device-specific variant selection
+
+Recorded 10 November 2026 after user discussion. **Future design only; not implemented by current fixed defaults or authorized by this document alone.**
+
+There may be multiple valid exact implementations of Tiny, Medium, Large or another family, differing in repository, quantization, runtime and worker requirements. A family name is not enough to select the best implementation. Catalogue membership, executable compatibility, successful validation and preferred-production selection are distinct states.
+
+The proposed stages are:
+
+1. **Reviewed candidate introduction.** Add exact configurations through deliberate canonical catalogue updates; show compatible untested candidates in Settings for evaluation. Do not silently introduce them into production or run resource-heavy tests automatically. UI clearly distinguishes new/untested, failed/suspended and qualified candidates.
+2. **Device-local comparison.** Preserve per-configuration/context accuracy-gate results, inference/load timing, observed interruptions/failures and cache/resource evidence where actually measurable. Compare like-for-like fixtures/recipe/cache conditions. One pass is not reliability proof; API disposal is not measured physical memory release. A result on one browser/device cannot qualify another.
+3. **Preferred variant within a family.** Select only eligible candidates under a transparent preference, such as speed-oriented, accuracy-oriented or balanced. Show the chosen exact ID and reason, let the user override, preserve prior choices/history and handle a later hold without silent substitution. Settle preference persistence, fallback consent and stale-evidence handling before implementation.
+4. **Broader discovery later.** Remote repository discovery may suggest candidates, but repository presence/file names do not prove our worker/runtime can execute them. Review repository provenance/revision, loader configuration, runtime compatibility and test permission before admission to the canonical catalogue. No arbitrary downloaded code or model execution follows from discovery alone.
+
+Current WER ≤15% on one short English fixture is a qualification gate, **not a defensible ranking of general transcription accuracy**. Accuracy-based recommendations require broader representative evaluation; performance measurements and reliability observations remain separate dimensions. Do not recommend a model solely because it is larger or passed once. The user's observations that Medium was slower than Large and gave less useful accuracy on the MacBook motivate evidence-based selection, not universal removal of Medium.
+
+Until that policy is designed and tested, `production.familyDefault` and exact-context eligibility remain the production authority. Multiple passing Medium candidates do not automatically compete for the dropdown. This roadmap follows reliable failure provenance/eligibility work and is separate from automatic sequential testing and its future retry policy.

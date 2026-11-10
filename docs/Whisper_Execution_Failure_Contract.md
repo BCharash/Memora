@@ -47,11 +47,13 @@ In this observation-only checkpoint, unavailable storage/locking does not disabl
 
 `whisperExecutionReports.js` supplies both views of the same saved record: Settings' collapsed Transcription execution history, and completed results' existing Timing and model diagnostics. Both have collapsed technical JSON, Copy and Download. The Settings view can clear completed history; old result links then show unavailable rather than export a stale copy. Copy denial exposes manual report text; Download reports only that a download was requested.
 
-## Next checkpoints
+## Next checkpoints — agreed 10 November 2026
 
-1. Accept .3 with a short normal transcription/save and linked report/history/refresh check on Mac/iPhone. Do not manufacture crashes or revalidate models for this checkpoint.
-2. Review trustworthy cause evidence and persistence-failure policy, then connect production records to the shared eligibility system. Ordinary success must not become a WER-qualified manual self-test. Known input/network/postprocessing faults must not disqualify a model. Unknown worker/page loss must retain uncertainty.
-3. Keep cooldown, automatic retry/sequences, new production deadlines/cancellation and deeper resource diagnosis separately authorized.
+1. **Reliable worker failure provenance; eligibility unchanged.** Preserve original error details and load/inference origin, exact canonical configuration and a versioned structured payload across both workers and parent adapters. Reuse `whisperFailures.js`; legacy messages remain unknown. Do not infer cause from wording or treat a generic JavaScript error name as proof of model incompatibility. Use injected worker/runtime/network/unknown/abort cases and normal success, avoiding intentional crashes. Explicitly review worker revisions/fingerprint freshness before changing the worker contract.
+2. **Connect production observations to shared eligibility.** Evaluate on failure immediately and on startup recovery; refresh the dropdown after decisions. Existing loader rechecks and manual reference-pass recovery remain authoritative. Preserve eligibility for non-model faults, withhold only confirmed model failures, and suspend uncertain active-model interruption. Preserve completed model outcomes across postprocessing/page loss. Settle durable-write failure handling, event ordering and manual-pass precedence before activation. Ordinary success never becomes a reference pass.
+3. Keep candidate discovery/preferred-variant selection, source-folder investigation, cooldown, automatic sequences/retry and production cancellation/deadline policies separate. No manual registry rebuild or external AI process is needed to consume evidence once checkpoint 2 is connected.
+
+Classification/history/reporting are implemented. User confirmed the iOS .5 report-save fix and accepted .6 save-button emphasis. Mac execution JSON from Settings matched the completed transcript diagnostics. Dedicated refresh persistence was not explicitly reported; do not invent that result. No further code change is authorized by this contract alone.
 
 ## Verification
 
@@ -62,4 +64,4 @@ Thirty-four isolated browser groups passed: four failure-contract/workflow, six 
 
 ## iOS execution-report export — .5 follow-up
 
-Execution report Save report uses the iOS file share sheet with a JSON File; desktop keeps Download report. There is no iOS blob-link fallback, after the user observed complete session loss on report download. Unsupported sharing offers Copy/inline text, cancellation is neutral, and completion means sharing returned, not independently verified destination. The same action is shared by normal-transcription diagnostics and Settings execution history. This does not change self-test export, model lifetime, eligibility or recording-source loading. Real iPhone acceptance is pending; eight execution-report groups passed with injected sharing paths.
+Execution report Save report uses the iOS file share sheet with a JSON File; desktop keeps Download report. There is no iOS blob-link fallback, after the user observed complete session loss on report download. Unsupported sharing offers Copy/inline text, cancellation is neutral, and completion means sharing returned, not independently verified destination. The same action is shared by normal-transcription diagnostics and Settings execution history. This does not change self-test export, model lifetime, eligibility or recording-source loading. The user subsequently confirmed the report-save fix preserves the iPhone session. Eight execution-report groups had passed with injected sharing paths. The separate 120-file source-folder symptom remains unresolved.

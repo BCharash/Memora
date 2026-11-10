@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 9 November 2026, candidate build **2026-11-10.6**.
+Reviewed against the checkout on 10 November 2026, source build **2026-11-10.6**.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -222,3 +222,7 @@ Registry-versus-eligibility presentation is clarified in .23 and user-accepted. 
 Checked the initial 41 `js/` filenames (40 remained after obsolete-worker removal; failure classification plus production history/report views bring the current total to 43), exports/imports, worker creation paths, entry pages, test references and complete-file hashes, with targeted source review of overlap candidates. Followed dynamic imports and worker filenames as well as ordinary imports. The old worker filename inside a test was also checked manually and removed with the worker.
 
 This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. Subsequent authorized cleanups removed the obsolete worker/test case and unused page-side loader/fallback branches. Build .20 identifies the latter change. Active worker files, HTML, CSS, databases, model options and configuration fingerprints are unchanged.
+
+## Current next checkpoint and future selection
+
+Current source uses fixed qualified family defaults, not automatic competition among passing variants. Next is reliable worker failure provenance in the existing workers/classifier, with no eligibility changes. Production-evidence ingestion follows as a separate checkpoint; it will run on failure/startup recovery through the existing eligibility authority. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.

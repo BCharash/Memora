@@ -7,7 +7,7 @@
 
 ## Handoff summary — read this first when resuming
 
-**Implementation status — 9 November 2026, build 2026-11-09.23:** This remains the broader requirements/design record, not a current implementation checklist. Runtime identity and version-5 database ownership/repair are complete. Canonical model definitions, shared selection/listing, production/self-test worker parity, WER ≤15%, durable attempts/recovery, exact-context eligibility and production filtering are implemented. Availability metadata derives from definitions; Settings now separates current eligibility from historical registry validation. The user accepted the latest presentation.
+**Implementation status — 10 November 2026, source build 2026-11-10.6:** Runtime identity/database ownership, canonical definitions/selection, worker parity, WER validation, durable self-test evidence/eligibility, production classification and separate execution history/recovery/reporting are implemented. The user confirmed iOS execution-report sharing and accepted pending transcript-save emphasis. Production records do not yet change eligibility. Next is trustworthy worker error provenance without changing decisions, followed by eligibility integration after acceptance. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the precise resume boundary.
 
 **Project goal:** Keep model definitions, runtime identity, test evidence, eligibility and production loading consistent across platforms. The current [catalogue contract](Whisper_Catalogue_Resolver_Contract.md), [testing design](Whisper_Configuration_and_Test_Design.md) and [handoff](CURRENT_STATUS.md) supersede old “not implemented” or “first action” statements below.
 
@@ -20,7 +20,7 @@
 | Resource safety and automatic sequences | Repeated disposable iPhone-test instability unresolved. Disposal acknowledgement is not memory-reclamation proof. Sequences/automatic retry remain deferred. |
 | Offline readiness, immutable upstream assets and broader device support | Not established by the fixture or cache checks; require separate scope/evidence. |
 
-**Next optional action:** The user deferred a proposed 15–25 minute read-only audit of normal transcription error paths. Do not implement automatic disqualification until input/decode, cancellation, model, storage/export and page-loss faults have been distinguished and rules agreed. No new implementation is authorized by this plan alone. Vite is deferred/discarded, not a prerequisite.
+**Next agreed sequence:** (1) enrich reliable worker failure provenance through the shared contract with eligibility unchanged, using injected tests; (2) after acceptance, connect production failure/startup recovery to the existing eligibility mechanism. The error-path audit and parent classification/history work are already complete. Preserve unknown cause, exact configuration identity and post-inference completion. No deliberate crashes, database reset, automatic retries or Vite conversion are prerequisites. Future candidate discovery/variant selection is in Appendix C and is not the next implementation.
 
 **Important constraints:**
 - Preserve working safeguards, especially one-configuration-at-a-time testing and the known Medium q4 handling, until replacements are verified.
@@ -953,3 +953,9 @@ This revision adds a first-read handoff summary, explicit configuration-fingerpr
 - Field names and stage/outcome labels in this plan are proposed targets; reconcile them with current code before implementation.
 - The Medium q4 fix is treated as a regression case and an architectural lesson: production must use the exact tested configuration, not a generic family name.
 - The plan deliberately preserves the established rule to obtain current versions of files before modifying them.
+
+## Appendix C — Future candidate discovery and preferred variants
+
+Recorded 10 November 2026; proposal only. The user wants Memora eventually to surface newly available exact model implementations for evaluation and choose a suitable variant within each family on the current device. Current fixed family defaults do not perform this comparison. See the [canonical roadmap](Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) for the governing proposal rather than introducing a second definition/selection authority here.
+
+Begin with reviewed catalogue additions and explicit candidate evaluation. Compare eligible variants using separate speed, load/resource, accuracy and reliability evidence; explain the recommendation and allow user override. The short English reference fixture cannot establish general transcription-accuracy superiority, and a single pass cannot prove repeated-run stability. Remote repository discovery is later scope and cannot automatically authorize code/model execution or establish loader compatibility. Preserve context freshness, original failures and user preference; no silent production substitution or universal platform verdict follows from one device's result. This follows the immediate worker provenance/eligibility checkpoints and remains distinct from automatic sequence/retry and cooldown work.

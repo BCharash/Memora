@@ -1,6 +1,17 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026. Baseline build **2026-11-09.23** (`58cfd3f`) is user-accepted. Candidate **2026-11-10.6** adds pending transcript-save emphasis below; .24 active-test wording is also included. The .2 normal-transcription smoke check was user-accepted; .3 acceptance is pending. No commit/publication by agent.
+Reviewed 10 November 2026 against committed build **2026-11-10.6** (`cdcfead`). Runtime/database/catalogue consolidation, production failure classification and execution history/reporting are implemented. The user confirmed the iPhone report-save fix preserves the session and accepted the pending transcript-save styling. Production eligibility feedback and richer worker failure provenance are not implemented. This is a documentation-only checkpoint; build number and code are unchanged.
+
+## Current acceptance and resume boundary
+
+- .2 classification: user reported normal transcription checks worked.
+- .3 history: the supplied Mac Settings JSON matched the completed transcription's ID/timings, recorded both workflow/model completion and excluded audio/transcript contents. A dedicated refresh-persistence result was not separately reported. Later iPhone testing produced transcriptions but exposed the report-download session-loss issue.
+- .4 inline View/Hide: implemented; the iPhone session loss was subsequently attributed by the user to Download, not inline View.
+- .5 iOS report sharing: user explicitly confirmed session preservation after changing execution-report saving to the file share sheet. Desktop keeps Download; iOS offers Save report → Save to Files. No link fallback there.
+- .6 pending transcript-save styling: user accepted the shared Search-style border/pulse. It stops on successful sharing and respects reduced motion.
+- Intermittent blank Transcribe screen after selecting a 120-file iPhone folder remains unresolved. Do not label it a Whisper model fault, claim report saving fixed it, or force repeated reproductions.
+
+The dated implementation notes below retain original test scopes; this current acceptance summary supersedes their older pending instructions.
 
 ## Latest presentation change — pending iPhone transcript save (.6)
 
@@ -86,18 +97,37 @@ The user rebooted and reported at least nine normal Small transcriptions without
 
 The proposed resource lab was discarded at the user's request and is absent. Do not recreate it automatically, ask for repeated Small/Medium crash trials, or activate automatic sequences. Avoid editing watched files during user inference; use a server without automatic reload for future controlled diagnosis. File reads alone are not evidence that Live Server caused a reload.
 
-## Next checkpoint — after execution-history acceptance
+## Next new checkpoint 1 — trustworthy worker failure details
 
-The error audit/classification and durable production-history implementation are complete. Confirm .3 reporting/persistence acceptance, then separately review trustworthy worker failure provenance and connect production observations to the existing eligibility policy. Current workers report mostly text; generic loading/inference failure is not proof of incompatibility. Ordinary transcription success has no reference WER and must not qualify a model. Keep the production journal distinct from self-test record/reducer assumptions.
+Implement richer error provenance at the existing worker/parent boundary: original error name/message/stack where available, exact configuration, load versus inference stage and a versioned structured description. Feed the existing shared failure-classification contract rather than creating per-model exceptions, a second registry or message-keyword rules. Keep unknown causes unknown: an original error name alone does not prove a network, hardware or model root cause. Legacy/cached workers without new fields must degrade conservatively. **Eligibility decisions stay unchanged in this checkpoint.**
 
-Interruption observation now exists, but it does not change eligibility yet. Agree fault classification, persistence-failure handling and exact-context decisions before activating that feedback. The iPhone cooldown study, production cancellation/deadline policy and automatic sequences remain separate/deferred.
+Use injected iOS/desktop faults to verify successful paths, worker error replies/events/posting faults, unknown/legacy replies, aborts, and reliable network/runtime distinctions only where evidence supports them. Confirm no change to dtype, task/language, model reuse or library selection. Review worker protocol/implementation revision and fingerprint implications explicitly: if execution identity changes, retain existing evidence and explain any fresh qualification required; never reset storage or silently reuse incompatible evidence. Stop for one normal short Mac/iPhone transcription check; no deliberate crash required.
+
+## Following checkpoint 2 — production evidence to eligibility
+
+The user agrees with the existing decision rules. Connect verified observations to the single eligibility mechanism, not model definitions:
+
+- Evaluate immediately after a production failure and persist the decision before refreshing choices.
+- On startup, recover unfinished executions and evaluate the last durable stage/model outcome. Interruption after model completion cannot penalize Whisper.
+- Existing loader checks continue to recheck eligibility before the next use; a stale dropdown cannot bypass a hold.
+- Existing successful reference self-tests restore exact-context eligibility; ordinary production success cannot grant WER qualification.
+
+Preserve eligibility for input/decode, known download/network, cancellation and saving/paragraphing errors. Withhold exact configurations on confirmed model/runtime failure; record uncertainty/suspend for unexplained interruption during model work rather than invent incompatibility. Agree persistence-failure behavior before activating decisions. The production journal remains separate from manual self-test evidence. No button press, scheduled scan, background AI or Rebuild Registry action is required for evaluation.
+
+This integration follows checkpoint 1 acceptance. The iPhone source-folder investigation, cooldown duration study, automatic sequences/retries and candidate/variant selection below are separate future work.
+
+## Future model discovery and preferred-variant selection
+
+Currently, production uses fixed qualified family defaults: desktop Medium q4, iOS Medium runtime default. Passing a different candidate does not replace that default. Memora does not automatically choose the fastest/most accurate tested variant.
+
+The intended future direction is to show newly added compatible exact configurations for deliberate evaluation, compare eligible candidates on this browser/device and recommend a preferred variant within each family. The user should see why it was chosen, retain an override, and never lose useful failure history. Begin with reviewed catalogue updates; remote repository discovery is later scope and does not establish executable compatibility. The short fixture is a functional/accuracy gate, not enough to rank broad real-world accuracy or prove repeated-run reliability. See [catalogue roadmap](Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection).
 
 ## Verification recorded so far
 
 - Runtime/version-5 database foundation: user Mac, iPhone and Windows acceptance passed. These earlier checks do not imply every later Whisper change was tested on Windows.
 - Real manual runs on Mac/iPhone demonstrated Tiny qualification and ordinary transcription; Base/Small and larger-model observations are preserved in the [checkpoint history](archive/Development_Checkpoints_2026-11-09.md). No general hardware-support guarantee follows from a short fixture pass.
 - Build .21: 40 focused synthetic/browser groups passed. Build .22: 30 focused groups passed. Build .23: eight Settings plus seven isolated database-integration groups passed, including current qualification, collapsed history, other-platform labeling and database errors. These are recorded prior results, not reruns during this documentation refresh.
-- The latest user accepted .23 presentation. No new model execution, storage migration or iPhone publish/test is required for documentation-only changes.
+- Latest .5 iPhone report-sharing and .6 styling acceptance are summarized above. No application tests, model execution, storage migration or publication are required for this documentation-only refresh.
 
 ## Deferred work and working rules
 
@@ -107,4 +137,4 @@ Proceed in small, independently testable steps and stop at natural breakpoints. 
 
 Start with [documentation index](README.md), [file map](../filemap.md), [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) and [test guide](../tests/README.md). Detailed chronological handoffs are in the [archive](archive/README.md); the [design journal, section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923) records the decisions.
 
-Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Candidate 2026-11-10.3 adds durable production execution history without changing eligibility. Review its acceptance and execution-failure contract before connecting eligibility decisions. Runtime/database/catalogue cleanup is complete. Interruption recovery is observational only; keep eligibility decisions, cooldown and automatic sequences separate.”
+Resume prompt: “Read docs/CURRENT_STATUS.md and inspect Git status. Build 2026-11-10.6 includes accepted iOS execution-report sharing and transcript-save emphasis. Begin new checkpoint 1: preserve trustworthy worker failure details through the shared contract, with injected tests and no eligibility changes. Checkpoint 2 will evaluate production evidence through the existing eligibility mechanism after acceptance. Keep folder-loading diagnosis, cooldown, automatic sequences and candidate/variant recommendations separate.”
