@@ -1,6 +1,10 @@
 # Memora — current status and resume instructions
 
-Reviewed 10 November 2026 against candidate **2026-11-10.13**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+Reviewed 10 November 2026 against candidate **2026-11-10.14**, based on user-accepted .7 (`d4aba16`). Runtime/database/catalogue consolidation, structured worker provenance and execution history/reporting are implemented. Checkpoint 2 now connects production evidence to eligibility and persistent human reviews; normal Mac/iPhone .8 acceptance is pending. No agent commit/publication.
+
+## Latest organization — History and Reviews (.14)
+
+Advanced test settings remains part of Whisper Self-Test, with a two-line boundary below it. The next area is History and Reviews, containing collapsed Self-test history, Transcription history, and Model reviews and stability notes, in that order with short scope descriptions. A separator precedes Runtime. All existing IDs/handlers/direct review routing are preserved; only markup/titles/order change. Eight existing Settings groups passed. Inspect existing records for visual acceptance; no new transcription or induced interruption needed.
 
 ## Latest review presentation — saved versus new information (.13)
 

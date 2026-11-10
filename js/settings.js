@@ -190,7 +190,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div id="settingsWhisperEligibility" class="settings-note" role="status"></div>
             <div id="settingsWhisperSelfTestDetail" class="settings-detail" hidden></div>
-            <details id="settingsWhisperAdvanced">
+            <details id="settingsWhisperAdvanced" style="padding-bottom:9px; border-bottom:1px solid var(--border);">
                 <summary>Advanced test settings</summary>
             <p class="settings-note">Self-test releases the idle production Whisper model. Default load limit: 600 seconds; inference: 180 seconds. These are provisional Tiny safety limits, not measured limits for larger models.</p>
             <p class="settings-note">Accuracy passes only with non-empty text and WER ≤15% against the test reference. Inference completion alone is not an accuracy pass.</p>
@@ -200,19 +200,27 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
 
             </details>
-            <details id="settingsWhisperHistorySection">
-                <summary>Saved results and interruption reports</summary>
-                <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
-            </details>
-
-            <details id="settingsWhisperEligibilityReviewsSection">
-                <summary>Model eligibility reviews and session stability</summary>
-                <div id="settingsWhisperEligibilityReviews" class="settings-note"></div>
-            </details>
-            <details id="settingsWhisperExecutionHistorySection">
-                <summary>Transcription execution history</summary>
-                <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
-            </details>
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
+            <div id="settingsWhisperHistories" style="display:grid; gap:8px;">
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">History and Reviews</span>
+                </div>
+                <details id="settingsWhisperHistorySection">
+                    <summary>Self-test history</summary>
+                    <p class="settings-note">Reference self-test results, accuracy, failures and interruptions.</p>
+                    <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
+                </details>
+                <details id="settingsWhisperExecutionHistorySection">
+                    <summary>Transcription history</summary>
+                    <p class="settings-note">Normal audio transcriptions, including timing, failures and interruptions.</p>
+                    <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
+                </details>
+                <details id="settingsWhisperEligibilityReviewsSection">
+                    <summary>Model reviews and stability notes</summary>
+                    <p class="settings-note">Eligibility decisions and separate observations about session stability.</p>
+                    <div id="settingsWhisperEligibilityReviews" class="settings-note"></div>
+                </details>
+            </div>
 
         `;
 
