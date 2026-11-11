@@ -4319,3 +4319,8 @@ The user confirmed successful transcription history expired at 24 hours, but old
 
 
 Build 2026-11-11.3 adds the matching permanent divider below Self-test history and above Transcription history, as requested. Both category boundaries remain visible regardless of empty/collapsed history; presentation only.
+
+
+## 60.25 Settings hierarchy and reversible review archiving — candidate 2026-11-11.4
+
+The user approved matching Whisper Self-Test and History and Reviews to the major Display/Storage headings, splitting Model eligibility reviews from Session stability observations, and archiving while preserving data. Implemented four independent View/Hide history/review areas with permanent separators. Stability observations retain optional additional information and have no eligibility decisions. Resolved reviews/stability observations can be archived, shown through Show archived and restored. The existing repository stores an optional archivedAt and append-only archive/restore events under its writer lock; original evidence and qualification remain unchanged. Unresolved reviews cannot be archived, and active incidents remain visible even if an archive timestamp exists. Direct Transcribe review navigation still opens the eligibility area. No model definitions, worker lifecycle, schema or cooldown change. User device acceptance pending; automated tests use isolated storage and synthetic observations.

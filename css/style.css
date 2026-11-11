@@ -1533,3 +1533,8 @@ button:disabled {
     font-weight: 600;
     margin-bottom: 4px;
 }
+
+.settings-disclosure .settings-major-heading {
+    font-size: 1.17em;
+    margin: 0 0 12px;
+}

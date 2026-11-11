@@ -114,6 +114,19 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
             return row;
         });
     }
+    async function setArchived(id, archived) {
+        if (typeof archived !== "boolean") throw new Error("Invalid archive choice.");
+        return transaction(() => {
+            const row = list().find(item => item.id === id);
+            if (!row) throw new Error("The review is no longer available.");
+            if (archived && isActive(row)) throw new Error("Resolve this model review or complete its reference retest before archiving.");
+            if (!!row.archivedAt === archived) return row;
+            row.archivedAt = archived ? now() : null;
+            row.events.push({ at: now(), actor: "user", action: archived ? "archived" : "restored", explanation: "" });
+            save("incident." + row.id, row);
+            return row;
+        });
+    }
     async function addStabilityNote(executionId, explanation) {
         const note = String(explanation || "").trim();
         if (!note || note.length > 2000) throw new Error("Enter a stability observation within 2,000 characters.");
@@ -128,5 +141,5 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
             row.events.push({ at: now(), actor: "user", action: "stability-note", explanation: note }); save("incident." + id, row);
         });
     }
-    return { sync, recordReference, apply, list, decide, addStabilityNote };
+    return { sync, recordReference, apply, list, decide, addStabilityNote, setArchived };
 }

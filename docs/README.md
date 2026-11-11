@@ -1,6 +1,6 @@
 # Memora documentation
 
-Reviewed 11 November 2026 through candidate build **2026-11-11.2**. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
+Reviewed 11 November 2026 through candidate build **2026-11-11.4**. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
 
 | Document | Role |
 |---|---|

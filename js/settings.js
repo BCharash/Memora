@@ -76,7 +76,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     function button(label, action, disabled = false) {
-        const historyId = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection" }[action];
+        const historyId = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
         return `<button type="button" data-settings-action="${action}" ${historyId ? `aria-expanded="false" aria-controls="${historyId}"` : ""} ${disabled ? "disabled" : ""}>${label}</button>`;
     }
 
@@ -173,7 +173,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             </div>
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
             <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Whisper Self-Test</span>
+                <h3 class="settings-major-heading">Whisper Self-Test</h3>
             </div>
             <div class="whisper-self-test-controls">
                 <label for="settingsWhisperSelfTestModel">Model</label>
@@ -204,7 +204,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
             <div id="settingsWhisperHistories" style="display:grid; gap:8px;">
                 <div class="settings-disclosure">
-                    <span class="settings-disclosure-title">History and Reviews</span>
+                    <h3 class="settings-major-heading">History and Reviews</h3>
                 </div>
                 <div class="settings-disclosure">
                     <span class="settings-disclosure-title">Self-test history</span>
@@ -225,12 +225,21 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 </div>
                 <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
                 <div class="settings-disclosure">
-                    <span class="settings-disclosure-title">Model reviews and stability notes</span>
+                    <span class="settings-disclosure-title">Model eligibility reviews</span>
                     ${button("View", "toggle-model-reviews")}
                 </div>
                 <div id="settingsWhisperEligibilityReviewsSection" class="settings-detail" hidden>
-                    <p class="settings-note">Eligibility decisions and separate observations about session stability.</p>
+                    <p class="settings-note">Decisions about model eligibility. Active reviews remain visible until resolved.</p>
                     <div id="settingsWhisperEligibilityReviews" class="settings-note"></div>
+                </div>
+                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Session stability observations</span>
+                    ${button("View", "toggle-stability-observations")}
+                </div>
+                <div id="settingsWhisperStabilitySection" class="settings-detail" hidden>
+                    <p class="settings-note">Session behavior and additional observations; model eligibility is unchanged.</p>
+                    <div id="settingsWhisperStabilityObservations" class="settings-note"></div>
                 </div>
             </div>
 
@@ -255,13 +264,14 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const section = document.getElementById(id);
         if (!section) return;
         section.hidden = !open;
-        const action = { settingsWhisperHistorySection: "toggle-self-test-history", settingsWhisperExecutionHistorySection: "toggle-execution-history", settingsWhisperEligibilityReviewsSection: "toggle-model-reviews" }[id];
+        const action = { settingsWhisperHistorySection: "toggle-self-test-history", settingsWhisperExecutionHistorySection: "toggle-execution-history", settingsWhisperEligibilityReviewsSection: "toggle-model-reviews", settingsWhisperStabilitySection: "toggle-stability-observations" }[id];
         const toggle = storage.querySelector(`[data-settings-action="${action}"]`);
         if (toggle) { toggle.textContent = open ? "Hide" : "View"; toggle.setAttribute("aria-expanded", String(open)); toggle.setAttribute("aria-controls", id); }
         if (!open) return;
         if (id === "settingsWhisperHistorySection") await renderWhisperAttempts();
         if (id === "settingsWhisperExecutionHistorySection") await renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
-        if (id === "settingsWhisperEligibilityReviewsSection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
+        if (id === "settingsWhisperEligibilityReviewsSection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"), { kind: "incident" });
+        if (id === "settingsWhisperStabilitySection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperStabilityObservations"), { kind: "stability" });
     }
 
     function renderRuntime() {
@@ -408,7 +418,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         try {
             const records = await createWhisperEvidenceBridge().sync();
             await renderWhisperEligibility();
-            if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
+            if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"), { kind: "incident" });
+            if (document.getElementById("settingsWhisperStabilitySection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperStabilityObservations"), { kind: "stability" });
             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
             target.replaceChildren();
             const title = document.createElement("p");
@@ -988,7 +999,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const action = target.dataset.settingsAction;
         try {
             if (action === "cancel-whisper-self-test") { selfTestController?.abort(); return; }
-            const historySection = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection" }[action];
+            const historySection = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
             if (historySection) return await setHistorySection(historySection, document.getElementById(historySection).hidden);
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();

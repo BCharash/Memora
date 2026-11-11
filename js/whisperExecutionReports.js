@@ -170,38 +170,57 @@ async function currentReviewContexts(rows) {
 }
 const noticeVersions = new WeakMap();
 const reviewVersions = new WeakMap();
+const archivedReviewViews = new WeakMap();
 
 // Reviews are independent of clearable execution history; deferred choices and
 // user explanations stay available after reload or history clearing.
-export async function renderWhisperEligibilityReviews(container, { bridge = createWhisperEvidenceBridge() } = {}) {
+export async function renderWhisperEligibilityReviews(container, { bridge = createWhisperEvidenceBridge(), kind = null } = {}) {
     const version = Symbol(); reviewVersions.set(container, version);
     const drafts = new Map([...container.querySelectorAll("[data-production-review-id]")].map(item => [item.dataset.productionReviewId, { value: item.querySelector("textarea")?.value || "", open: item.open }]));
     container.replaceChildren();
     try {
         await bridge.sync();
         if (!container.isConnected || reviewVersions.get(container) !== version) return;
-        const rows = bridge.listProductionReviews();
+        const rows = bridge.listProductionReviews().filter(row => !kind || row.kind === kind);
         const currentContexts = await currentReviewContexts(rows);
         if (!container.isConnected || reviewVersions.get(container) !== version) return;
         const note = document.createElement("p");
-        note.textContent = "Unclear model-work incidents stay on hold until reviewed or retested. Confirmed runtime failures require a reference retest. Saved contexts are independent; older-context reviews do not qualify a changed configuration.";
+        note.textContent = kind === "stability"
+            ? "Observations about session behavior do not change model eligibility. You can add further information."
+            : "Unclear model-work incidents stay on hold until reviewed or retested. Confirmed runtime failures require a reference retest. Saved contexts are independent; older-context reviews do not qualify a changed configuration.";
         container.append(note);
-        if (!rows.length) { const empty = document.createElement("p"); empty.textContent = "No production eligibility reviews or stability observations."; container.append(empty); }
-        for (const kind of ["incident", "stability"]) {
+        const active = row => row.kind === "incident" && !["kept", "reference-passed"].includes(row.state);
+        const archivedCount = rows.filter(row => row.archivedAt && !active(row)).length;
+        const archiveLabel = document.createElement("label"), archiveToggle = document.createElement("input");
+        archiveToggle.type = "checkbox"; archiveToggle.dataset.showArchivedReviews = "";
+        archiveToggle.checked = archivedReviewViews.get(container) === true;
+        archiveLabel.append(archiveToggle, ` Show archived (${archivedCount})`);
+        archiveToggle.onchange = () => {
+            archivedReviewViews.set(container, archiveToggle.checked);
+            void renderWhisperEligibilityReviews(container, { bridge, kind });
+        };
+        container.append(archiveLabel);
+        const visible = rows.filter(row => !row.archivedAt || active(row) || archiveToggle.checked);
+        if (!visible.length) {
+            const empty = document.createElement("p");
+            empty.textContent = archivedCount ? "No current entries. Use Show archived to view saved entries." : kind === "incident" ? "No model eligibility reviews." : kind === "stability" ? "No session stability observations." : "No production eligibility reviews or stability observations.";
+            container.append(empty);
+        }
+        for (const groupKind of kind ? [kind] : ["incident", "stability"]) {
             const group = document.createElement("section"), title = document.createElement("h4");
-            const items = rows.filter(row => row.kind === kind);
-            title.textContent = `${kind === "incident" ? "Model eligibility reviews" : "Session stability observations (no eligibility effect)"} · ${items.length}`;
-            group.append(title); container.append(group);
+            const items = visible.filter(row => row.kind === groupKind);
+            title.textContent = kind ? `${items.length} ${kind === "incident" ? "review" : "observation"}${items.length === 1 ? "" : "s"}` : `${groupKind === "incident" ? "Model eligibility reviews" : "Session stability observations (no eligibility effect)"} · ${items.length}`;
+            if (items.length || !kind) { group.append(title); container.append(group); }
             for (const row of items) {
                 const item = document.createElement("details"), label = document.createElement("summary");
                 item.dataset.productionReviewId = row.id; item.open = drafts.get(row.id)?.open || false;
                 const isCurrent = row.kind !== "incident" || currentContexts.has(row.contextKey);
                 const stateLabel = !isCurrent ? "Historical context—current choices unaffected" : { pending: "Awaiting review", deferred: "Decide later—hold remains", "retest-required": "Retest required", kept: "Previous eligibility preserved for this incident", "reference-passed": "Resolved by reference test", observation: "Observation only" }[row.state] || row.state;
-                label.textContent = `${row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
+                label.textContent = `${row.archivedAt ? "Archived · " : ""}${row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
                 const explanation = document.createElement("p"); explanation.textContent = `Original event: ${row.reason} Last saved stage: ${row.execution?.phase || "unknown"}. Model completion: ${row.execution?.modelOutcome || "unknown"}.`;
                 const input = document.createElement("textarea"); input.maxLength = 2000; input.rows = 2; input.setAttribute("aria-label", "Additional information");
                 input.value = drafts.get(row.id)?.value || "";
-                input.placeholder = kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Add new information here. Explain an external cause to keep previous eligibility.";
+                input.placeholder = row.kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Add new information here. Explain an external cause to keep previous eligibility.";
                 input.style.width = "100%"; input.style.boxSizing = "border-box";
                 const feedback = document.createElement("p"); feedback.setAttribute("role", "status");
                 const actions = document.createElement("div"); actions.className = "whisper-report-actions";
@@ -219,7 +238,7 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                             await bridge.decideProductionReview(row.id, action, submitted);
                             if (input.value === submitted) input.value = "";
                             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
-                            await renderWhisperEligibilityReviews(container, { bridge });
+                            await renderWhisperEligibilityReviews(container, { bridge, kind });
                         } catch (error) { feedback.textContent = error.message; button.disabled = false; }
                     };
                     actions.append(button);
@@ -229,11 +248,23 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                     test.onclick = () => window.dispatchEvent(new CustomEvent("memora-whisper-review-retest", { detail: { configurationId: row.configurationId } }));
                     actions.append(test);
                 }
+                if (!active(row) || row.archivedAt) {
+                    const archive = document.createElement("button"); archive.type = "button";
+                    archive.textContent = row.archivedAt ? "Restore" : "Archive";
+                    archive.onclick = async () => {
+                        archive.disabled = true;
+                        try {
+                            await bridge.archiveProductionReview(row.id, !row.archivedAt);
+                            await renderWhisperEligibilityReviews(container, { bridge, kind });
+                        } catch (error) { feedback.textContent = error.message; archive.disabled = false; }
+                    };
+                    actions.append(archive);
+                }
                 const saved = document.createElement("div"); saved.className = "settings-note"; saved.dataset.reviewSavedInformation = "";
                 if (row.events.length) {
                     const heading = document.createElement("p"); heading.textContent = "Saved information (read-only)";
                     const history = document.createElement("ul");
-                    const names = { note: "Additional information", keep: "Keep previous eligibility", defer: "Decide later", retest: "Require a retest", "reference-passed": "Reference test passed", "stability-note": "Stability observation" };
+                    const names = { note: "Additional information", keep: "Keep previous eligibility", defer: "Decide later", retest: "Require a retest", "reference-passed": "Reference test passed", "stability-note": "Stability observation", archived: "Archived", restored: "Restored" };
                     for (const event of row.events) {
                         const entry = document.createElement("li"); entry.textContent = `${new Date(event.at).toLocaleString()} · ${names[event.action] || event.action}${event.explanation ? ": " + event.explanation : ""}`; history.append(entry);
                     }

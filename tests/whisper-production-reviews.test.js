@@ -175,6 +175,54 @@ try {
         assert(banner.hidden && container.textContent.includes("Historical context"), "stale context does not nag current model choices");
         assert(![...container.querySelectorAll("button")].some(button => button.textContent === "Keep previous eligibility"), "historical context cannot be used to grant current eligibility");
     });
+    await test("Active reviews cannot be archived; resolved evidence archives/restores durably without eligibility changes", async () => {
+        const f = await fixture(), id = await failed(f, "unknown"); await f.bridge.sync();
+        let refused = false; try { await f.bridge.archiveProductionReview(id, true); } catch { refused = true; }
+        assert(refused && f.bridge.get(context).status === "suspended" && !f.bridge.listProductionReviews()[0].archivedAt, "pending review protected");
+        await f.bridge.decideProductionReview(id, "defer", "Later.");
+        refused = false; try { await f.bridge.archiveProductionReview(id, true); } catch { refused = true; }
+        assert(refused, "deferred review protected");
+        await f.bridge.decideProductionReview(id, "retest", "Verify first.");
+        refused = false; try { await f.bridge.archiveProductionReview(id, true); } catch { refused = true; }
+        assert(refused, "retest-required protected");
+        f.attempts.push(pass(`archive-reference-${++serial}`, 4)); await f.bridge.sync();
+        const original = structuredClone(f.bridge.listProductionReviews()[0].execution);
+        await f.bridge.archiveProductionReview(id, true); await f.journal.clearCompleted();
+        const reloaded = createWhisperEvidenceBridge({ storage: f.storage, journal: { recover: async () => f.attempts } }); await reloaded.sync();
+        const saved = reloaded.listProductionReviews()[0];
+        assert(saved.archivedAt && JSON.stringify(saved.execution) === JSON.stringify(original), "archive and original snapshot survive history clearing/reload");
+        assert(saved.events.some(event => event.action === "archived") && reloaded.get(context).status === "eligible", "archive audited and eligibility unchanged");
+        await reloaded.archiveProductionReview(id, false);
+        assert(!reloaded.listProductionReviews()[0].archivedAt && reloaded.listProductionReviews()[0].events.some(event => event.action === "restored"), "restore audited");
+        f.clock(5); const runtime = await failed(f, "runtime"); await f.bridge.sync();
+        refused = false; try { await f.bridge.archiveProductionReview(runtime, true); } catch { refused = true; }
+        assert(refused && f.bridge.get(context).status === "blocked", "confirmed runtime failure cannot be archived");
+    });
+    await test("Separate review/stability views support Archive, Show archived, report and Restore", async () => {
+        const f = await fixture(), id = await failed(f, "unknown"); await f.bridge.sync();
+        await f.bridge.decideProductionReview(id, "keep", "Deliberate interruption.");
+        f.clock(3);
+        const result = await f.journal.run(f.metadata(), async execution => { execution.checkpoint("model-complete"); return {}; }); await f.bridge.sync();
+        await f.bridge.addStabilityNote(result.executionId, "Session observation fixture.");
+        const container = document.createElement("div"); document.getElementById("fixture").append(container);
+        await renderWhisperEligibilityReviews(container, { bridge: f.bridge, kind: "stability" });
+        assert(container.querySelectorAll("[data-production-review-id]").length === 1 && container.textContent.includes("Session observation fixture.") && !container.textContent.includes("Deliberate interruption."), "stability view isolated");
+        assert(![...container.querySelectorAll("button")].some(button => button.textContent === "Require a retest"), "stability has no eligibility action");
+        const button = label => [...container.querySelectorAll("button")].find(node => node.textContent === label);
+        button("Archive").click();
+        for (let i = 0; i < 100 && container.querySelector("[data-production-review-id]"); i++) await new Promise(resolve => setTimeout(resolve, 5));
+        assert(!container.querySelector("[data-production-review-id]") && container.textContent.includes("Show archived (1)"), "archived entry hidden but counted");
+        container.querySelector("[data-show-archived-reviews]").click();
+        for (let i = 0; i < 100 && !button("Restore"); i++) await new Promise(resolve => setTimeout(resolve, 5));
+        assert(button("Restore") && container.textContent.includes("Session observation fixture."), "show archived exposes preserved notes");
+        button("View report").click();
+        assert(JSON.parse(container.querySelector("pre").textContent).productionReviews.some(row => row.archivedAt), "export retains archive metadata");
+        button("Restore").click();
+        for (let i = 0; i < 100 && !button("Archive"); i++) await new Promise(resolve => setTimeout(resolve, 5));
+        assert(button("Archive") && container.querySelector("textarea"), "restored observation supports more information");
+        await renderWhisperEligibilityReviews(container, { bridge: f.bridge, kind: "incident" });
+        assert(container.querySelectorAll("[data-production-review-id]").length === 1 && container.textContent.includes("Deliberate interruption.") && !container.textContent.includes("Session observation fixture."), "review view isolated");
+    });
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }
 finally { document.getElementById("results").textContent = lines.join("\n"); }

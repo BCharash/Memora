@@ -47,6 +47,12 @@ try {
     assert(historyToggle.textContent === "Hide", "View opens history with matching button");
     historyToggle.click(); assert(history.hidden && historyToggle.textContent === "View", "Hide closes history");
     lines.push("PASS history View/Hide controls");
+    assert([...document.querySelectorAll("h3.settings-major-heading")].map(node => node.textContent).join("|") === "Whisper Self-Test|History and Reviews", "major section headings");
+    const stabilityToggle = document.querySelector('[data-settings-action="toggle-stability-observations"]');
+    const stabilitySection = document.getElementById("settingsWhisperStabilitySection");
+    stabilityToggle.click(); await waitFor(() => stabilitySection.textContent.includes("No session stability observations."));
+    assert(!stabilitySection.hidden && document.getElementById("settingsWhisperEligibilityReviewsSection").hidden, "independent stability disclosure");
+    stabilityToggle.click(); assert(stabilitySection.hidden, "stability Hide works");
     const reviewToggle = document.querySelector('[data-settings-action="toggle-model-reviews"]');
     assert(reviewToggle.closest(".settings-disclosure").previousElementSibling.classList.contains("settings-section-divider"), "review separator independent of transcription records");
     runButton().click();
