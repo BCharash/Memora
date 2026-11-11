@@ -222,6 +222,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     <p class="settings-note">Normal audio transcriptions, including timing, failures and interruptions.</p>
                     <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
                 </div>
+                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
                 <div class="settings-disclosure">
                     <span class="settings-disclosure-title">Model reviews and stability notes</span>
                     ${button("View", "toggle-model-reviews")}
@@ -410,7 +411,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
             target.replaceChildren();
             const title = document.createElement("p");
-            title.textContent = "Local to this browser. Shows the newest pass for each exact configuration and environment, plus all failures and other outcomes. Superseded passes remain stored as evidence. Clearing selected reports does not change eligibility.";
+            title.textContent = "Local to this browser. Shows the newest pass for each configuration and device platform, including older reports, plus all failures and other outcomes. Superseded passes remain stored as evidence. Clearing selected reports does not change eligibility.";
             target.append(title);
             if (!records.length) { target.append("No saved self-tests."); return; }
             const selection = createWhisperHistorySelection(target, { label: "Clear selected test history", onClear: async ids => {

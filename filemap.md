@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 11 November 2026, source build **2026-11-11.1** (device acceptance pending).
+Reviewed against the checkout on 11 November 2026, source build **2026-11-11.2** (device acceptance pending).
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -233,4 +233,4 @@ Current source uses fixed qualified family defaults, not automatic competition a
 
 ## Stable pause — 10 November 2026
 
-Source .14 is accepted on Mac/iPhone; .2026-11-11.1 history controls and retention await device acceptance. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.
+Source .14 is accepted on Mac/iPhone; .2026-11-11.2 history controls and retention await device acceptance. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.

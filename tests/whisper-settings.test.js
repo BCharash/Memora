@@ -47,6 +47,8 @@ try {
     assert(historyToggle.textContent === "Hide", "View opens history with matching button");
     historyToggle.click(); assert(history.hidden && historyToggle.textContent === "View", "Hide closes history");
     lines.push("PASS history View/Hide controls");
+    const reviewToggle = document.querySelector('[data-settings-action="toggle-model-reviews"]');
+    assert(reviewToggle.closest(".settings-disclosure").previousElementSibling.classList.contains("settings-section-divider"), "review separator independent of transcription records");
     runButton().click();
     await waitFor(() => runButton().disabled && !cancelButton().disabled);
     assert(!cancelButton().hidden && !document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel shown only during test");

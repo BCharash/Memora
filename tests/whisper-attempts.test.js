@@ -74,17 +74,19 @@ try {
             await j.clearCompleted([records[0].id]);
             assert(j.list().length === 25 && !j.list().some(row => row.id === records[0].id), "selected deletion only");
         });
-        await test("Only superseded passes in the same complete qualification context are hidden", () => {
+        await test("Superseded passes are hidden across browser revisions and legacy context formats", () => {
             const context = { configurationId: "tiny-test", configurationFingerprint: "fingerprint", executionWorker: "worker", protocol: "fixture", fixtureDigest: "digest", browser: "browser", environment: { operatingSystem: "ios" }, recipe: {}, capabilities: {} };
             const older = { id: "old", startedAt: "2026-01-01", status: "passed", eligibilityContext: context };
             const newer = { ...older, id: "new", startedAt: "2026-01-02" };
             const failure = { ...newer, id: "failure", status: "failed" };
             const changed = { ...older, id: "changed", eligibilityContext: { ...context, browser: "changed" } };
-            const legacy = { ...older, id: "legacy", eligibilityContext: null };
-            const records = [older, newer, failure, changed, legacy];
+            const legacy = { ...older, id: "legacy", eligibilityContext: null, configuration: { id: "tiny-test" }, environment: { platform: "ios" } };
+            const otherPlatform = { ...older, id: "other-platform", eligibilityContext: { ...context, environment: { operatingSystem: "macos" } } };
+            const unidentified = { ...older, id: "unidentified", eligibilityContext: null };
+            const records = [older, newer, failure, changed, legacy, otherPlatform, unidentified];
             const visible = visibleWhisperAttempts(records);
-            assert(visible.length === 4 && !visible.some(row => row.id === "old"), "same-context older pass hidden");
-            assert(records.length === 5 && visible.some(row => row.id === "failure") && visible.some(row => row.id === "changed") && visible.some(row => row.id === "legacy"), "stored evidence, failures and other contexts preserved");
+            assert(visible.length === 4 && !visible.some(row => row.id === "old"), "older passes hidden");
+            assert(records.length === 7 && visible.some(row => row.id === "failure") && !visible.some(row => row.id === "changed") && !visible.some(row => row.id === "legacy") && visible.some(row => row.id === "other-platform") && visible.some(row => row.id === "unidentified"), "stored evidence, failures, other platforms and unidentified legacy reports preserved");
         });
         await test("Failed stage checkpoint stops actual lifecycle before fixture/model work", async () => {
             let touched = false, released = false;

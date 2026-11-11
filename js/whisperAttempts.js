@@ -1,13 +1,15 @@
-import { eligibilityKey } from "./whisperEligibility.js";
-
-// Collapse only passes with a complete, identical qualification context.
-// Stored evidence and all non-pass outcomes remain untouched.
+// Presentation only: older browser/library revisions must not produce duplicate
+// pass cards. Eligibility still uses the complete historical context elsewhere.
 export function visibleWhisperAttempts(records) {
     const seen = new Set();
     return [...records].sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id)).filter(record => {
         if (record.status !== "passed") return true;
-        let key;
-        try { key = eligibilityKey(record.eligibilityContext); } catch { return true; }
+        const id = record.configuration?.id || record.eligibilityContext?.configurationId;
+        const environment = record.environment || record.eligibilityContext?.environment || {};
+        const platform = environment.operatingSystem || environment.platform;
+        // Do not guess an identity for an unidentifiable legacy report.
+        if (!id || !platform || platform === "unknown") return true;
+        const key = JSON.stringify([id, platform]);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
