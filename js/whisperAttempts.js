@@ -1,3 +1,19 @@
+import { eligibilityKey } from "./whisperEligibility.js";
+
+// Collapse only passes with a complete, identical qualification context.
+// Stored evidence and all non-pass outcomes remain untouched.
+export function visibleWhisperAttempts(records) {
+    const seen = new Set();
+    return [...records].sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id)).filter(record => {
+        if (record.status !== "passed") return true;
+        let key;
+        try { key = eligibilityKey(record.eligibilityContext); } catch { return true; }
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 // Small, synchronous checkpoints survive page loss independently of model caches.
 // No storage access on import. Per-attempt Web Locks protect live tabs during recovery.
 const PREFIX = "memora.whisper-attempt.v1.";
@@ -18,15 +34,6 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
         storage.setItem(PREFIX + record.id, value);
         if (storage.getItem(PREFIX + record.id) !== value) throw new Error("Whisper attempt checkpoint could not be verified.");
     }
-    function prune() {
-        const records = list();
-        const successes = new Set();
-        records.forEach((record, index) => {
-            const keepSuccess = record.status === "passed" && !successes.has(record.configuration.id);
-            if (record.status === "passed") successes.add(record.configuration.id);
-            if (index >= 20 && record.status !== "running" && !keepSuccess) storage.removeItem(PREFIX + record.id);
-        });
-    }
     async function withLock(id, action, ifAvailable = false) {
         if (!locks?.request) throw new Error("Safe Whisper attempt ownership requires Web Locks; test/recovery was not started.");
         return locks.request(PREFIX + id, { mode: "exclusive", ifAvailable }, lock => lock ? action() : null);
@@ -34,7 +41,6 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
     async function run(metadata, execute) {
         const id = uuid();
         return withLock(id, async () => {
-            prune();
             const record = { schemaVersion: 1, ...metadata, id, startedAt: now(), updatedAt: now(), phase: "prepare", status: "running" };
             save(record); // Failure here prevents model work.
             const checkpoint = async (phase, observation) => { record.phase = phase; record.observation = observation ? { ...observation, status: "in-progress" } : null; record.updatedAt = now(); save(record); };
@@ -70,9 +76,11 @@ export function createWhisperAttemptJournal({ storage = globalThis.localStorage,
         }
         return list();
     }
-    async function clearCompleted() {
+    async function clearCompleted(ids = null) {
+        const selected = ids === null ? null : new Set(ids);
         // Read again under each owner lock: another tab may still be finishing.
         for (const record of list()) {
+            if (selected && !selected.has(record.id)) continue;
             await withLock(record.id, () => {
                 const current = JSON.parse(storage.getItem(PREFIX + record.id));
                 if (current && current.status !== "running") storage.removeItem(PREFIX + record.id);

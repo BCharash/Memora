@@ -1,10 +1,10 @@
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
-import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews } from "./whisperExecutionReports.js";
+import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews, createWhisperHistorySelection } from "./whisperExecutionReports.js";
 import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { presentWhisperAttempt } from "./whisperAttemptReport.js";
-import { createWhisperAttemptJournal } from "./whisperAttempts.js";
+import { createWhisperAttemptJournal, visibleWhisperAttempts } from "./whisperAttempts.js";
 // --------------------------------------------------
 // Memora Settings UI
 // --------------------------------------------------
@@ -76,7 +76,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     function button(label, action, disabled = false) {
-        return `<button type="button" data-settings-action="${action}" ${disabled ? "disabled" : ""}>${label}</button>`;
+        const historyId = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection" }[action];
+        return `<button type="button" data-settings-action="${action}" ${historyId ? `aria-expanded="false" aria-controls="${historyId}"` : ""} ${disabled ? "disabled" : ""}>${label}</button>`;
     }
 
     function formatRegistryDtype(dtype) {
@@ -205,21 +206,30 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 <div class="settings-disclosure">
                     <span class="settings-disclosure-title">History and Reviews</span>
                 </div>
-                <details id="settingsWhisperHistorySection">
-                    <summary>Self-test history</summary>
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Self-test history</span>
+                    ${button("View", "toggle-self-test-history")}
+                </div>
+                <div id="settingsWhisperHistorySection" class="settings-detail" hidden>
                     <p class="settings-note">Reference self-test results, accuracy, failures and interruptions.</p>
                     <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
-                </details>
-                <details id="settingsWhisperExecutionHistorySection">
-                    <summary>Transcription history</summary>
+                </div>
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Transcription history</span>
+                    ${button("View", "toggle-execution-history")}
+                </div>
+                <div id="settingsWhisperExecutionHistorySection" class="settings-detail" hidden>
                     <p class="settings-note">Normal audio transcriptions, including timing, failures and interruptions.</p>
                     <div id="settingsWhisperExecutionHistory" class="settings-note"></div>
-                </details>
-                <details id="settingsWhisperEligibilityReviewsSection">
-                    <summary>Model reviews and stability notes</summary>
+                </div>
+                <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Model reviews and stability notes</span>
+                    ${button("View", "toggle-model-reviews")}
+                </div>
+                <div id="settingsWhisperEligibilityReviewsSection" class="settings-detail" hidden>
                     <p class="settings-note">Eligibility decisions and separate observations about session stability.</p>
                     <div id="settingsWhisperEligibilityReviews" class="settings-note"></div>
-                </details>
+                </div>
             </div>
 
         `;
@@ -229,16 +239,27 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         renderRuntime();
         syncSelfTestControls();
         void renderWhisperAttempts();
-        const reviewSection = document.getElementById("settingsWhisperEligibilityReviewsSection");
-        reviewSection.addEventListener("toggle", () => { if (reviewSection.open) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews")); });
-        if (showReviewsOnRender) { showReviewsOnRender = false; reviewSection.open = true; reviewSection.scrollIntoView({ block: "start" }); }
-        const executionSection = document.getElementById("settingsWhisperExecutionHistorySection");
-        executionSection.addEventListener("toggle", () => {
-            if (executionSection.open) void renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
-        });
+        if (showReviewsOnRender) {
+            showReviewsOnRender = false;
+            void setHistorySection("settingsWhisperEligibilityReviewsSection", true);
+            document.getElementById("settingsWhisperEligibilityReviewsSection").scrollIntoView({ block: "start" });
+        }
         const selector = document.getElementById("settingsWhisperSelfTestModel");
         selector.onchange = () => void renderWhisperEligibility();
         storage.onclick = handleAction;
+    }
+
+    async function setHistorySection(id, open) {
+        const section = document.getElementById(id);
+        if (!section) return;
+        section.hidden = !open;
+        const action = { settingsWhisperHistorySection: "toggle-self-test-history", settingsWhisperExecutionHistorySection: "toggle-execution-history", settingsWhisperEligibilityReviewsSection: "toggle-model-reviews" }[id];
+        const toggle = storage.querySelector(`[data-settings-action="${action}"]`);
+        if (toggle) { toggle.textContent = open ? "Hide" : "View"; toggle.setAttribute("aria-expanded", String(open)); toggle.setAttribute("aria-controls", id); }
+        if (!open) return;
+        if (id === "settingsWhisperHistorySection") await renderWhisperAttempts();
+        if (id === "settingsWhisperExecutionHistorySection") await renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
+        if (id === "settingsWhisperEligibilityReviewsSection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
     }
 
     function renderRuntime() {
@@ -385,39 +406,28 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         try {
             const records = await createWhisperEvidenceBridge().sync();
             await renderWhisperEligibility();
-            if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.open) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
+            if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"));
             window.dispatchEvent(new Event("memora-whisper-eligibility-changed"));
             target.replaceChildren();
-            if (records.length) {
-                const title = document.createElement("p");
-                title.textContent = "Saved self-test attempts (local to this browser)";
-                const clear = document.createElement("button");
-                clear.type = "button";
-                clear.textContent = "Clear saved test history";
-                clear.dataset.whisperClearHistory = "";
-                clear.onclick = async () => {
-                    clear.disabled = true;
-                    try {
-                        await createWhisperEvidenceBridge().sync();
-                        await createWhisperAttemptJournal().clearCompleted();
-                        await renderWhisperAttempts();
-                    } catch (error) {
-                        const message = document.createElement("p");
-                        message.textContent = `Could not clear test history: ${error.message}`;
-                        target.append(message);
-                        clear.disabled = false;
-                    }
-                };
-                target.append(title, clear);
-            }
-            for (const record of records) {
-                const details = document.createElement("details");
-                const label = document.createElement("summary");
+            const title = document.createElement("p");
+            title.textContent = "Local to this browser. Shows the newest pass for each exact configuration and environment, plus all failures and other outcomes. Superseded passes remain stored as evidence. Clearing selected reports does not change eligibility.";
+            target.append(title);
+            if (!records.length) { target.append("No saved self-tests."); return; }
+            const selection = createWhisperHistorySelection(target, { label: "Clear selected test history", onClear: async ids => {
+                await createWhisperEvidenceBridge().sync();
+                await createWhisperAttemptJournal().clearCompleted(ids);
+                await renderWhisperAttempts();
+            } });
+            selection.clear.dataset.whisperClearHistory = "";
+            for (const record of visibleWhisperAttempts(records)) {
+                const details = document.createElement("article");
+                const label = document.createElement("label"); label.className = "whisper-history-heading";
                 const outcome = { passed: "Passed", failed: "Failed", cancelled: "Cancelled", "timed-out": "Timed out", running: "Running", interrupted: "Interrupted—no final result recorded" }[record.status] || record.status;
                 const date = new Date(record.startedAt);
                 const localDate = Number.isNaN(date.getTime()) ? record.startedAt : date.toLocaleString();
                 const model = record.configuration.label ? formatSelfTestOption(record.configuration) : record.configuration.id;
-                label.textContent = `${outcome} · ${model} · ${localDate}`;
+                const heading = `${outcome} · ${model} · ${localDate}`;
+                label.append(selection.add(record, heading, record.status !== "running"), document.createTextNode(heading));
                 const description = document.createElement("p");
                 const phases = { prepare: "audio preparation", decode: "audio decoding", release: "previous model release", load: "model loading", inference: "transcription", validation: "accuracy validation" };
                 const result = record.result?.results?.[0];
@@ -425,8 +435,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 if (record.status === "interrupted") description.textContent += "No final result was recorded. Cause unknown. No automatic retry.";
                 else if (result?.error?.message || record.error?.message) description.textContent += result?.error?.message || record.error.message;
                 else if (result?.status === "passed") description.textContent += `Load ${formatSeconds(result.loadMs)} · transcription ${formatSeconds(result.transcriptionMs)} · WER ${formatWhisperWer(result.wer)} (limit 15%).`;
-                const technical = document.createElement("details");
-                const technicalLabel = document.createElement("summary");
+                const technical = document.createElement("div"); technical.hidden = true; technical.dataset.technicalReport = "";
+                technical.id = `whisper-test-report-${record.id}`;
+                const technicalLabel = document.createElement("p"); technicalLabel.className = "whisper-report-title";
                 technicalLabel.textContent = "Technical report";
                 const body = document.createElement("pre");
                 body.style.whiteSpace = "pre-wrap";
@@ -434,8 +445,15 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 const refreshReport = () => {
                     body.textContent = JSON.stringify({ ...presentWhisperAttempt(record), runtimeDiagnostics: getRuntimeDiagnosticReport(record.pageId || null) }, null, 2);
                 };
-                refreshReport();
-                technical.addEventListener("toggle", () => { if (technical.open) refreshReport(); });
+                const view = document.createElement("button"); view.type = "button"; view.textContent = "View report";
+                view.setAttribute("aria-controls", technical.id); view.setAttribute("aria-expanded", "false");
+                const showReport = () => {
+                    refreshReport(); technical.hidden = false; view.textContent = "Hide report"; view.setAttribute("aria-expanded", "true");
+                };
+                view.onclick = () => {
+                    if (technical.hidden) showReport();
+                    else { technical.hidden = true; view.textContent = "View report"; view.setAttribute("aria-expanded", "false"); }
+                };
                 const copy = document.createElement("button");
                 copy.type = "button";
                 copy.textContent = "Copy report";
@@ -448,7 +466,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                         await navigator.clipboard.writeText(body.textContent);
                         feedback.textContent = " Report copied.";
                     } catch {
-                        technical.open = true;
+                        showReport();
                         const selection = window.getSelection();
                         const range = document.createRange();
                         range.selectNodeContents(body);
@@ -482,10 +500,10 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 };
                 const actions = document.createElement("div");
                 actions.className = "whisper-report-actions";
-                actions.append(copy, download);
-                technical.append(technicalLabel, body);
+                actions.append(view, copy, download);
+                technical.append(body);
                 details.classList.add("whisper-saved-report");
-                details.append(label, description, actions, feedback, technical);
+                details.append(label, description, technicalLabel, actions, feedback, technical);
                 target.append(details);
             }
         } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }
@@ -968,6 +986,8 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const action = target.dataset.settingsAction;
         try {
             if (action === "cancel-whisper-self-test") { selfTestController?.abort(); return; }
+            const historySection = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection" }[action];
+            if (historySection) return await setHistorySection(historySection, document.getElementById(historySection).hidden);
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
@@ -1148,7 +1168,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     function showProductionReviews() {
         showReviewsOnRender = true;
         const section = document.getElementById("settingsWhisperEligibilityReviewsSection");
-        if (section) { section.open = true; section.scrollIntoView({ block: "start" }); }
+        if (section) { showReviewsOnRender = false; void setHistorySection(section.id, true); section.scrollIntoView({ block: "start" }); }
     }
     return { refresh, showProductionReviews };
 }

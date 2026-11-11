@@ -1,5 +1,5 @@
 import { presentWhisperAttempt } from "../js/whisperAttemptReport.js";
-import { createWhisperAttemptJournal } from "../js/whisperAttempts.js";
+import { createWhisperAttemptJournal, visibleWhisperAttempts } from "../js/whisperAttempts.js";
 import { createWhisperTestRunner } from "../js/whisperTestLifecycle.js";
 const lines = [];
 const assert = (v, m) => { if (!v) throw new Error(m); };
@@ -63,12 +63,28 @@ try {
             storage.setItem = write;
             assert((await j.recover())[0].status === "interrupted", "unfinished durable record recovered");
         });
-        await test("Failure/cancellation/timeout history preserves last successful result and bounds retention", async () => {
+        await test("Failure/cancellation/timeout history is retained until selected for clearing", async () => {
             const j = journal(memory());
             await j.run(metadata, async () => summary("passed"));
             for (let i=0; i<25; i++) await j.run(metadata, async () => summary(["failed", "cancelled", "timed-out"][i%3]));
             assert(j.list().some(r => r.status === "passed"), "last success retained");
-            assert(j.list().length <= 22, "bounded terminal history");
+            assert(j.list().length === 26, "all failures and other outcomes retained");
+            const records = j.list();
+            await j.clearCompleted([]); assert(j.list().length === 26, "empty selection is neutral");
+            await j.clearCompleted([records[0].id]);
+            assert(j.list().length === 25 && !j.list().some(row => row.id === records[0].id), "selected deletion only");
+        });
+        await test("Only superseded passes in the same complete qualification context are hidden", () => {
+            const context = { configurationId: "tiny-test", configurationFingerprint: "fingerprint", executionWorker: "worker", protocol: "fixture", fixtureDigest: "digest", browser: "browser", environment: { operatingSystem: "ios" }, recipe: {}, capabilities: {} };
+            const older = { id: "old", startedAt: "2026-01-01", status: "passed", eligibilityContext: context };
+            const newer = { ...older, id: "new", startedAt: "2026-01-02" };
+            const failure = { ...newer, id: "failure", status: "failed" };
+            const changed = { ...older, id: "changed", eligibilityContext: { ...context, browser: "changed" } };
+            const legacy = { ...older, id: "legacy", eligibilityContext: null };
+            const records = [older, newer, failure, changed, legacy];
+            const visible = visibleWhisperAttempts(records);
+            assert(visible.length === 4 && !visible.some(row => row.id === "old"), "same-context older pass hidden");
+            assert(records.length === 5 && visible.some(row => row.id === "failure") && visible.some(row => row.id === "changed") && visible.some(row => row.id === "legacy"), "stored evidence, failures and other contexts preserved");
         });
         await test("Failed stage checkpoint stops actual lifecycle before fixture/model work", async () => {
             let touched = false, released = false;

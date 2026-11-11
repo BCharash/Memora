@@ -9,7 +9,8 @@ async function test(name, action) { await action(); lines.push(`PASS ${name}`); 
 function memory() { const data = new Map(); return { get length() { return data.size; }, key: i => [...data.keys()][i], getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v), removeItem: k => data.delete(k) }; }
 const definition = getWhisperConfigurationDefinitions()[0], context = await getWhisperEligibilityContext(definition);
 let serial = 0;
-const date = second => new Date(Date.parse("2026-01-01T00:00:00Z") + second * 1000).toISOString();
+const fixtureStart = Date.now();
+const date = second => new Date(fixtureStart + second * 1000).toISOString();
 function pass(id, second, mode = "manual") { return { id, startedAt: date(second), status: "passed", phase: "validation", executionMode: mode, configuration: { id: context.configurationId }, eligibilityContext: context,
     result: { results: [{ status: "passed", transcriptionStatus: "passed", accuracyStatus: "passed", validation: { status: "passed" }, wer: 0 }] } }; }
 async function fixture(qualified = true) {
@@ -135,6 +136,7 @@ try {
         const f = await fixture(), id = await failed(f, "unknown"); await f.bridge.sync();
         const container = document.createElement("div"), banner = document.createElement("div"); document.getElementById("fixture").append(container, banner);
         await renderWhisperEligibilityReviews(container, { bridge: f.bridge }); await renderWhisperReviewNotice(banner, { bridge: f.bridge });
+        assert(container.querySelector("h4")?.textContent.startsWith("Model eligibility reviews") && ![...container.querySelectorAll("summary")].some(node => node.textContent.startsWith("Model eligibility reviews")), "review group displayed without nested disclosure");
         assert(banner.textContent.includes("Review in Settings") && container.textContent.includes("Decide later"), "persistent review route and choices");
         container.querySelector("textarea").value = "I need to check the external interruption.";
         [...container.querySelectorAll("button")].find(button => button.textContent === "Decide later").click();

@@ -38,10 +38,15 @@ try {
     const advanced = document.getElementById("settingsWhisperAdvanced");
     const history = document.getElementById("settingsWhisperHistorySection");
     const result = document.getElementById("settingsWhisperSelfTestDetail");
-    assert(!advanced.open && !history.open, "secondary sections collapsed");
+    assert(!advanced.open && history.hidden, "secondary sections collapsed");
     assert(result.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING, "result before settings");
     assert(advanced.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING, "history last");
     lines.push("PASS initial controls, section order and collapsed secondary sections");
+    const historyToggle = document.querySelector('[data-settings-action="toggle-self-test-history"]');
+    historyToggle.click(); await waitFor(() => !history.hidden);
+    assert(historyToggle.textContent === "Hide", "View opens history with matching button");
+    historyToggle.click(); assert(history.hidden && historyToggle.textContent === "View", "Hide closes history");
+    lines.push("PASS history View/Hide controls");
     runButton().click();
     await waitFor(() => runButton().disabled && !cancelButton().disabled);
     assert(!cancelButton().hidden && !document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel shown only during test");
@@ -103,8 +108,8 @@ try {
         await waitFor(() => document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Interrupted—no final result recorded"));
         assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Last saved stage: transcription"), "model and stage visible");
         const historyPanel = document.getElementById("settingsWhisperAttemptHistory");
-        const technical = [...historyPanel.querySelectorAll("details")].find(el => el.querySelector(":scope > summary")?.textContent === "Technical report");
-        assert(technical && !technical.open, "technical report separately collapsed");
+        const technical = historyPanel.querySelector("[data-technical-report]");
+        assert(technical && technical.hidden, "technical report separately collapsed");
         const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
         let copied = "";
         try {
@@ -115,7 +120,7 @@ try {
             assert(JSON.parse(copied).schemaVersion === 1 && JSON.parse(copied).runtimeDiagnostics.currentPageId, "copy includes export-time page diagnostics");
             Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("denied"); } } });
             copy.click();
-            await waitFor(() => technical.open);
+            await waitFor(() => !technical.hidden);
             assert(technical.parentElement.textContent.includes("Copy unavailable"), "copy failure offers manual recovery");
         } finally {
             if (clipboardDescriptor) Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
@@ -126,6 +131,9 @@ try {
         lines.push("PASS recovered interruption visible in Settings with model, stage and eligibility");
         const clearHistory = document.querySelector("[data-whisper-clear-history]");
         assert(clearHistory, "clear history control visible");
+        assert(clearHistory.disabled, "no clearing without selection");
+        historyPanel.querySelector(`[data-history-record-id="settings-recovery-fixture"]`).click();
+        assert(!clearHistory.disabled, "selected row enables clearing");
         clearHistory.click();
         await waitFor(() => !document.getElementById("settingsWhisperAttemptHistory").textContent.includes("medium-fixture"));
         assert(localStorage.getItem(recoveryKey) === null, "saved record removed");

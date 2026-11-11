@@ -4,13 +4,53 @@ import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whi
 import { isIOS, runtimeIdentity } from "./runtime.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 
+// Shared selection controls for the two clearable histories. Selection starts
+// empty on every render; protected records cannot be selected by Check all.
+export function createWhisperHistorySelection(container, { label, onClear }) {
+    const controls = document.createElement("div"); controls.className = "whisper-report-actions";
+    const allLabel = document.createElement("label"), all = document.createElement("input");
+    all.type = "checkbox"; all.dataset.historyCheckAll = "";
+    allLabel.append(all, " Check all");
+    const clear = document.createElement("button"); clear.type = "button"; clear.textContent = label; clear.disabled = true;
+    const feedback = document.createElement("span"); feedback.setAttribute("role", "status");
+    const boxes = [];
+    let busy = false;
+    const sync = () => {
+        const selectable = boxes.filter(box => box.dataset.selectable === "true");
+        const checked = selectable.filter(box => box.checked).length;
+        all.disabled = busy || !selectable.length;
+        all.checked = !!selectable.length && checked === selectable.length;
+        all.indeterminate = checked > 0 && checked < selectable.length;
+        clear.disabled = busy || !checked;
+        for (const box of boxes) box.disabled = busy || box.dataset.selectable !== "true";
+    };
+    all.onchange = () => { for (const box of boxes) if (box.dataset.selectable === "true") box.checked = all.checked; sync(); };
+    clear.onclick = async () => {
+        const ids = boxes.filter(box => box.checked && box.dataset.selectable === "true").map(box => box.dataset.historyRecordId);
+        if (busy || !ids.length) return;
+        busy = true; sync();
+        try { await onClear(ids); }
+        catch (error) { feedback.textContent = `Could not clear history: ${error.message}`; }
+        finally { busy = false; sync(); }
+    };
+    controls.append(allLabel, clear, feedback); container.append(controls);
+    return { clear, add(record, title, selectable = true) {
+        const box = document.createElement("input"); box.type = "checkbox";
+        box.dataset.historyRecordId = record.id; box.dataset.selectable = String(selectable);
+        box.setAttribute("aria-label", `Select ${title}`);
+        if (!selectable) box.title = "Active or unevaluated work is protected from clearing.";
+        box.onchange = sync; boxes.push(box); sync();
+        return box;
+    } };
+}
+
 // Shared view for Settings and completed-transcription diagnostics. Both fetch
 // the same saved record; no parallel copy of execution evidence is maintained.
 export function renderWhisperExecutionReport(container, id, { journal = createWhisperExecutionJournal(), bridge = createWhisperEvidenceBridge(), includeStability = true } = {}) {
-    const technical = document.createElement("details");
-    const title = document.createElement("summary"); title.textContent = "Technical execution report";
+    const technical = document.createElement("div"); technical.hidden = true; technical.dataset.technicalReport = "";
+    const title = document.createElement("p"); title.className = "whisper-report-title"; title.textContent = "Technical execution report";
     const body = document.createElement("pre"); body.style.whiteSpace = "pre-wrap"; body.style.overflowWrap = "anywhere";
-    technical.append(title, body);
+    technical.append(body);
     const feedback = document.createElement("span"); feedback.setAttribute("role", "status");
     const actions = document.createElement("div"); actions.className = "whisper-report-actions";
     function refresh() {
@@ -25,16 +65,15 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
     const view = document.createElement("button"); view.type = "button";
     view.setAttribute("aria-controls", technical.id);
     const syncView = () => {
-        view.textContent = technical.open ? "Hide report" : "View report";
-        view.setAttribute("aria-expanded", String(technical.open));
+        view.textContent = !technical.hidden ? "Hide report" : "View report";
+        view.setAttribute("aria-expanded", String(!technical.hidden));
     };
     const showReport = () => { try { refresh(); } catch (error) { body.textContent = error.message; } };
     view.onclick = () => {
-        technical.open = !technical.open;
-        if (technical.open) showReport();
+        technical.hidden = !technical.hidden;
+        if (!technical.hidden) showReport();
         syncView();
     };
-    technical.addEventListener("toggle", () => { if (technical.open) showReport(); syncView(); });
     syncView(); actions.append(view);
     for (const label of ["Copy report", "Download report"]) {
         const button = document.createElement("button"); button.type = "button";
@@ -71,7 +110,7 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
                     feedback.textContent = " Report sharing cancelled.";
                     return;
                 }
-                technical.open = true; feedback.textContent = ` ${error?.message || String(error)} Select and copy available report text manually.`;
+                technical.hidden = false; syncView(); showReport(); feedback.textContent = ` ${error?.message || String(error)} Select and copy available report text manually.`;
             } finally {
                 button.disabled = false;
                 if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -93,8 +132,9 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
         finally { saveNote.disabled = false; }
     };
     stability.append(stabilityTitle, stabilityNote, stabilityInput, saveNote);
-    container.append(reference, actions, feedback, technical);
+    container.append(reference);
     if (includeStability) container.append(stability);
+    container.append(title, actions, feedback, technical);
 }
 
 export async function renderWhisperExecutionHistory(container, { journal = createWhisperExecutionJournal(), beforeClear = async () => createWhisperEvidenceBridge().sync() } = {}) {
@@ -103,21 +143,19 @@ export async function renderWhisperExecutionHistory(container, { journal = creat
         const records = await journal.recover();
         if (!container.isConnected) return;
         const note = document.createElement("p");
-        note.textContent = "Local to this browser. Keeps the latest 20 finished executions plus active work. No audio or transcript contents. Clearing history does not change eligibility.";
+        note.textContent = "Local to this browser. Successful transcriptions are kept for 24 hours after completion. Failures, cancellations and interruptions remain until selected for clearing; active/unevaluated work is protected. No audio or transcript contents. Clearing history does not change eligibility.";
         container.append(note);
         if (!records.length) { const empty = document.createElement("p"); empty.textContent = "No saved transcription executions."; container.append(empty); return; }
-        const clear = document.createElement("button"); clear.type = "button"; clear.textContent = "Clear transcription execution history";
-        clear.onclick = async () => {
-            clear.disabled = true;
-            try { await beforeClear(); await journal.clearCompleted(); await renderWhisperExecutionHistory(container, { journal, beforeClear }); }
-            catch (error) { note.textContent = `Could not clear history: ${error.message}`; clear.disabled = false; }
-        };
-        container.append(clear);
+        const selection = createWhisperHistorySelection(container, { label: "Clear selected transcription history", onClear: async ids => {
+            await beforeClear(); await journal.clearCompleted(ids);
+            await renderWhisperExecutionHistory(container, { journal, beforeClear });
+        } });
         for (const record of records) {
-            const detail = document.createElement("details"); detail.className = "whisper-saved-report";
-            const summary = document.createElement("summary");
+            const detail = document.createElement("article"); detail.className = "whisper-saved-report";
+            const summary = document.createElement("label"); summary.className = "whisper-history-heading";
             const outcome = record.status === "interrupted" ? "Interrupted—cause unknown" : record.status;
-            summary.textContent = `${outcome} · ${record.configuration?.id || record.requestedModel} · ${new Date(record.startedAt).toLocaleString()}`;
+            const heading = `${outcome} · ${record.configuration?.id || record.requestedModel} · ${new Date(record.startedAt).toLocaleString()}`;
+            summary.append(selection.add(record, heading, record.status !== "running" && (!record.eligibilityContext || record.eligibilityEvaluation?.status === "processed")), document.createTextNode(heading));
             const description = document.createElement("p");
             description.textContent = `Last saved stage: ${record.phase}. Model execution: ${record.modelOutcome}. ${record.reason || record.failure?.error?.message || ""}`;
             detail.append(summary, description); renderWhisperExecutionReport(detail, record.id, { journal }); container.append(detail);
@@ -150,10 +188,9 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
         container.append(note);
         if (!rows.length) { const empty = document.createElement("p"); empty.textContent = "No production eligibility reviews or stability observations."; container.append(empty); }
         for (const kind of ["incident", "stability"]) {
-            const group = document.createElement("details"), title = document.createElement("summary");
+            const group = document.createElement("section"), title = document.createElement("h4");
             const items = rows.filter(row => row.kind === kind);
             title.textContent = `${kind === "incident" ? "Model eligibility reviews" : "Session stability observations (no eligibility effect)"} · ${items.length}`;
-            group.open = kind === "incident" && items.some(row => ["pending", "deferred", "retest-required"].includes(row.state));
             group.append(title); container.append(group);
             for (const row of items) {
                 const item = document.createElement("details"), label = document.createElement("summary");

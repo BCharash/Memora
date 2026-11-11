@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 10 November 2026, source build **2026-11-10.14**.
+Reviewed against the checkout on 11 November 2026, source build **2026-11-11.1** (device acceptance pending).
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -169,7 +169,7 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 | Memora IndexedDB | `transcripts`, `semanticEntries`, `semanticMetadata`, `modelRegistry`; schema in `database.js`. |
 | Browser model caches | Downloaded model assets. Cache presence does not prove eligibility or active model memory use. |
 | Local storage: `memora.whisper-production-evidence.v1.*` | Original production incidents, review decisions/user explanations, manual-reference certificates and stability notes; retained independently of clearable histories. |
-| Local storage: `memora.whisper-execution.v1.*` | Normal transcription execution history, 20 evaluated terminal records plus active/unprocessed work; separate from self-test validation. |
+| Local storage: `memora.whisper-execution.v1.*` | Normal transcription execution history: successes for 24 hours, failures/interruptions until selected clearing, active/unprocessed work protected; separate from self-test validation. |
 | Local storage: `memora.whisper-attempt.v1.*` | Saved self-test reports; `whisperAttempts.js`. |
 | Local storage: `memora.whisper-eligibility.v1.*` and `memora.whisper-eligibility-review.v1.*` | Qualification and older review/resolution evidence; eligibility modules. Clearing reports does not reset these decisions. |
 | Local storage: `memora.runtime-diagnostics.v1.*` | Bounded diagnostic page/event records; `runtimeDiagnostics.js`. |
@@ -233,4 +233,4 @@ Current source uses fixed qualified family defaults, not automatic competition a
 
 ## Stable pause — 10 November 2026
 
-Source .14 is accepted locally; final Pages/iPhone layout confirmation is pending. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.
+Source .14 is accepted on Mac/iPhone; .2026-11-11.1 history controls and retention await device acceptance. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.

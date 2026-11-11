@@ -1,10 +1,10 @@
 # Memora documentation
 
-Reviewed 10 November 2026 through source build **2026-11-10.14**. The user accepted the latest organization locally; GitHub Pages/iPhone visual confirmation is pending. The implementation is at a stable stopping point. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for exact acceptance, remaining issues and the ordered resume plan. Historical pending statements are not current tasks.
+Reviewed 11 November 2026 through candidate build **2026-11-11.1**. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
 
 | Document | Role |
 |---|---|
-| [Current status and resume instructions](CURRENT_STATUS.md) | Stable stop, acceptance evidence, pending Pages layout check and ordered future options. |
+| [Current status and resume instructions](CURRENT_STATUS.md) | Current candidate, acceptance evidence, history checks and ordered future options. |
 | [Plain-language file map](../filemap.md) | All 44 application JavaScript files, including 19 Whisper files, plus flows, storage and focused tests. |
 | [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |
 | [Whisper catalogue and selection contract](Whisper_Catalogue_Resolver_Contract.md) | Current canonical definitions/selection plus future candidate discovery and device-specific variant roadmap. |

@@ -1,7 +1,7 @@
 // Normal transcription history only. Never ingested as self-test validation.
 // No storage access on import; live attempts are protected across tabs.
 const PREFIX = "memora.whisper-execution.v1.";
-export const WHISPER_EXECUTION_HISTORY_LIMIT = 20;
+export const WHISPER_EXECUTION_SUCCESS_RETENTION_MS = 24 * 60 * 60 * 1000;
 const pending = record => !!record.eligibilityContext && record.eligibilityEvaluation?.status !== "processed";
 const PHASES = new Set(["prepare", "metadata", "decode", "load", "inference", "model-complete", "paragraphing", "save", "complete"]);
 export function createWhisperExecutionJournal({ storage = globalThis.localStorage, locks = globalThis.navigator?.locks, now = () => new Date().toISOString(), uuid = () => crypto.randomUUID() } = {}) {
@@ -22,11 +22,16 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
         return locks.request(PREFIX + id, { mode: "exclusive", ifAvailable }, token => token ? action() : null);
     }
     async function prune() {
-        // Remove only terminal records, checking ownership again under each lock.
-        const completed = list().filter(record => record.status !== "running" && !pending(record));
-        for (const record of completed.slice(WHISPER_EXECUTION_HISTORY_LIMIT)) await lock(record.id, () => {
+        // Age only successful, evaluated workflows. Failures/interruption evidence
+        // remains until explicitly selected; unknown timestamps are preserved.
+        const expired = record => {
+            const finished = Date.parse(record.finishedAt);
+            return record.status === "completed" && !pending(record) && Number.isFinite(finished)
+                && Date.parse(now()) - finished >= WHISPER_EXECUTION_SUCCESS_RETENTION_MS;
+        };
+        for (const record of list().filter(expired)) await lock(record.id, () => {
             const current = JSON.parse(storage.getItem(PREFIX + record.id));
-            if (current && current.status !== "running" && !pending(current)) storage.removeItem(PREFIX + record.id);
+            if (current && expired(current)) storage.removeItem(PREFIX + record.id);
         }, true);
     }
     async function recover() {
@@ -43,8 +48,9 @@ export function createWhisperExecutionJournal({ storage = globalThis.localStorag
         await prune();
         return list();
     }
-    async function clearCompleted() {
-        for (const record of list()) await lock(record.id, () => {
+    async function clearCompleted(ids = null) {
+        const selected = ids === null ? null : new Set(ids);
+        for (const record of list().filter(record => !selected || selected.has(record.id))) await lock(record.id, () => {
             const current = JSON.parse(storage.getItem(PREFIX + record.id));
             if (current && current.status !== "running" && !pending(current)) storage.removeItem(PREFIX + record.id);
         }, true);

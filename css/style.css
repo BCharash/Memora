@@ -1518,3 +1518,18 @@ button:disabled {
     gap: 8px;
     margin: 8px 0;
 }
+
+.whisper-history-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-weight: 600;
+}
+.whisper-history-heading input, .whisper-report-actions input[type="checkbox"] {
+    width: auto;
+    flex-shrink: 0;
+}
+.whisper-report-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}

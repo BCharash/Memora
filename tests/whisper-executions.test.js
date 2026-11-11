@@ -47,15 +47,28 @@ try {
         await journal.clearCompleted();
         assert(!journal.list().length && storage.getItem("memora.whisper-eligibility.v1.fixture") === "keep", "clear only this history");
     });
-    await test("Retention keeps 20 terminal records and never deletes active work", async () => {
-        const journal = factory(memory());
-        await journal.run(metadata, async outer => {
-            outer.checkpoint("inference");
-            for (let i = 0; i < 23; i++) await journal.run(metadata, async inner => { inner.checkpoint("model-complete"); return {}; });
-            assert(journal.list().length === 21 && journal.list().some(record => record.id === outer.id), "20 completed plus live");
+    await test("Retention expires only 24-hour successes and preserves failures, active and pending evidence", async () => {
+        const storage = memory(); let clock = Date.parse("2026-01-01T00:00:00Z");
+        const journal = factory(storage, { now: () => new Date(clock).toISOString() });
+        const success = await journal.run(metadata, async execution => { execution.checkpoint("model-complete"); return {}; });
+        let failedId;
+        try { await journal.run(metadata, async () => { throw new Error("keep failure"); }); } catch (error) { failedId = error.executionId; }
+        const pending = await journal.run({ ...metadata, eligibilityContext: { fixture: true } }, async () => ({}));
+        clock += 24 * 60 * 60 * 1000 - 1;
+        await journal.prune(); assert(journal.list().some(row => row.id === success.executionId), "success retained until full day");
+        clock++;
+        await journal.run(metadata, async execution => {
+            await journal.prune();
+            assert(journal.list().some(row => row.id === execution.id), "active work retained");
             return {};
         });
-        assert(journal.list().length === 20, "strict terminal bound");
+        assert(!journal.list().some(row => row.id === success.executionId), "24-hour success expires");
+        assert(journal.list().some(row => row.id === failedId) && journal.list().some(row => row.id === pending.executionId), "failure and unevaluated record retained");
+        await journal.clearCompleted([]); assert(journal.list().some(row => row.id === failedId), "empty selection clears nothing");
+        await journal.clearCompleted([failedId, pending.executionId]);
+        assert(!journal.list().some(row => row.id === failedId) && journal.list().some(row => row.id === pending.executionId), "only selected deletable records removed");
+        await journal.markEvaluated(pending.executionId, { status: "processed" }); await journal.prune();
+        assert(!journal.list().some(row => row.id === pending.executionId), "expired pending success removed only after evaluation");
     });
     await test("Storage and lock failures warn without repeating or stopping model work", async () => {
         for (const locks of [navigator.locks, null]) {
@@ -104,13 +117,11 @@ try {
         await renderWhisperExecutionHistory(history, { journal }); renderWhisperExecutionReport(linked, result.executionId, { journal });
         assert(history.textContent.includes("tiny-fixture") && linked.textContent.includes(result.executionId), "both reference one record");
         const reportButton = label => [...linked.querySelectorAll("button")].find(button => button.textContent === label);
-        const view = reportButton("View report"), technical = linked.querySelector("details");
-        assert(!technical.open && view.getAttribute("aria-expanded") === "false", "view starts collapsed");
+        const view = reportButton("View report"), technical = linked.querySelector("[data-technical-report]");
+        assert(technical.hidden && view.getAttribute("aria-expanded") === "false", "view starts collapsed");
         view.click();
-        assert(technical.open && view.textContent === "Hide report" && JSON.parse(technical.querySelector("pre").textContent).id === result.executionId, "view expands same saved JSON");
-        view.click(); assert(!technical.open && view.textContent === "View report", "hide collapses report");
-        technical.open = true; await new Promise(resolve => setTimeout(resolve, 20));
-        assert(view.textContent === "Hide report" && view.getAttribute("aria-expanded") === "true", "native disclosure synchronizes view button");
+        assert(!technical.hidden && view.textContent === "Hide report" && JSON.parse(technical.querySelector("pre").textContent).id === result.executionId, "view expands same saved JSON");
+        view.click(); assert(technical.hidden && view.textContent === "View report", "hide collapses report");
         const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
         const originalClick = HTMLAnchorElement.prototype.click; let copied, filename;
         try {
@@ -126,6 +137,24 @@ try {
             HTMLAnchorElement.prototype.click = originalClick;
             if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else delete navigator.clipboard;
         }
+    });
+    await test("History selection starts empty, check-all tracks partial selection and clears only selected records", async () => {
+        const journal = factory(memory());
+        await journal.run(metadata, async () => ({})); await journal.run(metadata, async () => ({}));
+        const container = document.createElement("div"); fixture.append(container);
+        await renderWhisperExecutionHistory(container, { journal, beforeClear: async () => {} });
+        const all = container.querySelector("[data-history-check-all]"), boxes = [...container.querySelectorAll("[data-history-record-id]")];
+        const clear = [...container.querySelectorAll("button")].find(button => button.textContent === "Clear selected transcription history");
+        assert(!all.checked && boxes.every(box => !box.checked) && clear.disabled, "unchecked by default");
+        assert(!container.querySelector("summary")?.textContent.includes("Technical"), "no redundant technical disclosure");
+        const row = container.querySelector("article"), stability = row.querySelector("details"), title = row.querySelector(".whisper-report-title");
+        assert(stability.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING, "stability control above report actions");
+        all.click(); assert(boxes.every(box => box.checked) && !clear.disabled, "check all selects rows");
+        boxes[0].click(); assert(all.indeterminate && !all.checked && !clear.disabled, "partial state");
+        const keep = boxes[0].dataset.historyRecordId, remove = boxes[1].dataset.historyRecordId;
+        clear.click();
+        for (let i = 0; i < 100 && journal.list().some(row => row.id === remove); i++) await new Promise(resolve => setTimeout(resolve, 5));
+        assert(journal.list().some(row => row.id === keep) && !journal.list().some(row => row.id === remove), "unselected report survives");
     });
     await test("iOS saves execution reports through sharing without any download navigation", async () => {
         let source = await (await fetch("../js/whisperExecutionReports.js")).text();
@@ -156,7 +185,7 @@ try {
             assert(!save.disabled && container.textContent.includes("sharing cancelled"), "cancellation is neutral");
             Object.defineProperty(navigator, "share", { configurable: true, value: async () => { throw new Error("share failed"); } });
             save.click(); await new Promise(resolve => setTimeout(resolve, 0));
-            assert(container.textContent.includes("share failed") && container.querySelector("details").open, "share error offers inline report");
+            assert(container.textContent.includes("share failed") && !container.querySelector("[data-technical-report]").hidden, "share error offers inline report");
             Object.defineProperty(navigator, "canShare", { configurable: true, value: () => false });
             save.click(); await new Promise(resolve => setTimeout(resolve, 0));
             assert(container.textContent.includes("Use Copy report"), "unsupported payload offers copy");
