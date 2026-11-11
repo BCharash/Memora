@@ -214,6 +214,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                     <p class="settings-note">Reference self-test results, accuracy, failures and interruptions.</p>
                     <div id="settingsWhisperAttemptHistory" class="settings-note"></div>
                 </div>
+                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
                 <div class="settings-disclosure">
                     <span class="settings-disclosure-title">Transcription history</span>
                     ${button("View", "toggle-execution-history")}

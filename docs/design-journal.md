@@ -4316,3 +4316,6 @@ Self-test presentation shows only the newest passed attempt per complete eligibi
 ## 60.24 Historical pass duplicates and empty-history boundary — candidate 2026-11-11.2
 
 The user confirmed successful transcription history expired at 24 hours, but older duplicate self-test passes remained visible. The .1 display filter required a complete identical eligibility context, so legacy records and changes in browser/fingerprint could bypass grouping. .2 groups passed cards by configuration ID plus OS/platform, using recorded legacy environment fields when available. Full eligibility contexts and stored evidence remain independent; failures and records without identifiable configuration/platform remain visible. Added an unconditional divider between Transcription history and Model reviews, independent of whether any execution rows exist. Targeted attempt/Settings checks cover the correction; device acceptance remains pending.
+
+
+Build 2026-11-11.3 adds the matching permanent divider below Self-test history and above Transcription history, as requested. Both category boundaries remain visible regardless of empty/collapsed history; presentation only.
