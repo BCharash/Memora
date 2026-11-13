@@ -135,6 +135,9 @@ try {
             const small=j.list().find(row=>row.configuration.id==="Small"), before=JSON.stringify(small.recentSelfTests);
             assert(small.recentSelfTests.source==="captured-at-start"&&small.recentSelfTests.records.map(row=>row.configurationId).join(',')==="Tiny,Base","ordered predecessors across pages");
             const timeline=whisperAttemptTimeline(small);
+            const exported=presentWhisperAttempt(small),keys=Object.keys(exported);
+            assert(keys[0]==='reportSummary'&&keys[1]==='selfTestTimeline'&&exported.reportSummary.previousTestCount===2&&exported.reportSummary.gapBeforeThisTestSeconds===46&&exported.reportSummary.sequence==='Tiny → Base → Small','summary and history lead the report');
+
             assert(timeline.map(row=>row.durationMs).join(',')==='1000,3000,5000'&&timeline[1].gapBeforeMs===30000&&timeline[2].gapBeforeMs===46000,'measured duration and inter-test gaps');
             assert(small.phaseTimeline.some(point=>point.phase==='inference')&&small.phaseTimeline.at(-1).phase==='finished','progress persisted');
             await j.clearCompleted(['sequence-1','sequence-2']);

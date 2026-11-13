@@ -1549,7 +1549,7 @@ button:disabled {
 
 /* The graphic supplies Me; the adjoining suffix completes the wordmark. */
 .app-header .memora-wordmark {
-    --wordmark-scale: 1;
+    --wordmark-scale: .9;
     display: flex;
     align-items: baseline;
     justify-content: center;
@@ -1586,8 +1586,8 @@ button:disabled {
     .memora-wordmark span { background: none; color: CanvasText; }
 }
 @media (min-width: 601px) {
-    /* 96 / 67.2: a moderate desktop size, with lettering scaled together. */
-    .app-header .memora-wordmark { --wordmark-scale: 1.4285714286; }
+    /* 86.4 px desktop artwork, with lettering scaled together. */
+    .app-header .memora-wordmark { --wordmark-scale: 1.2857142857; }
 }
 @media (max-width: 600px) {
     /* Reserve full-size section art and Settings; center branding between them. */
@@ -1616,8 +1616,8 @@ button:disabled {
     }
 }
 @media (max-width: 359px) {
-    /* Only narrow phones need the central wordmark reduced, by ten percent. */
-    .app-header .memora-wordmark { --wordmark-scale: .9; }
+    /* Preserve the additional narrow-phone reduction. */
+    .app-header .memora-wordmark { --wordmark-scale: .81; }
 }
 
 
@@ -1626,7 +1626,25 @@ button:disabled {
 .whisper-test-timeline table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .whisper-test-timeline th, .whisper-test-timeline td { padding: 7px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
 .whisper-test-timeline-current { font-weight: 600; }
-.whisper-saved-report textarea { display: block; width: 100%; box-sizing: border-box; margin: 8px 0; font: inherit; font-size: 16px; }
+.whisper-saved-report textarea, #settingsWhisperStabilitySection textarea {
+    display: block; width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px;
+    min-height: 84px; border: 2px solid var(--muted); border-radius: 8px;
+    background: var(--surface); color: var(--text); font: inherit; font-size: 16px; resize: vertical;
+}
+.whisper-saved-report textarea:focus, #settingsWhisperStabilitySection textarea:focus {
+    border-color: var(--navy); outline: 2px solid var(--tab-active); outline-offset: 2px;
+}
+.whisper-test-saved-observations { margin: 12px 0; padding-left: 10px; border-left: 3px solid var(--tab-active); }
+.whisper-test-saved-observations[hidden] { display: none; }
+.whisper-test-saved-observations h4 { margin: 8px 0; }
+.whisper-test-saved-observations li { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
 
 /* Keep a wide timing table inside its own scroller, including grid history panels. */
 #settingsWhisperHistorySection, #settingsWhisperStabilitySection, .whisper-saved-report, .whisper-test-timeline { min-width: 0; max-width: 100%; }
+
+/* Separate the selection controls from the first saved self-test. */
+#settingsWhisperAttemptHistory > .whisper-report-actions + .whisper-saved-report {
+    border-top: 1px solid currentColor;
+    margin-top: 12px;
+    padding-top: 16px;
+}

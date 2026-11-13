@@ -233,6 +233,16 @@ try {
         const row=f.bridge.listProductionReviews().find(row=>row.attemptId===attempt.id);
         assert(row.kind==='stability'&&row.sourceKind==='self-test'&&row.selfTest.status==='passed'&&row.selfTest.recentSelfTests,'separate retained test snapshot');
         assert(j.list()[0].status==='passed'&&f.bridge.get(context).status===eligible,'PASS and qualification unchanged');
+        const source=document.createElement('article');document.body.append(source);
+        renderWhisperAttemptContext(source,attempt,{getObservations:()=>f.bridge.listProductionReviews().filter(item=>item.attemptId===attempt.id),
+            saveObservation:(id,note,diagnostics)=>f.bridge.addSelfTestStabilityNote(id,note,diagnostics)});
+        assert(source.querySelector('.whisper-test-saved-observations').textContent.includes('Settings disappeared'),'saved note visible at original test');
+        source.querySelector('textarea').value='Additional source-card observation';
+        [...source.querySelectorAll('button')].find(button=>button.textContent==='Save observation').click();
+        for(let i=0;i<100&&!source.querySelector('.whisper-test-saved-observations').textContent.includes('Additional source-card');i++)await new Promise(resolve=>setTimeout(resolve,10));
+        assert(source.querySelector('textarea').value===''&&source.querySelector('.whisper-test-saved-observations').textContent.includes('Additional source-card'),'cleared draft replaced by visible saved note');
+        assert(![...source.querySelectorAll('button')].some(button=>button.textContent==='View in Session stability observations'),'no redundant direct-link action');source.remove();
+
         const history=JSON.stringify(row.selfTest);await j.clearCompleted();
         assert(JSON.stringify(f.bridge.listProductionReviews().find(item=>item.id===row.id).selfTest)===history,'independent of clearable history');
         const container=document.createElement('div');document.body.append(container);

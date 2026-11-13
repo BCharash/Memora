@@ -4378,3 +4378,16 @@ Isolated Chrome checked 320/359/360/390/430/600/601/768/900/1280 px, confirming 
 Each finished/interrupted report offers Report a problem after this self-test, saving the original result, timeline and existing bounded page/Settings diagnostics into separate Session stability observations. PASS and eligibility are unchanged; snapshots/notes survive raw-history clearing. Shared report controls provide consistent View/Copy/export, with iOS sharing to preserve the app document. Cleanup checkpoint failure cannot skip termination, and cleanupPhase is kept separate from the model phase used by qualification recovery. No new models, test sequence, cooldown or database migration.
 
 98 groups across eight focused browser suites pass. Production Settings with synthetic older records confirms reconstruction/gaps, note/export agreement, preserved PASS, clear/reload retention and phone table containment. Existing Small reports can be used for iPhone UI acceptance without running models again. Details: [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md). Resource profiling remains separate and unimplemented.
+
+
+## 60.34 Visible saved self-test observations — candidate 2026-11-13.9
+
+13 November 2026. User reports the observation input border is hard to see and their text disappears after Save, leaving its destination unclear. Saving was clearing the draft after durable persistence; the note lived under Session stability observations. Added read-only Saved observations to the originating test card (including after history is reopened), with a direct button that opens the exact durable entry and reveals archived observations if needed. Saving does not automatically move the page. Made both source observation and additional-information boxes clearly bordered with a focus outline. No evidence format, qualification, result or history-clearing behavior changed.
+
+32 focused browser groups pass, including extended source-card visibility and direct-target tests. Synthetic production UI confirms visible saved note after draft clearing, exact-entry navigation, defined border, consistent export and clear/reload retention at 390 px. User reporting checks so far are on MacBook; no iPhone acceptance is inferred.
+
+## 60.35 Simpler self-test history and smaller wordmark — candidate 2026-11-13.10
+
+13 November 2026. Removed the extra source-observation navigation button while retaining visible saved notes and the defined input border. Added a divider above the first self-test, below selection controls. Self-test JSON now starts with a short summary (model sequence, duration and gap in seconds), then its timeline and captured history; full technical evidence remains available. Reduced the entire central Memora wordmark by 10% at every breakpoint, preserving relative baseline alignment and section icon dimensions.
+
+46 focused browser groups pass. Isolated production UI checks cover saved notes, report ordering and clear/reload retention; header checks cover 320–1280 px, unchanged section graphics and containment. No real model run or storage migration. Changes remain uncommitted for user review.

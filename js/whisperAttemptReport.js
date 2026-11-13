@@ -6,8 +6,21 @@ export function presentWhisperAttempt(record, availableRecords = []) {
         report.observation.status = "in-progress";
     }
     if (!report.recentSelfTests) report.recentSelfTests = snapshotWhisperTestHistory(availableRecords, report);
-    report.selfTestTimeline = whisperAttemptTimeline(report);
-    return report;
+    const timeline = whisperAttemptTimeline(report), current = timeline[timeline.length - 1];
+    const {recentSelfTests, ...technicalDetails} = report;
+    delete technicalDetails.selfTestTimeline;
+    delete technicalDetails.reportSummary;
+    // Put the readable essentials before the larger technical evidence in JSON.
+    return {
+        reportSummary:{type:"self-test",testId:record.id,model:current.label,result:record.status,
+            startedAt:current.startedAt,finishedAt:current.finishedAt,
+            durationSeconds:Number.isFinite(current.durationMs) ? current.durationMs / 1000 : null,
+            gapBeforeThisTestSeconds:Number.isFinite(current.gapBeforeMs) ? current.gapBeforeMs / 1000 : null,
+            sequence:timeline.map(row=>row.label).join(" → "),previousTestCount:recentSelfTests.records.length,
+            historySource:recentSelfTests.source,lastSavedStage:record.cleanupPhase || record.phase || null,
+            cleanup:current.cleanup},
+        selfTestTimeline:timeline, recentSelfTests, ...technicalDetails
+    };
 }
 
 const timeLabel = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString() : "Unknown";
@@ -15,7 +28,7 @@ const durationLabel = value => Number.isFinite(value) && value >= 0 ? `${(value 
 
 // Readable context accompanies the identical exported JSON. No model/storage work.
 export function renderWhisperAttemptContext(container, record, { records = [], saveObservation,
-    runtimeDiagnostics = () => null, draft = "" } = {}) {
+    runtimeDiagnostics = () => null, draft = "", getObservations = () => [] } = {}) {
     const report = presentWhisperAttempt(record, records), history = report.recentSelfTests;
     const timeline = document.createElement("details"); timeline.className = "whisper-test-timeline";
     const title = document.createElement("summary"); title.textContent = `Recent self-test history (${history.records.length} previous)`;
@@ -43,12 +56,29 @@ export function renderWhisperAttemptContext(container, record, { records = [], s
     for(const point of report.phaseTimeline || []) {const li=document.createElement("li");li.textContent=`${point.phase} · ${timeLabel(point.at)} · ${durationLabel(point.elapsedMs)} since start`;stages.append(li);}
     if(!stages.children.length){const li=document.createElement("li");li.textContent="Detailed stage timestamps were not saved for this older test. Existing duration fields remain in the technical report.";stages.append(li);}
     timeline.append(stageTitle,stages);container.append(timeline);
+    const saved=document.createElement("section");saved.className="whisper-test-saved-observations";saved.setAttribute("aria-label","Saved self-test observations");
+    function refreshSaved() {
+        saved.replaceChildren();
+        const observations=getObservations(); saved.hidden=!observations.length;
+        if(!observations.length)return;
+        const heading=document.createElement("h4");heading.textContent="Saved observations";saved.append(heading);
+        for(const observation of observations) {
+            const list=document.createElement("ul");
+            for(const event of observation.events || []) {
+                if(!["stability-note","note"].includes(event.action))continue;
+                const item=document.createElement("li");item.textContent=`${timeLabel(event.at)} — ${event.explanation}`;list.append(item);
+            }
+            saved.append(list);
+
+        }
+    }
+    refreshSaved();container.append(saved);
     if(!saveObservation || record.status === "running")return;
     const disclosure=document.createElement("details"), summary=document.createElement("summary");summary.textContent="Report a problem after this self-test";
     const information=document.createElement("p");information.className="settings-note";information.textContent="Saves this result, its timeline and available page/Settings diagnostics under Session stability observations. Test result and model eligibility are unchanged; cause remains unknown.";
     const input=document.createElement("textarea");input.rows=2;input.maxLength=2000;input.value=draft;input.dataset.selfTestObservation=record.id;input.setAttribute("aria-label","Problem after this self-test");
     const save=document.createElement("button");save.type="button";save.textContent="Save observation";
     const feedback=document.createElement("p");feedback.setAttribute("role","status");
-    save.onclick=async()=>{save.disabled=true;try{await saveObservation(record.id,input.value,runtimeDiagnostics());feedback.textContent="Saved in Session stability observations with this test’s timeline. Result and eligibility unchanged.";input.value="";}catch(error){feedback.textContent=error.message||String(error);}finally{save.disabled=false;}};
+    save.onclick=async()=>{save.disabled=true;try{await saveObservation(record.id,input.value,runtimeDiagnostics());refreshSaved();feedback.textContent="Saved. Your observation is shown above and in Session stability observations, with this test’s timeline. Result and eligibility unchanged.";input.value="";}catch(error){feedback.textContent=error.message||String(error);}finally{save.disabled=false;}};
     disclosure.append(summary,information,input,save,feedback);container.append(disclosure);
 }

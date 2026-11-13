@@ -454,6 +454,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 details.append(label, description);
                 renderWhisperAttemptContext(details, record, {records, draft:drafts.get(record.id) || "",
                     runtimeDiagnostics:()=>getRuntimeDiagnosticReport(record.pageId || null),
+                    getObservations:()=>bridge.listProductionReviews().filter(row=>row.sourceKind==="self-test" && row.attemptId===record.id),
                     saveObservation:async(id,note,diagnostics)=>{
                         await bridge.addSelfTestStabilityNote(id,note,diagnostics);
                         if(document.getElementById("settingsWhisperStabilitySection")?.hidden===false)

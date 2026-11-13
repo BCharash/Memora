@@ -92,3 +92,11 @@ Build 2026-11-11.4: 51 focused groups passed across review (13), Settings (9), e
 98 groups across eight isolated browser harnesses passed: whisper-attempts, whisper-lifecycle, whisper-settings, whisper-executions, whisper-production-reviews, whisper-evidence, whisper-eligibility and runtime-diagnostics. New cases cover frozen prior sequence/durations/gaps, legacy backfill with unknown timings, compact snapshot privacy, cleanup-stage recovery semantics, cleanup checkpoint failures, and self-test observations surviving history clearing while PASS/qualification remain unchanged. Shared report exports retain their existing iOS no-navigation sharing coverage.
 
 A separate temporary-profile production Settings check used synthetic Tiny/Base/Small history to verify reconstruction, measured 30/45-second gaps, note saving, matching technical export, persistence after clearing/reload and a contained table at 390 px. No real model inference or user storage was used. See [feature guide](../docs/Self_Test_Timelines_and_Problem_Reports.md) for remaining iPhone acceptance; do not rerun models solely to inspect reports.
+
+## Saved-observation visibility follow-up — 2026-11-13.9
+
+32 focused groups across whisper-settings, whisper-production-reviews and whisper-executions pass. Extended the self-test observation regression to check a read-only saved copy on the source card, visibility after the input clears and the direct-link target. A synthetic production Settings check also verifies real direct navigation, the two-pixel input border, preserved export/clear/reload behavior and 390 px containment. No models or real user storage are used.
+
+## History presentation and wordmark follow-up — 2026-11-13.10
+
+46 groups across whisper-attempts, whisper-settings, whisper-production-reviews and whisper-executions pass. Regression checks cover report summary ordering, seconds and model sequence, visible saved notes and removal of the redundant direct button. Synthetic production UI checks cover the first-entry divider, summary-first export, notes surviving clear/reload and 390 px containment. Header checks at 320/359/360/390/430/600/601/768/900/1280 px verify the 10% smaller wordmark, preserved baseline proportions, unchanged section icon sizes and Settings/tab interactions. No real model inference or user data used.

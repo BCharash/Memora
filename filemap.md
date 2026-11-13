@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 13 November 2026, source build **2026-11-13.8**. Self-test reporting checked with isolated synthetic browser fixtures; earlier runtime/Settings device acceptance remains pending.
+Reviewed against the checkout on 13 November 2026, source build **2026-11-13.10**. Self-test reporting checked with isolated synthetic browser fixtures; earlier runtime/Settings device acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -117,7 +117,7 @@ These are different questions: **definition** = what model/configuration is requ
 | File | Responsibility | Main callers |
 |---|---|---|
 | [whisperAttempts.js](js/whisperAttempts.js) | Locked self-test journal: progressive phase/cleanup evidence, frozen prior-test timing snapshots, legacy reconstruction, recovery and selected clearing. | Self-test, evidence integration and Settings |
-| [whisperAttemptReport.js](js/whisperAttemptReport.js) | Self-test report projection, readable sequence/stage timeline and problem-note UI; preserves stored outcomes and missing-data provenance. | Settings |
+| [whisperAttemptReport.js](js/whisperAttemptReport.js) | Self-test report projection, readable sequence/stage timeline, problem-note input and visible saved observations and summary-first JSON; preserves outcomes and missing-data provenance. | Settings |
 | [whisperDiagnostics.js](js/whisperDiagnostics.js) | Reads available model-session settings and formats timing/backend diagnostics. It is distinct from the page event log. | Active workers, app output and Settings |
 
 The tiny activity/report modules could be grouped differently later. They are not duplicate algorithms, and merging them solely to reduce file count would not simplify their responsibilities automatically.
