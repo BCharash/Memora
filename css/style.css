@@ -1549,6 +1549,10 @@ button:disabled {
 
 /* The graphic supplies Me; the adjoining suffix completes the wordmark. */
 .app-header .memora-wordmark {
+    /* WORDMARK SIZE 1 OF 3: standard phones, 360–600 px wide.
+       Scales the graphic + mora together, including spacing and alignment.
+       Increase for larger, decrease for smaller; .9 → .99 makes it 10% larger.
+       For the same change on every screen, also adjust sizes 2 and 3 below. */
     --wordmark-scale: .9;
     display: flex;
     align-items: baseline;
@@ -1565,6 +1569,9 @@ button:disabled {
 }
 .memora-wordmark span {
     font-family: "Memora Dancing Script", cursive;
+    /* TEXT-ONLY SIZE: applies to mora on ALL devices; leaves the graphic unchanged.
+       Change the final + 1px to + 2px for another 1 px, or + 0px to remove it.
+       This addition happens AFTER scaling, so + 1px is exactly 1 px everywhere. */
     font-size: calc(52.6px * var(--wordmark-scale) + 1px);
     font-weight: 500;
     line-height: 1;
@@ -1586,7 +1593,10 @@ button:disabled {
     .memora-wordmark span { background: none; color: CanvasText; }
 }
 @media (min-width: 601px) {
-    /* 86.4 px desktop artwork, with lettering scaled together. */
+    /* WORDMARK SIZE 2 OF 3: desktop/tablet screens, 601 px and wider.
+       Graphic width = 67.2px × scale; current scale gives 86.4px artwork.
+       Scales graphic + mora together. Multiply by 1.1 for 10% larger
+       (1.2857142857 → 1.4142857143). A rounded scale such as 1.286 is fine. */
     .app-header .memora-wordmark { --wordmark-scale: 1.2857142857; }
 }
 @media (max-width: 600px) {
@@ -1616,7 +1626,10 @@ button:disabled {
     }
 }
 @media (max-width: 359px) {
-    /* Preserve the additional narrow-phone reduction. */
+    /* WORDMARK SIZE 3 OF 3: narrow phones, 359 px and below.
+       Overrides size 1 to leave room for the section icon and Settings.
+       Scales graphic + mora together; .81 → .891 makes it 10% larger.
+       These wordmark settings do not resize the separate section icons. */
     .app-header .memora-wordmark { --wordmark-scale: .81; }
 }
 
