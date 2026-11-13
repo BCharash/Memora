@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 11 November 2026, source build **2026-11-11.4** (device acceptance pending).
+Reviewed against the checkout on 13 November 2026, source build **2026-11-13.3**. Header appearance checked in an isolated browser; earlier runtime/Settings device acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -234,3 +234,14 @@ Current source uses fixed qualified family defaults, not automatic competition a
 ## Stable pause — 10 November 2026
 
 Source .14 is accepted on Mac/iPhone; .2026-11-11.4 history controls and retention await device acceptance. Production eligibility/reviews are implemented, not an unstarted checkpoint. No further code is selected. The [current handoff](docs/CURRENT_STATUS.md) provides acceptance limits, stable-stop instructions and future priorities; the [10 November history](docs/archive/Development_Checkpoints_2026-11-10.md) preserves detailed checkpoint notes.
+
+## Header wordmark assets
+
+| File | Purpose |
+|---|---|
+| [icons/Memora.png](icons/Memora.png) | User-provided Me graphic in the central Memora wordmark; separate from the active-tab context icon. |
+| [fonts/DancingScript.ttf](fonts/DancingScript.ttf) | Locally bundled variable font for the adjoining mora lettering. |
+| [fonts/OFL.txt](fonts/OFL.txt) | SIL Open Font License 1.1 for Dancing Script. |
+| [fonts/README.md](fonts/README.md) | Font source, unchanged-distribution note and bundled-file checksum. |
+
+Wordmark markup/styles live in index.html and css/style.css. Tab icon switching remains in js/app.js; the new central graphic is independent of appIcon.

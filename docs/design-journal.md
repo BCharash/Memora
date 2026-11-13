@@ -4324,3 +4324,22 @@ Build 2026-11-11.3 adds the matching permanent divider below Self-test history a
 ## 60.25 Settings hierarchy and reversible review archiving — candidate 2026-11-11.4
 
 The user approved matching Whisper Self-Test and History and Reviews to the major Display/Storage headings, splitting Model eligibility reviews from Session stability observations, and archiving while preserving data. Implemented four independent View/Hide history/review areas with permanent separators. Stability observations retain optional additional information and have no eligibility decisions. Resolved reviews/stability observations can be archived, shown through Show archived and restored. The existing repository stores an optional archivedAt and append-only archive/restore events under its writer lock; original evidence and qualification remain unchanged. Unresolved reviews cannot be archived, and active incidents remain visible even if an archive timestamp exists. Direct Transcribe review navigation still opens the eligibility area. No model definitions, worker lifecycle, schema or cooldown change. User device acceptance pending; automated tests use isolated storage and synthetic observations.
+
+
+## 60.26 Graphic-and-lettering Memora wordmark — candidate 2026-11-13.1
+
+13 November 2026. User requests the iMuse wordmark treatment in Memora: icons/Memora.png suggests Me, followed closely by mora. Added a central 56 px brand image plus Dancing Script 500 at 42 px, with a cyan/blue/violet gradient, adjusted baseline and accessible Memora heading. The original context icon remains linked to the active tab; its mobile size is 56 px to fit the new central title. Font is locally bundled unchanged from Google Fonts under SIL OFL, with source/hash/license documented. No external font service is needed at runtime.
+
+Isolated Chrome checks passed for local asset/font loading, accessible heading label, 320/390/900 px fit, non-overlapping visible header elements, all tab/context-icon transitions and Settings opening. Rendered phone/desktop headers were reviewed. No model inference, real recordings or user storage were used, and no model/runtime regression suite was rerun for this presentation-only change. The earlier .4 Settings acceptance and resource-profiling plans are unaffected. iMuse itself was not changed by this Memora task.
+
+
+## 60.27 Wordmark size adjustment — candidate 2026-11-13.2
+
+13 November 2026. Increased mora lettering from 42 px to 43 px at the user’s request to better match the graphic’s figurative e. Color, position and all application behavior are unchanged. CSS/build diff checked; runtime tests were not repeated for the 1 px adjustment.
+
+
+## 60.28 Wordmark enlarged by 20% — candidate 2026-11-13.3
+
+13 November 2026. User approves the 43 px lettering and requests a 20% enlargement of both graphic and suffix, checking phone fit. Increased central artwork from 56 to 67.2 px and lettering from 43 to 51.6 px, scaling gap, rounding and baseline offset proportionally. The separate tab-context icon remains 56 px on phones.
+
+Isolated Chrome checks passed at 320/360/390/430/900 px without horizontal overflow or header control overlap. At 320 px, the visible wordmark is about 157.6 px wide, with about 9.2 px clearance from the section icon and 25.2 px before Settings. Reviewed 320/390 px renders; tab switching, stable branding, local font and Settings opening still pass. Presentation only; no model/runtime tests repeated. Final appearance remains for user preference review.

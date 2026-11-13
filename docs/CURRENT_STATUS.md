@@ -1,6 +1,12 @@
 # Memora — current status and resume instructions
 
-Updated **11 November 2026**, source build **2026-11-11.4**. Settings heading hierarchy, separate review/stability areas and reversible archiving are implemented; user Mac/iPhone acceptance is pending for .4. The user confirmed 24-hour transcription expiry in .1; .2 corrects historical pass duplicates and the empty-history separator. The prior stable checkpoint **2026-11-10.14** was confirmed on both devices. Resource profiling remains planned, not implemented.
+Updated **13 November 2026**, source build **2026-11-13.3**. The latest change is the header wordmark described below; the .4 runtime/Settings acceptance boundaries still apply. Settings heading hierarchy, separate review/stability areas and reversible archiving are implemented; user Mac/iPhone acceptance is pending for .4. The user confirmed 24-hour transcription expiry in .1; .2 corrects historical pass duplicates and the empty-history separator. The prior stable checkpoint **2026-11-10.14** was confirmed on both devices. Resource profiling remains planned, not implemented.
+
+## Wordmark appearance — 2026-11-13.3
+
+The central title now uses icons/Memora.png as Me followed closely by flowing mora lettering in locally bundled Dancing Script, with an icon-inspired cyan/blue/violet gradient. The graphic and lettering are now 20% larger together: 67.2 px artwork and 51.6 px lettering, with proportional spacing/alignment. The accessible heading remains Memora. The existing left section icon still follows Transcribe/Combine/Search; its phone size is 56 px to leave room for the central wordmark and Settings. The font is bundled under fonts/ with its SIL Open Font License, requiring no remote font request. No model/runtime/storage behavior changed.
+
+Isolated Chrome verified font/icon loading, the Memora heading label, no horizontal overflow or visible header-control overlap at 320/360/390/430/900 px, tab/section-icon transitions, stable branding and Settings opening. Visual preference on iPhone remains for user review. Existing model/Settings acceptance is not expanded by this presentation check.
 
 ## What is complete
 

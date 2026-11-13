@@ -1,3 +1,11 @@
+@font-face {
+    font-family: "Memora Dancing Script";
+    src: url("../fonts/DancingScript.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+}
+
 :root {
     --navy: #07145C;
     --text: #20242C;
@@ -1537,4 +1545,44 @@ button:disabled {
 .settings-disclosure .settings-major-heading {
     font-size: 1.17em;
     margin: 0 0 12px;
+}
+
+/* The graphic supplies Me; the adjoining suffix completes the wordmark. */
+.app-header .memora-wordmark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2px;
+    line-height: 1;
+}
+.memora-wordmark img {
+    display: block;
+    width: 67.2px;
+    height: 67.2px;
+    flex: 0 0 67.2px;
+    border-radius: 14.4px;
+}
+.memora-wordmark span {
+    font-family: "Memora Dancing Script", cursive;
+    font-size: 51.6px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -.02em;
+    transform: translateY(-4.8px);
+    color: #386df2;
+}
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+    .memora-wordmark span {
+        background: linear-gradient(110deg, #008fc9 0%, #386df2 45%, #a525e6 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+    }
+}
+@media (forced-colors: active) {
+    .memora-wordmark span { background: none; color: CanvasText; }
+}
+@media (max-width: 600px) {
+    /* Leave room for the centered wordmark and Settings at phone widths. */
+    .app-icon { width: 56px; height: 56px; border-radius: 12px; }
 }
