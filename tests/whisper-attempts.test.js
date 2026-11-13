@@ -1,5 +1,5 @@
 import { presentWhisperAttempt } from "../js/whisperAttemptReport.js";
-import { createWhisperAttemptJournal, visibleWhisperAttempts } from "../js/whisperAttempts.js";
+import { createWhisperAttemptJournal, visibleWhisperAttempts, whisperAttemptTimeline } from "../js/whisperAttempts.js";
 import { createWhisperTestRunner } from "../js/whisperTestLifecycle.js";
 const lines = [];
 const assert = (v, m) => { if (!v) throw new Error(m); };
@@ -122,6 +122,48 @@ try {
             const j = journal(memory());
             try { await j.run(metadata, async () => { throw new Error("fixture failure"); }); } catch {}
             assert((await j.recover())[0].error.message === "fixture failure", "error saved");
+        });
+        await test("Recent history freezes order, duration and gaps before each test; survives clearing", async () => {
+            const storage=memory(); let clock=0, id=0;
+            const at=()=>new Date(1700000000000+clock).toISOString();
+            const j=createWhisperAttemptJournal({storage,locks,uuid:()=>`sequence-${++id}`,now:at});
+            for(const [name,start,end] of [["Tiny",0,1000],["Base",31000,34000],["Small",80000,85000]]) {
+                clock=start; await j.run({configuration:{id:name,label:name},pageId:`page-${id}`},async checkpoint=>{
+                    await checkpoint("inference",{});clock=end;return summary("passed");
+                });
+            }
+            const small=j.list().find(row=>row.configuration.id==="Small"), before=JSON.stringify(small.recentSelfTests);
+            assert(small.recentSelfTests.source==="captured-at-start"&&small.recentSelfTests.records.map(row=>row.configurationId).join(',')==="Tiny,Base","ordered predecessors across pages");
+            const timeline=whisperAttemptTimeline(small);
+            assert(timeline.map(row=>row.durationMs).join(',')==='1000,3000,5000'&&timeline[1].gapBeforeMs===30000&&timeline[2].gapBeforeMs===46000,'measured duration and inter-test gaps');
+            assert(small.phaseTimeline.some(point=>point.phase==='inference')&&small.phaseTimeline.at(-1).phase==='finished','progress persisted');
+            await j.clearCompleted(['sequence-1','sequence-2']);
+            assert(JSON.stringify(j.list()[0].recentSelfTests)===before,'clear leaves attached context');
+            clock=100000;await j.run(metadata,async()=>summary('cancelled'));
+            assert(JSON.stringify(j.list().find(row=>row.id===small.id).recentSelfTests)===before,'later tests cannot rewrite context');
+        });
+        await test("Old history is backfilled once without inventing missing timings or outcomes", async () => {
+            const storage=memory(),j=journal(storage);
+            storage.setItem('memora.whisper-attempt.v1.old-a',JSON.stringify({schemaVersion:1,id:'old-a',configuration:{id:'Tiny'},startedAt:'2026-01-01T00:00:00Z',status:'passed',phase:'validation'}));
+            storage.setItem('memora.whisper-attempt.v1.old-b',JSON.stringify({schemaVersion:1,id:'old-b',configuration:{id:'Base'},startedAt:'2026-01-01T00:01:00Z',finishedAt:'2026-01-01T00:01:02Z',status:'passed',phase:'validation'}));
+            const records=await j.recover(),b=records.find(row=>row.id==='old-b');
+            assert(b.status==='passed'&&b.recentSelfTests.source==='reconstructed-from-available-history','result preserved, provenance explicit');
+            assert(whisperAttemptTimeline(b)[1].gapBeforeMs===null&&b.recentSelfTests.records[0].durationMs===null,'missing finish is unknown');
+            const frozen=JSON.stringify(b.recentSelfTests);await j.clearCompleted(['old-a']);await j.recover();
+            assert(JSON.stringify(j.list()[0].recentSelfTests)===frozen,'reconstruction frozen after source removal');
+        });
+        await test("Cleanup checkpoints retain model-stage recovery semantics and compact snapshots", async () => {
+            const storage=memory(),j=journal(storage);
+            await j.run(metadata,async checkpoint=>{
+                await checkpoint('inference',{transcript:'private fixture text'});
+                await checkpoint('cleanup',{transcriptionStatus:'passed',releaseStatus:'not-attempted'});
+                const current=j.list()[0];
+                assert(current.phase==='inference'&&current.cleanupPhase==='cleanup','model phase remains authoritative');
+                return summary('passed');
+            });
+            const next={id:'next',startedAt:new Date(Date.now()+1000).toISOString()};
+            const snapshot=presentWhisperAttempt(next,j.list()).recentSelfTests;
+            assert(!JSON.stringify(snapshot).includes('private fixture text')&&!JSON.stringify(snapshot).includes('recentSelfTests'),'no transcript or recursive snapshots');
         });
         document.body.dataset.result = "passed";
         document.getElementById("results").textContent = lines.join("\n") + "\nALL TESTS PASSED";

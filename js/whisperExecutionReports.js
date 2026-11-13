@@ -1,3 +1,4 @@
+import { presentWhisperAttempt, renderWhisperAttemptContext } from "./whisperAttemptReport.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { eligibilityKey } from "./whisperEligibility.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
@@ -46,9 +47,9 @@ export function createWhisperHistorySelection(container, { label, onClear }) {
 
 // Shared view for Settings and completed-transcription diagnostics. Both fetch
 // the same saved record; no parallel copy of execution evidence is maintained.
-export function renderWhisperExecutionReport(container, id, { journal = createWhisperExecutionJournal(), bridge = createWhisperEvidenceBridge(), includeStability = true } = {}) {
+export function renderWhisperExecutionReport(container, id, { journal = createWhisperExecutionJournal(), bridge = createWhisperEvidenceBridge(), includeStability = true, kind = "execution" } = {}) {
     const technical = document.createElement("div"); technical.hidden = true; technical.dataset.technicalReport = "";
-    const title = document.createElement("p"); title.className = "whisper-report-title"; title.textContent = "Technical execution report";
+    const title = document.createElement("p"); title.className = "whisper-report-title"; title.textContent = kind === "self-test" ? "Technical report" : "Technical execution report";
     const body = document.createElement("pre"); body.style.whiteSpace = "pre-wrap"; body.style.overflowWrap = "anywhere";
     technical.append(body);
     const feedback = document.createElement("span"); feedback.setAttribute("role", "status");
@@ -56,8 +57,8 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
     function refresh() {
         const record = journal.list().find(item => item.id === id);
         if (!record) throw new Error("Execution record is no longer available; it may have been cleared or aged out of history.");
-        const reviews = bridge.listProductionReviews().filter(row => row.id === record.eligibilityEvaluation?.incidentId || row.execution?.id === id)
-            .map(({ execution, ...review }) => review);
+        const reviews = bridge.listProductionReviews().filter(row => row.id === record.eligibilityEvaluation?.incidentId || row.execution?.id === id || kind === "self-test" && row.selfTest?.id === id)
+            .map(({ execution, selfTest, ...review }) => review);
         body.textContent = JSON.stringify(reviews.length ? { ...record, productionReviews: reviews } : record, null, 2);
         return record;
     }
@@ -78,6 +79,7 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
     for (const label of ["Copy report", "Download report"]) {
         const button = document.createElement("button"); button.type = "button";
         button.textContent = label === "Download report" && isIOS ? "Save report" : label;
+        if (kind === "self-test" && label === "Copy report") button.dataset.whisperCopyReport = "";
         button.onclick = async () => {
             button.disabled = true;
             let url;
@@ -86,7 +88,7 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
                 if (label === "Copy report") {
                     await navigator.clipboard.writeText(body.textContent); feedback.textContent = " Report copied.";
                 } else {
-                    const filename = `whisper-execution-${record.startedAt}-${record.id}.json`.replace(/[^a-zA-Z0-9._-]/g, "-");
+                    const filename = `whisper-${kind}-${record.startedAt}-${record.id}.json`.replace(/[^a-zA-Z0-9._-]/g, "-");
                     if (isIOS) {
                         // Keep the app document in place. Blob-link downloads
                         // can replace the iOS page and lose its unsaved session.
@@ -110,7 +112,7 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
                     feedback.textContent = " Report sharing cancelled.";
                     return;
                 }
-                technical.hidden = false; syncView(); showReport(); feedback.textContent = ` ${error?.message || String(error)} Select and copy available report text manually.`;
+                technical.hidden = false; syncView(); showReport(); feedback.textContent = ` ${label === "Copy report" ? "Copy unavailable. " : ""}${error?.message || String(error)} Select and copy available report text manually.`;
             } finally {
                 button.disabled = false;
                 if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -118,7 +120,7 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
         };
         actions.append(button);
     }
-    const reference = document.createElement("p"); reference.className = "settings-note"; reference.textContent = `Execution ID: ${id}`;
+    const reference = document.createElement("p"); reference.className = "settings-note"; reference.textContent = `${kind === "self-test" ? "Self-test" : "Execution"} ID: ${id}`;
     const stability = document.createElement("details"), stabilityTitle = document.createElement("summary");
     stabilityTitle.textContent = "Report session instability after completion";
     const stabilityNote = document.createElement("p"); stabilityNote.textContent = "Optional observation only; does not change model eligibility. Cause remains unknown.";
@@ -216,8 +218,10 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                 item.dataset.productionReviewId = row.id; item.open = drafts.get(row.id)?.open || false;
                 const isCurrent = row.kind !== "incident" || currentContexts.has(row.contextKey);
                 const stateLabel = !isCurrent ? "Historical context—current choices unaffected" : { pending: "Awaiting review", deferred: "Decide later—hold remains", "retest-required": "Retest required", kept: "Previous eligibility preserved for this incident", "reference-passed": "Resolved by reference test", observation: "Observation only" }[row.state] || row.state;
-                label.textContent = `${row.archivedAt ? "Archived · " : ""}${row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
-                const explanation = document.createElement("p"); explanation.textContent = `Original event: ${row.reason} Last saved stage: ${row.execution?.phase || "unknown"}. Model completion: ${row.execution?.modelOutcome || "unknown"}.`;
+                label.textContent = `${row.archivedAt ? "Archived · " : ""}${row.selfTest?.configuration?.label || row.execution?.configuration?.label || row.configurationId} · ${stateLabel} · ${new Date(row.evidenceAt).toLocaleString()}`;
+                const explanation = document.createElement("p"); explanation.textContent = row.sourceKind === "self-test"
+                    ? `Original event: ${row.reason} Self-test result: ${row.selfTest?.status || "unknown"}. Last saved stage: ${row.selfTest?.phase || "unknown"}.`
+                    : `Original event: ${row.reason} Last saved stage: ${row.execution?.phase || "unknown"}. Model completion: ${row.execution?.modelOutcome || "unknown"}.`;
                 const input = document.createElement("textarea"); input.maxLength = 2000; input.rows = 2; input.setAttribute("aria-label", "Additional information");
                 input.value = drafts.get(row.id)?.value || "";
                 input.placeholder = row.kind === "stability" ? "For example: phone sluggish afterward; reboot helped. Cause unknown." : "Add new information here. Explain an external cause to keep previous eligibility.";
@@ -274,7 +278,12 @@ export async function renderWhisperEligibilityReviews(container, { bridge = crea
                 item.append(label, explanation, saved, inputLabel, input, actions, feedback);
                 const provenance = document.createElement("p"); provenance.textContent = "Report uses the preserved incident snapshot plus current decision history; it remains available after execution history is cleared.";
                 item.append(provenance);
-                renderWhisperExecutionReport(item, row.execution.id, { journal: { list: () => [row.execution] }, bridge, includeStability: false });
+                if (row.sourceKind === "self-test") {
+                    renderWhisperAttemptContext(item, row.selfTest);
+                    renderWhisperExecutionReport(item, row.selfTest.id, {journal:{list:()=>[{...presentWhisperAttempt(row.selfTest),runtimeDiagnostics:row.runtimeDiagnostics}]},bridge,includeStability:false,kind:"self-test"});
+                } else {
+                    renderWhisperExecutionReport(item, row.execution.id, { journal: { list: () => [row.execution] }, bridge, includeStability: false });
+                }
                 group.append(item);
             }
         }

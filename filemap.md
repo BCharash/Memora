@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 13 November 2026, source build **2026-11-13.7**. Header appearance checked in an isolated browser; earlier runtime/Settings device acceptance remains pending.
+Reviewed against the checkout on 13 November 2026, source build **2026-11-13.8**. Self-test reporting checked with isolated synthetic browser fixtures; earlier runtime/Settings device acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -80,9 +80,9 @@ The discarded worker-reuse lab is absent. There is no `whisper-reuse-test.html` 
 
 | File | Responsibility | Status/callers |
 |---|---|---|
-| [whisperProductionEvidence.js](js/whisperProductionEvidence.js) | Durable production incidents, deferred/user decisions, reference certificates and separate stability observations; the existing bridge applies their holds. | Eligibility bridge and review UI |
+| [whisperProductionEvidence.js](js/whisperProductionEvidence.js) | Durable production incidents, reference certificates and separate transcription/self-test stability snapshots; observations never create eligibility holds. | Eligibility bridge and review UI |
 | [whisperExecutions.js](js/whisperExecutions.js) | Separate durable production journal: stages, model outcome, recovery, live ownership and bounded retention; protects unprocessed evidence before review ingestion. | Transcription and Settings |
-| [whisperExecutionReports.js](js/whisperExecutionReports.js) | Shared technical report/Copy/Download controls and Settings execution history. Reads the same record used by a completed result. | App and Settings |
+| [whisperExecutionReports.js](js/whisperExecutionReports.js) | Shared execution/self-test View/Copy/export controls (iOS file sharing), history, and separate saved stability observations. | App and Settings |
 | [whisperFailures.js](js/whisperFailures.js) | Pure shared failure descriptions and boundary annotations; preserves unknown cause. No storage or eligibility mutation. | Production workflow and parent loader; contract tests |
 | [whisper.js](js/whisper.js) | Page-side production loader/transcriber. Checks eligibility, communicates with the selected worker and reuses a loaded model. | Active: transcription, Settings resource clearing, self-test preparation |
 | [whisper-ios-worker.js](js/whisper-ios-worker.js) | Actual iPhone/iPad model execution using Transformers.js 3.7.2. Supports loading, transcription and disposal acknowledgement. | Active: production and self-test |
@@ -116,8 +116,8 @@ These are different questions: **definition** = what model/configuration is requ
 
 | File | Responsibility | Main callers |
 |---|---|---|
-| [whisperAttempts.js](js/whisperAttempts.js) | Saves started/stage/finished test records, recovers interrupted attempts, retains history and clears completed reports. | Self-test, evidence integration and Settings |
-| [whisperAttemptReport.js](js/whisperAttemptReport.js) | Small presentation adapter that corrects misleading provisional status in old report copies without rewriting stored evidence. | Settings |
+| [whisperAttempts.js](js/whisperAttempts.js) | Locked self-test journal: progressive phase/cleanup evidence, frozen prior-test timing snapshots, legacy reconstruction, recovery and selected clearing. | Self-test, evidence integration and Settings |
+| [whisperAttemptReport.js](js/whisperAttemptReport.js) | Self-test report projection, readable sequence/stage timeline and problem-note UI; preserves stored outcomes and missing-data provenance. | Settings |
 | [whisperDiagnostics.js](js/whisperDiagnostics.js) | Reads available model-session settings and formats timing/backend diagnostics. It is distinct from the page event log. | Active workers, app output and Settings |
 
 The tiny activity/report modules could be grouped differently later. They are not duplicate algorithms, and merging them solely to reduce file count would not simplify their responsibilities automatically.
@@ -245,3 +245,5 @@ Source .14 is accepted on Mac/iPhone; .2026-11-11.4 history controls and retenti
 | [fonts/README.md](fonts/README.md) | Font source, unchanged-distribution note and bundled-file checksum. |
 
 Wordmark markup/styles live in index.html and css/style.css. Tab icon switching remains in js/app.js; the new central graphic is independent of appIcon.
+
+Self-test reporting guide: [docs/Self_Test_Timelines_and_Problem_Reports.md](docs/Self_Test_Timelines_and_Problem_Reports.md). This adds no application JavaScript module or model.

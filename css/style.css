@@ -1619,3 +1619,14 @@ button:disabled {
     /* Only narrow phones need the central wordmark reduced, by ten percent. */
     .app-header .memora-wordmark { --wordmark-scale: .9; }
 }
+
+
+.whisper-test-timeline, .whisper-saved-report > details { margin: 12px 0; }
+.whisper-test-timeline-scroll { overflow-x: auto; width: 100%; min-width: 0; max-width: 100%; }
+.whisper-test-timeline table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.whisper-test-timeline th, .whisper-test-timeline td { padding: 7px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.whisper-test-timeline-current { font-weight: 600; }
+.whisper-saved-report textarea { display: block; width: 100%; box-sizing: border-box; margin: 8px 0; font: inherit; font-size: 16px; }
+
+/* Keep a wide timing table inside its own scroller, including grid history panels. */
+#settingsWhisperHistorySection, #settingsWhisperStabilitySection, .whisper-saved-report, .whisper-test-timeline { min-width: 0; max-width: 100%; }

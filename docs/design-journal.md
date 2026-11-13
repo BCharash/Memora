@@ -4369,3 +4369,12 @@ Isolated Chrome checked 320/359/360/390/430/600/601/768/900/1280 px, confirming 
 ## 60.32 Moderate desktop wordmark — candidate 2026-11-13.7
 
 13 November 2026. User finds the 120 px desktop brand too large. Reduced central artwork to 96 px (20% smaller) and scaled mora proportionally to about 75.14 px, retaining alignment and gradient. Desktop section art remains 120 px; all phone sizes and the tagline are unchanged. Browser layout checks cover both desktop and preserved phone sizes; this is a presentation-only revision.
+
+
+## 60.33 Persistent self-test timelines and separate problem observations — candidate 2026-11-13.8
+
+13 November 2026. User reports Tiny/Base/Small tests with uncertain waits, successful Small work followed by Settings returning to Transcribe, and requests useful sequence/timing evidence for each self-test. No cause or page-termination mechanism is inferred. Added frozen compact histories of up to ten preceding tests at start, progressively saved stage/cleanup timestamps, and once-only old-history reconstruction from remaining records. Missing finish/stage information stays unknown. Snapshots survive clearing their earlier source records and are never populated with later tests.
+
+Each finished/interrupted report offers Report a problem after this self-test, saving the original result, timeline and existing bounded page/Settings diagnostics into separate Session stability observations. PASS and eligibility are unchanged; snapshots/notes survive raw-history clearing. Shared report controls provide consistent View/Copy/export, with iOS sharing to preserve the app document. Cleanup checkpoint failure cannot skip termination, and cleanupPhase is kept separate from the model phase used by qualification recovery. No new models, test sequence, cooldown or database migration.
+
+98 groups across eight focused browser suites pass. Production Settings with synthetic older records confirms reconstruction/gaps, note/export agreement, preserved PASS, clear/reload retention and phone table containment. Existing Small reports can be used for iPhone UI acceptance without running models again. Details: [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md). Resource profiling remains separate and unimplemented.

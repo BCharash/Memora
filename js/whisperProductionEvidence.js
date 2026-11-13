@@ -1,4 +1,4 @@
-import { createWhisperAttemptJournal } from "./whisperAttempts.js";
+import { createWhisperAttemptJournal, snapshotWhisperTestHistory } from "./whisperAttempts.js";
 import { eligibilityKey } from "./whisperEligibility.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 import { classifyWhisperProductionExecution } from "./whisperFailures.js";
@@ -141,5 +141,26 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
             row.events.push({ at: now(), actor: "user", action: "stability-note", explanation: note }); save("incident." + id, row);
         });
     }
-    return { sync, recordReference, apply, list, decide, addStabilityNote, setArchived };
+    async function addSelfTestStabilityNote(attemptId, explanation, runtimeDiagnostics = null) {
+        const note = String(explanation || "").trim();
+        if (!note || note.length > 2000) throw new Error("Enter an observation within 2,000 characters.");
+        return transaction(() => {
+            const attempts = createWhisperAttemptJournal({storage, locks}).list();
+            const attempt = attempts.find(item => item.id === attemptId);
+            if (!attempt || attempt.status === "running") throw new Error("A saved, finished or interrupted self-test is required.");
+            const id = "self-test-note-" + attemptId;
+            const snapshot = structuredClone(attempt);
+            if (!snapshot.recentSelfTests) snapshot.recentSelfTests = snapshotWhisperTestHistory(attempts, snapshot);
+            const row = list().find(item => item.id === id) || {schemaVersion:1,kind:"stability",sourceKind:"self-test",id,attemptId,
+                contextKey:null, configurationId:attempt.configuration?.id || "unknown",
+                evidenceAt:attempt.finishedAt || attempt.startedAt, recordedAt:now(), effect:"stability",state:"observation",
+                reason:"User-reported problem after a self-test; cause unknown. Test result and qualification are unchanged.",
+                selfTest:snapshot, recentSelfTests:snapshot.recentSelfTests, runtimeDiagnostics, events:[]};
+            row.events.push({at:now(),actor:"user",action:"stability-note",explanation:note});
+            // Keep the first observation's test/timeline snapshot immutable.
+            save("incident." + id, row);
+            return row;
+        });
+    }
+    return { sync, recordReference, apply, list, decide, addStabilityNote, addSelfTestStabilityNote, setArchived };
 }

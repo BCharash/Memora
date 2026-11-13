@@ -1,3 +1,5 @@
+import { createWhisperAttemptJournal } from "../js/whisperAttempts.js";
+import { renderWhisperAttemptContext } from "../js/whisperAttemptReport.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "../js/whisperEligibilityEvidence.js";
 import { createWhisperEligibilityStore } from "../js/whisperEligibility.js";
 import { createWhisperExecutionJournal } from "../js/whisperExecutions.js";
@@ -222,6 +224,23 @@ try {
         assert(button("Archive") && container.querySelector("textarea"), "restored observation supports more information");
         await renderWhisperEligibilityReviews(container, { bridge: f.bridge, kind: "incident" });
         assert(container.querySelectorAll("[data-production-review-id]").length === 1 && container.textContent.includes("Deliberate interruption.") && !container.textContent.includes("Session observation fixture."), "review view isolated");
+    });
+    await test("Self-test stability observations retain timeline after history clearing without changing PASS or eligibility", async () => {
+        const f=await fixture(),j=createWhisperAttemptJournal({storage:f.storage,locks:navigator.locks,uuid:()=>`self-observation-${++serial}`,now:()=>date(10)});
+        await j.run({configuration:definition,eligibilityContext:context,pageId:'self-page'},async()=>({results:[{status:'passed',transcriptionStatus:'passed',accuracyStatus:'passed',validation:{status:'passed'},wer:0}]}));
+        await f.bridge.sync();const attempt=j.list()[0],eligible=f.bridge.get(context).status;
+        await f.bridge.addSelfTestStabilityNote(attempt.id,'Small passed, then Settings disappeared.',{pages:[{pageId:'self-page',events:[{type:'settings-close-requested'}]}]});
+        const row=f.bridge.listProductionReviews().find(row=>row.attemptId===attempt.id);
+        assert(row.kind==='stability'&&row.sourceKind==='self-test'&&row.selfTest.status==='passed'&&row.selfTest.recentSelfTests,'separate retained test snapshot');
+        assert(j.list()[0].status==='passed'&&f.bridge.get(context).status===eligible,'PASS and qualification unchanged');
+        const history=JSON.stringify(row.selfTest);await j.clearCompleted();
+        assert(JSON.stringify(f.bridge.listProductionReviews().find(item=>item.id===row.id).selfTest)===history,'independent of clearable history');
+        const container=document.createElement('div');document.body.append(container);
+        await renderWhisperEligibilityReviews(container,{bridge:f.bridge,kind:'stability'});
+        assert(container.textContent.includes('Recent self-test history')&&container.textContent.includes('Self-test result: passed'),'readable preserved report');
+        const view=[...container.querySelectorAll('button')].find(button=>button.textContent==='View report');view.click();
+        assert(container.querySelector('pre').textContent.includes('settings-close-requested'),'preserved page diagnostics exported');
+        container.remove();
     });
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }

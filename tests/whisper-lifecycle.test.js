@@ -154,6 +154,13 @@ try {
         } }) });
         const s = await f.run(); assert(s.passed === 1 && s.releaseFailures === 1 && s.results[0].releaseError === "cleanup", "separate cleanup evidence");
     });
+    await test("Cleanup checkpoint failure never skips disposal or termination", async () => {
+        const points=[];
+        const f=fixture({checkpoint:async name=>{points.push(name);if(name.startsWith('cleanup')||name==='disposal-complete')throw Error('checkpoint unavailable');},disposeWorker:async()=>({status:'acknowledged'})});
+        const result=await f.run();
+        assert(result.passed===1&&f.workers[0].terminated===1&&result.results[0].disposal.status==='acknowledged','cleanup and PASS retained');
+        assert(points.includes('cleanup')&&points.includes('disposal-complete')&&points.includes('cleanup-complete'),'all cleanup checkpoints attempted');
+    });
     await test("Invalid limits do not acquire a run", async () => {
         const f = fixture(); await rejects(() => f.run({ limits: { load: NaN } }), "Invalid");
         assert((await f.run()).passed === 1, "retry after invalid options");

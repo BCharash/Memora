@@ -1,9 +1,9 @@
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
-import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews, createWhisperHistorySelection } from "./whisperExecutionReports.js";
+import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews, createWhisperHistorySelection, renderWhisperExecutionReport } from "./whisperExecutionReports.js";
 import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
-import { presentWhisperAttempt } from "./whisperAttemptReport.js";
+import { presentWhisperAttempt, renderWhisperAttemptContext } from "./whisperAttemptReport.js";
 import { createWhisperAttemptJournal, visibleWhisperAttempts } from "./whisperAttempts.js";
 // --------------------------------------------------
 // Memora Settings UI
@@ -416,7 +416,9 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const target = document.getElementById("settingsWhisperAttemptHistory");
         if (!target) return;
         try {
-            const records = await createWhisperEvidenceBridge().sync();
+            const bridge = createWhisperEvidenceBridge();
+            const records = await bridge.sync();
+            const drafts = new Map([...target.querySelectorAll('[data-self-test-observation]')].map(input=>[input.dataset.selfTestObservation,input.value]));
             await renderWhisperEligibility();
             if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"), { kind: "incident" });
             if (document.getElementById("settingsWhisperStabilitySection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperStabilityObservations"), { kind: "stability" });
@@ -448,75 +450,17 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 if (record.status === "interrupted") description.textContent += "No final result was recorded. Cause unknown. No automatic retry.";
                 else if (result?.error?.message || record.error?.message) description.textContent += result?.error?.message || record.error.message;
                 else if (result?.status === "passed") description.textContent += `Load ${formatSeconds(result.loadMs)} · transcription ${formatSeconds(result.transcriptionMs)} · WER ${formatWhisperWer(result.wer)} (limit 15%).`;
-                const technical = document.createElement("div"); technical.hidden = true; technical.dataset.technicalReport = "";
-                technical.id = `whisper-test-report-${record.id}`;
-                const technicalLabel = document.createElement("p"); technicalLabel.className = "whisper-report-title";
-                technicalLabel.textContent = "Technical report";
-                const body = document.createElement("pre");
-                body.style.whiteSpace = "pre-wrap";
-                body.style.overflowWrap = "anywhere";
-                const refreshReport = () => {
-                    body.textContent = JSON.stringify({ ...presentWhisperAttempt(record), runtimeDiagnostics: getRuntimeDiagnosticReport(record.pageId || null) }, null, 2);
-                };
-                const view = document.createElement("button"); view.type = "button"; view.textContent = "View report";
-                view.setAttribute("aria-controls", technical.id); view.setAttribute("aria-expanded", "false");
-                const showReport = () => {
-                    refreshReport(); technical.hidden = false; view.textContent = "Hide report"; view.setAttribute("aria-expanded", "true");
-                };
-                view.onclick = () => {
-                    if (technical.hidden) showReport();
-                    else { technical.hidden = true; view.textContent = "View report"; view.setAttribute("aria-expanded", "false"); }
-                };
-                const copy = document.createElement("button");
-                copy.type = "button";
-                copy.textContent = "Copy report";
-                copy.dataset.whisperCopyReport = "";
-                const feedback = document.createElement("span");
-                feedback.setAttribute("role", "status");
-                copy.onclick = async () => {
-                    try {
-                        refreshReport();
-                        await navigator.clipboard.writeText(body.textContent);
-                        feedback.textContent = " Report copied.";
-                    } catch {
-                        showReport();
-                        const selection = window.getSelection();
-                        const range = document.createRange();
-                        range.selectNodeContents(body);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                        feedback.textContent = " Copy unavailable. Select and copy the technical report below.";
-                    }
-                };
-                const download = document.createElement("button");
-                download.type = "button";
-                download.textContent = "Download report";
-                download.onclick = () => {
-                    let url;
-                    const link = document.createElement("a");
-                    try {
-                        refreshReport();
-                        url = URL.createObjectURL(new Blob([body.textContent], { type: "application/json" }));
-                        link.href = url;
-                        const name = `whisper-test-${record.configuration.id}-${record.startedAt}-${record.id}`;
-                        link.download = `${name.replace(/[^a-zA-Z0-9._-]/g, "-")}.json`;
-                        document.body.append(link);
-                        link.click();
-                        feedback.textContent = " Report download requested.";
-                    } catch (error) {
-                        feedback.textContent = ` Download unavailable: ${error.message}. Use Copy report instead.`;
-                    } finally {
-                        link.remove();
-                        // Give the browser time to consume the URL before releasing it.
-                        if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
-                    }
-                };
-                const actions = document.createElement("div");
-                actions.className = "whisper-report-actions";
-                actions.append(view, copy, download);
-                technical.append(body);
                 details.classList.add("whisper-saved-report");
-                details.append(label, description, technicalLabel, actions, feedback, technical);
+                details.append(label, description);
+                renderWhisperAttemptContext(details, record, {records, draft:drafts.get(record.id) || "",
+                    runtimeDiagnostics:()=>getRuntimeDiagnosticReport(record.pageId || null),
+                    saveObservation:async(id,note,diagnostics)=>{
+                        await bridge.addSelfTestStabilityNote(id,note,diagnostics);
+                        if(document.getElementById("settingsWhisperStabilitySection")?.hidden===false)
+                            await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperStabilityObservations"),{kind:"stability"});
+                    }});
+                renderWhisperExecutionReport(details,record.id,{kind:"self-test",includeStability:false,bridge,
+                    journal:{list:()=>[{...presentWhisperAttempt(record,records),runtimeDiagnostics:getRuntimeDiagnosticReport(record.pageId || null)}]}});
                 target.append(details);
             }
         } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }

@@ -1,9 +1,10 @@
 # Memora documentation
 
-Reviewed 13 November 2026 through candidate build **2026-11-13.7** (wordmark appearance). The earlier 2026-11-11.4 runtime/Settings acceptance remains pending as recorded in Current status. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
+Reviewed 13 November 2026 through candidate build **2026-11-13.8** (self-test timeline/problem reporting). The earlier 2026-11-11.4 runtime/Settings acceptance remains pending as recorded in Current status. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
 
 | Document | Role |
 |---|---|
+| [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md) | Per-test sequence/timing snapshots, older-history reconstruction, separate problem notes and safe exports. |
 | [Current status and resume instructions](CURRENT_STATUS.md) | Current candidate, acceptance evidence, history checks and ordered future options. |
 | [Plain-language file map](../filemap.md) | All 44 application JavaScript files, including 19 Whisper files, plus flows, storage and focused tests. |
 | [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |

@@ -100,5 +100,5 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
         await sync();
         return locks.request(REVIEW_PREFIX + "writer", () => production.setArchived(id, archived));
     }
-    return { archiveProductionReview, productionEvidenceRevision: 1, sync, get, listProductionReviews: production.list, decideProductionReview: decide, addStabilityNote: production.addStabilityNote };
+    return { archiveProductionReview, productionEvidenceRevision: 1, sync, get, listProductionReviews: production.list, decideProductionReview: decide, addStabilityNote: production.addStabilityNote, addSelfTestStabilityNote: production.addSelfTestStabilityNote };
 }

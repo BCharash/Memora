@@ -176,6 +176,11 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
         } finally {
             controller.abort(); // Aborts owned fixture fetches, including a sibling after failure.
             const releaseStarted = performance.now();
+            const cleanupCheckpoint = async name => {
+                try { await checkpoint?.(name, {...result}); }
+                catch (error) { trace("test-cleanup-checkpoint-error", {phase:name, message:error.message || String(error)}); }
+            };
+            await cleanupCheckpoint("cleanup");
             if (worker) {
                 worker.onmessage = worker.onerror = worker.onmessageerror = null;
                 // Only dispose after inference has returned. Interrupted/busy
@@ -188,6 +193,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
                         result.disposal = disposal && typeof disposal.status === "string" ? disposal : { status: "failed", error: "Invalid disposal acknowledgement." };
                     } catch (error) { result.disposal = { status: "failed", error: error.message || String(error) }; }
                     trace("test-dispose-result", { status: result.disposal.status, elapsedMs: result.disposal.elapsedMs ?? null, error: result.disposal.error || null });
+                    await cleanupCheckpoint("disposal-complete");
                 }
                 worker.onmessage = worker.onerror = worker.onmessageerror = null;
                 try {
@@ -203,6 +209,7 @@ export function createWhisperTestRunner({ loadFixture, decode, createWorker, pre
                 worker = null;
             }
             result.releaseMs = performance.now() - releaseStarted;
+            await cleanupCheckpoint("cleanup-complete");
             signal?.removeEventListener("abort", cancel);
             releaseActivity();
             active = false;
