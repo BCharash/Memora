@@ -1565,7 +1565,7 @@ button:disabled {
 }
 .memora-wordmark span {
     font-family: "Memora Dancing Script", cursive;
-    font-size: calc(52.6px * var(--wordmark-scale));
+    font-size: calc(52.6px * var(--wordmark-scale) + 1px);
     font-weight: 500;
     line-height: 1;
     letter-spacing: -.02em;
