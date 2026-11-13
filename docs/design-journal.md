@@ -4343,3 +4343,29 @@ Isolated Chrome checks passed for local asset/font loading, accessible heading l
 13 November 2026. User approves the 43 px lettering and requests a 20% enlargement of both graphic and suffix, checking phone fit. Increased central artwork from 56 to 67.2 px and lettering from 43 to 51.6 px, scaling gap, rounding and baseline offset proportionally. The separate tab-context icon remains 56 px on phones.
 
 Isolated Chrome checks passed at 320/360/390/430/900 px without horizontal overflow or header control overlap. At 320 px, the visible wordmark is about 157.6 px wide, with about 9.2 px clearance from the section icon and 25.2 px before Settings. Reviewed 320/390 px renders; tab switching, stable branding, local font and Settings opening still pass. Presentation only; no model/runtime tests repeated. Final appearance remains for user preference review.
+
+
+## 60.29 Restore full-size phone section icons and fit branding — candidate 2026-11-13.4
+
+13 November 2026. User wants Transcribe/Combine/Search graphics to remain 80 px on phones and permits reducing only the central wordmark when necessary. Removed the 56 px phone override. A phone header grid reserves 80 px for section art, 40 px for Settings and 12 px gaps; the caption occupies a full-width second row. Central artwork remains 67.2 px on ordinary phone/desktop widths; only below 360 px does the wordmark scale to 90%. Desktop section artwork remains 120 px.
+
+Applied the requested extra 1 px to mora (51.6 to 52.6 px at normal scale). Anchored its baseline relative to the artwork so changing text size does not lower it; measured baseline difference from the previous design is under 0.01 px, including proportional narrow scaling. Existing gradients, local font, accessible name and tab behavior remain.
+
+Isolated Chrome passed at 320/359/360/375/390/430/600/601/900 px: exact section-icon sizes, no horizontal overflow/visible control overlap, caption clearance, preserved baseline and normal tab/Settings operation. At 320 px, the wordmark has about 12.3 px clearance on each side. Reviewed 320/390 px renders. This is a presentation change; no model/runtime regression suite was repeated and the 2026-11-11.4 runtime acceptance remains separate.
+
+
+## 60.30 Tagline revision — candidate 2026-11-13.5
+
+13 November 2026. Changed the tagline to Your memories, rediscovered. User asks about desktop graphic sizes: central artwork is 67.2 px versus 120 px section art; no new size is selected or implemented in this change. Existing responsive layout and lettering are retained. Static diff/whitespace checks only for this text change.
+
+
+## 60.31 Larger desktop brand graphic — candidate 2026-11-13.6
+
+13 November 2026. User approves increasing the central desktop graphic to match the 120 px section graphics. Above 600 px, scale the complete wordmark by 120/67.2: artwork is 120 px and mora about 93.93 px, preserving gradient, spacing and artwork-relative baseline. Phone sizes, 80 px section icons and the narrow-phone wordmark reduction remain unchanged. Tagline stays Your memories, rediscovered.
+
+Isolated Chrome checked 320/359/360/390/430/600/601/768/900/1280 px, confirming expected graphic sizes, proportional baseline, caption clearance on phones, no overlap/overflow and working tabs/Settings. Reviewed the desktop render. No runtime/model/storage changes or full inference tests; user visual acceptance remains next.
+
+
+## 60.32 Moderate desktop wordmark — candidate 2026-11-13.7
+
+13 November 2026. User finds the 120 px desktop brand too large. Reduced central artwork to 96 px (20% smaller) and scaled mora proportionally to about 75.14 px, retaining alignment and gradient. Desktop section art remains 120 px; all phone sizes and the tagline are unchanged. Browser layout checks cover both desktop and preserved phone sizes; this is a presentation-only revision.

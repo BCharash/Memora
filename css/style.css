@@ -1549,26 +1549,29 @@ button:disabled {
 
 /* The graphic supplies Me; the adjoining suffix completes the wordmark. */
 .app-header .memora-wordmark {
+    --wordmark-scale: 1;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: center;
-    gap: 1.2px;
+    gap: calc(1.2px * var(--wordmark-scale));
     line-height: 1;
 }
 .memora-wordmark img {
     display: block;
-    width: 67.2px;
-    height: 67.2px;
-    flex: 0 0 67.2px;
-    border-radius: 14.4px;
+    width: calc(67.2px * var(--wordmark-scale));
+    height: calc(67.2px * var(--wordmark-scale));
+    flex: 0 0 calc(67.2px * var(--wordmark-scale));
+    border-radius: calc(14.4px * var(--wordmark-scale));
 }
 .memora-wordmark span {
     font-family: "Memora Dancing Script", cursive;
-    font-size: 51.6px;
+    font-size: calc(52.6px * var(--wordmark-scale));
     font-weight: 500;
     line-height: 1;
     letter-spacing: -.02em;
-    transform: translateY(-4.8px);
+    /* Fix the lettering baseline to the artwork, independent of font size. */
+    margin-bottom: -1em;
+    transform: translateY(calc(-22.2px * var(--wordmark-scale)));
     color: #386df2;
 }
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
@@ -1582,7 +1585,37 @@ button:disabled {
 @media (forced-colors: active) {
     .memora-wordmark span { background: none; color: CanvasText; }
 }
+@media (min-width: 601px) {
+    /* 96 / 67.2: a moderate desktop size, with lettering scaled together. */
+    .app-header .memora-wordmark { --wordmark-scale: 1.4285714286; }
+}
 @media (max-width: 600px) {
-    /* Leave room for the centered wordmark and Settings at phone widths. */
-    .app-icon { width: 56px; height: 56px; border-radius: 12px; }
+    /* Reserve full-size section art and Settings; center branding between them. */
+    .app-header {
+        display: grid;
+        grid-template-columns: 80px minmax(0, 1fr) 40px;
+        column-gap: 12px;
+        align-items: start;
+    }
+    .app-header-title { display: contents; }
+    .app-icon {
+        position: static;
+        grid-column: 1;
+        grid-row: 1;
+        width: 80px;
+        height: 80px;
+        border-radius: 18px;
+    }
+    .app-header .memora-wordmark { grid-column: 2; grid-row: 1; align-self: center; }
+    .settings-button { position: static; grid-column: 3; grid-row: 1; }
+    .app-header-title > p {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin: 8px 0 0;
+        text-align: center;
+    }
+}
+@media (max-width: 359px) {
+    /* Only narrow phones need the central wordmark reduced, by ten percent. */
+    .app-header .memora-wordmark { --wordmark-scale: .9; }
 }
