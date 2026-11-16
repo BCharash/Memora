@@ -1,487 +1,178 @@
-# Memora — Edit & Combine, Search History, and Portable Collections
-
-**Status:** Architectural proposal / Codex handoff; **no implementation authorized by this document alone**  
-**Date:** 2026-11-16 (updated)  
-**Scope:** Search history, cross-archive historical results, Edit & Combine, structured import/export, audio-source provenance and playback resolution, and persistence  
-**Primary principle:** Preserve user-selected content and metadata without imposing cross-archive duplicate detection.
-
-## 1. Executive summary
-
-Evolve Edit & Combine from a TXT-file concatenation workflow into a format-independent collection workspace. A collection contains individual transcript entries (not nested combined documents), with explicit provenance and stable membership. Memora-produced TXT, HTML, and DOCX must be able to export and reimport a collection with its contents, metadata, and ordering intact. Search already has **Add to Combine**; extend that pathway, rather than introducing a competing action. Search History must let users inspect original results from an archive that is no longer loaded, and optionally rerun a saved query against a chosen currently available archive. Preserve snapshots and search definitions separately.
-
-**Archive boundary rule:** Do not detect, reconcile, warn about, or deduplicate coincidentally matching recordings/transcripts across distinct archives. Users manage cross-archive overlap. Within the *same archive*, repeated selection of the same identified transcript entry should not accidentally create duplicates. Preserve existing same-recording Whisper-model preference behavior where applicable, but do not silently discard meaningful edited or translated variants.
-
-This document specifies target behavior and implementation sequencing. Codex must inspect the actual repository before selecting files, storage APIs, parser libraries, or UI wiring. Only three current source files were supplied for this planning discussion; do not assume other modules' behavior.
-
-## 2. Decisions and boundaries
-
-### Confirmed user decisions
-
-1. Expand previously combined files into **individual selectable recordings**, selected by default.
-2. Accept Memora-produced **TXT, DOCX, HTML** as interchangeable structured inputs and outputs; preserve full metadata across round trips.
-3. **No backward compatibility requirement** for older combined document formats. Do not add a legacy parser solely for this purpose.
-4. Users may assemble results from multiple searches and archives.
-5. Search already implements **Add to Combine** for the current search; extend that existing feature.
-6. Search History must preserve **viewable original results**, even when the originating archive is unloaded; rerunning alone is insufficient.
-7. Also support **explicit rerun** of a historical search against a selected available archive; do not overwrite the original snapshot.
-8. **No cross-archive deduplication or reconciliation**, even if content is identical.
-9. No code until the user approves implementation; this file is an architectural handoff.
-10. Export must offer **independent visible-display toggles for recording filenames and recording metadata**, applying consistently to TXT, HTML, and DOCX, while retaining complete metadata in the underlying portable document.
-11. Every entry must preserve **original archive provenance**: archive name, folder name, and the most complete available source-relative path, plus an archive ID where known. Missing filesystem paths must not be invented.
-12. Keep **original archive provenance** distinct from the **immediate import source** (such as a later combined DOCX).
-13. Use the **same clearly delimited Output section and control order on desktop and iPhone**, with platform-specific saving controls only at the bottom.
-14. Output appearance options must independently control **recording filenames**, **recording date/duration**, **other visible metadata**, and **visible separators**. The existing **Create paragraphs** checkbox defaults **unchecked**.
-
-### Proposals requiring explicit confirmation before implementation
-
-- How many historical searches to retain; whether to pin or delete them.
-- Whether Combine workspace persistence across app restarts is desired (recommended: yes).
-- Whether edits in Combine should be collection-local by default (recommended: non-destructive) or update original transcript files.
-- Whether historical search snapshots should contain full transcript bodies or reference immutable shared stored transcript versions (recommended: logical snapshots with shared immutable content blobs).
-- Policy for multiple transcription versions of one recording within one archive; recommend explicit selection of edited/translated alternatives, with existing model preference as the default for unedited Whisper variants.
-- Whether arbitrary non-Memora TXT/DOCX/HTML should be importable as a single unstructured text entry (recommend defer to separate scope).
-- Whether to allow saved collections to be reopened as named workspaces beyond simple import/export (recommended, but not prerequisite for first delivery).
-
-Codex must not treat recommendations above as user-confirmed requirements.
-
-## 3. Current code evidence and repository discovery
-
-Files reviewed in the planning conversation:
-
-- `combine.js`: `parseTranscriptFile` reads a **single** transcript header and takes text after the first dashed separator; `readTranscriptFiles` filters to `.txt`; `selectHighestModelRecords` groups by Voice Memo ID or filename/date plus operation and retains the highest model; `combineTranscriptRecords` emits a readable TXT document with repeated headings and Unicode separators. Its output omits some parsed fields, notably `Operation` and `Audio Relative Path`.
-- `combineUI.js`: displays records as one row per input file; selects all initially; sorts by recording date or name; offers Show/Hide and Edit; `getSelectedTranscriptFiles` returns files based on filename-matched checkboxes; editing reconstructs a single-transcript TXT header/body and replaces the selected in-memory file reference.
-- `combineShareExport.js`: iPhone export UI chooses TXT/DOCX/HTML and passes a generated File to `navigator.share`; this is transport/UI code, not a general-purpose serializer.
-
-**Important:** These observations do not establish the current Search, archive, IndexedDB, desktop export, DOCX/HTML generation, or module initialization implementations. Inspect the repository before proposing concrete changes. Search for existing Add to Combine integration and reuse it. Do not invent an `app.js` or reorganize the repository gratuitously.
-
-Discovery checklist:
-
-- Map Search state, query execution, ranking/highlighting, result selection, and Add to Combine call chain.
-- Identify archive identity and archive-loading semantics; establish whether archive IDs already exist and are durable.
-- Identify existing transcript metadata schema, stable IDs, model registry, edit persistence, and audio path handling.
-- Locate current TXT/HTML/DOCX export functions and platform-specific save/share pathways.
-- Inventory IndexedDB stores, migrations, quotas, recovery behavior, and file-handle assumptions.
-- Identify mobile Safari constraints, lazy rendering, existing tests, and performance instrumentation.
-- Produce a precise file-change plan for review **before** modifying source files.
-
-## 4. Target conceptual architecture
-
-```text
-Sources:
-  Individual transcript files   Structured combined TXT/HTML/DOCX
-  Current Search results        Historical Search snapshots
-                    |                  |
-                    +-------- Import / adapters --------+
-                                       |
-                       Canonical transcript entries
-                         + immutable provenance
-                                       |
-                         Combine workspace manager
-                         selection / ordering / edits
-                                       |
-                           Collection document
-                                       |
-                    Format-specific serializers
-                       TXT     HTML     DOCX
-                                       |
-                     Desktop save / iOS share
-
-Search execution -> Search definition + immutable result snapshot
-Search History -> View snapshot OR rerun definition
-View result -> existing Add to Combine -> workspace
-```
-
-Keep concerns separate: source adapters, identity/provenance, storage, search history, workspace, serialization, and save transport. UI must not parse serialized file text to manage internal state. Import must not depend on whether a source was produced by Search or by a document export.
-
-## 5. Canonical data contracts
-
-The following are **logical schemas**, not mandated JavaScript object names or a directive to create a new database unnecessarily.
-
-### 5.1 Archive identity
-
-- `archiveId`: stable identifier for a particular source archive; do not infer identity from a display name alone.
-- `archiveLabel`: human-readable display label; can change independently of ID.
-- `archiveContext`: optional non-sensitive metadata describing source or import session.
-- `originalArchiveName`: archive display name as known when the recording was first imported; preserve historical value even if folder is later renamed.
-- `originalFolderName`: name of the source folder, if exposed by the import pathway.
-- `originalRelativePath`: path within the selected source root, if exposed; preserve separators/normalization rules and distinguish it from a full absolute filesystem path.
-- `originalAbsolutePath`: optional only if legitimately supplied or exposed; browsers generally do **not** reveal full local filesystem paths, especially on iOS. Never fabricate one.
-- `provenanceAvailability`: explicitly distinguish known, unavailable, and unknown path/name fields; do not substitute guessed parent directories.
-- Archives are independent identity domains. A recording in Archive A is **not** equated with one in Archive B.
-- If the repository lacks durable archive IDs, propose a minimally disruptive mechanism; explicitly describe behavior for old archive data that lacks an ID. Never silently merge separate archives based on filename.
-
-### 5.2 Recording and transcript version
-
-Distinguish recording identity from a particular text version:
-
-- `archiveId`, `recordingId`, `transcriptVersionId` (stable within the archive).
-- Original audio filename, recording date (original string plus normalized sortable value if possible), duration, Voice Memo ID, audio relative path.
-- Whisper model, operation (`transcribe`/`translate`), language if available.
-- Full transcript body with preserved paragraph/line-break semantics.
-- Original transcript filename; created/modified metadata where available.
-- Edit lineage / revision metadata where supported; unknown fields must remain unknown rather than fabricated.
-- Optional extensible metadata bag for future fields; prevent accidental loss of unknown metadata through import/export.
-- `sourceProvenance`: original archive ID/name/folder/path where available, source document/search snapshot, and source entry identity; source provenance must not be confused with transcript identity.
-- `immediateImportSource`: the file or collection through which this entry was most recently brought into the workspace, separate from and never overwriting original archive provenance.
-- `displayPreferences`: collection-level settings, not modifications to the recording metadata itself.
-
-**Do not** derive globally unique recording identity from text similarity, hashes, or same filename across archives. Hashes may be used to store identical immutable payloads efficiently, but never to infer that two different archive entries represent the same recording.
-
-### 5.2a Original audio-source provenance (per recording)
-
-Capture this information **at audio import/transcription time**, before the original source context is lost. Persist it in each individual transcription and in every canonical collection entry, independent of whether filenames/metadata are visibly displayed:
-
-- `audioSourceId`: stable *logical* identity for the source audio folder or source set, assigned by Memora when feasible; **distinct from `archiveId`**, which identifies a transcript archive. Do not equate sources merely because folder names match.
-- `originalAudioFolderName`: name of the folder containing the source audio, if known. Distinguish this from the transcript archive folder name and from the immediate combined-document import source.
-- `originalAudioRelativePath`: path to the recording relative to the known audio-source root, if exposed; include nested subfolders where known.
-- `originalAudioFilename`: the expected audio file's name, preserving extension and case; retain recording/Voice Memo identifiers when known for stronger matching.
-- `originalAudioFolderRelativePath`: optional relative path to the original audio folder within a user-selected root, when available.
-- `audioSourcePathAvailability`: explicit known/unknown/unavailable state; never infer an absolute local path from a browser-selected folder or an HTML export.
-- `audioSourceProvenance`: immutable historical information, preserved through editing, Search History snapshots, multiple Combine generations, and TXT/DOCX/HTML round trips. Unknown fields remain unknown.
-
-**Separate source provenance from access:** Runtime directory handles, selected File objects, browser permissions, object URLs, and successful/failed resolution state are **not** immutable recording metadata and should not be serialized as if they were portable paths. Store source associations in a separate device-local registry where supported. A recording can retain its original source identity even when its audio is not currently accessible.
-
-### 5.3 Collection/workspace
-
-- Collection ID, title, created/modified timestamps, schema version.
-- Export presentation settings: `showRecordingFilenames` and `showRecordingMetadata` as independent booleans, retained in the portable payload and restored on reimport. Default values should be confirmed against existing UX; neither setting may affect metadata preservation.
-- Ordered list of **entry references or self-contained immutable entry versions**, with selection state and optional collection-local edits.
-- Each entry records originating archive and transcript-version identity, plus the exact selected content version.
-- An item added from a historical snapshot must represent the version the user saw, not silently substitute the currently loaded version.
-- Workspace may include entries from different archives, with no cross-archive duplicate detection.
-- Distinguish membership identity from recording identity: repeated addition of the **same archive + recording + version** should not unintentionally create duplicate rows. A deliberate duplicate insertion, if ever supported, must be explicit.
-- Export includes sufficient content to be portable even when the original archive is unloaded.
-
-### 5.4 Search definition
-
-- Search ID; original query; strategy; all behavior-affecting parameters; engine/configuration version where available.
-- Archive ID/label and scope used when executed.
-- Created and last-executed timestamps, original result count, and last-result count if useful.
-- Rerun semantics: user explicitly selects the target archive/scope; if unavailable, show a clear message rather than silently switching scope.
-
-### 5.5 Immutable search snapshot
-
-- Snapshot ID; associated search definition/execution; archive identity; timestamp.
-- Ordered results with recording/transcript-version identities, scores/ranks where meaningful, highlighted passages or stable highlight spans, and display metadata.
-- Sufficient **original text** to display original search results even if archive is unloaded, changed, or deleted; full transcript versions are required if the user can Add to Combine from snapshots.
-- Preserve the distinction between historical content and live current content.
-- Avoid redundant storage by referencing immutable content blobs where feasible. A reference is safe only if the referenced blob is retained as long as the snapshot requires it.
-- Snapshots are immutable; rerun produces a new execution/snapshot or updates a clearly separate latest-run pointer, without replacing historical evidence.
-
-## 6. Structured portable document format
-
-**Round-trip invariant:** Exporting a Memora collection as TXT, HTML, or DOCX, and reimporting it, must reconstruct the same entry content, metadata, identity, provenance, and order. Cross-format conversions must preserve canonical data, even if visual formatting differs.
-
-Use a single versioned **canonical payload** (e.g., structured JSON schema) as the authoritative interchange representation embedded in each of the three user-readable formats. The choice of JSON is an implementation recommendation, not a requirement to expose JSON as the primary visible document.
-
-- **Presentation vs. data:** The visible rendering is a projection of canonical data. Four modes must work: filenames + metadata, filenames only, metadata only, or transcript text only. Hide/show settings must **never** strip canonical fields. Keep individual transcript boundaries unambiguous even when both display toggles are off; define a readable separator policy independently from metadata display.
-- **TXT limitation:** Plain text cannot make metadata genuinely invisible. When display toggles are off, keep the reading portion clean and put the machine-readable payload in a clearly delimited trailing section. It will still be visible to anyone scrolling through the raw TXT. Do not promise otherwise.
-- **HTML/DOCX:** Suppressed metadata and filenames should not appear in the normal rendered reading view, but must remain in the inert embedded payload.
-- **TXT:** Human-readable document plus an unambiguous, versioned, reversible machine-readable payload. Define exact encoding, delimiters, length/escaping rules, Unicode handling, and corruption detection. Do not parse arbitrary headings or dashed lines as structural boundaries.
-- **HTML:** Readable semantic HTML plus an embedded canonical payload in a safe, inert structured-data container. Do not execute imported HTML or scripts; parse in an inert context and validate data.
-- **DOCX:** Readable Word document plus canonical payload in a supported package part or metadata structure. Confirm compatibility with existing DOCX generation library and common Word editing/export behavior. Never depend solely on visible paragraphs for lossless reconstruction.
-
-Specify whether the visible document is editable independently of its embedded payload. **Recommended initial policy:** payload is authoritative for exact reimport; detect when visible text and embedded text disagree (e.g., after editing in Word), alert user, and offer an explicit choice or safe failure. Never silently use stale content. If reliable change detection cannot be guaranteed in a target format, document the limitation and defer that edit-import pathway.
-
-- Validate schema version, payload size, content shape, archive/record IDs, and declared entry count before importing.
-- Reject malformed or unsupported structured payloads with actionable messages; do not import partial/truncated data as though successful.
-- Preserve arbitrary transcript text, including separator-like lines, emojis, diacritics, HTML-sensitive characters, long paragraphs, and mixed line endings.
-- Explicitly define export naming and user title behavior without changing existing naming conventions accidentally.
-- No backward-compatibility requirement for previously exported combined documents; document that older files may be unsupported.
-- Arbitrary third-party documents are **not** guaranteed to be losslessly importable; avoid promising general document understanding.
-
-## 7. Import and Edit & Combine UX
-
-1. Accept supported files and existing internal sources through adapters.
-2. Normalize each structured input into individual entries; **never** present a previously combined document as one nested transcript entry.
-3. Display individual entries in the established Edit & Combine list; **all initially selected**.
-4. Preserve current sorting choices (recording date newest/oldest; name ascending/descending) and selection state when sorting.
-5. Keep Show/Hide Transcript, Edit, Select All, collapse/expand, and existing styling unless a change is necessary and approved.
-6. Display archive/source provenance unobtrusively, particularly when entries come from several archives.
-7. Maintain the workspace when adding more sources; additions must not unexpectedly reset prior selections or edits.
-8. Export only selected entries in the chosen order; never export an unselected entry merely because it was part of a combined input.
-9. Keep sorting by **individual recording date/name**, not the outer combined-document filename or export date.
-10. Provide clear feedback for malformed imports, unsupported format/schema, missing metadata, and failed exports.
-11. Provide independent output display controls for **recording filenames**, **recording date/duration**, **other metadata**, and **record separators**. Apply consistently to TXT, HTML, and DOCX; controls affect appearance only. See §7.4 for precise layout and behavior.
-12. On reimport, restore the stored display preferences without altering source content or archive provenance.
-13. For each entry, retain the original archive name/folder/available path even if it arrived through an intermediate combined document; separately track the most recent import document.
-
-**Editing policy to confirm:** Favor collection-local non-destructive edits, with an explicit separate operation if the user wishes to update the original archive transcript. If the existing Edit button writes back to original files, preserve current behavior until user approves the new policy; do not silently change it.
-
-### 7.1 Archive path availability and provenance policy
-
-- Desktop folder handles or directory imports may expose a selected root folder name and paths *relative to that root*. Browser privacy restrictions normally prevent access to a full absolute local filesystem path; iPhone imports may expose only a filename. Capture only what the actual API returns.
-- Preserve **original archive** information on each individual entry across successive Combine → export → import cycles; do not replace it with the name/path of a later combined file.
-- Track **immediate import source** separately (e.g., `Research Collection.docx`, imported on a given date), without changing the recording's original provenance.
-- Use archive IDs as identity domains when known; a folder name/path alone must not trigger cross-archive deduplication. Unknown archive IDs require explicit safe handling rather than an invented ID that implies historical certainty.
-- Export all known provenance fields in the canonical payload even if the visible metadata toggle is off. If visible metadata is on, display a sensible subset (archive name and relative path if available); avoid exposing sensitive absolute paths by default.
-- If an imported file has no provenance metadata, represent that honestly as unknown; do not infer an archive from the combined document's name.
-
-### 7.2 Suggested export filename from original audio folder
-
-- For the **currently selected entries**, if every entry has the **same known original audio source identity** and a known source audio folder name, suggest that folder name as the combined document filename (with the chosen `.txt`, `.docx`, or `.html` extension).
-- This rule is based on the provenance of the **selected individual recordings**, not on whether the input was a transcript or a previously combined document, and not on whether every recording in the source folder was selected.
-- When selected entries have multiple distinct audio sources, or any required provenance is unknown/ambiguous, suggest a neutral name such as `Combined Transcripts`. Two different sources with the same folder name do not qualify as one source.
-- Keep the filename editable. Sanitize invalid filename characters and avoid overwriting existing files without the existing save flow's safeguards.
-- Preserve original audio-source metadata regardless of the filename chosen. Filename suggestions are not identity or playback rules.
-
-### 7.3 Shared audio resolver for Search and Edit & Combine
-
-**Scope:** Applies to playback **inside Memora**, including listening while editing transcripts and playback from current or historical Search results. Search and Combine should use one shared resolver and one source-association registry, not competing global-default source folders.
-
-1. On Play, inspect the individual recording's `audioSourceId`, original audio folder name, relative path, expected filename, and recording identifiers.
-2. First reuse a validated, currently accessible association for **that specific audio source**; play immediately if the requested recording resolves.
-3. If the source is not accessible, prompt the user with the **expected source folder name and recording filename**, then invoke the platform-appropriate folder/file picker from the user gesture. On iPhone, support selecting audio files when directory access is unavailable.
-4. Validate that the requested recording exists in the selected files/folder before registering the association. Use relative path and recording identifiers when available; do not silently accept ambiguous same-name matches.
-5. If the wrong source was selected, explain that the recording was not found and allow retry; **do not replace any existing association**. Distinguish missing files from expired/revoked permissions and offer reauthorization where possible.
-6. When a source is successfully selected, make it available to **all recordings with the same verified audio-source identity** whose files can be resolved. Do **not** make it a global default or change associations for other source identities.
-7. Switching between recordings from different sources must not cause previously resolved sources to be forgotten. Search and Combine should observe the same source registry within the device/session.
-8. Persist logical source associations and supported directory handles in device-local storage where feasible; re-check permissions after reload. On iPhone, retaining source identity does **not** imply that previously selected files remain accessible in a later session.
-9. Do not duplicate large audio files into IndexedDB by default. Temporary object URLs and File handles have platform/session-specific lifetimes; clean them up appropriately.
-10. If the original source ID is absent (older transcript/import), allow a limited, explicit association after validating the selected recording, but do not automatically merge unrelated archives or invent certainty about historical provenance.
-
-**Standalone combined HTML is a separate playback environment:** Preserve the established desktop behavior of resolving relative audio links and the established iPhone behavior of suppressing audio controls. Do not silently add embedded audio or promise access to arbitrary local folders from standalone HTML. Metadata may contain original relative paths, but it cannot grant filesystem access or ensure playback after the HTML is moved. TXT and DOCX preserve audio references as metadata, not as a guarantee of playable embedded audio.
-
-**Repository audit before implementation:** Inspect the actual `appendAudioControl` implementation, `getAudioSourceHandle` provider, Search playback wiring, transcript export/header writer, audio folder importer, and TXT/DOCX export orchestration. The supplied `combineUI.js` passes a shared source handle; that alone does not establish whether changing a source currently affects all existing controls or only future ones. Record actual behavior before replacing it. Preserve current working single-source behavior while extending to multiple sources.
-
-### 7.4 Unified Output section: desktop and iPhone (confirmed UI requirements)
-
-**Purpose:** Make the Output area a visibly separate section, delimited with the same section heading, boundary, spacing, and visual hierarchy used for the other Memora sections. The present layout differs by device: desktop currently puts **Output** before three source/destination buttons, then the combined-document title, Create paragraphs, and three TXT/DOCX/HTML creation buttons; iPhone currently puts the **Output** heading *after* the title and Create paragraphs, followed by a format selector and Save button. **Remove that ordering inconsistency.** Do not relocate the title or paragraph checkbox outside the Output section on either platform.
-
-**Required common top-to-bottom order on both platforms:**
+# Memora — Archives, Dynamic Transcript Selection, Edit & Combine
 
-1. **Output** section heading and clear section delimiter.
-2. **Combined document title** editable field. Retain the automatic suggested name based on the single known source audio folder where applicable (§7.2); the title remains editable. Distinguish the human-readable document title from the actual saved filename/extension where the existing code does so.
-3. **Create paragraphs** checkbox, **unchecked by default**. Preserve existing paragraph-creation semantics; do not automatically enable it because a previous output was generated. If the application deliberately persists other output settings, ensure the initial/default state for this control remains off unless the user expressly selects it.
-4. **Output inclusion checkboxes** for: **Show recording filenames**; **Show recording date and duration** (one combined checkbox); **Show other metadata**; and **Show separators between recordings**. These are independent, not a single all-metadata toggle. Labels should make clear these affect *visible output*, not stored metadata. Preserve the current visual styling conventions. Do not assume defaults for the four new inclusion checkboxes without checking existing user-facing behavior; propose defaults for user approval, preferably preserving currently visible information until the user changes it.
-5. **Platform-specific save controls**, at the bottom of the same Output section:
-   - **Desktop:** retain the existing **three destination/source buttons** in their current relative order, followed by the existing **three create/export buttons** (TXT, DOCX, HTML). Confirm their exact labels and functionality in the latest repository before changing them; the user describes these as three destination buttons and three create buttons.
-   - **iPhone:** retain the **output format selector**, followed by the **Save** button/share-sheet pathway. Do not add the desktop destination buttons to iPhone or replace its format selector with three creation buttons.
+**Date:** 16 November 2026
+**Status:** Revised architecture and eight-phase sequence approved. Phase 1 contracts below remain proposed until reviewed and approved. Documentation preparation only; application implementation is not authorized yet.
+**Scope:** Archive identity and migration, dynamic preferred transcripts, authoritative editing, persistent Combine, reference-based TXT/DOCX/HTML interchange, query-only Search History, and audio provenance/playback.
 
-**Presentation semantics for the four checkboxes:**
-
-- **Recording filenames:** control whether individual recording names/headings are visibly printed in each section; this is distinct from the *combined document title* and the exported document's own filename.
-- **Recording date and duration:** one checkbox controls both visible values together. The values remain in each recording's canonical metadata when unchecked.
-- **Other metadata:** controls all remaining *visible* recording metadata (e.g., Voice Memo ID, Whisper model, source/archive details if those are ordinarily displayed). It must not control retention of provenance or machine-readable metadata.
-- **Separators:** controls the optional *visible* separator rule/line between recording sections. Even when off, preserve readable separation (e.g., paragraph/section spacing) and unambiguous structural boundaries in the canonical payload. Never rely on a visible separator to parse an exported document back into recordings.
-- **Create paragraphs:** remains an independent text-formatting operation, not an inclusion/metadata toggle. Its initial state is off.
-- All four inclusion options must apply to the **rendered/reading portion** of TXT, DOCX, and HTML. Preserve the complete metadata and recording identities in the portable structured payload regardless of the selected options; TXT's trailing metadata section remains readable as raw text (§6).
-- Save output presentation choices in the portable collection metadata where supported so reimport can restore them, without conflating them with original recording provenance.
+This revision supersedes the previous snapshot/version-based architecture. The user's revised instructions and subsequent mandatory dynamic-selection clarification govern. Unchanged requirements are retained below. The detailed Phase 1 review package is [MEMORA_COMBINE_PHASE_1_CONTRACTS.md](MEMORA_COMBINE_PHASE_1_CONTRACTS.md).
 
-**Implementation boundary:** This section specifies the required UX, not a redesign of existing destination, save, share, or file-generation logic. Codex must inspect the actual desktop Output markup and event handlers, iPhone Output markup, export orchestrator, and styling before implementing. Avoid duplicating output controls or creating competing output state between desktop and iPhone.
+## 1. Approved decisions and boundaries
 
-## 8. Same-archive versions and duplicate rules
+- Archives have persistent UUIDs; recordings have persistent IDs within their archive. Names and paths are descriptive, never sufficient identity.
+- Transcripts belong to an archive, recording, Whisper model, and operation (`transcribe` or `translate`). Translation never replaces transcription.
+- Search and Combine dynamically select the highest-ranked currently available transcript for each archive/recording/operation. No permanent preferred flag is authoritative.
+- Lower-model transcripts remain in the archive. Corrections affect only the selected transcript; do not synchronize corrections to alternatives.
+- Edits use explicit Save Changes and replace the current saved text. No historical transcript-version store or collection-local edited copies.
+- Combine persists across searches, archive changes, reloads and combined-document imports. Preserve membership, checked selections, order, sorting choice, title, settings and unsaved edits.
+- Combined exports remain full, independently readable TXT, DOCX and HTML documents. Structured metadata contains references, not another authoritative transcript body.
+- Reimport resolves current preferred transcripts. Previously exported readable files never change automatically.
+- No cross-archive content matching, duplicate detection, reconciliation or warning logic. Identical names/content in distinct archive UUIDs remain independent.
+- No compatibility parser for older combined formats is required. Arbitrary third-party documents and synchronization of external Word edits are outside initial scope.
+- Remove Create paragraphs from Combine and its processing. Preserve authoritative transcript paragraph structure.
+- Search History stores queries/settings/archive references/timestamps only. Default retention is **90 days**, configurable in Settings, with clear-history controls. No transcript bodies or result snapshots.
+- On combined-document import into a nonempty workspace, ask **each time**, with **Merge preselected**. Replacement requires explicit choice and unsaved-edit protection.
+- Merge matches only archive UUID + recording ID + operation. Preserve existing entries, selection state, order, title and output settings. Append genuinely new entries in imported order. Never silently discard unsaved edits.
+- Application code remains unchanged until the updated contracts are approved. Each implementation phase needs reviewable changes and acceptance evidence.
 
-- Preserve the existing preference for the highest-ranked available Whisper model for otherwise equivalent, unedited transcriptions **within one archive**.
-- Translations and edited transcript versions are potentially distinct; do not silently discard them under a model-ranking heuristic.
-- The exact rule for edited versions, translated versions, and duplicate file imports needs approval and must be documented as a deterministic decision table.
-- Same archive + same identified transcript version added repeatedly from different searches: one workspace entry by default.
-- Different archive IDs: **always independent entries**, regardless of same Voice Memo ID, filename, content, timestamp, or audio path.
-- Do not implement cross-archive fingerprint matching, similarity comparisons, warning banners, or reconciliation UI.
+## 2. Repository evidence and reuse
 
-## 9. Search History and Search integration
+Repository reviewed on 16 November 2026; this is a source audit, not browser/device acceptance.
 
-### 9.1 Existing workflow
+| Existing module | Relevant ownership and required extension |
+|---|---|
+| `js/app.js` | Actual orchestrator; `useSearchSelectionInCombine`, `combineSelectedFiles`, `buildTranscript`, saving and destination controls. Current Search handoff resets source/destination context. |
+| `js/combine.js` | Single-transcript TXT parsing, sorting, model ranks and model selection. Group keys currently lack archive identity. TXT output loses some parsed metadata. |
+| `js/combineUI.js` | Rows, selection, editing and playback integration; filename-based selection/replacement must become stable-reference based. |
+| `js/search.js` | Already imports `selectHighestModelRecords` from Combine and selects records before sentence/index work. Preserve shared logic and invalidate stale derived search data. |
+| `js/searchUI.js` | Search, selected-results handoff, editing and audio controls/resolution. Extend existing Add to Combine; do not create a competing pathway. |
+| `js/database.js` | Sole database schema/open owner, version 5. Stores: transcripts, semanticEntries, semanticMetadata, modelRegistry. Transcript key is filename. |
+| `js/storage.js` | File access and transcript persistence. Desktop writable handles differ from file-input/iPhone access. |
+| `js/docx.js`, `js/html.js` | Existing browser export generators; DOCX loads docx 9.7.1. No verified structured DOCX import/embedding capability yet. |
+| `js/combineShareExport.js` | Existing iPhone file-sharing transport; preserve cancellation and user-gesture behavior. |
+| `js/settings.js`, `js/storageManager.js` | Settings, storage reporting/cleanup; history and new durable data must be included deliberately. |
+| `index.html`, `css/`, `tests/` | Existing layout/styling and isolated browser test conventions. |
 
-Search already has **Add to Combine** for current search results. Locate the actual code and preserve its user-visible behavior. Make the same action available when viewing historical results.
+Desktop destination labels currently are Use Source Folder, Create/Use "combined" Folder, and Browse for Another Folder. Retain their relative order, then TXT/DOCX/HTML creation controls. Existing paragraph checkbox is initialized unchecked, but the revised requirement removes it completely from Combine only.
 
-### 9.2 History UI
+Reuse browser modules and the existing database owner. Do not invent another app entry point, database owner, build system or broad refactor. Specific new module names and dependencies require Phase 1 review.
 
-- Show recent searches in Search, with query, source archive, date, original result count, and optional current status.
-- Selecting a history item defaults to **View original results** (snapshot), not rerun.
-- Provide an explicit **Rerun search** action, with target archive clearly identified or selected.
-- Historical results must show original ordering and matching passages; preserve scores where the engine provides them.
-- Distinguish historical snapshot view from live rerun view visibly but without disruptive UI.
-- Users can select individual historical results and use the **existing Add to Combine** pathway.
-- Avoid automatically rerunning all historical searches when the archive changes or transcripts are edited.
-- Retention count, pinning, deletion, and clearing behavior require user approval. Deletion must not inadvertently remove content already selected into Combine.
+## 3. Identity and archive migration
 
-### 9.3 Source/version correctness
+Store archive UUID in `memora-archive.json` (proposed filename) and each transcript's metadata. The manifest describes archive name, recording IDs and associated transcript files. Model-specific transcripts share a recording ID. Preserve model, operation, original text, unknown metadata and audio provenance.
 
-- Opening Archive 2's historical search while Archive 3 is loaded must display Archive 2's **original** results without loading Archive 2.
-- Adding an item from that snapshot must add the **snapshot's original transcript version**.
-- Rerunning against Archive 3 must produce a **new** result set associated with Archive 3, not rewrite the Archive 2 snapshot.
-- If a historical result no longer exists in the live library, it remains viewable and combinable from the saved snapshot if its content was retained.
-- If historical snapshot content was removed under an explicit retention action, surface that fact; do not pretend it can be reconstructed.
+Migration creates a new migrated archive at a separate destination by default. Inventory and preview every proposed change, resolve ambiguous associations explicitly, and verify source files have not changed since preview before copying. Write migrated transcripts and the manifest to the new destination, verify all written files and unchanged transcript bodies, and record progress so interruption is detected and work can safely restart or complete. Never automatically modify or delete the source archive. Reject a destination that aliases or overlaps the source; do not overwrite unrelated destination files. Detect source changes during copying and withhold successful completion until validation passes. No in-place backup/rollback machinery is required for initial delivery; in-place migration is deferred pending separate justification and approval. Never delete lower-ranked transcripts or assign a permanent preferred transcript. Folder names cannot identify archives. Conflicting manifest/header identities block affected operations rather than silently winning by precedence.
 
-## 10. Persistence, quotas, and integrity
+Recommend an **integrated Archive Migration & Validation tool** using existing permissions, storage and validation. Read-only/iPhone sources require an explicit migrated-copy export/save workflow; success must not imply originals were changed. Filesystem writes across an archive are not atomic. Phase 1 specifies recovery and acceptance before migration implementation.
 
-Prefer reuse of existing IndexedDB infrastructure and migration conventions. Do not add unnecessary transcript copies.
+New transcription writes must produce the same metadata and manifest contract as migration. Capture provenance at audio import/transcription, not only during Combine export. Existing IndexedDB data must remain intact; old filename keys cannot be assumed to represent globally unique recordings.
 
-- Persist search definitions and their immutable snapshots; recommend persistent workspace pending user confirmation.
-- Use immutable transcript payload references where possible; maintain reference lifetimes so deleting an archive does not invalidate saved historical results or collections.
-- Treat source file handles and audio relative paths as **references**, not guarantees of future audio availability. Do not imply exported documents contain audio unless explicitly implemented.
-- Make imports and workspace mutations transactional where feasible; use commit/validation before replacing any durable state.
-- Handle quota exhaustion, interrupted imports, browser reloads, failed DOCX generation, and share-sheet cancellation without losing originals.
-- Define deletion semantics separately for history, snapshots, workspace, archive records, and shared content blobs; avoid dangling references.
-- Provide understandable storage use and cleanup controls if retained snapshots become large; do not silently evict data needed for saved searches.
-- Protect against hostile or oversized imported HTML/DOCX/TXT payloads; avoid script execution and unsafe HTML insertion.
+## 4. Dynamic preferred-transcript contract
 
-## 11. Export and platform transport
+The membership key is `(archiveUuid, recordingId, operation)`. Evaluate candidates at Search/Combine invocation, combined-document import, and relevant archive refresh/access. Use one shared selector. The current ordering is tiny < base < small < medium < large-v3; unknown models and tied conflicting candidates must not be guessed into a winner.
 
-Keep generation separate from delivery:
+Search selects preferred transcripts **before** text matching/indexing. Derived indexes may be reused only when validated against the current candidate inventory and saved content. Added, removed or modified files can change preference or searchable text. Do not persist a selected file/model as authoritative during migration, import or transcription.
 
-1. Collection serializer constructs the canonical payload and readable document.
-2. Format-specific exporter creates a TXT/HTML/DOCX File/Blob.
-3. Existing desktop save/download and iPhone share-sheet mechanisms deliver the file.
+Transient file-resolution and permission state may be cached for efficiency, but must be revalidated; persistent manifests describe available files, not the preferred choice. With an unavailable archive, mark the reference unresolved and request access; do not pretend it was freshly checked.
 
-Preserve the current iPhone `navigator.share` flow and its cancellation/error handling unless repository inspection reveals a concrete issue. Do not assume that iOS permits silent file writes. Preserve desktop behavior as discovered. Ensure MIME types, file extensions, filenames, and generated content match. No export pathway should mutate or delete the collection or its source entries.
+Reevaluation changes resolved content, not workspace membership, checked selections, order, sorting choice, title or presentation settings. Explicit user sorting can reorder entries. Missing preferred files allow the next valid ranked candidate; no valid candidates leaves a visible unresolved entry. Identity conflicts remain errors, not automatic fallback opportunities.
 
-## 12. Proposed modules and dependency boundaries
+## 5. Authoritative editing and dirty-editor safety
 
-These are **responsibilities**, not mandated filenames:
+Both Search and Combine edit the same currently selected transcript, with explicit Save Changes. Preserve archive/recording identity, model, operation, provenance and other metadata. Saving corrects that file only, replaces its previous text, and invalidates affected search/display data. No historical text store or automatic lower-model correction.
 
-- Canonical schema/validation and stable IDs.
-- Archive and transcript-version lookup.
-- Structured import adapters (TXT/HTML/DOCX).
-- Collection/workspace manager (membership, order, selection, edit overlays).
-- Same-archive transcript-version preference logic.
-- Search History definition/snapshot store and controller.
-- Existing Search → Combine adapter, generalized for current/historical results.
-- Structured export serializers (TXT/HTML/DOCX).
-- Existing platform save/share UI adapters.
-- Shared audio-source resolver and per-source association registry used by Search and Edit & Combine; separate immutable provenance from device-local permissions/handles.
+An editor binds to the **specific transcript file it loaded**, its base saved revision/content and its recording reference. It must not follow a changed preference while saving. If preference changes with unsaved edits, retain the draft and require explicit action: continue editing the original file, save that original file if safe, or discard and switch. Recheck source changes before any save. A vanished target or lost permission requires explicit recovery/save-as; never silently redirect to another model.
 
-Reuse current modules when they already own these concerns. Avoid a sweeping refactor or new build tool solely to implement this plan. Keep the application browser-compatible, including mobile Safari.
+Detect external changes after editor load; timestamps alone are not a reliable conflict check. Warn before discarding drafts on navigation, merge/replacement or reload where supported. Do not persist or recover unsaved editor text across reloads. Browser termination cannot guarantee a warning; unsaved changes may be lost. After reload, reopen currently saved text for user review while retaining durable workspace selections, order, title and settings. Protect unsaved edits during the current session, including preference reevaluation and Merge.
 
-## 13. Phased implementation plan and gates
+Direct filesystem overwrite detection is best-effort without cross-process locking; do not claim atomic compare-and-swap against external editors. Report successful source update only after actual successful write/close and validation. Where original writes are unavailable, provide explicit replacement/export and explain which file was saved.
 
-### Phase 0 — Audit and design confirmation (no code)
+## 6. Persistent Combine workspace and import
 
-- Inspect repository; document actual file graph and storage model.
-- Present current behavior vs proposed behavior and identify changes to existing Add to Combine.
-- Resolve the open decisions in §2, especially edit semantics, persistence, retention, and version preference.
-- Specify canonical schema, archive ID strategy, payload embedding strategy, and data migration scope.
-- Obtain approval before modifying code.
+Persist reference membership, checked selections, order/sort choice, document title and the four output booleans. Do not persist authoritative transcript copies. Resolved content is fetched from currently accessible archives.
 
-### Phase 1 — Canonical collection and identity layer
+All imported combined documents flatten into individual recording references. New entries are initially checked. Same-reference additions are idempotent, including additions from current Search. Different archives remain independent.
 
-- Implement validated canonical records and ordered collection membership.
-- Preserve archive boundaries and same-archive version semantics.
-- Test sorting, selection, exact identity, provenance, unknown metadata, and non-destructive operations.
-- Keep current UI behavior functional.
+Nonempty-workspace import always presents Merge (preselected), explicit replacement, and Cancel. Merge keeps all existing entry states, order, title/settings and drafts, appends new references in imported order and does not silently resort. Duplicate imported references do not overwrite existing entries. Imported settings/title apply when opening into an empty workspace or explicitly replacing; they do not replace settings during Merge. Dirty state must be settled or safely retained before replacement. Cancel changes nothing. Validate before durable commit; unresolved references must not disappear or cause unrelated workspace data to be removed.
 
-### Phase 2 — Portable structured formats
+Preserve Show/Hide, Edit, Select All, collapse/expand, existing date/name sort options and styling. Export selected entries only, in workspace order. Do not silently omit unresolved selected entries; obtain access or report inability to generate the complete requested document.
 
-- Implement TXT, HTML, DOCX exporters/importers using one versioned canonical payload.
-- Verify lossless same-format and cross-format round trips, including multiple nested-source imports flattened into entries.
-- Test malformed/oversized files, Unicode, line breaks, and externally edited visible documents.
+## 7. Portable documents
 
-### Phase 3 — Edit & Combine integration
+Use one versioned reference payload across TXT, HTML and DOCX. It contains document identity/title, ordered archive/recording/operation references, relevant descriptive selection/export information, original provenance, and output settings. Export-time model information may be descriptive but never bind future selection. No duplicate authoritative transcript body is stored in this payload.
 
-- Replace file-as-row assumptions with canonical entry-as-row semantics.
-- Default select all; preserve sort, collapse, Show/Hide, Edit, and existing controls.
-- Make multiple imported combined documents produce one flat collection.
-- Validate mixed-format inputs and export selection.
+Visible output contains full selected transcript text as resolved for that export, preserving paragraphs. Previously exported documents are static. Reimport restores references/order/settings, then resolves current preferred text; later corrections or model availability changes intentionally alter regenerated output. Never overwrite source transcripts from imported visible text.
 
-### Phase 4 — Search History and cross-archive snapshots
+The round-trip guarantee is **references, order, provenance and settings**, not identical historical transcript text. Memora must request unavailable archives. Exported files remain readable without those archives, but reimport cannot promise current resolution without them.
 
-- Persist search definitions and immutable results with complete viewable text.
-- Add history list and View Original / Rerun actions.
-- Extend **existing** Add to Combine to historical results.
-- Test Archive 2 snapshot with Archive 3 loaded, plus multi-search accumulation.
+- TXT: readable text plus a clearly delimited trailing reference payload. Plain text cannot hide this metadata. Specify UTF-8, exact framing, Unicode/escaping, size limits and corruption checks in Phase 1.
+- HTML: safe inert embedded reference payload; parse without executing imported scripts or inserting untrusted markup. Preserve existing standalone desktop relative-audio playback and iPhone suppression.
+- DOCX: readable Word content plus a validated package-part/metadata representation. Embedding, extraction and preservation must be verified against the existing library before selecting a package parser or dependency.
 
-### Phase 5 — Persistence, mobile integration, and hardening
+Validate schema versions, IDs, shape, entry counts, sizes, path safety and integrity before commit. Reject malformed/unsupported payloads with actionable messages; do not guess from headings or parse old combined formats. External Word text-edit synchronization is outside scope. Metadata loss/corruption must be reported, never silently reconstructed from visible text. Exact framing and DOCX mechanics remain Phase 1 proposals, not implemented capabilities.
 
-- Finalize workspace persistence if approved.
-- Test desktop save and iOS share flows.
-- Stress-test hundreds/thousands of transcripts, large result sets, storage quotas, reloads, and interrupted operations.
-- Remove temporary diagnostics after validation; update project design journal and documentation.
+## 8. Output and delivery
 
-Each phase must have a small reviewable diff, regression evidence, and explicit go/no-go acceptance before advancing.
+Desktop and iPhone share a delimited Output section in this order:
 
-### Additional presentation, provenance, and audio-source test requirements
+1. Output heading/boundary.
+2. Editable combined document title.
+3. Four independent inclusion checkboxes: recording filenames; recording date and duration together; other metadata; visible separators.
+4. Existing platform-specific save controls.
 
-Test independent visibility of filenames, date/duration, other metadata, and visible separators in **each** of TXT, HTML, and DOCX (including all-off and all-on, and representative mixed combinations). For every tested combination, reimport and assert identical recording identities, full metadata (including archive provenance), transcript bodies, ordering, and restored display settings. In TXT, confirm that suppressed fields are absent from the reading portion but present in the trailing structured payload. For HTML/DOCX, confirm that suppressed fields are not shown in normal reading view. Test that a file with all four inclusion checkboxes off still maintains discernible recording boundaries and is exactly reconstructable.
+Remove Combine Create paragraphs and its processing; keep transcription paragraphing unchanged. Approved initial defaults: filenames, date/duration and separators on; other metadata off. Presentation settings never strip underlying reference/provenance metadata. Suppressed metadata remains in the portable payload; TXT's trailing payload is visible as raw text. All-off output retains readable section spacing and structured recording boundaries without optional visible rules.
 
-Test archive provenance for: desktop directory import with relative paths; mobile file import without path; unknown archive name; folder rename/move after import; multiple generations of combined-document export/import; and cross-archive assembly without duplicate detection. Confirm that original archive fields remain unchanged while immediate import source changes. Do not assert availability of absolute filesystem paths when the browser did not provide them.
+Desktop keeps three destination buttons followed by three create/export buttons. iPhone keeps format selector then Save/share. Keep serialization separate from file transport, MIME/extension consistent, and cancellation non-destructive. Preserve user activation for pickers/share sheets and no silent iOS writes.
 
-Test audio provenance captured during transcription, including cases where the audio folder name is known but its absolute path is not. Verify that original audio source identity and relative path survive every supported export/import format and successive combined-document generations. Verify suggested filenames for one source, a subset of one source, several documents from the same source, mixed sources, same-named distinct source folders, and unknown provenance. Ensure the proposed filename remains user-editable.
+For selected entries from exactly one known original audio source with a known folder name, suggest that name; otherwise use a neutral combined name. Do not equate same-named folders. Suggested filename stays editable; preserve a manually chosen title during reevaluation/Merge. Specify title-versus-filename automatic-suggestion behavior in Phase 1. Preserve existing overwrite safeguards.
 
-Test unified Output UI on desktop and iPhone: Output heading and section delimiter first; editable combined title; Create paragraphs unchecked by default; four independent inclusion checkboxes; desktop three destination buttons followed by three TXT/DOCX/HTML create buttons; iPhone format selector followed by Save. Verify no duplicate controls, correct defaults, and consistent generated content across platforms.
+## 9. Provenance and audio resolution
 
-Test the shared resolver with Search and Edit & Combine: first Play prompts with the expected source, valid selection enables other recordings from that source, wrong selection leaves existing associations untouched, choosing a second source does not replace the first, and moving between Search and Combine reuses accessible associations. Include ambiguous filenames, missing files, permission expiry, desktop reload, and iPhone session re-selection. Regression-test standalone desktop HTML relative-link playback and standalone iPhone audio-control suppression. Do not require TXT/DOCX to contain embedded audio.
+Keep archive provenance separate from audio provenance and immediate import source. Preserve known original archive name/folder/relative path, original audio source logical ID/folder/relative path/filename, recording identifiers and availability states. Do not invent absolute browser filesystem paths. Unknown metadata remains unknown; preserve extensible fields through editing/import/export. Later imports update immediate source context without replacing original provenance.
 
-## 14. Acceptance-test matrix
+Audio source identity differs from transcript archive identity. A per-source device-local association registry is shared by Search and Combine. Store handles/permissions separately from portable metadata; no serialized object URLs or promise of portable access.
 
-| ID | Scenario | Expected result |
+On Play, reuse a validated association for that source; otherwise prompt with expected source/recording and use available folder/file pickers. Validate paths and identifiers where available, reject ambiguous filename matches, retain existing associations after failed selection, and allow multiple sources concurrently. Recheck permissions on reuse/reload; support iPhone reselection. A successful current association does not prove historical provenance. Unknown source IDs allow explicit limited associations, not automatic archive reconciliation.
+
+No default audio copying into IndexedDB or embedding in documents. Revoke temporary object URLs appropriately. Standalone HTML remains separate from in-app resolution: desktop relative paths, iPhone controls suppressed.
+
+## 10. Query-only Search History
+
+Store search terms, archive UUIDs, behavior-affecting settings and execution timestamp. Retention defaults to 90 days and is configurable in Settings, with clear-history control. No transcript text, result snapshots, immutable content blobs or reference counting for history.
+
+Selecting history restores parameters and permits explicit rerun using current preferred transcripts. Clearly identify target archives; request missing archives or explicit target changes rather than silently changing scope. Results may differ. History expiry/deletion never deletes transcripts, archives, workspace entries or combined files. Approved retention range is 1–365 days, measured from execution time; viewing does not extend retention. Purge on startup, history access and retention changes. Reruns create fresh entries.
+
+## 11. Storage, migration and integrity
+
+Reuse `database.js` and existing isolated database tests. Prefer additive stores for archive registry/workspace/history where needed; preserve existing transcript and semantic/model data. Do not replace filename key paths in place or silently assign historical identity to legacy IndexedDB entries.
+
+Workspace/history writes should be transactional. Stage/validate imports before mutation. Handle quota exhaustion, interrupted writes, permission expiry, failed generation and cancelled share without losing previous durable state. Do not clear unrelated stores. Update storage reporting and cleanup semantics with any new stores. No automatic history expiry may clear workspaces or archives.
+
+Avoid unnecessary abstractions/dependencies. Security limits include payload sizes, DOCX expanded size/entry counts, inert HTML parsing and rejection of traversal/unsafe paths. Large-collection behavior and lazy rendering require measurement and real iPhone acceptance.
+
+## 12. Approved eight-phase implementation sequence
+
+Phase 1 prepares contracts only until their approval. Subsequent phases require implementation authorization and acceptance evidence. Data-integrity testing applies throughout.
+
+| Phase | Work and principal affected files | Acceptance gate |
 |---|---|---|
-| C01 | Import one Memora TXT with 8 entries | 8 individually selectable, preselected rows |
-| C02 | Import combined TXT + DOCX + HTML | All entries flattened; no nested document rows |
-| C03 | Sort by recording date | Uses individual recording dates, not export timestamps |
-| C04 | Change sort after deselecting entries | Selection remains attached to same entries |
-| C05 | Export TXT then reimport | Same content, metadata, identities, provenance, order |
-| C06 | Export DOCX then HTML then TXT | Same canonical collection after each conversion |
-| C07 | Transcript includes separator-looking lines/Unicode | Text round-trips unchanged |
-| C08 | Metadata has unknown future field | Field survives round trip |
-| C09 | Import corrupted or unsupported payload | Clear failure; no partial workspace corruption |
-| C10 | Same identified item added twice from Archive 2 | No accidental duplicate workspace row |
-| C11 | Identical-looking item from Archive 3 | Remains distinct; no cross-archive comparison |
-| C12 | Multiple Whisper versions in same archive | Applies approved preference policy only within archive |
-| C13 | Edited/translated variants | Not silently discarded |
-| S01 | Search Archive 2; load Archive 3; open history | Original Archive 2 results visible without reload |
-| S02 | Archive 2 transcript edited after search | Original snapshot remains unchanged |
-| S03 | Add historical result to Combine | Adds exact snapshot text/version |
-| S04 | Rerun Archive 2 query against Archive 3 | New Archive 3 results; original snapshot intact |
-| S05 | Add from multiple historical/current searches | Accumulates selections without clearing workspace |
-| S06 | Missing original archive | Snapshot still viewable and combinable |
-| P01 | Reload during/after collection assembly | Approved persistence behavior, no silent loss |
-| P02 | Storage quota reached | Graceful failure and recoverable existing data |
-| P03 | iPhone Share cancelled | Collection preserved; accurate status |
-| P04 | Large collections/search history | Acceptable performance; lazy rendering preserved |
-| X01 | DOCX/HTML visible text edited outside Memora | Mismatch detected or explicitly documented safe behavior |
-| X02 | User deletes search history entry | No unintended deletion of already collected content |
-| A01 | Export selected transcripts from one known audio source | Suggest original audio folder name, editable by user |
-| A02 | Combine prior combined docs with same source | Still suggest original audio folder name |
-| A03 | Combine distinct or unknown audio sources | Neutral filename; no false single-source inference |
-| A04 | Import/export TXT, DOCX, HTML repeatedly | Audio provenance and expected filenames/relative paths preserved |
-| A05 | First Play for unconnected source | Prompt identifies expected folder and recording |
-| A06 | Wrong audio folder selected | Helpful error; existing associations unchanged |
-| A07 | Connect two different sources | Both remain available; no global default replacement |
-| A08 | Play in Search after connecting source in Combine | Reuses validated association, subject to permissions |
-| A09 | Reload desktop / reopen on iPhone | Permissions rechecked; unavailable sources prompt again |
-| A10 | Standalone HTML desktop / iPhone | Desktop relative-link behavior and iPhone suppression preserved |
-| U01 | Open Output on desktop and iPhone | Same delimited section, title → paragraphs → four inclusion checkboxes → platform-specific save controls |
-| U02 | Fresh Output section on either platform | Create paragraphs unchecked |
-| U03 | Toggle filename/date-duration/other-metadata/separator independently | Only selected visible elements appear; canonical metadata intact in TXT/DOCX/HTML |
-| U04 | Disable visible separators and filenames | Recordings remain visually distinguishable and structurally recoverable |
-| U05 | Export from desktop and iPhone | Desktop retains three destination then three create buttons; iPhone retains format selector then Save |
+| 1. Contracts and feasibility | Architecture and Phase 1 contracts; inspect `combine.js`, `search.js`, `searchUI.js`, `combineUI.js`, `app.js`, `storage.js`, `database.js`, `docx.js`, `html.js`, Settings and tests. No application edits yet. | Identity, dynamic selection, editing, merge, payload, migration and feasibility decisions approved. |
+| 2. Archive migration tool | Integrated inventory/preview/copy verification/restart; likely `storage.js`, `app.js`, `index.html`, relevant CSS and focused migration responsibilities. Database changes only through its owner if required. | Ambiguities block writes; original text/models preserved; interrupted migration recoverable; read-only copy workflow honest. |
+| 3. New transcription/storage integration | `app.js` header writer/import/save, `storage.js`, metadata handling and `database.js` as needed. | New and migrated transcripts satisfy the same contract; no preferred flag; existing IndexedDB preserved. |
+| 4. Shared authoritative editing | `searchUI.js`, `combineUI.js`, shared preference in `combine.js`, `search.js`, persistence adapters and `app.js`. | Search/Combine use identical preference before searching; exact-file saves, external-change and dirty-editor protections pass. |
+| 5. Combine workspace and imports | `combineUI.js`, `combine.js`, `app.js`, `storage.js`, `database.js`, structured import responsibilities and UI. | Persistent multi-archive workspace; Merge prompt/default; duplicate reference rules; unresolved references/drafts/settings preserved. |
+| 6. Export formats and Output UI | `combine.js`, `docx.js`, `html.js`, `app.js`, `index.html`, CSS; preserve `combineShareExport.js` transport. | Three-format metadata round trips; static readable exports; four controls; no Combine paragraphing; desktop/iPhone flows accepted. |
+| 7. Lightweight Search History | `searchUI.js`, `search.js` integration, `settings.js`, `database.js`, `storageManager.js`, UI/CSS as needed. | Query-only persistence, 90-day default/configuration/clear, explicit current rerun, no unrelated deletion. |
+| 8. Shared audio resolution | Existing `searchUI.js` resolution, `combineUI.js` integration, `app.js`, `storage.js`, shared source association responsibility. | Two sources concurrently, wrong-folder/ambiguity/permission tests, cross-interface reuse and standalone HTML regression checks. |
 
-Add regression tests for existing Search ranking/highlighting, Edit & Combine editing, Whisper selection, desktop export, and iPhone share functionality.
+Phases 2–3 share the Phase 1 schema. Phase 5 requires the format reader/writer contract and DOCX feasibility from Phase 1 even though finished exporters/UI ship in Phase 6. Existing playback remains functional until Phase 8. Avoid assuming a new dependency works until verified.
 
-## 15. Risks and design tradeoffs
+## 13. Acceptance matrix
 
-1. **Snapshot size:** Full historical text may consume substantial storage. Prefer immutable shared payloads with safe retention semantics; measure real usage.
-2. **DOCX embedding:** Some external editors may remove custom metadata. Validate import and detect loss rather than claiming universal reversibility after third-party editing.
-3. **Editing semantics:** Current edits may write back to source files. Collection-local edits are safer for historical snapshots but require user approval.
-4. **Archive identity:** A stable ID is essential for preventing accidental same-archive duplicates without cross-archive matching. Define behavior for archives lacking IDs.
-5. **Search algorithm evolution:** Rerunning a saved definition may differ due to changed engine versions or changed transcripts. Snapshot is historical truth; rerun is a new execution.
-6. **Security:** Imported HTML and DOCX must be treated as untrusted documents; do not render executable imported markup.
-7. **Browser constraints:** iPhone Safari storage, memory, and share activation limitations require real-device validation.
-8. **Scope control:** Do not build cross-archive deduplication, third-party document inference, or broad repository restructuring as part of this project.
-9. **Source-name collisions:** Two distinct audio folders may share the same display name; source IDs and validated file references matter more than names.
-10. **Permissions and portability:** Metadata cannot bypass browser security. Persisting a handle is not a guarantee of renewed access; standalone HTML relative paths may break after files move.
-11. **Historical provenance:** A runtime file selection may establish current playback access without proving that the newly selected folder was the historical original. Do not overwrite original provenance with a guessed location.
+| Area | Required evidence |
+|---|---|
+| Identity/migration | Same filenames in different archives remain separate; recording IDs shared across models; ambiguous associations require confirmation; renamed folders retain manifest identity; no deleted alternatives; untouched originals and interrupted-copy recovery. |
+| Dynamic selection | Add higher model, remove winner, modify winner, reopen Search/Combine and reimport documents; both interfaces agree; translation/transcription remain separate; ambiguous top candidates fail visibly; no permanent preference metadata. |
+| Search | Preference applied before lexical/semantic matching; changed content invalidates derived results; existing ranking/highlighting retained; lower-model-only matches excluded. |
+| Editing | Explicit save updates exact target only; metadata/paragraphs retained; next invocation sees correction; concurrent modification blocked; preference changes with dirty editor never retarget save or discard draft. |
+| Workspace/Merge | Nonempty import always prompts with Merge preselected; repeated same-reference additions produce one row; existing order/checks/title/settings/drafts untouched; genuinely new entries append in imported order; Cancel is inert; reload preserves approved state. |
+| Portable formats | TXT/DOCX/HTML restore the same references/order/provenance/settings; regeneration uses current preferred text; old readable export stays unchanged; missing archives requested; malformed/oversized/unsupported payloads rejected without partial state loss. |
+| Output | Four independent controls across all formats, including all-off/all-on and mixed cases; readable boundaries persist; metadata retained; no Combine paragraphing; suggested filename respects source identity and manual choices. |
+| History | Default 90 days; Settings changes honored; explicit rerun may differ; no bodies/snapshots; expiry/clear affects only history; absent archive not silently substituted. |
+| Audio | Original source survives successive imports/exports; same-named distinct folders not merged; second source leaves first accessible; wrong/ambiguous selection changes no association; permissions rechecked; standalone desktop/iPhone behavior retained. |
+| Integrity/platform | Quota, interrupted import/save/migration, cancelled share and permission loss preserve prior state; large-collection behavior measured; desktop and real iPhone accepted. |
 
-## 16. Instructions to Codex
+## 14. Implementation instructions
 
-1. **First read this document and inspect the current repository. Do not start coding immediately.**
-2. Produce a concise repository audit: existing relevant modules, functions, storage, and integration points; note where this proposal differs from actual code.
-3. Identify all unresolved user decisions and propose concrete defaults; request approval.
-4. Produce a file-by-file implementation plan, schema specification, serialization contract, migration plan, and phase-specific tests.
-5. Do not remove or replace the current Search **Add to Combine** feature; extend it.
-6. Do not implement cross-archive duplicate matching or warning logic.
-7. Do not promise compatibility with old combined exports; user explicitly does not require it.
-8. Preserve UI styling, browser-only architecture, iPhone compatibility, and established export flows wherever possible.
-9. Never discard original transcript data, audio references, or historical snapshots during an incomplete import/export/migration.
-10. For implementation work, use the **latest repository files**, not older copies or remembered versions. The user prefers only changed files returned, packaged in a ZIP with original filenames unchanged when files are delivered through chat; simple one-line edits may instead be explained as instructions.
-11. Keep temporary diagnostics out of final production code; maintain a design journal or equivalent project documentation.
-12. Implement only after user approval, phase by phase, with test evidence and review points.
-13. Include audio-folder provenance in the **individual transcription metadata writer**, not merely in Combine exports. Build one source-specific playback resolver shared by Search and Combine; do not introduce a new global default audio folder.
-14. Preserve current standalone HTML desktop relative-path playback and iPhone suppression unless a separately approved change is requested.
-15. Standardize the Output section order on both platforms as specified in §7.4; do not change platform-specific export mechanisms.
-16. Implement four independent visible-output inclusion controls (filename, date/duration, other metadata, separator), and default Create paragraphs to unchecked. Preserve all underlying metadata regardless of visibility.
+Use latest repository sources and existing module boundaries. Do not implement cross-archive matching, legacy combined parsers, transcript history stores, historical search snapshots, collection-local transcript edits, another Combine paragraphing pass, or a global default audio source. Do not update application build IDs for documentation-only work.
 
----
-
-**Desired outcome:** A flexible, lossless, format-independent Edit & Combine workspace that can assemble individual transcripts from current files, previously combined documents, and historical searches across independent archives, while preserving the user's explicit choices and avoiding unnecessary cross-archive complexity.
+Record phase evidence in project documentation. When delivering changed application files through chat, preserve original filenames and package only changed files in a ZIP where applicable. Do not modify application code until the updated contracts are approved.
