@@ -2,7 +2,7 @@
 
 **Status:** Architectural proposal / Codex handoff; **no implementation authorized by this document alone**  
 **Date:** 2026-11-16 (updated)  
-**Scope:** Search history, cross-archive historical results, Edit & Combine, structured import/export, and persistence  
+**Scope:** Search history, cross-archive historical results, Edit & Combine, structured import/export, audio-source provenance and playback resolution, and persistence  
 **Primary principle:** Preserve user-selected content and metadata without imposing cross-archive duplicate detection.
 
 ## 1. Executive summary
@@ -29,6 +29,8 @@ This document specifies target behavior and implementation sequencing. Codex mus
 10. Export must offer **independent visible-display toggles for recording filenames and recording metadata**, applying consistently to TXT, HTML, and DOCX, while retaining complete metadata in the underlying portable document.
 11. Every entry must preserve **original archive provenance**: archive name, folder name, and the most complete available source-relative path, plus an archive ID where known. Missing filesystem paths must not be invented.
 12. Keep **original archive provenance** distinct from the **immediate import source** (such as a later combined DOCX).
+13. Use the **same clearly delimited Output section and control order on desktop and iPhone**, with platform-specific saving controls only at the bottom.
+14. Output appearance options must independently control **recording filenames**, **recording date/duration**, **other visible metadata**, and **visible separators**. The existing **Create paragraphs** checkbox defaults **unchecked**.
 
 ### Proposals requiring explicit confirmation before implementation
 
@@ -125,6 +127,20 @@ Distinguish recording identity from a particular text version:
 
 **Do not** derive globally unique recording identity from text similarity, hashes, or same filename across archives. Hashes may be used to store identical immutable payloads efficiently, but never to infer that two different archive entries represent the same recording.
 
+### 5.2a Original audio-source provenance (per recording)
+
+Capture this information **at audio import/transcription time**, before the original source context is lost. Persist it in each individual transcription and in every canonical collection entry, independent of whether filenames/metadata are visibly displayed:
+
+- `audioSourceId`: stable *logical* identity for the source audio folder or source set, assigned by Memora when feasible; **distinct from `archiveId`**, which identifies a transcript archive. Do not equate sources merely because folder names match.
+- `originalAudioFolderName`: name of the folder containing the source audio, if known. Distinguish this from the transcript archive folder name and from the immediate combined-document import source.
+- `originalAudioRelativePath`: path to the recording relative to the known audio-source root, if exposed; include nested subfolders where known.
+- `originalAudioFilename`: the expected audio file's name, preserving extension and case; retain recording/Voice Memo identifiers when known for stronger matching.
+- `originalAudioFolderRelativePath`: optional relative path to the original audio folder within a user-selected root, when available.
+- `audioSourcePathAvailability`: explicit known/unknown/unavailable state; never infer an absolute local path from a browser-selected folder or an HTML export.
+- `audioSourceProvenance`: immutable historical information, preserved through editing, Search History snapshots, multiple Combine generations, and TXT/DOCX/HTML round trips. Unknown fields remain unknown.
+
+**Separate source provenance from access:** Runtime directory handles, selected File objects, browser permissions, object URLs, and successful/failed resolution state are **not** immutable recording metadata and should not be serialized as if they were portable paths. Store source associations in a separate device-local registry where supported. A recording can retain its original source identity even when its audio is not currently accessible.
+
 ### 5.3 Collection/workspace
 
 - Collection ID, title, created/modified timestamps, schema version.
@@ -186,7 +202,7 @@ Specify whether the visible document is editable independently of its embedded p
 8. Export only selected entries in the chosen order; never export an unselected entry merely because it was part of a combined input.
 9. Keep sorting by **individual recording date/name**, not the outer combined-document filename or export date.
 10. Provide clear feedback for malformed imports, unsupported format/schema, missing metadata, and failed exports.
-11. Provide two independent export display controls: **Show recording filenames** and **Show recording metadata**. Apply them to all three formats, with a preview if practical; toggles affect appearance only.
+11. Provide independent output display controls for **recording filenames**, **recording date/duration**, **other metadata**, and **record separators**. Apply consistently to TXT, HTML, and DOCX; controls affect appearance only. See §7.4 for precise layout and behavior.
 12. On reimport, restore the stored display preferences without altering source content or archive provenance.
 13. For each entry, retain the original archive name/folder/available path even if it arrived through an intermediate combined document; separately track the most recent import document.
 
@@ -200,6 +216,59 @@ Specify whether the visible document is editable independently of its embedded p
 - Use archive IDs as identity domains when known; a folder name/path alone must not trigger cross-archive deduplication. Unknown archive IDs require explicit safe handling rather than an invented ID that implies historical certainty.
 - Export all known provenance fields in the canonical payload even if the visible metadata toggle is off. If visible metadata is on, display a sensible subset (archive name and relative path if available); avoid exposing sensitive absolute paths by default.
 - If an imported file has no provenance metadata, represent that honestly as unknown; do not infer an archive from the combined document's name.
+
+### 7.2 Suggested export filename from original audio folder
+
+- For the **currently selected entries**, if every entry has the **same known original audio source identity** and a known source audio folder name, suggest that folder name as the combined document filename (with the chosen `.txt`, `.docx`, or `.html` extension).
+- This rule is based on the provenance of the **selected individual recordings**, not on whether the input was a transcript or a previously combined document, and not on whether every recording in the source folder was selected.
+- When selected entries have multiple distinct audio sources, or any required provenance is unknown/ambiguous, suggest a neutral name such as `Combined Transcripts`. Two different sources with the same folder name do not qualify as one source.
+- Keep the filename editable. Sanitize invalid filename characters and avoid overwriting existing files without the existing save flow's safeguards.
+- Preserve original audio-source metadata regardless of the filename chosen. Filename suggestions are not identity or playback rules.
+
+### 7.3 Shared audio resolver for Search and Edit & Combine
+
+**Scope:** Applies to playback **inside Memora**, including listening while editing transcripts and playback from current or historical Search results. Search and Combine should use one shared resolver and one source-association registry, not competing global-default source folders.
+
+1. On Play, inspect the individual recording's `audioSourceId`, original audio folder name, relative path, expected filename, and recording identifiers.
+2. First reuse a validated, currently accessible association for **that specific audio source**; play immediately if the requested recording resolves.
+3. If the source is not accessible, prompt the user with the **expected source folder name and recording filename**, then invoke the platform-appropriate folder/file picker from the user gesture. On iPhone, support selecting audio files when directory access is unavailable.
+4. Validate that the requested recording exists in the selected files/folder before registering the association. Use relative path and recording identifiers when available; do not silently accept ambiguous same-name matches.
+5. If the wrong source was selected, explain that the recording was not found and allow retry; **do not replace any existing association**. Distinguish missing files from expired/revoked permissions and offer reauthorization where possible.
+6. When a source is successfully selected, make it available to **all recordings with the same verified audio-source identity** whose files can be resolved. Do **not** make it a global default or change associations for other source identities.
+7. Switching between recordings from different sources must not cause previously resolved sources to be forgotten. Search and Combine should observe the same source registry within the device/session.
+8. Persist logical source associations and supported directory handles in device-local storage where feasible; re-check permissions after reload. On iPhone, retaining source identity does **not** imply that previously selected files remain accessible in a later session.
+9. Do not duplicate large audio files into IndexedDB by default. Temporary object URLs and File handles have platform/session-specific lifetimes; clean them up appropriately.
+10. If the original source ID is absent (older transcript/import), allow a limited, explicit association after validating the selected recording, but do not automatically merge unrelated archives or invent certainty about historical provenance.
+
+**Standalone combined HTML is a separate playback environment:** Preserve the established desktop behavior of resolving relative audio links and the established iPhone behavior of suppressing audio controls. Do not silently add embedded audio or promise access to arbitrary local folders from standalone HTML. Metadata may contain original relative paths, but it cannot grant filesystem access or ensure playback after the HTML is moved. TXT and DOCX preserve audio references as metadata, not as a guarantee of playable embedded audio.
+
+**Repository audit before implementation:** Inspect the actual `appendAudioControl` implementation, `getAudioSourceHandle` provider, Search playback wiring, transcript export/header writer, audio folder importer, and TXT/DOCX export orchestration. The supplied `combineUI.js` passes a shared source handle; that alone does not establish whether changing a source currently affects all existing controls or only future ones. Record actual behavior before replacing it. Preserve current working single-source behavior while extending to multiple sources.
+
+### 7.4 Unified Output section: desktop and iPhone (confirmed UI requirements)
+
+**Purpose:** Make the Output area a visibly separate section, delimited with the same section heading, boundary, spacing, and visual hierarchy used for the other Memora sections. The present layout differs by device: desktop currently puts **Output** before three source/destination buttons, then the combined-document title, Create paragraphs, and three TXT/DOCX/HTML creation buttons; iPhone currently puts the **Output** heading *after* the title and Create paragraphs, followed by a format selector and Save button. **Remove that ordering inconsistency.** Do not relocate the title or paragraph checkbox outside the Output section on either platform.
+
+**Required common top-to-bottom order on both platforms:**
+
+1. **Output** section heading and clear section delimiter.
+2. **Combined document title** editable field. Retain the automatic suggested name based on the single known source audio folder where applicable (§7.2); the title remains editable. Distinguish the human-readable document title from the actual saved filename/extension where the existing code does so.
+3. **Create paragraphs** checkbox, **unchecked by default**. Preserve existing paragraph-creation semantics; do not automatically enable it because a previous output was generated. If the application deliberately persists other output settings, ensure the initial/default state for this control remains off unless the user expressly selects it.
+4. **Output inclusion checkboxes** for: **Show recording filenames**; **Show recording date and duration** (one combined checkbox); **Show other metadata**; and **Show separators between recordings**. These are independent, not a single all-metadata toggle. Labels should make clear these affect *visible output*, not stored metadata. Preserve the current visual styling conventions. Do not assume defaults for the four new inclusion checkboxes without checking existing user-facing behavior; propose defaults for user approval, preferably preserving currently visible information until the user changes it.
+5. **Platform-specific save controls**, at the bottom of the same Output section:
+   - **Desktop:** retain the existing **three destination/source buttons** in their current relative order, followed by the existing **three create/export buttons** (TXT, DOCX, HTML). Confirm their exact labels and functionality in the latest repository before changing them; the user describes these as three destination buttons and three create buttons.
+   - **iPhone:** retain the **output format selector**, followed by the **Save** button/share-sheet pathway. Do not add the desktop destination buttons to iPhone or replace its format selector with three creation buttons.
+
+**Presentation semantics for the four checkboxes:**
+
+- **Recording filenames:** control whether individual recording names/headings are visibly printed in each section; this is distinct from the *combined document title* and the exported document's own filename.
+- **Recording date and duration:** one checkbox controls both visible values together. The values remain in each recording's canonical metadata when unchecked.
+- **Other metadata:** controls all remaining *visible* recording metadata (e.g., Voice Memo ID, Whisper model, source/archive details if those are ordinarily displayed). It must not control retention of provenance or machine-readable metadata.
+- **Separators:** controls the optional *visible* separator rule/line between recording sections. Even when off, preserve readable separation (e.g., paragraph/section spacing) and unambiguous structural boundaries in the canonical payload. Never rely on a visible separator to parse an exported document back into recordings.
+- **Create paragraphs:** remains an independent text-formatting operation, not an inclusion/metadata toggle. Its initial state is off.
+- All four inclusion options must apply to the **rendered/reading portion** of TXT, DOCX, and HTML. Preserve the complete metadata and recording identities in the portable structured payload regardless of the selected options; TXT's trailing metadata section remains readable as raw text (§6).
+- Save output presentation choices in the portable collection metadata where supported so reimport can restore them, without conflating them with original recording provenance.
+
+**Implementation boundary:** This section specifies the required UX, not a redesign of existing destination, save, share, or file-generation logic. Codex must inspect the actual desktop Output markup and event handlers, iPhone Output markup, export orchestrator, and styling before implementing. Avoid duplicating output controls or creating competing output state between desktop and iPhone.
 
 ## 8. Same-archive versions and duplicate rules
 
@@ -271,6 +340,7 @@ These are **responsibilities**, not mandated filenames:
 - Existing Search → Combine adapter, generalized for current/historical results.
 - Structured export serializers (TXT/HTML/DOCX).
 - Existing platform save/share UI adapters.
+- Shared audio-source resolver and per-source association registry used by Search and Edit & Combine; separate immutable provenance from device-local permissions/handles.
 
 Reuse current modules when they already own these concerns. Avoid a sweeping refactor or new build tool solely to implement this plan. Keep the application browser-compatible, including mobile Safari.
 
@@ -320,11 +390,17 @@ Reuse current modules when they already own these concerns. Avoid a sweeping ref
 
 Each phase must have a small reviewable diff, regression evidence, and explicit go/no-go acceptance before advancing.
 
-### Additional presentation and provenance test requirements
+### Additional presentation, provenance, and audio-source test requirements
 
-Test the four combinations of filename/metadata visibility in **each** of TXT, HTML, and DOCX. For every combination, reimport and assert identical recording identities, full metadata (including archive provenance), transcript bodies, ordering, and restored display settings. In TXT, confirm that suppressed fields are absent from the reading portion but present in the trailing structured payload. For HTML/DOCX, confirm that suppressed fields are not shown in normal reading view. Test that a file with both toggles off still maintains discernible recording boundaries and is exactly reconstructable.
+Test independent visibility of filenames, date/duration, other metadata, and visible separators in **each** of TXT, HTML, and DOCX (including all-off and all-on, and representative mixed combinations). For every tested combination, reimport and assert identical recording identities, full metadata (including archive provenance), transcript bodies, ordering, and restored display settings. In TXT, confirm that suppressed fields are absent from the reading portion but present in the trailing structured payload. For HTML/DOCX, confirm that suppressed fields are not shown in normal reading view. Test that a file with all four inclusion checkboxes off still maintains discernible recording boundaries and is exactly reconstructable.
 
 Test archive provenance for: desktop directory import with relative paths; mobile file import without path; unknown archive name; folder rename/move after import; multiple generations of combined-document export/import; and cross-archive assembly without duplicate detection. Confirm that original archive fields remain unchanged while immediate import source changes. Do not assert availability of absolute filesystem paths when the browser did not provide them.
+
+Test audio provenance captured during transcription, including cases where the audio folder name is known but its absolute path is not. Verify that original audio source identity and relative path survive every supported export/import format and successive combined-document generations. Verify suggested filenames for one source, a subset of one source, several documents from the same source, mixed sources, same-named distinct source folders, and unknown provenance. Ensure the proposed filename remains user-editable.
+
+Test unified Output UI on desktop and iPhone: Output heading and section delimiter first; editable combined title; Create paragraphs unchecked by default; four independent inclusion checkboxes; desktop three destination buttons followed by three TXT/DOCX/HTML create buttons; iPhone format selector followed by Save. Verify no duplicate controls, correct defaults, and consistent generated content across platforms.
+
+Test the shared resolver with Search and Edit & Combine: first Play prompts with the expected source, valid selection enables other recordings from that source, wrong selection leaves existing associations untouched, choosing a second source does not replace the first, and moving between Search and Combine reuses accessible associations. Include ambiguous filenames, missing files, permission expiry, desktop reload, and iPhone session re-selection. Regression-test standalone desktop HTML relative-link playback and standalone iPhone audio-control suppression. Do not require TXT/DOCX to contain embedded audio.
 
 ## 14. Acceptance-test matrix
 
@@ -355,6 +431,21 @@ Test archive provenance for: desktop directory import with relative paths; mobil
 | P04 | Large collections/search history | Acceptable performance; lazy rendering preserved |
 | X01 | DOCX/HTML visible text edited outside Memora | Mismatch detected or explicitly documented safe behavior |
 | X02 | User deletes search history entry | No unintended deletion of already collected content |
+| A01 | Export selected transcripts from one known audio source | Suggest original audio folder name, editable by user |
+| A02 | Combine prior combined docs with same source | Still suggest original audio folder name |
+| A03 | Combine distinct or unknown audio sources | Neutral filename; no false single-source inference |
+| A04 | Import/export TXT, DOCX, HTML repeatedly | Audio provenance and expected filenames/relative paths preserved |
+| A05 | First Play for unconnected source | Prompt identifies expected folder and recording |
+| A06 | Wrong audio folder selected | Helpful error; existing associations unchanged |
+| A07 | Connect two different sources | Both remain available; no global default replacement |
+| A08 | Play in Search after connecting source in Combine | Reuses validated association, subject to permissions |
+| A09 | Reload desktop / reopen on iPhone | Permissions rechecked; unavailable sources prompt again |
+| A10 | Standalone HTML desktop / iPhone | Desktop relative-link behavior and iPhone suppression preserved |
+| U01 | Open Output on desktop and iPhone | Same delimited section, title → paragraphs → four inclusion checkboxes → platform-specific save controls |
+| U02 | Fresh Output section on either platform | Create paragraphs unchecked |
+| U03 | Toggle filename/date-duration/other-metadata/separator independently | Only selected visible elements appear; canonical metadata intact in TXT/DOCX/HTML |
+| U04 | Disable visible separators and filenames | Recordings remain visually distinguishable and structurally recoverable |
+| U05 | Export from desktop and iPhone | Desktop retains three destination then three create buttons; iPhone retains format selector then Save |
 
 Add regression tests for existing Search ranking/highlighting, Edit & Combine editing, Whisper selection, desktop export, and iPhone share functionality.
 
@@ -368,6 +459,9 @@ Add regression tests for existing Search ranking/highlighting, Edit & Combine ed
 6. **Security:** Imported HTML and DOCX must be treated as untrusted documents; do not render executable imported markup.
 7. **Browser constraints:** iPhone Safari storage, memory, and share activation limitations require real-device validation.
 8. **Scope control:** Do not build cross-archive deduplication, third-party document inference, or broad repository restructuring as part of this project.
+9. **Source-name collisions:** Two distinct audio folders may share the same display name; source IDs and validated file references matter more than names.
+10. **Permissions and portability:** Metadata cannot bypass browser security. Persisting a handle is not a guarantee of renewed access; standalone HTML relative paths may break after files move.
+11. **Historical provenance:** A runtime file selection may establish current playback access without proving that the newly selected folder was the historical original. Do not overwrite original provenance with a guessed location.
 
 ## 16. Instructions to Codex
 
@@ -383,6 +477,10 @@ Add regression tests for existing Search ranking/highlighting, Edit & Combine ed
 10. For implementation work, use the **latest repository files**, not older copies or remembered versions. The user prefers only changed files returned, packaged in a ZIP with original filenames unchanged when files are delivered through chat; simple one-line edits may instead be explained as instructions.
 11. Keep temporary diagnostics out of final production code; maintain a design journal or equivalent project documentation.
 12. Implement only after user approval, phase by phase, with test evidence and review points.
+13. Include audio-folder provenance in the **individual transcription metadata writer**, not merely in Combine exports. Build one source-specific playback resolver shared by Search and Combine; do not introduce a new global default audio folder.
+14. Preserve current standalone HTML desktop relative-path playback and iPhone suppression unless a separately approved change is requested.
+15. Standardize the Output section order on both platforms as specified in §7.4; do not change platform-specific export mechanisms.
+16. Implement four independent visible-output inclusion controls (filename, date/duration, other metadata, separator), and default Create paragraphs to unchecked. Preserve all underlying metadata regardless of visibility.
 
 ---
 
