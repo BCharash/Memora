@@ -1,0 +1,21 @@
+﻿{
+    "tests":  [
+                  {
+                      "exactMetadataMatch":  true,
+                      "expectedChars":  1118,
+                      "references":  1,
+                      "resavedPropertyChars":  1118
+                  },
+                  {
+                      "exactMetadataMatch":  true,
+                      "expectedChars":  624213,
+                      "references":  1000,
+                      "resavedPropertyChars":  624213
+                  }
+              ],
+    "automationOutput":  [
+                             "WORD\t16.0\t16.0.20527",
+                             "RESULT\t1\t1118\tTrue",
+                             "RESULT\t1000\t624213\tTrue"
+                         ]
+}

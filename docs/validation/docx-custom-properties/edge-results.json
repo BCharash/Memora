@@ -1,0 +1,88 @@
+﻿{
+    "environment":  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+    "at":  "2026-11-16T13:56:20.599Z",
+    "tests":  [
+                  {
+                      "name":  "roundtrip-1",
+                      "status":  "PASS",
+                      "references":  1,
+                      "payloadBytes":  727,
+                      "propertyChars":  1118,
+                      "docxBytes":  9686,
+                      "readableXmlUnchanged":  true
+                  },
+                  {
+                      "name":  "roundtrip-100",
+                      "status":  "PASS",
+                      "references":  100,
+                      "payloadBytes":  46795,
+                      "propertyChars":  62544,
+                      "docxBytes":  13626,
+                      "readableXmlUnchanged":  true
+                  },
+                  {
+                      "name":  "roundtrip-1000",
+                      "status":  "PASS",
+                      "references":  1000,
+                      "payloadBytes":  468046,
+                      "propertyChars":  624213,
+                      "docxBytes":  41549,
+                      "readableXmlUnchanged":  true
+                  },
+                  {
+                      "name":  "roundtrip-5000",
+                      "status":  "PASS",
+                      "references":  5000,
+                      "payloadBytes":  2350046,
+                      "propertyChars":  3133546,
+                      "docxBytes":  161145,
+                      "readableXmlUnchanged":  true
+                  },
+                  {
+                      "name":  "missing-part",
+                      "status":  "PASS",
+                      "message":  "MISSING_METADATA: No custom metadata part."
+                  },
+                  {
+                      "name":  "missing-property",
+                      "status":  "PASS",
+                      "message":  "MISSING_METADATA: No Memora reference property."
+                  },
+                  {
+                      "name":  "truncated-property-255",
+                      "status":  "PASS",
+                      "message":  "INVALID_METADATA: Cannot parse reference envelope."
+                  },
+                  {
+                      "name":  "invalid-xml",
+                      "status":  "PASS",
+                      "message":  "INVALID_XML: Metadata XML is malformed."
+                  },
+                  {
+                      "name":  "incomplete-length",
+                      "status":  "PASS",
+                      "message":  "INCOMPLETE_METADATA: Payload length mismatch."
+                  },
+                  {
+                      "name":  "checksum-corruption",
+                      "status":  "PASS",
+                      "message":  "CORRUPT_METADATA: Checksum mismatch."
+                  },
+                  {
+                      "name":  "invalid-reference",
+                      "status":  "PASS",
+                      "message":  "INVALID_REFERENCE: Missing or invalid recording reference."
+                  }
+              ],
+    "fixtures":  [
+                     {
+                         "name":  "collection-1.docx",
+                         "propertyChars":  1118
+                     },
+                     {
+                         "name":  "collection-1000.docx",
+                         "propertyChars":  624213
+                     }
+                 ],
+    "status":  "PASS"
+}

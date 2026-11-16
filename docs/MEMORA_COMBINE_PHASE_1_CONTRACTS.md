@@ -1,12 +1,14 @@
 # Memora — Phase 1 Contract Review Package
 
 **Date:** 16 November 2026
-**Status:** Prepared for approval; proposed implementation contracts, not implemented functionality.
+**Status:** Architecture and listed decisions approved; remaining schema/framing contracts prepared for review. DOCX custom properties approved as the leading implementation candidate, subject to safeguards and device acceptance. Production implementation is not implied by isolated validation results.
 **Authority:** [Approved revised architecture](MEMORA_COMBINE_ARCHITECTURE.md). The eight-phase sequence is approved; application code remains unchanged until these contracts are approved.
 
 ## 1. Approval boundary
 
 Already approved: dynamic preference; archive/recording identity; direct authoritative editing; persistent reference workspace; no Combine paragraphing; query-only history; 90-day configurable retention; nonempty-import prompt with Merge preselected; reference-based merge preserving existing state; eight implementation phases.
+
+Subsequent approved decisions: no persistent unsaved drafts; other metadata defaults off while the other three output controls default on; retention range 1–365 days; separate-destination migration with originals untouched; measurement-based import limits; standard DOCX custom properties as leading candidate. Preserve DOCX rendering, separate metadata from rendering/schema, reject invalid imports without state changes, retain the Microsoft 255-character discrepancy, implement production ZIP safeguards, defer custom XML unless demonstrated necessary, and require real iPhone Safari acceptance before cross-platform readiness. These decisions do not require reconfirmation.
 
 Approval requested for the concrete proposals below. Technical feasibility items remain open and must be verified before claiming the corresponding contract is implementable. Do not request approval again for settled architectural decisions.
 
@@ -84,9 +86,23 @@ One logical JSON payload, with deterministic UTF-8 serialization and no canonica
 
 - TXT: append `-----BEGIN MEMORA COLLECTION V1-----`, one compact envelope JSON line, and `-----END MEMORA COLLECTION V1-----` at EOF. Parser uses this exact terminal frame, not readable headings/separators. User transcript text containing markers must not affect parsing. Prove collision handling with fixtures.
 - HTML: one inert structured-data container with an exact Memora marker and envelope JSON; Base64 avoids raw script-closing sequences in payload strings. Parse without executing imported content or fetching its resources. Never import/render arbitrary document markup as trusted UI.
-- DOCX: propose dedicated `memora/collection.json` ZIP package part with required package content-type/relationship declarations. Existing library support and safe extraction are **not yet verified**. Prefer existing APIs if supported; otherwise review the smallest ZIP dependency before adoption. Do not promise this package contract until a round-trip feasibility check passes.
+- DOCX: standard `Memora.Collection.v1` custom string property is the approved leading implementation candidate. Retain the existing exporter/readable rendering except for approved Output settings. Isolated Edge round trips passed through 5,000 references; installed Windows Word open/resave preserved exact metadata through 1,000 references. See the [validation report](validation/docx-custom-properties/README.md). Real iPhone Safari and broader Word/browser compatibility remain pending. Keep Microsoft's documented 255-character discrepancy as an explicit risk. Do not implement custom XML unless further tests demonstrate necessity. The test-only JSZip use does not automatically approve a production dependency addition.
 
 Proposed initial safety limits for approval/measurement: 25 MiB decoded reference payload; 100 MiB input file; DOCX 200 MiB total expanded data and 10,000 ZIP entries; 10,000 recording references per document; reject traversal paths and external package relationships used for payload access. These are configurable implementation constants, not measured device capacity guarantees. Adjust from representative desktop/iPhone samples before release.
+
+### Approved separation of responsibilities
+
+Canonical reference schema and validation are format-independent. The envelope codec handles UTF-8/Base64, length and checksum only. The DOCX adapter reads/writes the named custom property and package structures only. Rendering continues to receive resolved recording records and approved presentation settings; it must not parse metadata or depend on its storage location. Changing from a property to a custom XML part later must not require canonical schema changes or changes to paragraph/style generation. Keep these responsibilities small; separate functions may suffice rather than a framework or extra abstraction layers.
+
+### Production import and decompression requirements
+
+1. Check input file size before loading it wholly into memory. Inspect ZIP directory structure with explicit entry-count, declared expanded-size and compression-ratio limits; reject unsupported encryption/multipart features and duplicate or colliding metadata entries before any filename normalization can hide them. Do not trust declared sizes as the only protection.
+2. Read only the metadata and necessary package-description parts. Bound each part's **actual emitted decompressed bytes** and the cumulative output, with cancellation/timeout behavior; stop as soon as a limit is exceeded, before materializing a giant string. Do not inflate all media or use all-entry CRC verification as an import prerequisite. If the chosen ZIP API cannot support enforceable bounds, change the extraction approach before production integration; a post-inflate length check is insufficient.
+3. Reject unsafe/ambiguous paths and external payload relationships. Parse custom-property XML without executing markup, resolving entities or fetching external resources. Require one unambiguous correctly typed Memora property, supported envelope/schema versions, valid encoding, byte length, checksum, entry count and recording references, valid output settings and bounded fields/extension data. Preserve accepted unknown extension metadata without treating it as executable UI or object prototypes.
+4. Produce a fully validated candidate import in temporary memory first. Only then offer Merge/Replace and resolve archives. Recheck workspace revision after asynchronous operations before one transactional workspace commit so newer selections or edits are not overwritten. Cancel, invalid metadata, quotas, permission failures and decompression failures must leave prior durable/in-session workspace state intact. Document import never writes transcript text to source files.
+5. Report missing, incomplete, invalid, unsupported or size-limited metadata distinctly and clearly. Never silently recover references from visible Word text. Keep unresolved archive references visible under the agreed import policy; distinguish them from invalid input.
+
+Numeric thresholds remain measurement-led; none of the illustrative values above is a release limit yet. Test boundary sizes, forged ZIP size declarations, extreme expansion, duplicate parts/properties, malformed XML/envelopes, checksum/reference errors, cancellation, quota failure and workspace changes during asynchronous validation. Invalid-input tests must assert unchanged workspace contents/settings/selections/drafts and zero source-transcript writes. Test exact baseline readable XML independently of metadata storage.
 
 Reimport ignores visible text for authority and requests referenced archives. External Word editing synchronization and arbitrary third-party import are excluded. Missing/stripped structured metadata is actionable unsupported input; no legacy combined-format parser. Exported readable text remains untouched.
 
@@ -108,7 +124,7 @@ Restoring history parameters does not execute immediately. Missing archives requ
 
 1. Approve schema/metadata encoding and conflict rules, including explicit independent-copy archive identity behavior.
 2. Settled: no draft persistence; other metadata defaults off and the other three controls on; history 1–365 days with 90-day default; copy-based migration leaves originals untouched. Initial import limits remain proposed.
-3. Verify DOCX package embedding/extraction against docx 9.7.1; identify any minimal dependency needed. No dependency install or source changes in this preparation step.
+3. DOCX direction approved; existing isolated browser/Word evidence retained. Complete bounded ZIP extraction design, real iPhone Safari and other supported environments before readiness claims. Production dependency addition still requires separate approval; no unnecessary rendering change.
 4. Confirm TXT framing with marker-containing content, Unicode and corruption fixtures; confirm safe HTML extraction does not execute/fetch imported content.
 5. Inventory representative real archive headers, ambiguous same-model candidates, large collections and iPhone read-only access; select separate-destination migration/export packaging from evidence.
 6. Review additive database migration and cleanup compatibility against `tests/database*`, `storageManager.js` and existing browser harness conventions.
@@ -118,6 +134,8 @@ No approval of this package should be represented as passed feasibility tests or
 ## 11. Planned acceptance evidence
 
 ### DOCX source-level feasibility investigation
+
+The following paragraphs record the initial source-only investigation. They are superseded where applicable by the subsequently approved and executed [isolated validation report](validation/docx-custom-properties/README.md), its saved browser harness and evidence. Production implementation is still pending approval; installed Windows Word preserved metadata beyond the documented 255-character risk in the tested flow, while real Safari remains untested.
 
 The existing exporter uses docx 9.7.1 and `Packer.toBlob`. Inspection of that exact release confirms two embedding mechanisms: Document options accept `customProperties`, and Packer accepts additional package files through its overrides argument. The compiler emits `docProps/custom.xml` and already depends internally on JSZip. These are source-level findings, not an executed round-trip or Word/iPhone acceptance result.
 
@@ -139,4 +157,16 @@ Import-limit decision: the user approved measurement-based internal limits with 
 
 Each phase's file map and gates are in the architecture. Focused fixtures must establish: archive-scoped identity and migration recovery; added/removed/modified model candidates selected identically in Search/Combine; preferred-before-search indexing; exact-file editing and conflicts; dirty-editor preference changes; reference-preserving reload/Merge/Cancel; cross-format reference round trips with static old readable text; all presentation combinations without metadata loss; 90-day query-only expiry; source-specific playback and real iPhone save/share.
 
-Documentation preparation validation: source checks only; no application tests, browser/device acceptance, schema migration, archive writes or code changes performed for this package.
+Validation status: initial documentation preparation used source checks only; later isolated DOCX browser/Windows Word tests are recorded in the linked report. No production application edits, dependency installation, real-archive migration or iPhone acceptance has occurred. Next sequence work is the Phase 1 migration-readiness audit below, followed by the integrated copy-based migration tool after remaining contracts are approved.
+
+## 12. Phase 2 preparation — migration readiness audit
+
+Read-only repository audit finds `app.js:buildTranscript` writes readable headers and trims newly generated body text; `combine.js:parseTranscriptFile` also trims parsed bodies. Neither is a lossless migration rewrite. Migration must read the original text/bytes, locate a validated header boundary, preserve the body byte-for-byte and modify only metadata in the new copy. Unrecognized/ambiguous headers block affected files for review rather than rewriting them speculatively.
+
+`storage.js:listTextFiles` enumerates only top-level TXT entries, and `writeTextFile` creates/opens a filename and writes directly. Do not reuse these unchanged as a recursive migration inventory or no-overwrite writer. Migration needs source-relative inventory, destination overlap/alias checks, create-without-unrelated-overwrite behavior, per-file verification, and a progress record outside the source. File-input sessions cannot prove disk originals remain unchanged without reselection; explicitly reselect/revalidate or report that verification cannot be completed. Do not imply File objects are live filesystem handles.
+
+Proposed smallest initial desktop delivery: integrated inventory/preview, user-selected empty separate destination, durable operation plan with assigned IDs/source hashes, copy metadata updates, re-read/verify output bodies and manifest, completion marker only after all verification succeeds. Resume reuses the planned IDs and only verified outputs of the same operation; unrelated destination files are never overwritten or deleted. Read-only/iPhone delivery needs explicit packaging/save verification and must not claim unverified device filesystem completion.
+
+`database.js` remains the sole version-5 owner; preserve all four existing stores/key paths. Phase 2 can keep operation progress in the destination without migrating the production database merely to copy an archive. Final archive-registry/workspace stores belong to their later integration steps; do not create them prematurely for DOCX validation or migration preview.
+
+The repository contains no representative user transcript archive: the only TXT fixture found is `data/whisper-test/expected-transcription.txt`, which is expected speech text, not an archive-header fixture. Inventory the writer's supported headers with synthetic fixtures first; acceptance against a representative archive still requires explicit user-selected source access. No archive contents have been rewritten or migrated.
