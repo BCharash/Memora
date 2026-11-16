@@ -1,8 +1,8 @@
 # Memora — Phase 1 Contract Review Package
 
 **Date:** 16 November 2026
-**Status:** Architecture and listed decisions approved; remaining schema/framing contracts prepared for review. DOCX custom properties approved as the leading implementation candidate, subject to safeguards and device acceptance. Production implementation is not implied by isolated validation results.
-**Authority:** [Approved revised architecture](MEMORA_COMBINE_ARCHITECTURE.md). The eight-phase sequence is approved; application code remains unchanged until these contracts are approved.
+**Status:** Architecture and readable TXT decisions approved. The user completed all four migrations and changed the labels to Recording ID. Phase 2 is complete; the disposable tool/tests/reports were removed. Production code is unchanged. The [recording identity handoff](Recording_Identity_Handoff.md) governs the next iMuse export contract and Memora Phase 3 work. Later portability/dependency/device gates remain open.
+**Authority:** [Approved revised architecture](MEMORA_COMBINE_ARCHITECTURE.md). The eight-phase sequence, individual metadata contract and separate-destination migration implementation are authorized. Later integration and device acceptance remain phased.
 
 ## 1. Approval boundary
 
@@ -33,13 +33,17 @@ Provenance separates original archive identity/name/folder/relative path, origin
 
 ## 3. Transcript metadata encoding
 
-Proposal: preserve the current readable TXT header/body separator and add a versioned, explicitly labeled compact JSON metadata line in the header. Its exact marker is `Memora metadata v1: ` followed by a single-line JSON object. Newline/control characters inside JSON strings are escaped by the serializer. Retain familiar Recording date, Duration, Voice Memo ID, Whisper model, Operation and Audio Relative Path fields for readers.
+**Latest user-approved correction:** Individual TXT metadata is readable `Label: value`, not a JSON line. Use `Recording ID` universally, retaining Apple UUID values and accepting legacy `Voice Memo ID` labels on input. Add readable metadata version, archive UUID, audio-source ID and original audio-folder name; reuse first-line filename, model/operation and transcript-relative audio path without duplicates. Preserve nonredundant information and body bytes. The four archives were corrected externally after migration; the utility is now removed. The prior JSON proposal below is superseded for individual TXT output; JSON remains an internal/interchange concern.
+
+Approved: preserve the current readable TXT header/body separator and add one versioned, explicitly labeled compact JSON metadata line in the header. Its exact marker is `Memora metadata v1: ` followed by a single-line JSON object. Required fields are `schemaVersion`, `archiveUuid`, `recordingId`, `model`, `operation`, `audioSourceId`, `originalAudioFolderName`, `originalAudioFilename`, and `originalAudioRelativePath`. Unknown audio fields are explicit nulls. Archive folder and original audio folder are distinct; never infer one from the other. Newline/control characters inside JSON strings are escaped by the serializer. Retain familiar Recording date, Duration, Voice Memo ID, Whisper model, Operation and Audio Relative Path fields for readers. Legacy audio paths relative to transcript output are not automatically source-relative audio paths.
 
 Structured identity/model/operation and readable mirrors must agree. Mismatch is a validation error, not permission to silently override one representation. Editors preserve original non-body metadata and unknown fields while updating only body and revision information. Migration preserves body text exactly, including line breaks; it must not reuse current parsing that trims body text as its lossless rewrite mechanism.
 
+Required audio provenance fields are `audioSourceId`, `originalAudioFolderName`, `originalAudioFilename` and `originalAudioRelativePath`, alongside `archiveUuid`, `recordingId`, `model`, `operation` and `schemaVersion`. Unknown audio values are explicitly null. Original audio folder and transcript archive folder remain different fields. Preserve reliable existing values; do not reinterpret legacy transcript-output-relative `Audio Relative Path` as audio-source-relative provenance. The approved codec reads/updates only the header byte range, preserves unknown metadata, and refuses unsupported versions without modifying the body.
+
 Recording association during migration: use available recording/Voice Memo identifiers and corroborating metadata to propose groups within the selected archive. Filename-only evidence is insufficient to silently establish shared identity. Ambiguous groups require user confirmation. Never compare across archives. A copied manifest retaining its UUID denotes the same logical archive; making an independent archive copy requires an explicit assign-new-identity operation, not automatic folder-name detection.
 
-Open feasibility: robust handling of existing header variants and preservation of unknown header fields requires fixture inventory before migration implementation.
+Implemented version-1 migration preserves header/body bytes outside the added/replaced metadata line, preserves unknown structured fields, and rejects malformed/unsupported versions unchanged. Known current header variants have synthetic fixture coverage; representative archive/device acceptance is still pending. Adding a future schema requires an explicit parser/validator version rather than guessing or discarding metadata.
 
 ## 4. Preferred-transcript decision table
 
@@ -112,7 +116,7 @@ Add lightweight stores through `database.js` only: archive registry, Combine wor
 
 Approved migration: create a new migrated archive at a separate destination; leave originals completely untouched. Inventory and preview all changes, record source checksums and planned identities, resolve ambiguities, then verify sources still match the preview. Reject overlapping/aliased destinations and unrelated destination-file overwrites. Copy transcripts with updated metadata and write the manifest; verify every output and exact preservation of transcript body text. Record a durable operation ID, planned IDs, source checksums and per-file completion/verification state outside the original archive. Resume only after revalidating sources and existing outputs; otherwise stop for a fresh preview or restart into a new destination. Detect changes during copying and mark incomplete rather than claiming success. Completion requires all planned files and manifest verified. Never automatically delete/modify source files. In-place migration and its backup/rollback system are deferred. Destination packaging for read-only/iPhone access remains a feasibility task.
 
-Recommend integrated UI; do not alter startup behavior or unrelated Settings until approved. Read-only migration returns explicit migrated copies and never reports original-source updates.
+Migration is completed and retired: all four archives were migrated, the universal labels were corrected externally, and the utility/tests/transient reports have been removed. Do not build a production migration feature or require the user to repeat the migration. The historical validation/restart design does not change later production Combine merge/edit requirements.
 
 ## 9. History Settings proposal
 
@@ -157,15 +161,15 @@ Import-limit decision: the user approved measurement-based internal limits with 
 
 Each phase's file map and gates are in the architecture. Focused fixtures must establish: archive-scoped identity and migration recovery; added/removed/modified model candidates selected identically in Search/Combine; preferred-before-search indexing; exact-file editing and conflicts; dirty-editor preference changes; reference-preserving reload/Merge/Cancel; cross-format reference round trips with static old readable text; all presentation combinations without metadata loss; 90-day query-only expiry; source-specific playback and real iPhone save/share.
 
-Validation status: initial documentation preparation used source checks only; later isolated DOCX browser/Windows Word tests are recorded in the linked report. No production application edits, dependency installation, real-archive migration or iPhone acceptance has occurred. Next sequence work is the Phase 1 migration-readiness audit below, followed by the integrated copy-based migration tool after remaining contracts are approved.
+Validation status: isolated DOCX browser/Word evidence remains preserved. Historical migration tests and user-reported completion are recorded in the design journal; the disposable code and temporary migration reports were removed after all four migrations and external label corrections. No production change or iPhone feature acceptance is implied. Next steps are in the [handoff](Recording_Identity_Handoff.md).
 
-## 12. Phase 2 preparation — migration readiness audit
+## 12. Historical Phase 2 audit — completed tool removed
 
 Read-only repository audit finds `app.js:buildTranscript` writes readable headers and trims newly generated body text; `combine.js:parseTranscriptFile` also trims parsed bodies. Neither is a lossless migration rewrite. Migration must read the original text/bytes, locate a validated header boundary, preserve the body byte-for-byte and modify only metadata in the new copy. Unrecognized/ambiguous headers block affected files for review rather than rewriting them speculatively.
 
 `storage.js:listTextFiles` enumerates only top-level TXT entries, and `writeTextFile` creates/opens a filename and writes directly. Do not reuse these unchanged as a recursive migration inventory or no-overwrite writer. Migration needs source-relative inventory, destination overlap/alias checks, create-without-unrelated-overwrite behavior, per-file verification, and a progress record outside the source. File-input sessions cannot prove disk originals remain unchanged without reselection; explicitly reselect/revalidate or report that verification cannot be completed. Do not imply File objects are live filesystem handles.
 
-Proposed smallest initial desktop delivery: integrated inventory/preview, user-selected empty separate destination, durable operation plan with assigned IDs/source hashes, copy metadata updates, re-read/verify output bodies and manifest, completion marker only after all verification succeeds. Resume reuses the planned IDs and only verified outputs of the same operation; unrelated destination files are never overwritten or deleted. Read-only/iPhone delivery needs explicit packaging/save verification and must not claim unverified device filesystem completion.
+Initial desktop delivery: standalone disposable HTML inventory/preview, user-selected empty separate destination, durable operation plan with assigned IDs/source hashes, copy metadata updates, re-read/verify output bodies and manifest, completion marker only after all verification succeeds. Resume reuses the planned IDs and only verified outputs of the same operation; unrelated destination files are never overwritten or deleted. Read-only/iPhone delivery needs explicit packaging/save verification and must not claim unverified device filesystem completion.
 
 `database.js` remains the sole version-5 owner; preserve all four existing stores/key paths. Phase 2 can keep operation progress in the destination without migrating the production database merely to copy an archive. Final archive-registry/workspace stores belong to their later integration steps; do not create them prematurely for DOCX validation or migration preview.
 

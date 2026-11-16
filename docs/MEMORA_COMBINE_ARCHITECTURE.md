@@ -1,7 +1,7 @@
 # Memora — Archives, Dynamic Transcript Selection, Edit & Combine
 
 **Date:** 16 November 2026
-**Status:** Revised architecture and eight-phase sequence approved. Phase 1 contracts below remain proposed until reviewed and approved. Documentation preparation only; application implementation is not authorized yet.
+**Status:** All four existing archives are migrated and use the universal Recording ID label, according to the user. The disposable migration utility and its tests/reports have been removed. Production remains unchanged at 2026-11-13.10. Next: iMuse export-ID contract, followed by Memora Phase 3. See the [recording identity handoff](Recording_Identity_Handoff.md). Remaining architecture and acceptance gates still apply.
 **Scope:** Archive identity and migration, dynamic preferred transcripts, authoritative editing, persistent Combine, reference-based TXT/DOCX/HTML interchange, query-only Search History, and audio provenance/playback.
 
 This revision supersedes the previous snapshot/version-based architecture. The user's revised instructions and subsequent mandatory dynamic-selection clarification govern. Unchanged requirements are retained below. The detailed Phase 1 review package is [MEMORA_COMBINE_PHASE_1_CONTRACTS.md](MEMORA_COMBINE_PHASE_1_CONTRACTS.md).
@@ -22,7 +22,7 @@ This revision supersedes the previous snapshot/version-based architecture. The u
 - Search History stores queries/settings/archive references/timestamps only. Default retention is **90 days**, configurable in Settings, with clear-history controls. No transcript bodies or result snapshots.
 - On combined-document import into a nonempty workspace, ask **each time**, with **Merge preselected**. Replacement requires explicit choice and unsaved-edit protection.
 - Merge matches only archive UUID + recording ID + operation. Preserve existing entries, selection state, order, title and output settings. Append genuinely new entries in imported order. Never silently discard unsaved edits.
-- Application code remains unchanged until the updated contracts are approved. Each implementation phase needs reviewable changes and acceptance evidence.
+- The individual metadata contract and separate-destination migration have been approved for implementation. Each phase needs reviewable changes and acceptance evidence; approval of this migration does not declare later Search/Combine, DOCX or iPhone work complete.
 
 ## 2. Repository evidence and reuse
 
@@ -48,11 +48,13 @@ Reuse browser modules and the existing database owner. Do not invent another app
 
 ## 3. Identity and archive migration
 
+Latest approved TXT representation: use readable `Label: value` fields, adding metadata version, archive UUID, audio-source ID and original audio-folder name to the existing header. Reuse existing filename/model/operation/transcript-relative audio path and valid Voice Memo ID rather than serializing duplicates. Only missing or previously distinct recording identity needs another ID field. The former per-file JSON-line requirement is superseded; canonical internal objects and future portable-format payloads remain separate. Body bytes and original files are preserved.
+
 Store archive UUID in `memora-archive.json` (proposed filename) and each transcript's metadata. The manifest describes archive name, recording IDs and associated transcript files. Model-specific transcripts share a recording ID. Preserve model, operation, original text, unknown metadata and audio provenance.
 
 Migration creates a new migrated archive at a separate destination by default. Inventory and preview every proposed change, resolve ambiguous associations explicitly, and verify source files have not changed since preview before copying. Write migrated transcripts and the manifest to the new destination, verify all written files and unchanged transcript bodies, and record progress so interruption is detected and work can safely restart or complete. Never automatically modify or delete the source archive. Reject a destination that aliases or overlaps the source; do not overwrite unrelated destination files. Detect source changes during copying and withhold successful completion until validation passes. No in-place backup/rollback machinery is required for initial delivery; in-place migration is deferred pending separate justification and approval. Never delete lower-ranked transcripts or assign a permanent preferred transcript. Folder names cannot identify archives. Conflicting manifest/header identities block affected operations rather than silently winning by precedence.
 
-Recommend an **integrated Archive Migration & Validation tool** using existing permissions, storage and validation. Read-only/iPhone sources require an explicit migrated-copy export/save workflow; success must not imply originals were changed. Filesystem writes across an archive are not atomic. Phase 1 specifies recovery and acceptance before migration implementation.
+**Completed and retired:** The user's four existing Audio Folder/transcription/combine archives were migrated through the disposable tool to transcription2, then the labels were changed externally to Recording ID. The tool, its tests and transient reports have been removed because the user no longer needs them. Do not recreate it or add migration UI to production. Historical safeguards and implementation decisions below explain the completed work; future transcription/import integrity requirements remain applicable.
 
 New transcription writes must produce the same metadata and manifest contract as migration. Capture provenance at audio import/transcription, not only during Combine export. Existing IndexedDB data must remain intact; old filename keys cannot be assumed to represent globally unique recordings.
 
@@ -146,7 +148,7 @@ Phase 1 prepares contracts only until their approval. Subsequent phases require 
 | Phase | Work and principal affected files | Acceptance gate |
 |---|---|---|
 | 1. Contracts and feasibility | Architecture and Phase 1 contracts; inspect `combine.js`, `search.js`, `searchUI.js`, `combineUI.js`, `app.js`, `storage.js`, `database.js`, `docx.js`, `html.js`, Settings and tests. No application edits yet. | Identity, dynamic selection, editing, merge, payload, migration and feasibility decisions approved. |
-| 2. Archive migration tool | Integrated inventory/preview/copy verification/restart; likely `storage.js`, `app.js`, `index.html`, relevant CSS and focused migration responsibilities. Database changes only through its owner if required. | Ambiguities block writes; original text/models preserved; interrupted migration recoverable; read-only copy workflow honest. |
+| 2. Archive migration | Complete for all four user archives. Disposable code/tests/reports removed; no production integration or schema change. | User reports successful migration and universal-label correction; archive files remain outside this repository. |
 | 3. New transcription/storage integration | `app.js` header writer/import/save, `storage.js`, metadata handling and `database.js` as needed. | New and migrated transcripts satisfy the same contract; no preferred flag; existing IndexedDB preserved. |
 | 4. Shared authoritative editing | `searchUI.js`, `combineUI.js`, shared preference in `combine.js`, `search.js`, persistence adapters and `app.js`. | Search/Combine use identical preference before searching; exact-file saves, external-change and dirty-editor protections pass. |
 | 5. Combine workspace and imports | `combineUI.js`, `combine.js`, `app.js`, `storage.js`, `database.js`, structured import responsibilities and UI. | Persistent multi-archive workspace; Merge prompt/default; duplicate reference rules; unresolved references/drafts/settings preserved. |

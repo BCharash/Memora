@@ -1,5 +1,7 @@
 # Memora — current status and resume instructions
 
+**16 November 2026 checkpoint:** The user completed all four archive migrations and changed their TXT labels to Recording ID. The disposable migration tool, tests and reports have been removed. Production Memora remains unchanged at 2026-11-13.10; Phase 3 has not started. Next: settle ordinary-export recording-ID metadata in iMuse, then implement Apple/iMuse ID reading and readable universal headers in Memora. See [recording identity handoff](Recording_Identity_Handoff.md). Earlier Whisper acceptance below remains applicable.
+
 Updated **13 November 2026**, source build **2026-11-13.10**. The latest change adds per-self-test history/timing snapshots and problem reporting; the 2026-11-11.4 runtime/Settings acceptance boundaries still apply. Settings heading hierarchy, separate review/stability areas and reversible archiving are implemented; user Mac/iPhone acceptance is pending for .4. The user confirmed 24-hour transcription expiry in .1; .2 corrects historical pass duplicates and the empty-history separator. The prior stable checkpoint **2026-11-10.14** was confirmed on both devices. Resource profiling remains planned, not implemented.
 
 ## Self-test timeline/reporting — 2026-11-13.10

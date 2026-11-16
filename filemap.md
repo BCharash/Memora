@@ -1,6 +1,6 @@
 # Memora file map
 
-Reviewed against the checkout on 13 November 2026, source build **2026-11-13.10**. Self-test reporting checked with isolated synthetic browser fixtures; earlier runtime/Settings device acceptance remains pending.
+Updated 16 November 2026. Production remains **2026-11-13.10**; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
@@ -8,7 +8,9 @@ This guide explains which file to open and why it exists. Start with [current pr
 
 There are **44 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **23 JavaScript files under `tests/`**. Test files are separate from the normal application.
 
-**All 44 application files have a dependency path from the main page.** They support different features; they are not 44 separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+**All 44 application files have a dependency path from the main page.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+
+The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for the next iMuse export-ID and Memora transcription work.
 
 The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. There are also unused functions and overlapping selection/catalogue logic inside otherwise active files. See [cleanup findings](#cleanup-findings) before deleting anything.
 
