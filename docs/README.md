@@ -1,11 +1,12 @@
 # Memora documentation
 
-16 November 2026: all four user archives are migrated, their labels now use Recording ID, and the disposable tool has been removed. Production Memora remains unchanged. Next work belongs in iMuse; see the [recording identity handoff](Recording_Identity_Handoff.md) and [current status](CURRENT_STATUS.md).
+17 November 2026: all four user archives are migrated and the disposable tool is removed. iMuse UUID export is implemented/device-tested according to the user; Memora integration remains design-only. Start with the [recording identity implementation contract](Recording_Identity_Implementation_Contract.md), which consolidates the approved audio-source JSON schema, identity rules, prompts, persistence plan and tests. No application code is authorized yet. See the [handoff](Recording_Identity_Handoff.md) and [current status](CURRENT_STATUS.md).
 
 Reviewed 13 November 2026 through candidate build **2026-11-13.10** (self-test timeline/problem reporting). The earlier 2026-11-11.4 runtime/Settings acceptance remains pending as recorded in Current status. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
 
 | Document | Role |
 |---|---|
+| [Recording identity implementation contract](Recording_Identity_Implementation_Contract.md) | Latest approved source schema and identity decisions, explicit persistence/error flows, implementation map, acceptance tests and remaining technical checklist. |
 | [Recording identity and iMuse handoff](Recording_Identity_Handoff.md) | Completed migration checkpoint, readable universal metadata, Apple/iMuse compatibility findings and next steps. |
 | [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md) | Per-test sequence/timing snapshots, older-history reconstruction, separate problem notes and safe exports. |
 | [Current status and resume instructions](CURRENT_STATUS.md) | Current candidate, acceptance evidence, history checks and ordered future options. |

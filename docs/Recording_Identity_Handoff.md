@@ -1,5 +1,7 @@
 # Recording identity — checkpoint and iMuse handoff
 
+**Latest resume point — 17 November 2026:** Read [Recording Identity Implementation Contract](Recording_Identity_Implementation_Contract.md) first. It consolidates the subsequently approved source JSON schema, all-entry fingerprints, recovery reasons, safe writes, source-ID conflict handling and prompts. It supersedes earlier open questions below where those decisions have since been settled. Application code is still not authorized. The remaining technical checklist is in section 11 of that contract; do not restart the already approved decisions.
+
 16 November 2026. All four existing archives were successfully migrated according to the user. The user then renamed the migrated TXT header label from `Voice Memo ID` to `Recording ID` externally, preserving the values. The disposable migration utility, its tests, generated HTML and temporary migration validation reports have been removed at the user's request. No further migration tool is needed.
 
 Production Memora remains unchanged at build **2026-11-13.10**. It does not yet implement the full archive-ID, universal recording-ID and shared playback contracts. Do not mistake the completed external migration for production feature completion. The earlier integrated candidate 2026-11-16.1 was withdrawn; do not reuse that release ID.
