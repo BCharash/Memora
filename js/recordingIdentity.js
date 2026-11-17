@@ -47,10 +47,10 @@ export async function readEmbeddedRecordingIdentity(blob) {
     const evidence = [], issues = [];
     let container = null, provenance = null, elements = 0;
     const tick = () => requireValue(++elements <= MAX_ELEMENTS, 'element-limit', 'The container has too many metadata elements.', 'unsupported');
-    const addIssue = error => issues.push(error instanceof IdentityError
-        ? { status: error.status, code: error.code, message: error.message }
-        : { status: 'invalid', code: 'read-failed', message: 'Recording metadata could not be read.' });
-    const inspect = async work => { try { await work(); } catch (error) { if (!(error instanceof IdentityError)) throw error; addIssue(error); } };
+    const addIssue = (error, scope = 'identity') => issues.push(error instanceof IdentityError
+        ? { status: error.status, code: error.code, message: error.message, scope }
+        : { status: 'invalid', code: 'read-failed', message: 'Recording metadata could not be read.', scope });
+    const inspect = async (work, scope = 'identity') => { try { await work(); } catch (error) { if (!(error instanceof IdentityError)) throw error; addIssue(error, scope); } };
     let imuseCount = 0, appleCount = 0, provenanceCount = 0;
     function addImuse(data) {
         if (++imuseCount > 1) addIssue(new IdentityError('conflicting', 'duplicate-imuse', 'The audio contains duplicate iMuse recording identities.'));
@@ -118,18 +118,18 @@ export async function readEmbeddedRecordingIdentity(blob) {
     }
     async function mp4() {
         await boxes(0, blob.size, async box => {
-            if (box.type === 'moov') await inspect(() => appleTree(box.start, box.end));
+            if (box.type === 'moov') await inspect(() => appleTree(box.start, box.end), 'container');
             if (box.type !== 'uuid') return;
             requireValue(box.end - box.start >= 16, 'mp4-uuid', 'The MP4 UUID box is truncated.');
             const type = hex(await bytes(blob, box.start, box.start + 16));
             if (type === IMUSE_BOX) await inspect(async () => addImuse(await bounded(box.start + 16, box.end, MAX_IDENTITY)));
             if (type === COMBINE_BOX) await inspect(async () => {
-                if (++provenanceCount > 1) addIssue(new IdentityError('conflicting', 'duplicate-provenance', 'The audio contains duplicate combined-recording provenance.'));
+                if (++provenanceCount > 1) addIssue(new IdentityError('conflicting', 'duplicate-provenance', 'The audio contains duplicate combined-recording provenance.'), 'provenance');
                 const value = json(await bounded(box.start + 16, box.end, MAX_METADATA), MAX_METADATA);
                 provenance = value; // Retained separately even when its format is unsupported.
                 requireValue(value?.format === 'imuse-combined-recording' && value.version === 1, 'provenance-version', 'The combined-recording provenance format or version is unsupported.', 'unsupported');
                 requireValue(typeof value.id === 'string' && value.id.length > 0, 'provenance-id', 'The combined-recording output identity is missing.');
-            });
+            }, 'provenance');
         });
     }
     async function wav() {
@@ -268,12 +268,12 @@ export async function readEmbeddedRecordingIdentity(blob) {
         else if (ascii(head.slice(0, 4)) === 'OggS') { container = 'ogg'; await ogg(); }
         else if (ascii(head.slice(0, 4)) === 'RIFF' && ascii(head.slice(8, 12)) === 'WAVE') { container = 'wav'; await wav(); }
         else throw new IdentityError('unsupported', 'container', 'This audio container is not supported by the recording identity reader.');
-    } catch (error) { addIssue(error); }
+    } catch (error) { addIssue(error, 'container'); }
     const ids = new Set(evidence.map(item => item.recordingId.toLowerCase()));
     if (ids.size > 1) addIssue(new IdentityError('conflicting', 'embedded-disagreement', 'The embedded recording identities disagree.'));
     if (provenance?.format === 'imuse-combined-recording' && provenance.version === 1 && typeof provenance.id === 'string' &&
         evidence.some(item => !equalId(item.recordingId, provenance.id))) {
-        addIssue(new IdentityError('conflicting', 'provenance-disagreement', 'The Recording ID disagrees with the combined-recording output ID.'));
+        addIssue(new IdentityError('conflicting', 'provenance-disagreement', 'The Recording ID disagrees with the combined-recording output ID.'), 'provenance');
     }
     const status = ['conflicting', 'invalid', 'unsupported'].find(value => issues.some(issue => issue.status === value)) || (evidence.length ? 'valid' : 'absent');
     return { status, container, recordingId: status === 'valid' ? evidence[0].recordingId : null,

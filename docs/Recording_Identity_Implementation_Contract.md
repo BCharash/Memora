@@ -1,5 +1,7 @@
 # Recording identity implementation contract
 
+**Latest checkpoint — 17 November 2026: 2A complete.** The user manually passed and committed checkpoint 1, then authorized only 2A: in-memory audio-source JSON validation and identity resolution. Its 31 groups and the reader's 21 regression groups pass in Node and isolated Edge. See section 13 for exact APIs, implementation choices and resume boundary. No persistence or production integration is authorized by 2A; earlier authorization/status notes below are historical.
+
 **Latest checkpoint — 17 November 2026:** The user authorized step 1 only. Its isolated read-only Apple/iMuse reader and tests are complete, without production integration. See section 12 for the API, evidence and resume point. Earlier no-code statements describe the design checkpoint; no later implementation step or deployment is authorized.
 
 17 November 2026. **Design and implementation plan only. Application code is not authorized yet.** This document consolidates the user's approved identity decisions and makes technical recommendations explicit. Read it with [the handoff](Recording_Identity_Handoff.md), [approved architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md). For recording identity, the latest user decisions here supersede conflicting older proposals. They do not authorize unrelated architecture phases.
@@ -374,3 +376,122 @@ node tests/run-recording-identity.mjs --browser
 Production `metadata.js`, `app.js`, transcription, parsers/exporters, database, build ID and save flows are unchanged. The live app still reads Apple only and writes Voice Memo ID. This dormant module is not a user-visible fix yet. Build 2026-11-13.10 is retained because no changed production contents were published. The user's four archive manifests, audio and transcript files remain untouched.
 
 Next, if authorized, implement **checkpoint 2 only: source JSON validation/resolution/persistence** against the approved schema and prompts. First settle the bounded section 11 items needed for that checkpoint, including local recovery source matching, large-file fingerprinting, safe/interrupted writes, persistence limits and single-origin adaptation. Keep the reader isolated until checkpoint 3 deliberately connects production transcription and universal headers. Device acceptance and deployment remain later, separately authorized work. Do not restart migration or unrelated Search/Combine work.
+
+## 13. Stable checkpoint 2A — in-memory source schema and identity decisions
+
+17 November 2026. User reports **21/21 manual browser passes and committed checkpoint 1**, then explicitly authorized 2A only. Implemented `js/audioSourceIdentity.js` as an isolated pure module, not imported by production. It reads supplied JSON text/plain in-memory data, validates, resolves and stages complete candidate source lists. It never opens files, hashes audio, generates UUIDs, writes storage, calls a picker/share API, changes transcripts or renders dialogs. **Stop after this checkpoint; obtain the user's go-ahead before 2B.** These new changes are not committed/deployed by the agent.
+
+### Exported API
+
+| Function | Input and result |
+|---|---|
+| `parseAudioSourceManifest(text)` | JSON text already read by a future adapter. Checks encoded-byte size, syntax, duplicate JSON names and schema. Returns `{status, manifest, issues}`; `manifest` is a fully validated copy only for `valid`, otherwise null. |
+| `validateAudioSourceManifest(value)` | Plain JSON-compatible in-memory object. Descriptor-based copy rejects getters/custom prototypes/non-JSON values without running their code. Same result shape as parse. |
+| `serializeAudioSourceManifest(value)` | Validate, preserve unknown fields and return pretty JSON with terminal newline in `text`. Invalid input returns `text: null`; no file is written. Checks size of the actual serialized text too. |
+| `createAudioSourceManifest(audioSourceId)` | Validate an empty schema-1 source using a supplied UUID. Does not generate a source ID or establish folder ownership. |
+| `resolveAudioSourceId(options)` | Options: `audioSourceId` (existing or null), `establishedAudioSourceIds` (already validated associations), optional `selectedAudioSourceId`. Returns resolved ID/candidates, decision-required for conflict, assignment-required when none exists, or invalid input. Only a known candidate can be explicitly selected. |
+| `planRecordingIdentity(options)` | Options and result below. Returns decisions or a fully validated independent candidate; never mutates inputs. |
+| `AUDIO_SOURCE_LIMITS` | Frozen implementation bounds, listed below. Not an assertion of tested iPhone capacity. |
+
+Parse/validate statuses: `valid`, `invalid`, `unsupported`, `conflicting`. Unknown positive schema versions are unsupported; missing/noninteger/nonpositive versions are invalid. Duplicate paths/IDs are conflicting. Unknown accepted JSON fields are preserved at every level, including inert own keys such as `__proto__`; no unchecked prototype merge. Exceptions from invalid inputs are projected to an invalid result rather than becoming workflow/model exceptions.
+
+Planner inputs:
+
+```js
+planRecordingIdentity({
+    manifest,                    // fully validated again internally; never modified
+    audioRelativePath: 'memo.wav',
+    fingerprint: { algorithm: 'sha256', byteLength, digest },
+    embedded,                    // current checkpoint-1 reader result
+    choice: null,                // use-embedded | keep-existing | assign-new | skip | cancel
+    assignedRecordingId: null,   // caller-reserved UUID, only when assignment is needed
+    establishedAudioSourceIds: [],
+    selectedAudioSourceId: null  // explicit known source-conflict choice only
+})
+```
+
+Fingerprints must describe complete file bytes from the same snapshot as `embedded`. **2A validates supplied fingerprint data but does not compute or verify a hash against audio.** Actual snapshot/stream hashing is 2B work. Supplied source associations must have been established through provenance or access evidence, not folder-name matching; this module does not discover them.
+
+Every planner result includes:
+
+```js
+{
+    status, code,
+    recordingId: null,           // populated only for ready
+    candidate: null,             // complete independent manifest only for ready
+    requiresPersistence: false,  // true when ready differs from supplied manifest
+    choices: []                 // applicable explicit choice strings, when needed
+}
+```
+
+Possible statuses:
+
+- `ready`: an in-memory candidate is usable **after the later persistence gate**. It does not mean saved or verified. Read `requiresPersistence` to distinguish unchanged reuse from a staged update.
+- `decision-required`: return the relevant code/options; no candidate or usable Recording ID. Source conflicts also include `sourceResolution` with known candidates.
+- `assignment-required`: the decision is eligible for a fresh UUID, but the caller has not supplied a reserved one. No UUID is generated. The future adapter reserves it once for the pending operation and reuses it on retries.
+- `blocked`: validation, unsafe association, unresolved embedded/container/provenance conflict or an inapplicable choice. Some results include validation/issues for explanation.
+- `cancelled` / `skipped`: no candidate or ID and no mutation. Skip is only a decision result; batch control belongs to the future UI adapter.
+
+### Implemented decision mapping
+
+| Condition | Result / required caller behavior |
+|---|---|
+| Valid embedded ID, new entry | `ready / embedded-id`; preserve embedded value/case and origin. |
+| Valid embedded ID matches entry | Reuse embedded identity; update fingerprint if bytes changed without asking for a new UUID. |
+| Valid embedded ID differs | `decision-required / embedded-id-mismatch`, choices use-embedded/cancel. Confirmed use produces embedded-id-confirmed; assign-new/keep-existing cannot override a valid embedded ID. Historical transcripts/manifests are not touched. |
+| No embedded ID, unchanged source entry | `ready / reused`; no destination/model/operation input exists, so destination cannot influence identity. |
+| No embedded ID, no source entry | `assignment-required / new-assignment`; with a valid supplied UUID, stage `memora-assigned`. |
+| No embedded ID, changed bytes at existing path | `decision-required / audio-changed`, choices keep-existing/assign-new/cancel. Confirmed choices refresh the fingerprint. Size or same-size digest change both count. |
+| Invalid/unsupported embedded identity metadata | `decision-required / unreadable-embedded-id`, choices assign-new/skip/cancel; explicit assignment stages the appropriate recovery reason and current fingerprint. |
+| Existing recovery and unchanged bytes, still unreadable | Reuse the assignment without a repeat warning. Keep the originally consented recovery reason even if reader classification changes between invalid/unsupported for the same bytes. Current reader inspection is still mandatory. |
+| Recovery but changed bytes | Consent is required again for unreadable metadata; an old recovery cannot silently authorize a changed file. |
+| Later reader finds a valid ID | Normal embedded priority/confirmation; update origin and clear active recovery after confirmation where needed. Same UUID needs no new identity. |
+| Source IDs disagree | No candidate until a known association is selected explicitly. Selecting changes only the staged source ID; no external transcript rewrite. |
+| Valid-ID/combined conflict, file-read failure, unchecked/unsupported container | Block rather than misclassify as an absent or damaged embedded ID. These are not covered by generic recovery consent. |
+| Duplicate resulting UUID at another path | Block for explicit review, never deduplicate or silently assign a replacement. |
+
+Cancel/skip always return without modifying inputs. Stale or inapplicable actions do not rotate unchanged IDs; a new assignment must be a different UUID from the old one. Caller-reserved IDs are deterministic on retry. The eventual UI must bind confirmation to the exact source/observation shown: after an intervening file/list change, re-read and re-plan, and repeat confirmation if its evidence changed. The pure planner alone is not a concurrency protocol.
+
+### Concrete technical choices for 2A
+
+1. **Bounds:** 8 MiB UTF-8 source JSON, 10,000 recording entries, 4,096 path characters, 65,536 characters per other string/key, depth 16, 200,000 JSON value nodes. These are conservative implementation limits with synthetic boundary tests, not measured release/device capacity. File adapters must check Blob/File size before allocating text in 2B. Pretty output may be larger than compact input and is independently bounded.
+2. **Paths:** slash-separated relative paths; reject absolute/drive/backslash paths, control characters, empty/dot/dot-dot segments and trailing dot/space ambiguity. Detect collisions by NFC-normalized, case-insensitive key, but preserve original path text. A requested path that differs from a catalogued one only in case/Unicode spelling is blocked for explicit association; no rename tracking is inferred. This conservative cross-platform policy may reject distinct case-sensitive paths instead of guessing.
+3. **Duplicate UUIDs:** multiple paths with the same UUID, compared case-insensitively, yield an unresolved conflict. No multi-path aliases, copy matching or automatic reconciliation are implemented. A later deliberate alias feature would require its own policy.
+4. **Dual agreeing origins:** preserve an existing origin if it is one of the currently observed embedded origins. For a new dual-convention entry with the same UUID, choose imuse-embedded deterministically. This chooses a provenance label only, not priority between competing IDs; the reader retains both pieces of evidence and different values remain blocked.
+5. **Recovery extensions:** active `identityRecovery.reason` requires memora-assigned origin and one of the two approved reasons. When promotion clears the active reason, preserve unknown sibling fields in an extension-only `identityRecovery` object rather than discard them. It is inert history/extension data, never active recovery consent. Delete the object if nothing remains; an empty object is invalid input. No additional serialized field is introduced. This is the lossless interpretation of the requirement to remove active recovery while preserving unknown metadata.
+6. **Reader issue scopes:** the checkpoint-1 module now adds `scope: identity | container | provenance` to issues. This small additive refinement prevents malformed provenance JSON from masquerading as malformed recording-ID JSON. Unreadable-ID recovery requires explicitly identity-scoped, supported issue codes, no conflicting issue and no competing valid embedded evidence. Unscoped older-reader errors are blocked, not guessed. No production module imports this reader, so live behavior remains unchanged.
+7. **No incidental UUID generation or I/O:** source IDs and new Recording IDs are supplied by the future caller; source selection/listing or validation cannot mint IDs. Fingerprints are compared as size plus case-insensitive SHA-256 text. New staged digest text is lowercase; embedded UUID/source spelling is preserved.
+
+### Test evidence and manual checkpoint
+
+New harness: `tests/audio-source-identity.html`, with `audio-source-identity.test.js`. The existing Node/browser runner now accepts `--source` and retains its original reader-suite default.
+
+**31/31 new groups passed in Node v24.22.1 and isolated Windows Edge. The existing reader's 21/21 groups also passed in both runtimes after the scope refinement.** No real user data, source file writes, database changes, crypto generation, audio hashing or inference. Browser runner uses an isolated temporary profile and read-only fixtures. Tests include actual checkpoint-1 results from all six committed iMuse fixtures and malformed actual provenance-box JSON. Initial restricted Electron runtime emitted crash-reporting access noise; final full verification outside that subprocess restriction passed cleanly.
+
+Coverage: core/unsupported/invalid schemas; duplicate JSON names including escaped aliases; every origin/fingerprint/recovery combination; unknown JSON/prototype-safe round trips; getters/toJSON/non-JSON/cyclic/sparse input rejection; UUID case and non-v4 syntax; safe/colliding/unsafe paths; duplicate IDs; bounded data; source association/reuse/conflicts; unchanged/repeated IDs; caller-reserved fallback; embedded priority/cancel; all changed-byte choices; explicit invalid/unsupported recovery; unchanged recovery reuse; later reader promotion with unknown metadata preserved; cancel/skip; blocked provenance/container/read issues; stale/inconsistent choices; independent frozen input/output copies; current reader integration.
+
+Run manually through Live Server: **`tests/audio-source-identity.html` should show 31/31 groups passed.** Optional regression page: `tests/recording-identity.html` should still show 21/21. No transcription/model/device save testing is required for this isolated checkpoint.
+
+```text
+node tests/run-recording-identity.mjs --source
+node tests/run-recording-identity.mjs --source --browser
+node tests/run-recording-identity.mjs
+node tests/run-recording-identity.mjs --browser
+```
+
+Node was supplied locally by installed VS Code's Electron runtime with ELECTRON_RUN_AS_NODE=1; no package/dependency installation was needed. The test-only runner's temporary browser profile is the only browser-write artifact; it is unrelated to Memora identity persistence.
+
+### Exact stop/resume boundary
+
+Checkpoint 2A is ready for user review/manual harness and commit. No commit/deployment is performed by the agent. Production source selection, `metadata.js`, `app.js`, TXT labels, inference, save/share controls, archive manifests and database remain unchanged. Build remains 2026-11-13.10. **The live app still does not read iMuse UUIDs or write Recording ID.** No actual audio-source JSON was created or overwritten.
+
+Next, only if authorized, **2B** implements actual complete-file fingerprinting, source discovery/association, durable UUID reservation/recovery and safe persistence. Before production wiring it must settle:
+
+- Bounded hashing of large audio snapshots and cancellation, with matching reader/hash/transcription snapshots.
+- Check source-file size before text reads; integrate the 2A byte/entry limits and measure representative desktop/iPhone lists rather than assert capacity.
+- Reliable local recovery matching and additive database schema/cleanup/reporting. A folder name or matching digest alone is insufficient.
+- Re-read/compare, locking, interrupted write/replacement/readback, permission/quota errors and retry reuse of staged IDs. No external-filesystem atomicity claim.
+- Existing file-input/iPhone Save to Files ordering, cancellation and pending artifacts; no claim that completed sharing verifies a destination/save.
+- Concrete plain-language messages for source-ID association conflicts, blocked reader/provenance/container evidence, reload/write/local-storage failures. General unreadable-ID recovery must not bypass unresolved valid evidence.
+
+Keep both modules isolated until checkpoint 3 deliberately connects production transcription/universal headers. No migration tool, cross-folder deduplication/move tracking, unrelated Search/Combine work, archive rewrite or deployment.

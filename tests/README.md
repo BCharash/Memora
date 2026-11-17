@@ -14,6 +14,7 @@ Whisper harnesses use synthetic workers/pipelines/audio or cancelled/stubbed net
 
 | Page | Coverage |
 |---|---|
+| [audio-source-identity.html](audio-source-identity.html) | Checkpoint 2A: 31 in-memory source-list validation/resolution groups; unknown fields, fingerprints/recovery decisions, source conflicts and checkpoint-1 reader integration. No hashing, UUID generation, writes, database or production integration. Node 22+: `node tests/run-recording-identity.mjs --source`; add `--browser` for isolated Edge. See contract section 13. |
 | [recording-identity.html](recording-identity.html) | Checkpoint 1: isolated read-only Apple/iMuse identity reader; 21 groups across all supported containers, malformed/conflicting metadata, provenance and actual exporter fixtures. No production integration or writes. Node 22+: `node tests/run-recording-identity.mjs`; add `--browser` for isolated Edge. See contract section 12 for evidence/limits. |
 | [whisper-executions.html](whisper-executions.html) | Separate production journal, live ownership, page-navigation recovery, privacy projection, bounded retention and shared report controls. |
 | [whisper-production-reviews.html](whisper-production-reviews.html) | Production decisions, mandatory/manual recovery, deferred reviews/notes, stage-aware stability, ordering and persistence safety in memory. |

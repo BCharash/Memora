@@ -1,4 +1,5 @@
 // Node 22+ runner. No packages. Optional --browser uses an isolated Edge profile.
+// --source selects checkpoint 2A; default remains the checkpoint-1 reader suite.
 // --generate-fixtures reads the sibling iMuse exporter but never writes there.
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +9,7 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const suite = process.argv.includes('--source') ? 'audio-source-identity' : 'recording-identity';
 const fixturePath = join(root, 'tests', 'fixtures', 'imuse-recording-identity.json');
 if (process.argv.includes('--generate-fixtures')) {
     const source = await readFile(resolve(root, '../iMuse/js/recording-identity.js'), 'utf8');
@@ -43,7 +45,7 @@ if (!process.argv.includes('--browser')) {
         const data = await readFile(file);
         return { json: async () => JSON.parse(data.toString('utf8')), blob: async () => new Blob([data]) };
     };
-    await import('./recording-identity.test.js');
+    await import('./' + suite + '.test.js');
     console.log(results.textContent);
     if (globalThis.recordingIdentityTestResult?.failed.length) process.exitCode = 1;
 } else {
@@ -69,7 +71,7 @@ if (!process.argv.includes('--browser')) {
     try {
         const edge = process.env.MEMORA_TEST_BROWSER || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
         browser = spawn(edge, ['--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-            '--user-data-dir=' + profile, `http://127.0.0.1:${server.address().port}/tests/recording-identity.html?report=1`], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+            '--user-data-dir=' + profile, `http://127.0.0.1:${server.address().port}/tests/${suite}.html?report=1`], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
         let errors = '';
         browser.stderr.on('data', data => { errors = (errors + data).slice(-6000); });
         const stopped = new Promise((_, reject) => {
