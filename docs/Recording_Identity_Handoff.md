@@ -34,7 +34,7 @@ Read-only review of the local sibling iMuse checkout:
 
 No iMuse implementation change, production Memora change, commit or deployment is part of this checkpoint. Historical journal entries retain earlier migration experiments for context; they are not active instructions to recreate or ship the tool.
 
-## Resume checkpoint — 16 November 2026: source-owned recording identity
+## Earlier checkpoint — 16 November 2026: source-owned recording identity
 
 The user stopped after a read-only integration/design review. **No application code is authorized yet.** No application code, build, database schema, actual archive or audio was changed. Resume with the focused design below, asking only one question at a time when user input is needed.
 
@@ -80,3 +80,99 @@ Recommendation given, not yet a finalized schema: keep transcript paths in each 
 5. After authorization, implement focused Phase 3 recording identity integration, then validate on desktop and real iPhone. Later architecture phases remain separate.
 
 Planned tests: actual iMuse exporter/readback fixtures for all containers and both Ogg codecs; misleading extensions and renamed/repeated exports; Apple values and legacy/new TXT labels; malformed UTF-8/JSON, UUIDs, format/version, duplicates, limits and truncated containers; combined-provenance agreement; repeat/model/operation/different-destination fallback reuse; same-named distinct sources and changed files; source write failure/interruption/concurrency; iPhone persistence/export; unchanged transcript bodies, filenames, inference settings and existing IndexedDB. No automated/device Memora integration tests have run in this review.
+
+## Current resume checkpoint — 17 November 2026: agreed behavior and prompts
+
+**This section supersedes conflicting proposals and open questions in the earlier checkpoint. No application code is authorized yet.** This session settled behavior and prompt wording only. Production still does not read iMuse's embedded UUID and still writes Voice Memo ID; the user observed this, consistent with the inspected code. No application build/schema change, deployment or actual archive/audio modification is part of this documentation checkpoint. Ask only one question at a time if further user input is needed; do not ask again about settled decisions.
+
+### Agreed source manifest and identity rules
+
+1. Use **`memora-audio-source.json` in the selected audio folder**, separate from the existing transcript archive `memora-archive.json`. Maintain the source JSON even for audio with embedded UUIDs. Recording ID, Audio Source ID and Archive UUID remain distinct. The same audio transcribed into different archives retains its Recording ID; the archives retain their separate Archive UUIDs.
+2. A **valid, supported embedded Recording ID takes priority** over a disagreeing source JSON entry. Explain the mismatch and require confirmation before updating the source JSON. After confirmation, use the embedded ID for future transcriptions; leave existing transcripts unchanged. Do not silently rewrite historical transcript/archive references. Report duplicate/conflicting embedded identities rather than choosing one by precedence.
+3. For audio with no embedded ID and no established identity, automatically assign a cryptographic Memora UUID and persist the source association before the first transcript save in writable-folder workflows. Reuse it across model/operation variants and destinations. UUID syntax stays standard; distinguish origin in each source JSON recording entry using `identityOrigin`, with values `memora-assigned`, `imuse-embedded`, `apple-embedded`, or `unknown` when genuinely unestablished. **Do not add an identity-origin field to transcript headers.** Transcript headers use Recording ID universally; legacy Voice Memo ID remains accepted on input.
+4. The four migrated transcript archive manifests remain unchanged. The user clarified that **all archived/transcribed source audio was Apple Voice Memos and all migrated Recording IDs are Voice Memo IDs**; all iMuse use so far was disposable. Creating source lists for these archives should reuse readable Apple embedded IDs. Do not build historical recovery of Memora-assigned IDs from migrated transcripts for this dataset or recreate the migration tool.
+5. Automatically look for the source JSON where folder access permits. If access cannot establish whether it exists, distinguish selection/access failure from confirmed absence: offer selecting the existing JSON or explicitly creating a new list. An inaccessible/unselected list is not evidence that none exists.
+6. For audio without an embedded ID that changes at a catalogued relative path, explain that the audio differs and let the user keep the existing ID for an edited version or assign a new ID for a different recording. Existing transcripts remain unchanged. The exact bounded change-detection mechanism is still a technical design item; path alone is insufficient evidence.
+7. Invalid or unsupported embedded metadata must be reported distinctly, but **must not permanently prevent essential audio from being transcribed**. Offer an explicit new Memora ID, skip, or cancel. Save the recovery decision with the source entry so subsequent access reuses it without repeating the same warning for unchanged metadata. This does not repair/rewrite the embedded data or invent an embedded identity. Do not prompt users to update Memora: no available update is established. If a later reader can interpret a valid embedded UUID, apply the ordinary mismatch/confirmation process, replacing the JSON identity only after confirmation and leaving existing transcripts unchanged.
+8. Reuse the **existing Memora iPhone save/share flow**; do not redesign it. There is no reliable verification that Save to Files wrote the JSON to the intended folder. Do not claim verified source persistence after a completed share request. Later selection/readback can establish presence. The writable-folder ordering rule cannot be presented as a verified filesystem guarantee on iPhone.
+9. Keep a browser-local recovery copy of source identity data separate from the 24-hour transcript cache, with no automatic expiry and explicit removal supported. Clearing/eviction may remove it. **Do not mention local retention in the ordinary save message.** If a source JSON is missing and a reliably matching local copy exists, offer restoration; folder name alone cannot establish a match. If none is available, offer a new JSON. Exact reliable source matching remains to be designed without speculative move/copy protection.
+10. **No special protection/reconciliation for deleted manifests or audio moved/copied without its manifest.** The user considers this unusual and accepts responsibility for managing those files. Such audio without embedded identity may receive a new UUID. Do not build cross-folder deduplication, tracking or a warning about possibly different historical IDs into the normal create-list prompt. This exclusion does not remove the agreed changed-file-at-a-catalogued-path check.
+
+Keeping transcript paths in their respective transcript manifests was recommended, rather than recording all destinations in the audio-source manifest. The exact source JSON schema and whether any transcript links belong there have not received a separate final schema review. Preserve the four existing manifests regardless.
+
+### Approved prompt wording
+
+Use plain language, name the affected audio file, explain what was found and what each action changes. Cancellation leaves files unchanged. Use the actual reason for invalid versus unsupported metadata rather than an ambiguous combined diagnosis. Render filenames safely. These are recording identity prompts, not Whisper/model failures.
+
+**Cannot determine whether a source list exists** (only when access cannot establish presence):
+
+> **Does this audio folder already have a Memora recording list?**
+>
+> If you previously saved `memora-audio-source.json` for this folder, select it so Memora can reuse its recording IDs. If this is the first time, create a new list.
+>
+> **Select existing JSON** · **Create new list** · **Cancel**
+
+**Changed audio at an existing path**, without an embedded ID:
+
+> **This audio file has changed**
+>
+> “memo.wav” differs from the file previously recorded in Memora’s recording list.
+>
+> If it is an edited version of the same recording, keep its Recording ID. If it is a different recording, assign a new ID. Existing transcripts will remain unchanged.
+>
+> **Keep existing ID** · **Assign new ID** · **Cancel**
+
+**Valid embedded ID disagrees with source JSON:**
+
+> **The recording IDs do not match**
+>
+> “memo.m4a” contains a different Recording ID from the one in Memora’s recording list.
+>
+> The valid ID embedded in the audio takes priority. Updating the list will use that ID for future transcriptions. Existing transcripts will remain unchanged.
+>
+> **Update recording list** · **Cancel**
+
+**Unreadable embedded identity, with recovery:**
+
+> **Memora cannot use this recording’s ID**
+>
+> The ID information in “memo.m4a” is damaged or uses an unsupported format.
+>
+> You can assign a new Memora Recording ID and continue. It will be saved in the recording list for reuse. The audio file and existing transcripts will remain unchanged.
+>
+> **Assign new Memora ID** · **Skip recording** · **Cancel**
+
+In the actual message, replace “is damaged or uses an unsupported format” with the identified reason. The earlier prompt that blocked all transcript saves until external repair is superseded. Successful persistence must still be described honestly for the applicable desktop/iPhone path.
+
+**iPhone JSON save guidance:**
+
+> **Save this folder’s recording list**
+>
+> Save `memora-audio-source.json` in the audio folder so Memora can reuse its Recording IDs.
+
+This concise guidance records the agreed removal of the local-retention sentence from the proposed save wording; its final UI placement/action label remains implementation design. Use the existing share/save transport and do not claim verified save.
+
+**Missing source JSON with a reliably matching recovery copy:**
+
+> **Restore this folder’s recording list?**
+>
+> Memora has a saved copy of the recording list for this audio folder. Restore it to reuse its Recording IDs.
+>
+> **Restore recording list** · **Cancel**
+
+**No source JSON or recoverable copy:**
+
+> **Create a recording list**
+>
+> Memora will reuse readable IDs embedded in your audio and assign new IDs to recordings without one. Your audio and existing transcripts will remain unchanged.
+>
+> **Create recording list** · **Cancel**
+
+### Next steps on resume — design first, no code yet
+
+1. Consolidate the minimal source JSON schema and lifecycle for review: schema version, Audio Source ID, recording-relative path, Recording ID, origin, bounded change evidence and explicit unreadable-metadata recovery state. Specify validation/preservation of unknown fields, source-ID reuse, safe interrupted/concurrent writes, and reliable local recovery matching. Preserve standard UUIDs and original Apple values. Do not reopen approved behavior or add move/copy tracking.
+2. Map that design to existing desktop folder and iPhone selection/save flows. Specify persistence failure messages, cancellation and recovery without claiming share completion proves a saved file. Do not introduce another save mechanism or change established transcript filenames/text/inference behavior.
+3. Present the smallest application change scope and acceptance tests. Cover actual iMuse exporter fixtures across all supported containers, Apple IDs, legacy/new header labels, embedded/source mismatches and confirmation/cancel, unchanged historical transcripts, invalid/unsupported recovery and later readable embedded IDs, repeat/model/operation/destination reuse, changed-path choices, source JSON presence/access distinctions, local restoration and iPhone save limitations. Include malformed/duplicate/oversized/truncated metadata and separate combined provenance. No special deleted/moved/copied-file protection tests are required.
+4. Obtain implementation authorization before editing application code. Then implement only focused Phase 3 identity work, with appropriate automated and desktop/real-iPhone acceptance. No disposable migration utility, unrelated Search/Combine work, build change for documentation alone, or deployment is authorized by this checkpoint.
+
+No application integration tests were run during this design/documentation session.
