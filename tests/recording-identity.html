@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Recording identity reader checkpoint</title>
+<h1>Recording identity reader checkpoint</h1>
+<p>Read-only container fixtures. No model loading, writes, database access or production integration.</p>
+<pre id="results">Running…</pre>
+<script>
+if (location.search.includes('report=1')) {
+    const report = error => fetch('/_identity-test-result', { method: 'POST', body: JSON.stringify({ error: String(error) }) });
+    addEventListener('error', event => report(event.message));
+    addEventListener('unhandledrejection', event => report(event.reason));
+}
+</script>
+<script type="module" src="./recording-identity.test.js"></script>
+</html>

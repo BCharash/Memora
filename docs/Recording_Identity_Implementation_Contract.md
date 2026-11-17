@@ -1,5 +1,7 @@
 # Recording identity implementation contract
 
+**Latest checkpoint — 17 November 2026:** The user authorized step 1 only. Its isolated read-only Apple/iMuse reader and tests are complete, without production integration. See section 12 for the API, evidence and resume point. Earlier no-code statements describe the design checkpoint; no later implementation step or deployment is authorized.
+
 17 November 2026. **Design and implementation plan only. Application code is not authorized yet.** This document consolidates the user's approved identity decisions and makes technical recommendations explicit. Read it with [the handoff](Recording_Identity_Handoff.md), [approved architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md). For recording identity, the latest user decisions here supersede conflicting older proposals. They do not authorize unrelated architecture phases.
 
 ## 1. Outcome and current implementation
@@ -318,3 +320,57 @@ Before coding, close only the remaining concrete technical items:
 5. Review the concrete affected files and acceptance scope with the user, one question at a time if a user decision is required. **Wait for explicit application implementation authorization.**
 
 No application code, build, database, audio or actual archive was changed by creating this document. No implementation tests were run. The next deliverable is the remaining technical design/implementation review, not a migration utility or deployment.
+
+## 12. Stable checkpoint 1 — isolated embedded identity reader
+
+17 November 2026. The user explicitly authorized only step 1 of the staged plan: reader, source JSON, transcription integration, then device acceptance. Step 1 is complete as an isolated module. **Stop here; step 2 requires the user's go-ahead.** No commit or deployment was performed. The source working tree contains this checkpoint; it is not a published release.
+
+### Files and API
+
+- `js/recordingIdentity.js`: exports `readEmbeddedRecordingIdentity(blob)`. Not imported by any production entry point. It has no audio decoding, UUID generation, writes, storage or UI dependencies.
+- `tests/recording-identity.html` and `.test.js`: focused browser harness; synthetic fixture helpers in `recording-identity-fixtures.js`.
+- `tests/fixtures/imuse-recording-identity.json`: six committed byte fixtures produced by the actual sibling iMuse exporter, with exporter/provenance-codec SHA-256 source fingerprints. Five container/codec variants plus M4A containing actual iMuse provenance. Runtime tests need no sibling checkout.
+- `tests/run-recording-identity.mjs`: dependency-free Node 22+ test runner; `--browser` uses isolated Edge and localhost; `--generate-fixtures` reads the sibling exporter and regenerates only the test fixture JSON.
+
+Result shape:
+
+```js
+{
+  status: 'valid' | 'absent' | 'invalid' | 'unsupported' | 'conflicting',
+  container: 'mp4' | 'webm' | 'ogg' | 'wav' | null,
+  recordingId: 'source UUID' | null,
+  identityOrigins: ['apple-embedded', 'imuse-embedded'],
+  evidence: [{ recordingId: 'source UUID', origin: 'imuse-embedded' }],
+  issues: [{ status: 'invalid', code: 'invalid-uuid', message: '…' }],
+  combinedProvenance: null // or unchanged parsed provenance, separate from identity
+}
+```
+
+The displayed origins array illustrates possible values, not mandatory presence of both. Resolved `recordingId` is non-null only for `valid`; error evidence must never be used as automatic fallback. Issues retain distinct causes. Overall precedence is conflicting, then invalid, then unsupported; otherwise evidence yields valid and no evidence yields absent. Read failures produce an invalid result, not a thrown workflow/model error. No IDs are invented.
+
+Apple parsing is structural: `moov`/`udta`/`meta`/`ilst` freeform `----` items with `name = voice-memo-uuid`, supported UTF-8 data and the expected iTunes namespace where provided. It preserves original case, compares UUID values case-insensitively, detects duplicates and avoids nearby UUID guesses or scanning `mdat`. This convention passed the actual bundled Apple Voice Memo. Other undocumented Apple storage conventions are not claimed supported; wider device/archive samples remain an integration gate.
+
+iMuse readers use signature detection, 4 KiB identity bounds, structural lengths, UTF-8/JSON/version/UUID validation and duplicate detection. MP4 supports ordinary/extended/open-ended boxes. WebM supports known/unknown Segment and Cluster sizes, requires WebM DocType and rejects unsupported segment CRC processing. Ogg supports Opus/Vorbis comments including multi-page packets and verifies the complete page chain/checksums; chained/multiplexed streams are conservatively rejected. A structurally incomplete stream never resolves a valid ID merely because earlier tags were readable. WAV respects RIFF length and padding. The metadata/comment bound is 1 MiB, nesting bound 8 and structural element bound 1,000,000; these are reader implementation limits, not source-JSON limits.
+
+Agreeing dual Apple/iMuse IDs preserve both origins; disagreeing IDs resolve to conflict. Choosing a single origin for the future JSON remains a later adapter decision. Combined provenance is bounded, parsed and retained independently; supported envelope/output ID and agreement are checked. This is not a full semantic validator of combined timelines, sources or sample counts. Combined provenance alone never supplies a Recording ID.
+
+### Validation evidence
+
+**21/21 focused groups passed in Node v24.22.1 and isolated Windows Edge.** Node was provided by installed VS Code's Electron runtime (`ELECTRON_RUN_AS_NODE=1`), with native Blob/TextDecoder/File APIs. Browser execution used a temporary profile, a localhost read-only fixture server, and an explicit asynchronous completion report. Initial restricted-process Edge startup failed before tests; the final isolated run outside that subprocess restriction passed. No real user profile/database or actual archive was tested or modified. No iPhone acceptance is claimed.
+
+Coverage includes all supported containers/both Ogg codecs; misleading names/MIME; missing/unsupported identity; exact Apple case; non-metadata UUID traps; agreeing/conflicting dual origins; identical duplicate entries; malformed UTF-8/JSON/UUID; unsupported versions; zero/4 KiB/oversized payloads; later valid metadata not hiding an earlier error; Apple field ambiguity; MP4 length variants; separate provenance/mismatch; WebM unknown sizes/duplicate tag values/DocType; WAV padding/truncation; large Ogg comments/lowercase keys/checksum/truncation/unfinished chains; deterministic non-mutating reads; bounded file reads and I/O failure; actual iMuse export fixtures; bundled real Apple metadata. Fixture generation also verified repeated export idempotence and iMuse provenance readback.
+
+Run with Node 22+:
+
+```text
+node tests/run-recording-identity.mjs
+node tests/run-recording-identity.mjs --browser
+```
+
+`--browser` defaults to installed Windows Edge; override `MEMORA_TEST_BROWSER` for another Chromium binary. Or open `tests/recording-identity.html` through existing Live Server. Do not interpret synthetic container tests as audio playback or transcription acceptance. Regenerate fixtures only intentionally, using the sibling iMuse checkout and `--generate-fixtures`; the ordinary test suite is self-contained.
+
+### Unchanged production behavior and next checkpoint
+
+Production `metadata.js`, `app.js`, transcription, parsers/exporters, database, build ID and save flows are unchanged. The live app still reads Apple only and writes Voice Memo ID. This dormant module is not a user-visible fix yet. Build 2026-11-13.10 is retained because no changed production contents were published. The user's four archive manifests, audio and transcript files remain untouched.
+
+Next, if authorized, implement **checkpoint 2 only: source JSON validation/resolution/persistence** against the approved schema and prompts. First settle the bounded section 11 items needed for that checkpoint, including local recovery source matching, large-file fingerprinting, safe/interrupted writes, persistence limits and single-origin adaptation. Keep the reader isolated until checkpoint 3 deliberately connects production transcription and universal headers. Device acceptance and deployment remain later, separately authorized work. Do not restart migration or unrelated Search/Combine work.

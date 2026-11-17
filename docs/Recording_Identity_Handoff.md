@@ -1,5 +1,7 @@
 # Recording identity — checkpoint and iMuse handoff
 
+**Checkpoint 1 complete — 17 November 2026:** Isolated Apple/iMuse reader and tests added after explicit step-1 authorization; 21/21 groups passed in Node and isolated Edge. Production behavior remains unchanged (Apple-only reader and Voice Memo ID writer). Start at [implementation contract section 12](Recording_Identity_Implementation_Contract.md#12-stable-checkpoint-1--isolated-embedded-identity-reader). Step 2 (source JSON) is not authorized yet. Older no-code statements below describe the prior design stage.
+
 **Latest resume point — 17 November 2026:** Read [Recording Identity Implementation Contract](Recording_Identity_Implementation_Contract.md) first. It consolidates the subsequently approved source JSON schema, all-entry fingerprints, recovery reasons, safe writes, source-ID conflict handling and prompts. It supersedes earlier open questions below where those decisions have since been settled. Application code is still not authorized. The remaining technical checklist is in section 11 of that contract; do not restart the already approved decisions.
 
 16 November 2026. All four existing archives were successfully migrated according to the user. The user then renamed the migrated TXT header label from `Voice Memo ID` to `Recording ID` externally, preserving the values. The disposable migration utility, its tests, generated HTML and temporary migration validation reports have been removed at the user's request. No further migration tool is needed.

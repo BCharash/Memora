@@ -1,5 +1,7 @@
 # Memora documentation
 
+**Recording identity checkpoint 1 — 17 November 2026:** Isolated Apple/iMuse reader complete; 21/21 groups passed in Node and isolated Edge. Production integration remains pending. Resume at [contract section 12](Recording_Identity_Implementation_Contract.md#12-stable-checkpoint-1--isolated-embedded-identity-reader); step 2 is not yet authorized. Earlier design-only notes below predate this bounded implementation.
+
 17 November 2026: all four user archives are migrated and the disposable tool is removed. iMuse UUID export is implemented/device-tested according to the user; Memora integration remains design-only. Start with the [recording identity implementation contract](Recording_Identity_Implementation_Contract.md), which consolidates the approved audio-source JSON schema, identity rules, prompts, persistence plan and tests. No application code is authorized yet. See the [handoff](Recording_Identity_Handoff.md) and [current status](CURRENT_STATUS.md).
 
 Reviewed 13 November 2026 through candidate build **2026-11-13.10** (self-test timeline/problem reporting). The earlier 2026-11-11.4 runtime/Settings acceptance remains pending as recorded in Current status. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
