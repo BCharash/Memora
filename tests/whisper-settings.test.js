@@ -47,6 +47,51 @@ try {
     assert(historyToggle.textContent === "Hide", "View opens history with matching button");
     historyToggle.click(); assert(history.hidden && historyToggle.textContent === "View", "Hide closes history");
     lines.push("PASS history View/Hide controls");
+    const summaryToggle = document.querySelector('[data-settings-action="toggle-self-test-summary"]');
+    const summarySection = document.getElementById("settingsWhisperSummarySection");
+    assert(summarySection.hidden && summarySection.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING, "summary collapsed before history");
+    summaryToggle.click();
+    await waitFor(() => summarySection.textContent.includes("No passed self-tests"));
+    assert(summaryToggle.textContent === "Hide" && summaryToggle.getAttribute("aria-expanded") === "true", "summary disclosure accessible");
+    const summaryKeys = ["summary-old", "summary-new", "summary-missing"].map(id => "memora.whisper-attempt.v1." + id);
+    try {
+        for (const [index, key] of summaryKeys.entries()) {
+            const record = { schemaVersion: 1, id: key.split(".").pop(), startedAt: `2026-01-0${index + 1}T12:00:00Z`, finishedAt: `2026-01-0${index + 1}T12:00:10Z`, status: "passed",
+                configuration: { id: index === 2 ? "summary-missing" : "summary-model", label: index === 2 ? "Missing metrics" : "Summary model" },
+                environment: { operatingSystem: "macos" }, result: { results: [index === 2 ? {} : { loadMs: 1250, transcriptionMs: 2500, audioDurationMs: 10000 }] } };
+            localStorage.setItem(key, JSON.stringify(record));
+        }
+        summaryToggle.click(); summaryToggle.click();
+        await waitFor(() => summarySection.querySelectorAll("tbody tr").length === 2);
+        const content = summarySection.textContent;
+        assert(content.includes("0.250") && content.includes("1.25"), "RTF and seconds calculated independently");
+        assert(content.includes("Unavailable"), "missing metrics truthful");
+        assert([...summarySection.querySelectorAll("th")].map(th => th.textContent).join("|") === "Model|RTF|Load (s)", "only three compact columns");
+        assert(!content.includes("Memory") && !content.includes("Historical pass"), "removed RAM and status");
+        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Passed · macOS · Summary model"), "platform beside each history status");
+        const frame = document.createElement("iframe");
+        frame.style.cssText = "width:320px;height:300px;border:0";
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.srcdoc = `<link rel="stylesheet" href="${new URL("../css/style.css", location.href)}"><style>body{display:block;margin:0;padding:0;min-width:0}#settingsWhisperSummary{width:280px}</style>${document.getElementById("settingsWhisperSummary").outerHTML}`;
+        document.body.append(frame);
+        await loaded;
+        try {
+            const compact = frame.contentDocument.getElementById("settingsWhisperSummary");
+            for (const width of [240, 280, 350]) {
+                compact.style.width = `${width}px`;
+                const table = compact.querySelector("table");
+                assert(table.getBoundingClientRect().width <= width + 1 && table.scrollWidth <= width + 1, `summary fits ${width}px content width`);
+            }
+        } finally { frame.remove(); }
+        lines.push("PASS summary table fits 240, 280 and 350px content widths without sideways scrolling");
+        lines.push("PASS summary latest-pass grouping, RTF, load seconds, unavailable metrics, compact columns and history platform");
+    } finally { summaryKeys.forEach(key => localStorage.removeItem(key)); }
+    summaryToggle.click(); summaryToggle.click();
+    await waitFor(() => summarySection.textContent.includes("No passed self-tests"));
+    summaryToggle.click();
+    assert(summarySection.hidden && summaryToggle.textContent === "View", "summary hides independently");
+    lines.push("PASS summary empty state, clearing refresh and independent View/Hide");
+
     assert([...document.querySelectorAll("h3.settings-major-heading")].map(node => node.textContent).join("|") === "Whisper Self-Test|History and Reviews", "major section headings");
     const stabilityToggle = document.querySelector('[data-settings-action="toggle-stability-observations"]');
     const stabilitySection = document.getElementById("settingsWhisperStabilitySection");

@@ -76,7 +76,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     }
 
     function button(label, action, disabled = false) {
-        const historyId = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
+        const historyId = { "toggle-self-test-summary": "settingsWhisperSummarySection", "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
         return `<button type="button" data-settings-action="${action}" ${historyId ? `aria-expanded="false" aria-controls="${historyId}"` : ""} ${disabled ? "disabled" : ""}>${label}</button>`;
     }
 
@@ -213,6 +213,14 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                     <h3 class="settings-major-heading">History and Reviews</h3>
                 </div>
                 <div class="settings-disclosure">
+                    <span class="settings-disclosure-title">Self-test Summary</span>
+                    ${button("View", "toggle-self-test-summary")}
+                </div>
+                <div id="settingsWhisperSummarySection" class="settings-detail" hidden>
+                    <div id="settingsWhisperSummary" class="settings-note"></div>
+                </div>
+                <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;" aria-hidden="true"></div>
+                <div class="settings-disclosure">
                     <span class="settings-disclosure-title">Self-test history</span>
                     ${button("View", "toggle-self-test-history")}
                 </div>
@@ -270,11 +278,11 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const section = document.getElementById(id);
         if (!section) return;
         section.hidden = !open;
-        const action = { settingsWhisperHistorySection: "toggle-self-test-history", settingsWhisperExecutionHistorySection: "toggle-execution-history", settingsWhisperEligibilityReviewsSection: "toggle-model-reviews", settingsWhisperStabilitySection: "toggle-stability-observations" }[id];
+        const action = { settingsWhisperSummarySection: "toggle-self-test-summary", settingsWhisperHistorySection: "toggle-self-test-history", settingsWhisperExecutionHistorySection: "toggle-execution-history", settingsWhisperEligibilityReviewsSection: "toggle-model-reviews", settingsWhisperStabilitySection: "toggle-stability-observations" }[id];
         const toggle = storage.querySelector(`[data-settings-action="${action}"]`);
         if (toggle) { toggle.textContent = open ? "Hide" : "View"; toggle.setAttribute("aria-expanded", String(open)); toggle.setAttribute("aria-controls", id); }
         if (!open) return;
-        if (id === "settingsWhisperHistorySection") await renderWhisperAttempts();
+        if (["settingsWhisperHistorySection", "settingsWhisperSummarySection"].includes(id)) await renderWhisperAttempts();
         if (id === "settingsWhisperExecutionHistorySection") await renderWhisperExecutionHistory(document.getElementById("settingsWhisperExecutionHistory"));
         if (id === "settingsWhisperEligibilityReviewsSection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"), { kind: "incident" });
         if (id === "settingsWhisperStabilitySection") await renderWhisperEligibilityReviews(document.getElementById("settingsWhisperStabilityObservations"), { kind: "stability" });
@@ -418,12 +426,55 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         } catch (error) { target.textContent = selfTestController ? activeSelfTestStatus : `Eligibility unavailable: ${error.message}`; }
     }
 
+    function renderWhisperSummary(records) {
+        const target = document.getElementById("settingsWhisperSummary");
+        if (!target) return;
+        const passes = visibleWhisperAttempts(records).filter(record => record.status === "passed");
+        if (!passes.length) {
+            target.textContent = "No passed self-tests in saved history. Run a self-test above to add a result.";
+            return;
+        }
+        const rows = passes.map(record => {
+            const configuration = record.configuration || {};
+            const id = configuration.id || record.eligibilityContext?.configurationId;
+            const result = record.result?.results?.[0] || record.observation || {};
+            const rtf = Number.isFinite(result.transcriptionMs) && result.transcriptionMs >= 0 &&
+                Number.isFinite(result.audioDurationMs) && result.audioDurationMs > 0
+                ? (result.transcriptionMs / result.audioDurationMs).toFixed(3) : "Unavailable";
+            const load = Number.isFinite(result.loadMs) && result.loadMs >= 0
+                ? (result.loadMs / 1000).toFixed(2) : "Unavailable";
+            return [configuration.label ? formatSelfTestOption(configuration) : id || "Unknown model", rtf, load];
+        });
+        // Use text nodes for all persisted labels and reuse the existing phone table containment.
+        const scroll = document.createElement("div");
+        scroll.className = "whisper-test-timeline-scroll";
+        scroll.tabIndex = 0; scroll.setAttribute("role", "region"); scroll.setAttribute("aria-label", "Passed self-test summary");
+        const table = document.createElement("table");
+        const caption = document.createElement("caption"); caption.textContent = "Latest saved passes"; table.append(caption);
+        const head = document.createElement("thead"), header = document.createElement("tr");
+        for (const label of ["Model", "RTF", "Load (s)"]) {
+            const th = document.createElement("th"); th.scope = "col"; th.textContent = label; header.append(th);
+        }
+        head.append(header); table.append(head);
+        const body = document.createElement("tbody");
+        for (const values of rows) {
+            const tr = document.createElement("tr");
+            for (const value of values) { const td = document.createElement("td"); td.textContent = value; tr.append(td); }
+            body.append(tr);
+        }
+        table.append(body); scroll.append(table);
+        const note = document.createElement("p");
+        note.textContent = "RTF = transcription time ÷ audio duration; lower is faster. 0.25 means 15 seconds per minute of audio, excluding loading. Short reference-test results; longer recordings may differ.";
+        if (document.getElementById("settingsWhisperSummary") === target) target.replaceChildren(scroll, note);
+    }
+
     async function renderWhisperAttempts() {
         const target = document.getElementById("settingsWhisperAttemptHistory");
         if (!target) return;
         try {
             const bridge = createWhisperEvidenceBridge();
             const records = await bridge.sync();
+            renderWhisperSummary(records);
             const drafts = new Map([...target.querySelectorAll('[data-self-test-observation]')].map(input=>[input.dataset.selfTestObservation,input.value]));
             await renderWhisperEligibility();
             if (document.getElementById("settingsWhisperEligibilityReviewsSection")?.hidden === false) void renderWhisperEligibilityReviews(document.getElementById("settingsWhisperEligibilityReviews"), { kind: "incident" });
@@ -447,7 +498,10 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 const date = new Date(record.startedAt);
                 const localDate = Number.isNaN(date.getTime()) ? record.startedAt : date.toLocaleString();
                 const model = record.configuration.label ? formatSelfTestOption(record.configuration) : record.configuration.id;
-                const heading = `${outcome} · ${model} · ${localDate}`;
+                const environment = record.environment || record.eligibilityContext?.environment || {};
+                const os = environment.operatingSystem || environment.platform;
+                const platform = ({ ios: "iOS", macos: "macOS", windows: "Windows", linux: "Linux", android: "Android" })[os] || os || "Unknown platform";
+                const heading = `${outcome} · ${platform} · ${model} · ${localDate}`;
                 label.append(selection.add(record, heading, record.status !== "running"), document.createTextNode(heading));
                 const description = document.createElement("p");
                 const phases = { prepare: "audio preparation", decode: "audio decoding", release: "previous model release", load: "model loading", inference: "transcription", validation: "accuracy validation" };
@@ -470,7 +524,11 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                     journal:{list:()=>[{...presentWhisperAttempt(record,records),runtimeDiagnostics:getRuntimeDiagnosticReport(record.pageId || null)}]}});
                 target.append(details);
             }
-        } catch (error) { target.textContent = `Attempt history unavailable: ${error.message}`; }
+        } catch (error) {
+            target.textContent = `Attempt history unavailable: ${error.message}`;
+            const summary = document.getElementById("settingsWhisperSummary");
+            if (summary) summary.textContent = `Self-test summary unavailable: ${error.message}`;
+        }
     }
 
     function renderSelfTestEvent(detail, event) {
@@ -978,7 +1036,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const action = target.dataset.settingsAction;
         try {
             if (action === "cancel-whisper-self-test") { selfTestController?.abort(); return; }
-            const historySection = { "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
+            const historySection = { "toggle-self-test-summary": "settingsWhisperSummarySection", "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
             if (historySection) return await setHistorySection(historySection, document.getElementById(historySection).hidden);
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
