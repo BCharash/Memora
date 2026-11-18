@@ -14,7 +14,7 @@ User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks
 
 ## Database ownership and schema
 
-database.js alone owns application opens/schema, fixed version 5. storage.js, semantic.js and storageManager.js obtain caller-owned connections and release them on success/failure. ModelManager retains registry seeding/merging; queries remain in feature/storage modules.
+database.js alone owns application opens/schema. Checkpoint 2B (18 November 2026) advances the shared schema additively to version 6 for source identity recovery; the earlier version-5 repair evidence below remains historical. storage.js, semantic.js and storageManager.js obtain caller-owned connections and release them on success/failure. ModelManager retains registry seeding/merging; queries remain in feature/storage modules.
 
 | Store | Inline key | Required indexes |
 |---|---|---|
@@ -22,6 +22,7 @@ database.js alone owns application opens/schema, fixed version 5. storage.js, se
 | semanticEntries | id | representationKey/sourceKey, non-unique and non-multiEntry |
 | semanticMetadata | key | None |
 | modelRegistry | id | None |
+| audioSourceRecovery | audioSourceId | None; explicit revision-checked removal, no expiry |
 
 Upgrade adds missing required stores/indexes, validates existing definitions and preserves unknown stores/records. Incompatible structures abort rather than being dropped/recreated. Connections close on versionchange. Blocked requests report errors and abandoned requests do not later upgrade unnoticed. No automatic reset/downgrade is implemented. Registry rebuild is record replacement, not schema repair.
 
@@ -31,7 +32,7 @@ Settings displays registry loading/errors and runtime diagnostics before storage
 
 Integration checkpoint `35d69cd`: 12 isolated schema groups and six production-module/Settings groups passed using temporary databases and separate Chrome profile. User confirmed all recommended Mac, iPhone and Windows checks. Mac Chrome on a 2018 MacBook Pro showed version 4/three stores before repair and version 5/four stores afterward. No reset or full live record comparison; fixtures checked exact records and binary embeddings. This does not establish broader model/sequence validation.
 
-imuse-recording-breadboard remains untouched. HTTP app caching and model Cache Storage are separate from IndexedDB. Rollback/forward fixes must retain compatible version-5 opens.
+imuse-recording-breadboard remains untouched. HTTP app caching and model Cache Storage are separate from IndexedDB. After upgrading to version 6, code fixed to version 5 cannot open that database. Retain schema-6 compatibility in forward fixes/rollbacks; never reset or downgrade to work around it.
 
 ## Historical records
 

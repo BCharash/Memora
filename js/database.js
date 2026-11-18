@@ -1,12 +1,14 @@
 // Canonical schema owner. Importing this module never opens a database.
 // All application database opens go through this owner.
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 
 const schema = [
     { name: "transcripts", keyPath: "filename", indexes: [] },
     { name: "semanticEntries", keyPath: "id", indexes: ["representationKey", "sourceKey"] },
     { name: "semanticMetadata", keyPath: "key", indexes: [] },
-    { name: "modelRegistry", keyPath: "id", indexes: [] }
+    { name: "modelRegistry", keyPath: "id", indexes: [] },
+    // Source identity recovery is durable until explicit removal; never transcript cache.
+    { name: "audioSourceRecovery", keyPath: "audioSourceId", indexes: [] }
 ];
 
 function schemaError(message) {

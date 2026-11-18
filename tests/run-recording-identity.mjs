@@ -1,5 +1,6 @@
 // Node 22+ runner. No packages. Optional --browser uses an isolated Edge profile.
-// --source selects checkpoint 2A; default remains the checkpoint-1 reader suite.
+// --source selects 2A; --persistence selects 2B; default is checkpoint 1.
+// --suite=database or --suite=database-integration runs browser regressions.
 // --generate-fixtures reads the sibling iMuse exporter but never writes there.
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +10,8 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const suite = process.argv.includes('--source') ? 'audio-source-identity' : 'recording-identity';
+const suite = process.argv.find(arg=>arg.startsWith('--suite='))?.slice(8) || (process.argv.includes('--persistence') ? 'audio-source-persistence' : process.argv.includes('--source') ? 'audio-source-identity' : 'recording-identity');
+if (!['recording-identity','audio-source-identity','audio-source-persistence','database','database-integration'].includes(suite)) throw Error('Unsupported suite');
 const fixturePath = join(root, 'tests', 'fixtures', 'imuse-recording-identity.json');
 if (process.argv.includes('--generate-fixtures')) {
     const source = await readFile(resolve(root, '../iMuse/js/recording-identity.js'), 'utf8');

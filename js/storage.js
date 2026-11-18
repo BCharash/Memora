@@ -448,3 +448,55 @@ export async function clearModelRegistry() {
     }
 }
 
+
+// Isolated recording-list I/O for checkpoint 2B. These functions do not select
+// folders, prompt for permission, share files or change production call sites.
+export const AUDIO_SOURCE_FILENAME = 'memora-audio-source.json';
+export async function readAudioSourceBytes(file, maxBytes) {
+    if (!Number.isSafeInteger(file?.size) || file.size < 0 || file.size > maxBytes) {
+        throw Object.assign(new Error('The recording list exceeds the supported JSON size. Select another copy.'), { code: 'source-size' });
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes.length !== file.size || bytes.length > maxBytes) throw new Error('The recording list could not be read completely.');
+    return bytes;
+}
+export async function discoverAudioSourceFile(source, maxBytes) {
+    try {
+        if (source?.kind === 'file-input') {
+            // A filtered/incomplete selection cannot establish absence. Only an
+            // exact root-relative match counts; nested same-name JSON is ignored.
+            const files = source.files.filter(file => file.name === AUDIO_SOURCE_FILENAME &&
+                (!file.webkitRelativePath || file.webkitRelativePath === `${source.name}/${AUDIO_SOURCE_FILENAME}`));
+            if (files.length > 1) return { status: 'ambiguous', bytes: null };
+            if (!files.length) return { status: 'not-included', bytes: null };
+            return { status: 'found', bytes: await readAudioSourceBytes(files[0], maxBytes) };
+        }
+        if (source?.kind !== 'directory') throw new TypeError('Select an audio source folder.');
+        let handle;
+        try { handle = await source.getFileHandle(AUDIO_SOURCE_FILENAME); }
+        catch (error) { if (error.name === 'NotFoundError') return { status: 'absent', bytes: null }; throw error; }
+        return { status: 'found', bytes: await readAudioSourceBytes(await handle.getFile(), maxBytes) };
+    } catch (error) {
+        return { status: error?.code === 'source-size' ? 'size-limited' : ['NotAllowedError','SecurityError'].includes(error?.name) ? 'permission-denied' : 'read-failed', bytes: null, error };
+    }
+}
+export async function writeAudioSourceFile(source, bytes) {
+    if (source?.kind !== 'directory') throw new TypeError('This source does not provide a writable folder.');
+    const handle = await source.getFileHandle(AUDIO_SOURCE_FILENAME, { create: true });
+    const writable = await handle.createWritable();
+    try { await writable.write(bytes); await writable.close(); }
+    catch (error) {
+        // Do not close (and publish partial contents) after a failed write.
+        try { await writable.abort(); } catch { /* Recovery copy remains pending. */ }
+        throw error;
+    }
+}
+export async function resolveAudioSourceHandle(source, relativePath) {
+    if (source?.kind !== 'directory' || typeof relativePath !== 'string' ||
+        relativePath.split('/').some(part => !part || part === '.' || part === '..' || /[\\:\x00-\x1f\x7f]/.test(part) || /[. ]$/.test(part))) {
+        throw new TypeError('A safe audio path and source folder are required.');
+    }
+    const parts = relativePath.split('/'); let folder = source;
+    for (const part of parts.slice(0,-1)) folder = await folder.getDirectoryHandle(part);
+    return folder.getFileHandle(parts.at(-1));
+}

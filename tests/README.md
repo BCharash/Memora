@@ -1,3 +1,15 @@
+# Current identity checkpoint 2B — 18 November 2026
+
+Open `tests/audio-source-persistence.html` through Live Server. Expected: **32/32 groups passed** in a Chromium browser with browser-private filesystem support. All default database calls are redirected by the harness import map; only temporary fixture databases/private test directories are created and removed. No real Memora database, selected user folder, models or archive changes. The page writes synthetic data in its browser-private filesystem for native persistence verification.
+
+Recorded verification on Mac: **32/32 Chrome groups**, **30/30 Node groups** (two browser-only groups explicitly skipped), **31/31 checkpoint-2A groups**, **21/21 reader groups**, **12/12 schema groups** and **7/7 storage/Settings integration groups**. Node/Chrome runs use installed VS Code's Electron Node runtime and temporary browser profiles. The initial restricted localhost bind failed before browser tests; successful browser runs used authorized unrestricted execution. No real iPhone or representative-large-archive acceptance is claimed.
+
+Run `node tests/run-recording-identity.mjs --persistence`; add `--browser` and set `MEMORA_TEST_BROWSER` for Chromium. The existing `--source` and default reader suites still work. Database regressions: `--suite=database --browser`, `--suite=database-integration --browser`. Source recovery is schema 6; tests verify additive upgrades preserve the original four stores and transcript/semantic cleanup leaves recovery intact.
+
+Checkpoint 3 is not wired. Review [implementation contract section 14](../docs/Recording_Identity_Implementation_Contract.md#14-checkpoint-2b--isolated-source-persistence) before integration; no transcription/model/iPhone deployment test is needed for this isolated harness review.
+
+---
+
 # Memora test guide
 
 Reviewed 9 November 2026 through candidate application build **2026-11-10.14**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.

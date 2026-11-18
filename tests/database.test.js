@@ -1,4 +1,4 @@
-import { createDatabaseManager } from "../js/database.js";
+import { createDatabaseManager, DATABASE_VERSION } from "../js/database.js";
 
 const output = document.getElementById("results");
 const prefix = `Memora-schema-test-${Date.now()}-${Math.random().toString(36).slice(2)}-`;
@@ -72,7 +72,7 @@ try {
     await test("Fresh database and independent concurrent connections", async () => {
         const manager = createDatabaseManager({ name: nameFor("fresh") });
         const [a, b] = await Promise.all([managedOpen(manager), managedOpen(manager)]);
-        assert(a !== b && a.version === 5 && a.objectStoreNames.length === 4, "fresh schema and separate connections");
+        assert(a !== b && a.version === DATABASE_VERSION && a.objectStoreNames.length === 5, "fresh schema and separate connections");
         a.close();
         assert((await records(b, "transcripts")).length === 0, "closing one connection leaves another usable");
         b.close();
@@ -80,13 +80,13 @@ try {
     await test("Empty version 1 upgraded", async () => {
         const name = nameFor("empty"); (await rawOpen(name, 1)).close();
         const db = await managedOpen(createDatabaseManager({ name }));
-        assert(db.version === 5 && db.objectStoreNames.length === 4, "empty schema repaired"); db.close();
+        assert(db.version === DATABASE_VERSION && db.objectStoreNames.length === 5, "empty schema repaired"); db.close();
     });
     for (const [label, options] of [["healthy", {}], ["missing-registry", { registry: false }], ["missing-indexes", { indexes: false }]]) {
         await test(`Version 4 ${label}: schema and exact fixture preservation`, async () => {
             const name = nameFor(label); (await rawOpen(name, 4, db => fixture(db, options))).close();
             const db = await managedOpen(createDatabaseManager({ name }));
-            assert(db.version === 5, "version upgraded");
+            assert(db.version === DATABASE_VERSION, "version upgraded");
             const tx = db.transaction("semanticEntries"); const done = transactionDone(tx);
             assert(tx.objectStore("semanticEntries").indexNames.length === 2, "indexes present"); await done;
             await preserved(db, options.registry !== false); db.close();
@@ -101,7 +101,7 @@ try {
         assert((await records(db, "transcripts"))[0].text === "retain", "original incompatible data preserved"); db.close();
     });
     await test("Current version missing a store reports SchemaError", async () => {
-        const name = nameFor("partial-current"); (await rawOpen(name, 5, db => fixture(db, { registry: false }))).close();
+        const name = nameFor("partial-current"); (await rawOpen(name, DATABASE_VERSION, db => fixture(db, { registry: false }))).close();
         await rejects(() => createDatabaseManager({ name }).open(), "SchemaError");
     });
     await test("Incompatible index aborts upgrade without replacing records", async () => {
@@ -114,9 +114,9 @@ try {
         const db = await rawOpen(name, 4); await preserved(db, true); db.close();
     });
     await test("Future version is refused without downgrade", async () => {
-        const name = nameFor("future"); (await rawOpen(name, 6, db => fixture(db))).close();
+        const name = nameFor("future"); (await rawOpen(name, DATABASE_VERSION + 1, db => fixture(db))).close();
         await rejects(() => createDatabaseManager({ name }).open(), "VersionError");
-        const db = await rawOpen(name, 6); await preserved(db, true); db.close();
+        const db = await rawOpen(name, DATABASE_VERSION + 1); await preserved(db, true); db.close();
     });
     await test("Blocked upgrade rejects, late request aborts, retry succeeds", async () => {
         const name = nameFor("blocked"); const legacy = await rawOpen(name, 4, db => fixture(db));
@@ -131,7 +131,7 @@ try {
     await test("Versionchange closes connections; future opens refuse newer version", async () => {
         const name = nameFor("versionchange"); const manager = createDatabaseManager({ name });
         await managedOpen(manager);
-        const db = await rawOpen(name, 6); db.close();
+        const db = await rawOpen(name, DATABASE_VERSION + 1); db.close();
         await rejects(() => manager.open(), "VersionError");
     });
     await test("Unavailable storage and retry after an injected open failure", async () => {
@@ -158,3 +158,5 @@ try {
     output.textContent = lines.join("\n");
     document.body.dataset.result = result;
 }
+
+if (location.search.includes("report=1")) await fetch("/_identity-test-result", { method:"POST", body:JSON.stringify({ passed:lines.filter(line=>line.startsWith("PASS ")).length, failed:result === "passed" ? [] : ["suite failed"], output:output.textContent }) });

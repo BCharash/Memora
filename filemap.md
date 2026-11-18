@@ -1,16 +1,16 @@
 # Memora file map
 
-Updated 16 November 2026. Production remains **2026-11-13.10**; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
+Updated 18 November 2026. Identity checkpoint 2B is implemented for review with shared database schema 6. Production remains **2026-11-13.10**; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
 ## The short answer about the number of files
 
-There are **44 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **23 JavaScript files under `tests/`**. Test files are separate from the normal application.
+There are **49 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **28 JavaScript files under `tests/`**. Test files are separate from the normal application.
 
-**All 44 application files have a dependency path from the main page.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+**44 application files have a dependency path from the main page; five identity modules remain isolated.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
-The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for the next iMuse export-ID and Memora transcription work.
+The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for identity checkpoint 2B review and later Memora transcription integration.
 
 The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. There are also unused functions and overlapping selection/catalogue logic inside otherwise active files. See [cleanup findings](#cleanup-findings) before deleting anything.
 
@@ -154,11 +154,23 @@ Standalone exported HTML needs its own embedded behavior; it is not simply anoth
 
 Search and paragraphing both can use MiniLM, but perform different jobs and own separate workers. This is a potential shared-service/resource-lifecycle design opportunity, not proof either file is disposable or the cause of the iPhone restarts.
 
+## Isolated recording identity — 5 files
+
+These APIs are exercised by isolated harnesses and have no production entry-point imports yet. Their shared storage/database helpers do have production callers.
+
+| File | Responsibility | Main callers |
+|---|---|---|
+| [recordingIdentity.js](js/recordingIdentity.js) | Bounded read-only Apple/iMuse embedded ID and provenance inspection. | Isolated tests and source persistence API |
+| [audioSourceIdentity.js](js/audioSourceIdentity.js) | Pure recording-list validation, serialization and identity decisions. | Isolated tests and source persistence/recovery APIs |
+| [audioFingerprint.js](js/audioFingerprint.js) | Incremental raw-byte SHA-256 with bounded chunks and cancellation. | Source persistence API and tests |
+| [audioSourceRecovery.js](js/audioSourceRecovery.js) | Revision-checked schema-6 recovery persistence and evidence-based source matching. | Source persistence API and tests |
+| [audioSourcePersistence.js](js/audioSourcePersistence.js) | Source discovery, staged identities, safe writes and pending file-input JSON exports. | Isolated tests; production wiring deferred to checkpoint 3 |
+
 ## Persistent data and Settings — 5 files
 
 | File | Responsibility | Main callers |
 |---|---|---|
-| [database.js](js/database.js) | Sole owner of the Memora IndexedDB schema/open/upgrade/validation behavior. Current schema version: 5. | Storage, storage reporting and semantic store |
+| [database.js](js/database.js) | Sole owner of the Memora IndexedDB schema/open/upgrade/validation behavior. Current schema version: 6; additive source identity recovery store. | Storage, storage reporting and semantic store |
 | [storage.js](js/storage.js) | File/folder reading/writing/sharing, transcript cache and legacy model-registry record access. | App and model manager |
 | [storageManager.js](js/storageManager.js) | Measures storage and handles the specific clear/delete actions exposed in Settings. | App-provided Settings service |
 | [settings.js](js/settings.js) | Settings content and actions: availability, testing, eligibility status, reports and storage controls. | App |
@@ -168,7 +180,7 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 
 | Storage | Contents/owner |
 |---|---|
-| Memora IndexedDB | `transcripts`, `semanticEntries`, `semanticMetadata`, `modelRegistry`; schema in `database.js`. |
+| Memora IndexedDB | `transcripts`, `semanticEntries`, `semanticMetadata`, `modelRegistry`, `audioSourceRecovery`; schema in `database.js`. |
 | Browser model caches | Downloaded model assets. Cache presence does not prove eligibility or active model memory use. |
 | Local storage: `memora.whisper-production-evidence.v1.*` | Original production incidents, review decisions/user explanations, manual-reference certificates and stability notes; retained independently of clearable histories. |
 | Local storage: `memora.whisper-execution.v1.*` | Normal transcription execution history: successes for 24 hours, failures/interruptions until selected clearing, active/unprocessed work protected; separate from self-test validation. |

@@ -1,10 +1,10 @@
 # Recording identity implementation contract
 
-**Current checkpoint — documentation reconciled 18 November 2026:** Recording identity **2A is complete and committed** (`5eb536e`), following checkpoint 1 (`4604e7e`). Recorded Node/isolated Edge results are 31/31 source-identity groups and 21/21 reader groups. These results are historical verification, not a new test run or inferred manual/iPhone acceptance. The modules remain isolated; live production is **2026-11-13.10**, reads Apple IDs only and writes `Voice Memo ID`.
+**Current checkpoint — 18 November 2026: 2B implemented for review.** Isolated source discovery, incremental SHA-256, staged UUID reuse, recovery storage and verified writable-folder persistence are implemented. Checkpoints 1/2A remain committed; 2B is uncommitted. See [contract section 14](Recording_Identity_Implementation_Contract.md#14-checkpoint-2b--isolated-source-persistence) for APIs, verification and limits. Next is user review/manual harness, then separately authorized checkpoint 3 production integration.
 
-**Next checkpoint: 2B** — actual complete-file fingerprinting, source discovery/association, durable UUID reservation/recovery and safe persistence. The exact scope and unresolved technical items are in [implementation contract section 13](Recording_Identity_Implementation_Contract.md#13-stable-checkpoint-2a--in-memory-source-schema-and-identity-decisions). The current authorization covers documentation reconciliation; 2B begins in the following work step. Keep production integration for checkpoint 3 and retain later device/deployment gates. Do not restart migration or unrelated Search/Combine work.
+The identity APIs have no production entry-point imports. **Shared database schema is now version 6**, adding only `audioSourceRecovery`; opening this checkout upgrades a version-5 database without resetting existing records. This is a shared foundation change even before transcription integration. Source build ID remains 2026-11-13.10 because no release/deployment was prepared; advance it before publishing changed application contents. Live transcription/header behavior is still Apple-only / `Voice Memo ID`. No actual user archive/audio/database was used in verification, and no iPhone acceptance or deployment is claimed.
 
-The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) govern the broader plan. The [recording identity implementation contract](Recording_Identity_Implementation_Contract.md) governs current identity details and supersedes older design proposals. Sections 12 and 13 record completed isolated work; earlier design-stage authorization statements are historical.
+The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) govern the broader plan. The [recording identity implementation contract](Recording_Identity_Implementation_Contract.md) governs current identity details and supersedes older design proposals. Sections 12–14 record isolated work; earlier design-stage authorization statements are historical.
 
 ## 1. Outcome and current implementation
 
@@ -495,3 +495,56 @@ Next, only if authorized, **2B** implements actual complete-file fingerprinting,
 - Concrete plain-language messages for source-ID association conflicts, blocked reader/provenance/container evidence, reload/write/local-storage failures. General unreadable-ID recovery must not bypass unresolved valid evidence.
 
 Keep both modules isolated until checkpoint 3 deliberately connects production transcription/universal headers. No migration tool, cross-folder deduplication/move tracking, unrelated Search/Combine work, archive rewrite or deployment.
+
+## 14. Checkpoint 2B — isolated source persistence
+
+18 November 2026. The user authorized 2B after the documentation reconciliation. Implementation is ready for review in the working tree; no commit or deployment was made. This section supersedes section 13's next-work/authorization boundary, not its pure schema/decision contract. Production identity wiring remains checkpoint 3.
+
+### Files and API boundaries
+
+- `audioFingerprint.js`: `fingerprintAudio(blob, { signal, chunkBytes, onProgress })` computes complete raw-byte SHA-256 incrementally, with a default 256 KiB input chunk, at most 1 MiB configurable input chunks and fixed algorithm buffers. It yields between chunks and supports cancellation/read errors. No audio decoding, external dependency or whole-audio allocation. The implementation is checked against native Web Crypto vectors and chunk-boundary cases; representative large recordings/iPhone throughput remain unmeasured.
+- `audioSourcePersistence.js`: `discoverAudioSource(source, { selectedFile })` distinguishes found/absent/not-included, ambiguous selections, size limits, denied permission and read errors. `openAudioSourceSession(...)` opens valid existing JSON or returns an explicit decision. Actions `create`, `replace` (separate confirmation), `restore` and `resume` are supplied by the future UI adapter, never inferred consent. `establishedAudioSourceIds`, `selectedAudioSourceId` and `selectedRecoverySourceId` resolve known evidence; they do not search transcript archives.
+- The returned session exposes `stageRecording({ audioRelativePath, choice, onProgress })`, `getManifest()`, `persist()`, `exportPending()` and `verifySelectedCopy(file)`. Staging reads identity and fingerprints the same returned File snapshot, enrolls recordings incrementally and reserves UUIDs once per pending assignment. It does not write. The future transcription adapter must consume that exact snapshot, handle all non-ready outcomes, and await the persistence gate before dependent delivery. A choice must follow inspection of identical current evidence; changed observations return `stale-choice`. Unresolved entries block persistence; explicit skip removes that path's staged change. Cancel changes no staged/durable state and does not itself trigger persistence.
+- `audioSourceRecovery.js`: a lazy `createAudioSourceRecoveryStore({ openDatabase })` offers `get`, `list`, revision-checked `put` and explicit revision-checked `remove`. `matchAudioSourceRecovery` requires an independently established source UUID or browser-confirmed same directory handle. Names, path similarity and matching audio hashes are never matching evidence. Multiple matches require selection; conflicting established/recovered source IDs require explicit resolution. No copy/move tracking is added.
+- `storage.js`: bounded recording-list reads, root-only discovery, safe nested audio-handle lookup and source-list stream writes. The writer aborts on write/close failure rather than closing and publishing partial data. The existing generic write/share functions and their callers are unchanged.
+
+No production entry point imports the three new modules. However, `database.js` is shared: **schema version 6** adds `audioSourceRecovery`, keyed by lowercased Audio Source ID, while retaining the existing four stores, key paths and indexes. This upgrade takes effect when current source code opens the database, even before checkpoint 3. No data reset/downgrade is introduced. Keep version-6-compatible code after an upgrade; the old version-5 opener will refuse that newer database. The build ID is unchanged because nothing is published; advance it before release.
+
+### Recovery and write protocol
+
+One recovery record per source holds the validated complete candidate JSON, original source bytes (or confirmed absence), a fresh revision token, state (`pending`, `verified`, `export-pending`), optional directory handle, descriptive source name and timestamp. Original bytes and candidate JSON are each bounded by the existing 8 MiB JSON limit; there is no claim that all 10,000-entry documents fit within it. Browser storage quota still applies. Records have no automatic expiry, are included in existing storage reporting and survive transcript/semantic cleanup. Explicit removal is available through the isolated API; user-facing management belongs to integration. Browser eviction/clearing can remove recovery data.
+
+Writable flow:
+
+1. Recheck original source JSON bytes; reject external change, without last-writer-wins merging.
+2. Save pending candidate and base bytes transactionally in recovery storage, using a revision comparison to reject concurrent updates. UUIDs and pending content remain in the session if storage fails.
+3. Revalidate enrolled mutable audio handles by size and full digest against the inspected snapshots. Recheck source bytes immediately before opening the writer. Same-realm queues and Web Locks (where available) coordinate app-owned commits; recovery revision checks remain active without Web Locks.
+4. Write/close and read back exact expected JSON bytes before returning `verified`, then mark recovery verified. Failures retain a pending recovery record. If creation left an empty new file after stream abort, the current session recognizes only that empty shell for retry. Partial/corrupt/externally changed files require explicit restore/replacement, never blind overwrite.
+5. A successful source write followed by a recovery-store failure is still reported as failure; the same session can retry with the same IDs. Reloaded pending state requires explicit resume or restore. Complete old/new bytes permit resume; damaged/intervening bytes require review and replacement consent.
+
+There is no filesystem-wide atomic transaction or cross-process compare-and-swap. External programs can race the final check. Filesystem stream guarantees vary; the separate durable recovery candidate, validation and truthful failure are the recovery mechanism. No permanent sidecar backup files are created. Original audio, transcript files and migrated archive manifests are never written.
+
+File-input flow first saves `export-pending` recovery, then returns the JSON File and the approved “Save … in the audio folder” guidance. It returns `sourceVerified: false`: no sharing result proves placement or filesystem persistence. `shareFile(file)` remains a separate user action using the existing transport; cancellation retains pending JSON and IDs. Ordinary save guidance does not mention local retention. `verifySelectedCopy` can establish that an explicitly selected copy matches the pending bytes; it still cannot prove that copy is beside the audio. If browser persistence fails, `persist()` rejects and grants no dependent-delivery result; `exportPending()` retains a usable JSON artifact for explicit recovery while the session survives. No inference needs repeating because of persistence failure.
+
+### UI integration still required at checkpoint 3
+
+No prompts, picker changes, new Settings controls or transcription delivery changes are wired in 2B. The approved prompt actions in section 8 map to the explicit API actions above. A future UI must show evidence-labelled source candidates (selected JSON name/source versus associated transcript source), never unexplained UUID-only choices. Suggested technical-failure wording:
+
+| Condition | User message/action |
+|---|---|
+| Source IDs disagree | “These recording lists refer to different audio sources. Choose the source association to use, or cancel.” Show each source name and evidence. |
+| Concurrent source/recovery change | “This recording list changed in another session. Reload it before saving.” Retain current pending content for review. |
+| Audio changed after inspection | Name the audio; ask to read it again and review its Recording ID. Do not reuse the previous confirmation. |
+| Source write/readback failure | “Memora could not verify the recording list. Keep the pending copy and try again.” Do not report success or deliver a first fallback-ID transcript. |
+| Browser recovery storage failure | “Memora could not retain this recording list. Keep this page open and save a copy before retrying.” Keep text/identity artifacts and offer explicit JSON export; no success claim. |
+| Blocked reader/provenance/container evidence | State the actual reader issue for the named file; offer skip/cancel. Do not mislabel it as an absent ID or generic recoverable damaged identity. |
+
+The source JSON Save-to-Files action must precede dependent transcript delivery after durable staging, with separate user gestures where needed; cancellation must preserve both pending artifacts. Exact visible control placement and device acceptance remain checkpoint 3 work. No deployment or iPhone integration test is implied by this isolated implementation.
+
+### Verification and next checkpoint
+
+The isolated browser harness is `tests/audio-source-persistence.html`; its source-only import map redirects every default database open to disposable fixture databases. Synthetic file adapters test faults; a native browser-private filesystem directory tests actual write/close/readback and structured-cloned directory-handle matching. No actual user folder or the real Memora database is touched. SHA tests compare native Web Crypto and known vectors, including an 8 MiB bounded-read case; this is correctness coverage, not a measured device-capacity guarantee.
+
+Run with Node 22+: `node tests/run-recording-identity.mjs --persistence`. Add `--browser` and set `MEMORA_TEST_BROWSER` to a Chromium executable for real IndexedDB/native-directory coverage. Node explicitly skips those two browser-only groups. Existing `--source` and default reader suites are retained. `--suite=database --browser` and `--suite=database-integration --browser` run the existing schema and production-consumer regressions in isolated profiles.
+
+Current evidence and final group counts are recorded in the documentation index/test guide after verification. Real iPhone Safari, user-selected source folders, representative large archives and UI acceptance remain untested. Review this checkpoint and run its manual harness before authorizing checkpoint 3. Do not begin unrelated Search/Combine phases, rebuild migration, change existing archives or deploy automatically.

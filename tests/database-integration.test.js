@@ -1,4 +1,4 @@
-import { testDatabaseName, openMemoraDatabase } from "./database-adapter.js";
+import { testDatabaseName, openMemoraDatabase, DATABASE_VERSION } from "./database-adapter.js";
 import * as storage from "../js/storage.js";
 import * as semantic from "../js/semantic.js";
 import * as manager from "../js/storageManager.js";
@@ -43,7 +43,7 @@ try {
             storage.transcriptExists("keep.txt"), getModelRegistry(), semantic.getSemanticStoreStats()
         ]);
         assert(exists && registry.length > 0 && stats.entryCount === 1, "legacy records and seeded registry");
-        const db = await openMemoraDatabase(); assert(db.version === 5, "upgraded"); db.close();
+        const db = await openMemoraDatabase(); assert(db.version === DATABASE_VERSION, "upgraded"); db.close();
     });
     await test("Cached transcript save/list/read/clear and registry evidence", async () => {
         await storage.saveTranscriptRecord("new.txt", "new transcript", {}, "tiny", "transcribe");
@@ -121,7 +121,7 @@ try {
             await waitFor(() => registry.textContent.includes("Not evaluated on this device."));
             assert(registry.textContent.includes("Test-qualified: Synthetic qualification fixture."), "all-devices keeps exact current qualification");
             // All manager connections should have closed, so this upgrade can finish.
-            const request = indexedDB.open(testDatabaseName, 6);
+            const request = indexedDB.open(testDatabaseName, DATABASE_VERSION + 1);
             (await requestResult(request)).close();
             document.querySelector('[name="model-registry-scope"][value="current"]').click();
             await waitFor(() => document.getElementById("settingsModelRegistryContainer").textContent.includes("Model Registry unavailable"));
@@ -138,3 +138,5 @@ try {
     await requestResult(indexedDB.deleteDatabase(testDatabaseName));
     output.textContent = lines.join("\n"); document.body.dataset.result = result;
 }
+
+if (location.search.includes("report=1")) await fetch("/_identity-test-result", { method:"POST", body:JSON.stringify({ passed:lines.filter(line=>line.startsWith("PASS ")).length, failed:result === "passed" ? [] : ["suite failed"], output:output.textContent }) });

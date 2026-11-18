@@ -6,7 +6,7 @@ Adopted 7 November 2026, matching iMuse's convention: **YYYY-MM-DD.N**, the UTC 
 
 The application populates “Memora build …” at the very bottom of the page, outside the tabs and Settings, in small text. HTML contains only the fallback “Build not identified”, not another copy of the number.
 
-This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database version 5 and model configuration revisions remain separate identifiers.
+This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database schema versions and model configuration revisions remain separate identifiers.
 
 ## Release consistency — deferred
 
@@ -15,3 +15,5 @@ The user confirmed an iPhone caching mismatch after this label was published. Ge
 The current candidate application build is **2026-11-13.10** (self-test timelines and problem reports). The earlier 2026-11-11.4 runtime/Settings device acceptance remains as recorded in CURRENT_STATUS.md; the reporting checks do not certify real model sequence stability. Documentation-only changes do not advance the identifier. The footer remains useful for diagnostics but does not establish that every cached module belongs to the same release. Current priorities are in [the handoff](CURRENT_STATUS.md).
 
 16 November 2026: the proposed integrated migration candidate 2026-11-16.1 was withdrawn. All four migrations are now complete and the disposable utility has been removed; production files/build remain 2026-11-13.10. Do not reuse 2026-11-16.1 for another changed application release.
+
+18 November 2026: isolated identity checkpoint 2B adds shared database schema 6. No release is prepared and the build ID remains unchanged; advance it before publishing these changed application contents. This does not certify checkpoint 3 integration or iPhone acceptance.
