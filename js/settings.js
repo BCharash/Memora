@@ -435,26 +435,31 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     function renderWhisperSummary(records) {
         const target = document.getElementById("settingsWhisperSummary");
         if (!target) return;
-        // Summary groups across platform/browser revisions; history keeps every saved record.
+        // One summary row per model size, even when legacy IDs or variants differ.
+        // Full configuration-specific evidence remains in history.
         const definitions = getWhisperConfigurationDefinitions();
         const familyOrder = ["tiny", "base", "small", "medium", "large"];
+        const familyOf = record => {
+            const configuration = record.configuration || {};
+            const definition = definitions.find(item => item.id === (configuration.id || record.eligibilityContext?.configurationId));
+            const declaredFamily = definition?.family || configuration.family || record.declaredDefinition?.family;
+            if (familyOrder.includes(declaredFamily?.toLowerCase())) return declaredFamily.toLowerCase();
+            const identity = [configuration.label, configuration.id, record.eligibilityContext?.configurationId, configuration.repository].filter(Boolean).join(" ").toLowerCase();
+            return identity.match(/(?:^|[^a-z])(tiny|base|small|medium|large)(?:$|[^a-z])/)?.[1] || null;
+        };
         const seen = new Set();
         const passes = [...records].filter(record => record.status === "passed")
             .sort((a, b) => (b.startedAt || "").localeCompare(a.startedAt || "") || (b.id || "").localeCompare(a.id || ""))
             .filter(record => {
                 const configuration = record.configuration || {};
-                const key = configuration.id || record.eligibilityContext?.configurationId ||
-                    JSON.stringify([configuration.label || "Unknown model", configuration.configuration?.dtype || null]);
+                const key = familyOf(record) || configuration.id || record.eligibilityContext?.configurationId ||
+                    configuration.label?.trim().toLowerCase() || "unknown";
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
             });
         const rank = record => {
-            const configuration = record.configuration || {};
-            const definition = definitions.find(item => item.id === (configuration.id || record.eligibilityContext?.configurationId));
-            const family = definition?.family || configuration.family ||
-                (configuration.label || configuration.id || "").toLowerCase().match(/(?:^|[^a-z])(tiny|base|small|medium|large)(?:$|[^a-z])/)?.[1];
-            const index = familyOrder.indexOf(family);
+            const index = familyOrder.indexOf(familyOf(record));
             return index < 0 ? familyOrder.length : index;
         };
         passes.sort((a, b) => rank(a) - rank(b) ||
