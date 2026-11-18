@@ -247,8 +247,10 @@ export async function writeTextFile(
 
     try {
         await writable.write(text);
-    } finally {
         await writable.close();
+    } catch (error) {
+        try { await writable.abort(); } catch { /* Preserve original write error. */ }
+        throw error;
     }
 
     return fileHandle;

@@ -46,6 +46,13 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal } = {}) {
     checkAudioSourceAbort(signal);
     const discovery=await discoverAudioSource(source,{selectedFile});
+    let selectedRootBytes;
+    if(selectedFile && source?.kind==='directory') {
+        const root=await discoverAudioSourceFile(source,AUDIO_SOURCE_LIMITS.jsonBytes);
+        if(!['found','absent'].includes(root.status))return {status:'blocked',code:root.status,discovery:root};
+        if(!replacementConfirmed)return {status:'decision-required',code:'confirm-replacement'};
+        selectedRootBytes=root.bytes;
+    }
     if (!['found','absent','not-included'].includes(discovery.status)) return {status:'blocked',code:discovery.status,discovery};
     const valid=discovery.validation?.status==='valid';
     const diskManifest=valid ? discovery.validation.manifest : null;
@@ -104,8 +111,9 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     const stored=await recoveryStore.get(key).catch(error=>{ recoveryError=error; return null; });
     if (stored && recovery && stored.revision!==recovery.revision) throw fail('recovery-conflict','The saved recording list changed. Open it again.');
     if (stored && !recovery) return {status:'decision-required',code:'recovery-association-conflict'};
-    let revision=stored?.revision||null, baseline=discovery.bytes;
+    let revision=stored?.revision||null, baseline=selectedRootBytes===undefined?discovery.bytes:selectedRootBytes;
     let current=manifest, staged=null, pendingRecord=null, writtenBytes=null;
+    let recoveryExtras=stored?.pendingTranscriptArchive ? {pendingTranscriptArchive:stored.pendingTranscriptArchive} : {};
     const unresolved=new Set();
     const snapshots=new Map(), assignments=new Map();
     let busy=false;
@@ -133,7 +141,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     async function saveRecovery(state,text) {
         // Keep revision/UUIDs in session on failure; retry does not regenerate IDs.
         if (!pendingRecord || pendingRecord.manifestText!==text || pendingRecord.state!==state) pendingRecord={
-            audioSourceId:key, revision:randomUUID(), state, manifestText:text, baseBytes:baseline,
+            ...recoveryExtras, audioSourceId:key, revision:randomUUID(), state, manifestText:text, baseBytes:baseline,
             directoryHandle:source.kind==='directory'?source:null, sourceName:source.name||'Audio folder', updatedAt:new Date().toISOString()
         };
         await recoveryStore.put(pendingRecord,revision); revision=pendingRecord.revision;
@@ -142,6 +150,16 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     const session={
         sourceId:manifest.audioSourceId, discovery, recoveryError,
         getManifest:()=>parseAudioSourceManifest(serialize(staged||current)).manifest,
+        releaseRecordingSnapshot: path=> {
+            if(unresolved.has(path))throw fail('unresolved-recording','Resolve or skip the recording before releasing its snapshot.');
+            snapshots.delete(path);
+        },
+        getPendingTranscriptArchive:()=>recoveryExtras.pendingTranscriptArchive||null,
+        retainTranscriptArchive: file=>exclusive(async()=> {
+            const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes);
+            recoveryExtras={pendingTranscriptArchive:decoder.decode(bytes)};
+            await saveRecovery(source.kind==='directory'?'verified':'export-pending',serialize(staged||current));
+        }),
         stageRecording: options=>exclusive(async()=> {
             checkAudioSourceAbort(signal);
             const {audioRelativePath,choice=null,onProgress}=options;

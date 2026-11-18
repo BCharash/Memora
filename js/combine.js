@@ -1,3 +1,4 @@
+import { readTranscriptIdentity } from "./transcriptMetadata.js";
 // --------------------------------------------------
 // Combine transcript files
 // --------------------------------------------------
@@ -20,6 +21,8 @@ export function parseTranscriptFile(file, text) {
     const lines = text.split(/\r?\n/);
 
     const filename = file && file.name ? file.name : "";
+    const identity = readTranscriptIdentity(text);
+    const headerLines = text.slice(0, text.search(/^--------------------------------------------------[\t ]*(?:\r?\n|$)/m)).split(/\r?\n/);
 
     const recordingFilename =
         lines.length > 0
@@ -27,23 +30,22 @@ export function parseTranscriptFile(file, text) {
             : "";
 
     const recordingDate =
-        extractField(lines, "Recording date:");
+        extractField(headerLines, "Recording date:");
 
     const duration =
-        extractField(lines, "Duration:");
+        extractField(headerLines, "Duration:");
 
-    const voiceMemoId =
-        extractField(lines, "Voice Memo ID:");
+    const voiceMemoId = identity.recordingId;
 
     const whisperModelField =
-        extractField(lines, "Whisper model:");
+        extractField(headerLines, "Whisper model:");
 
     const whisperModel =
         normalizeModelName(whisperModelField) ||
         extractModelFromFilename(filename);
 
     const operationField =
-        extractField(lines, "Operation:");
+        extractField(headerLines, "Operation:");
 
     const operation =
         operationField.toLowerCase() === "translate"
@@ -51,7 +53,7 @@ export function parseTranscriptFile(file, text) {
             : "transcribe";
 
     const audioRelativePath =
-        extractField(lines, "Audio Relative Path:") ||
+        extractField(headerLines, "Audio Relative Path:") ||
         null;
 
     const separatorIndex =
@@ -73,8 +75,10 @@ export function parseTranscriptFile(file, text) {
         file,
         filename,
         recordingFilename,
+        ...identity,
         recordingDate,
         duration,
+        // Compatibility alias for existing consumers; it does not imply Apple origin.
         voiceMemoId:
             voiceMemoId === "Unknown"
                 ? null
@@ -351,8 +355,8 @@ function getRecordingKey(record) {
             ? "translate"
             : "transcribe";
 
-    if (record.voiceMemoId) {
-        return `id:${record.voiceMemoId}|operation:${operation}`;
+    if (record.recordingId || record.voiceMemoId) {
+        return `archive:${record.archiveUuid || "legacy"}|id:${record.recordingId || record.voiceMemoId}|operation:${operation}`;
     }
 
     if (record.recordingFilename) {
@@ -392,7 +396,7 @@ export function combineTranscriptRecords(
                 `${heading}\n\n` +
                 `Recording date: ${record.recordingDate || "Date unknown"}\n` +
                 `Duration: ${record.duration || "Duration unknown"}\n` +
-                `Voice Memo ID: ${record.voiceMemoId || "Unknown"}\n` +
+                `Recording ID: ${record.recordingId || record.voiceMemoId || "Unknown"}\n` +
                 `Whisper model: ${formatModelName(record.whisperModel)}\n\n` +
                 `${record.transcript.trim()}\n` +
                 `──────────────────────────────────────────────────\n`

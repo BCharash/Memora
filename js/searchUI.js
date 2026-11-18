@@ -1,3 +1,4 @@
+import { replaceTranscriptBody } from "./transcriptMetadata.js";
 // --------------------------------------------------
 // Search UI
 // --------------------------------------------------
@@ -1063,16 +1064,7 @@ function makeSearchEditButton(label, className) {
 }
 
 function getTranscriptFileContent(file, editedTranscript) {
-    return file.text().then(originalText => {
-        const lines = originalText.split(/\r?\n/);
-        const separatorIndex = lines.findIndex(line => line.trim() === "--------------------------------------------------");
-        if (separatorIndex < 0) {
-            throw new Error("This transcript has no metadata separator, so Memora cannot safely replace only its transcript text.");
-        }
-        const header = lines.slice(0, separatorIndex + 1).join("\n");
-        const cleanTranscript = String(editedTranscript ?? "").replace(/\r\n?/g, "\n");
-        return `${header}\n${cleanTranscript}${cleanTranscript.endsWith("\n") ? "" : "\n"}`;
-    });
+    return file.text().then(originalText => replaceTranscriptBody(originalText, String(editedTranscript ?? "")));
 }
 
 async function reindexEditedTranscript(updatedFile, oldRecord) {
@@ -1442,8 +1434,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                     status.textContent = "Updated transcript shared. Reindexing this session…";
                 } else {
                     const fileHandle = await searchSourceHandle.getFileHandle(record.filename, { create: false });
-                    const writable = await fileHandle.createWritable();
-                    try { await writable.write(fullText); } finally { await writable.close(); }
+                    if (await (await fileHandle.getFile()).text() !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
+                    await storage.writeTextFile(searchSourceHandle, record.filename, fullText);
                     updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
                     status.textContent = "Transcript saved. Reindexing…";
                 }

@@ -28,7 +28,7 @@ function getWhisperRuntimeDescription() {
         : "Transformers.js 4.0.0 · worker · requested backend: WebGPU";
 }
 
-export function initSettingsUI({ getStorageManager, getStorage }) {
+export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSourceId = () => null }) {
     const status = document.getElementById("settingsStorageStatus");
     const storage = document.getElementById("settingsStorage");
     const refreshButton = document.getElementById("settingsRefreshButton");
@@ -142,6 +142,12 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ${button("View", "toggle-other-indexeddb")}
             </div>
             <div id="settingsOtherIndexedDBDetail" class="settings-detail" hidden></div>
+            <div class="settings-disclosure">
+                <span class="settings-disclosure-title">Recording-list recovery</span>
+                ${button("View", "toggle-source-recovery")}
+            </div>
+            <div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div>
+
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure">
@@ -938,6 +944,34 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         detail._items = items;
     }
 
+    async function showSourceRecovery() {
+        const detail = document.getElementById("settingsSourceRecoveryDetail");
+        const toggle = storage.querySelector('[data-settings-action="toggle-source-recovery"]');
+        if (!detail) return;
+        if (!detail.hidden) { detail.hidden = true; toggle.textContent = "View"; return; }
+        detail.hidden = false; toggle.textContent = "Hide"; detail.textContent = "Loading recording-list recovery…";
+        const { createAudioSourceRecoveryStore } = await import("./audioSourceRecovery.js");
+        const store = createAudioSourceRecoveryStore();
+        const records = await store.list(); detail.replaceChildren();
+        const note = document.createElement("p"); note.className = "settings-note";
+        note.textContent = "Browser-local copies have no automatic expiry. Removing a copy does not delete files saved beside your audio or transcripts. Copies can also be lost if browser storage is cleared or evicted."; detail.append(note);
+        if (!records.length) { const empty = document.createElement("p"); empty.textContent = "No saved recording-list copies."; detail.append(empty); }
+        for (const record of records) {
+            const row = document.createElement("div"), label = document.createElement("p"), remove = document.createElement("button");
+            const active = getActiveAudioSourceId()?.toLowerCase() === String(record.audioSourceId).toLowerCase();
+            label.textContent = `${record.sourceName || "Audio source"} · ${record.state || "unknown state"}${active ? " · in use; select another source before removal" : ""}`;
+            remove.type = "button"; remove.textContent = "Remove saved copy"; remove.disabled = active;
+            remove.addEventListener("click", async () => {
+                if (getActiveAudioSourceId()?.toLowerCase() === String(record.audioSourceId).toLowerCase()) return;
+                if (!confirm(`Remove the browser's saved recording list for “${record.sourceName || "Audio source"}”? Save any needed pending JSON/transcripts first. This does not delete files from your folders.`)) return;
+                remove.disabled = true;
+                try { await store.remove(record.audioSourceId, record.revision); row.remove(); }
+                catch (error) { label.textContent = error.message; remove.disabled = false; }
+            });
+            row.append(label,remove); detail.append(row);
+        }
+    }
+
     async function handleAction(event) {
         const target = event.target.closest("[data-settings-action]");
         if (!target) return;
@@ -949,6 +983,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
+            if (action === "toggle-source-recovery") return await showSourceRecovery();
             if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
             if (action === "toggle-dom-diagnostics") {
                 const detail = document.getElementById("settingsDomDiagnosticsDetail");

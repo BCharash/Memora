@@ -8,13 +8,17 @@ const UUID_SCAN_HEAD_BYTES = 1024 * 1024;
 const UUID_CONTEXT_BYTES = 256;
 
 
-export async function readAudioMetadata(file) {
+export async function readAudioMetadata(file, { embeddedIdentity = null } = {}) {
 
     const isMP4Container =
         /\.(m4a|mp4)$/i.test(file.name);
 
     if (isMP4Container) {
-        return readMP4Metadata(file);
+        const metadata = await readMP4Metadata(file);
+        if (embeddedIdentity && !embeddedIdentity.identityOrigins?.includes("apple-embedded")) {
+            metadata.uuid = null; metadata.recordingDate = null;
+        }
+        return metadata;
     }
 
     return readBrowserAudioMetadata(file);

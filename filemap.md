@@ -1,16 +1,16 @@
 # Memora file map
 
-Updated 18 November 2026. Identity checkpoint 2B is implemented for review with shared database schema 6. Production remains **2026-11-13.10**; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
+Updated 18 November 2026. Checkpoint 3 candidate **2026-11-18.1** integrates identity, with shared database schema 6 and desktop/iPhone acceptance pending; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
 
 This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
 
 ## The short answer about the number of files
 
-There are **49 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **28 JavaScript files under `tests/`**. Test files are separate from the normal application.
+There are **53 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **31 JavaScript files under `tests/`**. Test files are separate from the normal application.
 
-**44 application files have a dependency path from the main page; five identity modules remain isolated.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+**All 53 application files have a dependency path from the main page.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
-The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for identity checkpoint 2B review and later Memora transcription integration.
+The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
 
 The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. There are also unused functions and overlapping selection/catalogue logic inside otherwise active files. See [cleanup findings](#cleanup-findings) before deleting anything.
 
@@ -35,7 +35,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 
 ## How the main features connect
 
-- **Transcribe:** `index.html` → `app.js` → `transcription.js` → `whisper.js` → the iOS or desktop worker. Production transcriptions reuse the loaded model while the configuration stays the same.
+- **Transcribe:** `index.html` → `app.js` → source identity/persistence and transcript archive coordination → `transcription.js` → `whisper.js` → the iOS or desktop worker. Production transcriptions reuse the loaded model while the configuration stays the same.
 - **Self-test:** `settings.js` → `whisperSelfTest.js` → `whisperTestLifecycle.js` → the same platform worker. Each standalone test creates a fresh worker and ends it after the test. This repeated-load behavior is under investigation on iPhone.
 - **Permission to transcribe:** canonical configurations + saved eligibility → `whisperProductionEligibility.js` → the selector and the loader. File availability/cache presence alone does not grant eligibility.
 - **Combine:** `app.js` + `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls.
@@ -154,17 +154,22 @@ Standalone exported HTML needs its own embedded behavior; it is not simply anoth
 
 Search and paragraphing both can use MiniLM, but perform different jobs and own separate workers. This is a potential shared-service/resource-lifecycle design opportunity, not proof either file is disposable or the cause of the iPhone restarts.
 
-## Isolated recording identity — 5 files
+## Recording and transcript identity — 9 files
 
-These APIs are exercised by isolated harnesses and have no production entry-point imports yet. Their shared storage/database helpers do have production callers.
+These modules are now connected to normal transcription. Standalone harnesses keep automated tests separate from user data.
 
 | File | Responsibility | Main callers |
 |---|---|---|
 | [recordingIdentity.js](js/recordingIdentity.js) | Bounded read-only Apple/iMuse embedded ID and provenance inspection. | Isolated tests and source persistence API |
 | [audioSourceIdentity.js](js/audioSourceIdentity.js) | Pure recording-list validation, serialization and identity decisions. | Isolated tests and source persistence/recovery APIs |
-| [audioFingerprint.js](js/audioFingerprint.js) | Incremental raw-byte SHA-256 with bounded chunks and cancellation. | Source persistence API and tests |
-| [audioSourceRecovery.js](js/audioSourceRecovery.js) | Revision-checked schema-6 recovery persistence and evidence-based source matching. | Source persistence API and tests |
-| [audioSourcePersistence.js](js/audioSourcePersistence.js) | Source discovery, staged identities, safe writes and pending file-input JSON exports. | Isolated tests; production wiring deferred to checkpoint 3 |
+| [audioFingerprint.js](js/audioFingerprint.js) | Incremental raw-byte SHA-256 with bounded chunks and cancellation. | Transcription identity workflow, source persistence API and tests |
+| [audioSourceRecovery.js](js/audioSourceRecovery.js) | Revision-checked schema-6 recovery persistence and evidence-based source matching. | Transcription identity workflow, source persistence API and tests |
+| [audioSourcePersistence.js](js/audioSourcePersistence.js) | Source discovery, staged identities, safe writes and pending file-input JSON exports. | Transcription workflow and tests |
+| [recordingIdentityUI.js](js/recordingIdentityUI.js) | Text-only source/recording prompts and explicit picker/share actions. | Transcription identity workflow |
+| [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
+| [transcriptArchive.js](js/transcriptArchive.js) | Bounded transcript-archive validation, additive references and verified/concurrency-checked manifest writes. | Transcription identity workflow |
+| [transcriptionIdentity.js](js/transcriptionIdentity.js) | Coordinates source evidence, identity, archive selection, persistence gates and snapshot release. | App |
+
 
 ## Persistent data and Settings — 5 files
 

@@ -1,3 +1,17 @@
+# Current checkpoint 3 candidate — 2026-11-18.1
+
+The user passed checkpoint 2B and committed it as `9d38697`. The new candidate connects identity to production transcription; desktop and real-iPhone acceptance are pending.
+
+Open **`tests/transcription-identity.html`** through Live Server in Chrome. Expected: **17/17 groups passed**, shown above the app after the test completes. It loads the actual page with synthetic files, mocked inference, memory recovery for fake handles and a disposable transcript-cache database. It does not select user folders, run real models or use the real Memora database. The native 2B harness remains a separate **32/32** check of actual browser handle/IndexedDB behavior.
+
+Verification also passed 31 source-identity, 21 embedded-reader, six Whisper diagnostics, four failure-classification, nine Settings/ownership and seven storage/Settings integration groups. No real-device acceptance is inferred from these results.
+
+Run `node tests/run-recording-identity.mjs --suite=transcription-identity --browser` with `MEMORA_TEST_BROWSER` set to Chromium. Other focused browser suites now supported by the runner: `--suite=whisper-diagnostics`, `--suite=whisper-failures`, `--suite=whisper-settings`, `--suite=database`, `--suite=database-integration` (each with `--browser`).
+
+Manual acceptance uses copied short audio and a new empty output destination; do not test writes against the four migrated archives. Follow [contract section 15](../docs/Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for the ordered desktop/iPhone checks and the supported-container limitation. No agent commit/deployment was performed.
+
+---
+
 # Current identity checkpoint 2B — 18 November 2026
 
 Open `tests/audio-source-persistence.html` through Live Server. Expected: **32/32 groups passed** in a Chromium browser with browser-private filesystem support. All default database calls are redirected by the harness import map; only temporary fixture databases/private test directories are created and removed. No real Memora database, selected user folder, models or archive changes. The page writes synthetic data in its browser-private filesystem for native persistence verification.

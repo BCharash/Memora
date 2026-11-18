@@ -665,7 +665,7 @@ function createTranscriptSection(record, index) {
         "Duration unknown";
 
     const voiceMemoId =
-        record.voiceMemoId ||
+        record.recordingId || record.voiceMemoId ||
         "Unknown";
 
     const whisperModel =
@@ -692,7 +692,7 @@ function createTranscriptSection(record, index) {
                 Duration:
                 ${escapeHTML(duration)}
                 <br>
-                Voice Memo ID:
+                Recording ID:
                 ${escapeHTML(voiceMemoId)}
                 <br>
                 Whisper model:

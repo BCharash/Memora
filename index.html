@@ -188,6 +188,13 @@
                         style="display:none;"
                     >
 
+                        <div class="identity-save-controls">
+                            <button id="saveRecordingListButton" type="button" hidden>Save recording list to Files</button>
+                            <p id="recordingListSaveStatus" class="settings-note" role="status"></p>
+                            <button id="saveTranscriptArchiveButton" type="button" hidden>Save transcript archive JSON to Files</button>
+                            <p id="transcriptArchiveSaveStatus" class="settings-note" role="status"></p>
+                        </div>
+
                         <button
                             id="iphoneExportButton"
                             type="button"
@@ -210,6 +217,8 @@
 
 
                 <h2>Transcription</h2>
+                <button id="retryTranscriptSaveButton" type="button" hidden>Retry pending transcript save</button>
+                <p id="pendingTranscriptSaveStatus" class="settings-note" role="status"></p>
 
                 <div class="transcription-controls">
 

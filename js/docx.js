@@ -120,8 +120,8 @@ export async function createCombinedDOCX(
 
         children.push(
             createMetadataParagraph(
-                "Voice Memo ID",
-                record.voiceMemoId || "Unknown"
+                "Recording ID",
+                record.recordingId || record.voiceMemoId || "Unknown"
             )
         );
 

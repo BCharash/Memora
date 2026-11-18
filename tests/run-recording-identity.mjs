@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const suite = process.argv.find(arg=>arg.startsWith('--suite='))?.slice(8) || (process.argv.includes('--persistence') ? 'audio-source-persistence' : process.argv.includes('--source') ? 'audio-source-identity' : 'recording-identity');
-if (!['recording-identity','audio-source-identity','audio-source-persistence','database','database-integration'].includes(suite)) throw Error('Unsupported suite');
+if (!['recording-identity','audio-source-identity','audio-source-persistence','database','database-integration','transcription-identity','whisper-diagnostics','whisper-failures','whisper-settings'].includes(suite)) throw Error('Unsupported suite');
 const fixturePath = join(root, 'tests', 'fixtures', 'imuse-recording-identity.json');
 if (process.argv.includes('--generate-fixtures')) {
     const source = await readFile(resolve(root, '../iMuse/js/recording-identity.js'), 'utf8');
@@ -38,6 +38,7 @@ if (process.argv.includes('--generate-fixtures')) {
     console.log('Generated 6 reference-exported fixtures; repeated exports, identity readback and combined provenance passed.');
     process.exit(0);
 }
+if (!process.argv.includes('--browser') && !['recording-identity','audio-source-identity','audio-source-persistence'].includes(suite)) throw Error('This suite requires --browser.');
 if (!process.argv.includes('--browser')) {
     const results = { textContent: '' };
     globalThis.document = { querySelector: () => results, body: { dataset: {} } };
@@ -55,6 +56,7 @@ if (!process.argv.includes('--browser')) {
     const report = new Promise(resolve => { reportResult = resolve; });
     const server = createServer(async (request, response) => {
         try {
+            if (request.url === '/_identity-test-progress' && request.method === 'POST') { let body=''; for await (const chunk of request) {body+=chunk;if(body.length>12000)throw Error('Oversized progress');} if(body.startsWith('FAIL '))console.log(body);response.end('ok');return; }
             if (request.url === '/_identity-test-result' && request.method === 'POST') {
                 let body = '';
                 for await (const chunk of request) { body += chunk; if (body.length > 100000) throw Error('Oversized test report'); }

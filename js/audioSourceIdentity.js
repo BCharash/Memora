@@ -139,6 +139,11 @@ function checkManifest(value) {
     }
     return value;
 }
+// Shared bounded JSON framing for identity documents, independent of schema.
+export function parseBoundedIdentityJson(text) {
+    try { checkSize(text); checkJsonKeys(text); return {status:'valid',value:copyJson(JSON.parse(text)),issues:[]}; }
+    catch(error) { return {...errorResult(error),value:null}; }
+}
 export function parseAudioSourceManifest(text) {
     try {
         checkSize(text); checkJsonKeys(text);

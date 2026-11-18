@@ -77,7 +77,10 @@ async function digestText(text) {
 async function getTranscriptHash(record) {
     return digestText(JSON.stringify({
         source: {
-            voiceMemoId: record.voiceMemoId || null,
+            recordingId: record.recordingId || record.voiceMemoId || null,
+            archiveUuid: record.archiveUuid || null,
+            audioSourceId: record.audioSourceId || null,
+            voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,
             recordingDate: record.recordingDate || null,
             operation: record.operation || "transcribe"
@@ -574,7 +577,10 @@ export async function buildSearchIndex(
             archiveTranscriptInfo[index].transcriptHash;
         records[index].sourceKey =
             await digestText(JSON.stringify({
-                voiceMemoId: records[index].voiceMemoId || null,
+                recordingId: records[index].recordingId || records[index].voiceMemoId || null,
+                archiveUuid: records[index].archiveUuid || null,
+                audioSourceId: records[index].audioSourceId || null,
+                voiceMemoId: records[index].recordingId || records[index].voiceMemoId || null,
                 recordingFilename: records[index].recordingFilename || null,
                 recordingDate: records[index].recordingDate || null,
                 operation: records[index].operation || "transcribe"

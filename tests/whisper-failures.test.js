@@ -74,3 +74,5 @@ try {
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }
 finally { urls.forEach(url => URL.revokeObjectURL(url)); delete globalThis.__whisperFailureFixture; output.textContent = lines.join("\n"); }
+
+if (location.search.includes("report=1")) await fetch("/_identity-test-result", {method:"POST", body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result === "passed" ? [] : ["suite failed"],output:document.getElementById("results").textContent})});

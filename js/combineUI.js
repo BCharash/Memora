@@ -1,3 +1,4 @@
+import { replaceTranscriptBody } from "./transcriptMetadata.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -441,16 +442,8 @@ export async function displayTranscriptFiles(files) {
 
                     try {
                         const originalText = await record.file.text();
-                        const lines = originalText.split(/\r?\n/);
-                        const separatorIndex = lines.findIndex(
-                            line => line.trim() === "--------------------------------------------------"
-                        );
-                        if (separatorIndex === -1) {
-                            throw new Error("The transcript separator was not found; the file was not changed.");
-                        }
-                        const headerText = lines.slice(0, separatorIndex + 1).join("\n");
-                        const editedBody = editor.value.replace(/\r\n?/g, "\n").replace(/^\n+|\n+$/g, "");
-                        const updatedText = `${headerText}\n${editedBody}\n`;
+                        const editedBody = editor.value;
+                        const updatedText = replaceTranscriptBody(originalText, editedBody);
                         const updatedFile = await saveTranscriptEdits(record, updatedText);
 
                         record.file = updatedFile || new File([updatedText], record.filename, {

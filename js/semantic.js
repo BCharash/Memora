@@ -93,7 +93,10 @@ async function digestText(value) {
 
 async function getSourceKey(record) {
     return digestText(JSON.stringify({
-        voiceMemoId: record.voiceMemoId || null,
+        recordingId: record.recordingId || record.voiceMemoId || null,
+            archiveUuid: record.archiveUuid || null,
+            audioSourceId: record.audioSourceId || null,
+            voiceMemoId: record.recordingId || record.voiceMemoId || null,
         recordingFilename: record.recordingFilename || null,
         recordingDate: record.recordingDate || null,
         operation: record.operation || "transcribe"
@@ -103,7 +106,10 @@ async function getSourceKey(record) {
 async function getTranscriptHash(record) {
     return digestText(JSON.stringify({
         source: {
-            voiceMemoId: record.voiceMemoId || null,
+            recordingId: record.recordingId || record.voiceMemoId || null,
+            archiveUuid: record.archiveUuid || null,
+            audioSourceId: record.audioSourceId || null,
+            voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,
             recordingDate: record.recordingDate || null,
             operation: record.operation || "transcribe"

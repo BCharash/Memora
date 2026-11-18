@@ -155,3 +155,5 @@ try {
     window.fetch = originalFetch; window.Worker = originalWorker;
     document.getElementById("results").textContent = lines.join("\n");
 }
+
+if (location.search.includes("report=1")) await fetch("/_identity-test-result", {method:"POST", body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result === "passed" ? [] : ["suite failed"],output:document.getElementById("results").textContent})});

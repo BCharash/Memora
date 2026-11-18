@@ -1661,3 +1661,9 @@ button:disabled {
     margin-top: 12px;
     padding-top: 16px;
 }
+
+.identity-dialog { max-width: min(32rem, calc(100vw - 2rem)); border: 2px solid var(--muted); border-radius: 12px; padding: 1.25rem; background: var(--panel, white); color: var(--text, #111); }
+.identity-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.identity-dialog p { white-space: pre-wrap; line-height: 1.5; }
+.identity-dialog-actions { display: flex; flex-wrap: wrap; gap: .65rem; }
+.identity-save-controls { margin-block: .75rem; }

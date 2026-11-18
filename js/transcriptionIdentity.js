@@ -1,0 +1,66 @@
+import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordingIdentityUI.js';
+import {openTranscriptArchive} from './transcriptArchive.js';
+import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
+import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
+import {listTextFiles,shareFile} from './storage.js';
+// Inspect only the explicitly selected transcript destination. Embedded IDs
+// corroborate associations; folder names and filenames cannot establish identity.
+export async function associatedSourceEvidence(destination,files){
+    const labels=new Map();
+    if(destination?.kind!=='directory')return {ids:[],labels};
+    const ids=new Set();
+    for(const file of files){const result=await readEmbeddedRecordingIdentity(file);if(result.status==='valid')ids.add(result.recordingId.toLowerCase());}
+    if(!ids.size)return {ids:[],labels};
+    for(const file of await listTextFiles(destination)){
+        if(file.size>0){
+            let identity;try{identity=readTranscriptIdentity(await file.slice(0,65536).text());}catch{continue;}
+            if(identity.recordingId&&identity.audioSourceId&&ids.has(identity.recordingId.toLowerCase()))labels.set(identity.audioSourceId.toLowerCase(),`Transcript source: ${destination.name} / ${file.name}`);
+        }
+    }
+    return {ids:[...labels.keys()],labels};
+}
+export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPendingArchive,onStatus}={}){
+    const ui=createRecordingIdentityUI({ask,onPendingList,onStatus,shareFile});
+    let archive=null,destination=null,source=null;
+    return {
+        reset(){ui.reset();archive=null;destination=null;source=null;onPendingArchive?.(null);},
+        getSession:()=>ui.getSession(),
+        async begin(selectedSource,selectedDestination,files){
+            const evidence=await associatedSourceEvidence(selectedDestination,files);
+            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels);
+            if(archive&&source===selectedSource&&destination===selectedDestination)return;
+            let selectedFile=null;
+            if(selectedSource.kind==='file-input'){
+                const pending=session.getPendingTranscriptArchive();
+                const answer=await ask({title:'Choose the transcript archive',message:'Select memora-archive.json to add transcripts to an existing archive, or create a new transcript archive. Save its JSON beside the resulting transcripts.',choices:[
+                    {action:'select',label:'Select transcript archive JSON',run:pickIdentityJson},
+                    ...(pending?[{action:'pending',label:'Continue pending transcript archive'}]:[]),
+                    {action:'create',label:'Create transcript archive'},{action:'cancel',label:'Cancel'}]});
+                if(answer.action==='cancel')throw new DOMException('Transcript archive selection cancelled.','AbortError');
+                selectedFile=answer.action==='select'?answer.value:answer.action==='pending'?new File([pending],'memora-archive.json',{type:'application/json'}):null;
+            }
+            archive=await openTranscriptArchive(selectedDestination,{selectedFile,createNew:true});
+            source=selectedSource;destination=selectedDestination;
+        },
+        async prepare(file){
+            const identity=await ui.prepareRecording(file);if(!identity)return null;
+            const resolved={...identity,archiveUuid:archive.archiveUuid,audioSourceId:ui.getSession().sourceId,originalAudioFolderName:source.name};
+            recordingIdentityLines(resolved);
+            await ui.persist();
+            return resolved;
+        },
+        async addTranscript(reference){
+            const file=await archive.add(reference);
+            if(source.kind==='file-input'){
+                await ui.getSession().retainTranscriptArchive(file);
+                onPendingArchive?.(file);
+            }
+            return file;
+        },
+        finishRecording(file){
+            const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
+            ui.getSession().releaseRecordingSnapshot(path);
+        },
+        persist:()=>ui.persist()
+    };
+}

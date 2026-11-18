@@ -1,3 +1,7 @@
+import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
+import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
+import { shareFile as shareIdentityFile } from "./storage.js";
+import { askIdentity } from "./recordingIdentityUI.js";
 import { renderWhisperExecutionReport, renderWhisperReviewNotice } from "./whisperExecutionReports.js";
 import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
@@ -76,15 +80,16 @@ const iphoneExportStatus =
 const fileInput = document.getElementById("fileInput");
 const modelSelect = document.getElementById("modelSelect");
 let transcriptionBatchActive = false;
+let sourceSelectionActive = false;
 let modelRefreshVersion = 0;
 async function refreshQualifiedWhisperModels() {
     const version = ++modelRefreshVersion;
-    if (!modelSelect || transcriptionBatchActive) return;
+    if (!modelSelect || transcriptionBatchActive || sourceSelectionActive) return;
     const note = document.getElementById("modelEligibilityNote");
     const previous = modelSelect.value;
     try {
         const definitions = await listQualifiedWhisperProductionModels();
-        if (version !== modelRefreshVersion || transcriptionBatchActive) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive) return;
         modelSelect.replaceChildren();
         for (const definition of definitions) {
             const option = document.createElement("option");
@@ -106,7 +111,7 @@ async function refreshQualifiedWhisperModels() {
         const reviewNotice = document.getElementById("modelReviewNotice");
         if (reviewNotice) renderWhisperReviewNotice(reviewNotice);
     } catch (error) {
-        if (version !== modelRefreshVersion || transcriptionBatchActive) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive) return;
         modelSelect.replaceChildren();
         modelSelect.disabled = transcribeButton.disabled = true;
         if (note) note.textContent = `Model eligibility unavailable: ${error.message}`;
@@ -205,6 +210,59 @@ let sourceHandle = null;
 let destinationHandle = null;
 
 let pendingIPhoneExports = [];
+let pendingRecordingList = null, pendingTranscriptArchive = null;
+let recordingListShared = false, transcriptArchiveShared = false;
+const pendingTranscriptSaves = [];
+const saveRecordingListButton = document.getElementById("saveRecordingListButton");
+const saveTranscriptArchiveButton = document.getElementById("saveTranscriptArchiveButton");
+const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
+const identityWorkflow = createTranscriptionIdentity({
+    onStatus: message => setTranscriptionBusy(message),
+    onPendingList: file => {
+        pendingRecordingList = file; recordingListShared = false;
+        if (saveRecordingListButton) saveRecordingListButton.hidden = !file;
+        document.getElementById("recordingListSaveStatus").textContent = file ? "Save memora-audio-source.json in the audio folder before sharing transcripts." : "";
+        updateIPhoneExportButton(true);
+    },
+    onPendingArchive: file => {
+        pendingTranscriptArchive = file; transcriptArchiveShared = false;
+        if (saveTranscriptArchiveButton) saveTranscriptArchiveButton.hidden = !file;
+        document.getElementById("transcriptArchiveSaveStatus").textContent = file ? "Save memora-archive.json beside the transcripts." : "";
+        updateIPhoneExportButton(true);
+    }
+});
+window.addEventListener("beforeunload", event => {
+    if (pendingTranscriptSaves.length || pendingIPhoneExports.length && !identityFilesReady()) {
+        event.preventDefault(); event.returnValue = "";
+    }
+});
+function identityFilesReady() { return (!pendingRecordingList || recordingListShared) && (!pendingTranscriptArchive || transcriptArchiveShared); }
+for (const [button, kind] of [[saveRecordingListButton, "source"], [saveTranscriptArchiveButton, "archive"]]) {
+    button?.addEventListener("click", async () => {
+        const file = kind === "source" ? pendingRecordingList : pendingTranscriptArchive;
+        if (!file) return;
+        button.disabled = true;
+        try {
+            await shareIdentityFile(file);
+            if (kind === "source" && file === pendingRecordingList) recordingListShared = true;
+            if (kind === "archive" && file === pendingTranscriptArchive) transcriptArchiveShared = true;
+            document.getElementById(kind === "source" ? "recordingListSaveStatus" : "transcriptArchiveSaveStatus").textContent = "Share completed. Memora cannot verify the saved location.";
+        } catch (error) {
+            if (error.name !== "AbortError") alert(error.message);
+        } finally { button.disabled = false; updateIPhoneExportButton(true); }
+    });
+}
+function updatePendingSaveButton() {
+    if (retryTranscriptSaveButton) retryTranscriptSaveButton.hidden = !pendingTranscriptSaves.length;
+    document.getElementById("pendingTranscriptSaveStatus").textContent = pendingTranscriptSaves.length ? "Completed text is retained below. Retry its save without transcribing again." : "";
+}
+async function confirmPendingDiscard() {
+    if (!pendingIPhoneExports.length && !pendingTranscriptSaves.length) return true;
+    const answer = await askIdentity({title:"Keep the pending transcripts?",message:"There are transcripts waiting to be saved. Keep them and finish saving, or explicitly discard them before starting a new source or batch.",choices:[{action:"cancel",label:"Keep pending transcripts"},{action:"discard",label:"Discard pending transcripts"}]});
+    if (answer.action !== "discard") return false;
+    pendingTranscriptSaves.length = 0; updatePendingSaveButton(); resetIPhoneExportState(); return true;
+}
+
 
 let textSourceHandle = null;
 let combineDestinationHandle = null;
@@ -529,8 +587,11 @@ sourceButton.addEventListener("click", async () => {
         const storage =
             await getStorageModule();
 
-        sourceHandle =
-            await storage.selectFolder();
+        if (transcriptionBatchActive || !(await confirmPendingDiscard())) return;
+        const selectedSource = await storage.selectFolder();
+        sourceSelectionActive = true; sourceButton.disabled = true; transcribeButton.disabled = true;
+        sourceHandle = selectedSource;
+        identityWorkflow.reset();
 
         destinationHandle = null;
 
@@ -589,6 +650,9 @@ sourceButton.addEventListener("click", async () => {
                 "Unable to read the source folder."
             );
         }
+    } finally {
+        sourceSelectionActive = false; sourceButton.disabled = false;
+        if (!transcriptionBatchActive) await refreshQualifiedWhisperModels();
     }
 });
 
@@ -742,7 +806,7 @@ if (modelSelect) {
     modelSelect.addEventListener("change", event => {
         // Automatic eligibility refresh must not discard successful transcripts
         // waiting for the user's Files share action.
-        if (!event.detail?.preserveExports) resetIPhoneExportState();
+        // Completed artifacts retain the settings that produced them.
     });
 }
 
@@ -750,7 +814,7 @@ if (modelSelect) {
 // A new iPhone save batch must therefore start from zero.
 if (paragraphingCheckbox) {
     paragraphingCheckbox.addEventListener("change", () => {
-        resetIPhoneExportState();
+        // Existing completed artifacts remain available until explicitly discarded.
     });
 }
 
@@ -793,6 +857,11 @@ transcribeButton.addEventListener(
             return;
         }
 
+        if (pendingTranscriptSaves.length) {
+            alert("Retry the pending transcript save before starting another transcription."); return;
+        }
+        if (isIPhoneSource && !(await confirmPendingDiscard())) return;
+
         // Pressing Transcribe Selected defines a new iPhone export batch
         // using the recordings selected at that moment.
         if (isIPhoneSource) {
@@ -802,6 +871,7 @@ transcribeButton.addEventListener(
         try {
 
             transcriptionBatchActive = true;
+            for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = true;
             transcribeButton.disabled = true;
 
             transcriptionOutput.textContent = "";
@@ -820,14 +890,17 @@ transcribeButton.addEventListener(
                     ? null
                     : destinationHandle;
 
+            await identityWorkflow.begin(sourceHandle, transcriptionFolder, filesToTranscribe);
+
             for (
                 let i = 0;
                 i < filesToTranscribe.length;
                 i++
             ) {
 
-                const file =
-                    filesToTranscribe[i];
+                const identity = await identityWorkflow.prepare(filesToTranscribe[i]);
+                if (!identity) continue;
+                const file = identity.file;
 
                 const transcriptionAudioPath =
                     isIPhoneSource
@@ -879,6 +952,10 @@ transcribeButton.addEventListener(
                                 if (record.timings) record.timings.paragraphMs = performance.now() - paragraphStarted;
                             }
 
+                            record.metadata = { ...record.metadata, recordingId: identity.recordingId,
+                                archiveUuid: identity.archiveUuid, audioSourceId: identity.audioSourceId,
+                                originalAudioFolderName: identity.originalAudioFolderName };
+                            record.processedTranscript = processedTranscript;
                             execution.checkpoint("save", { timings: record.timings });
                             const transcript =
                                 buildTranscript(
@@ -891,29 +968,17 @@ transcribeButton.addEventListener(
                                     transcriptionAudioPath
                                 );
 
-                            const savedFilename =
-                                await atWhisperFailureBoundary({ stage: "save" }, () => saveTranscript(
-                                    transcriptionFolder,
-                                    record.file,
-                                    record.metadata,
-                                    transcript,
-                                    record.model,
-                                    operation
-                                ));
-
-                            if (isIPhoneSource) {
-                                pendingIPhoneExports.push(
-                                    new File(
-                                        [transcript],
-                                        savedFilename,
-                                        { type: "text/plain" }
-                                    )
-                                );
-                                updateIPhoneExportButton();
+                            const prepared = { transcriptionFolder, record, transcript, operation, identity, filename: null };
+                            try {
+                                await atWhisperFailureBoundary({ stage: "save" }, () => savePreparedTranscript(prepared));
+                            } catch (error) {
+                                pendingTranscriptSaves.push(prepared); updatePendingSaveButton();
+                                appendTranscription(record.file, processedTranscript, record);
+                                throw error;
                             }
 
-                            record.processedTranscript = processedTranscript;
-                        }
+                        },
+                        identity.embedded
                     );
                 appendTranscription(record.file, record.processedTranscript, record);
             }
@@ -944,6 +1009,7 @@ transcribeButton.addEventListener(
         } finally {
 
             transcriptionBatchActive = false;
+            for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = false;
             await refreshQualifiedWhisperModels();
         }
     }
@@ -955,31 +1021,12 @@ transcribeButton.addEventListener(
 // --------------------------------------------------
 
 function setTranscriptionBusy(message) {
-
-    transcriptionStatus.innerHTML = `
-        <span class="transcription-spinner"
-              aria-hidden="true"></span>
-        <span>${message}</span>
-    `;
+    const spinner = document.createElement("span"); spinner.className = "transcription-spinner"; spinner.setAttribute("aria-hidden", "true");
+    const text = document.createElement("span"); text.textContent = message;
+    transcriptionStatus.replaceChildren(spinner, text);
 }
-
-
-function setTranscriptionComplete(message) {
-
-    transcriptionStatus.innerHTML = `
-        <span>${message}</span>
-    `;
-}
-
-
-function setTranscriptionError(message) {
-
-    transcriptionStatus.innerHTML = `
-        <span>${message}</span>
-    `;
-}
-
-
+function setTranscriptionComplete(message) { transcriptionStatus.textContent = message; }
+function setTranscriptionError(message) { transcriptionStatus.textContent = message; }
 
 // --------------------------------------------------
 // Combine Files
@@ -1122,7 +1169,8 @@ if (
 
 const settingsUI = initSettingsUI({
     getStorageManager: getStorageManagerModule,
-    getStorage: getStorageModule
+    getStorage: getStorageModule,
+    getActiveAudioSourceId: () => identityWorkflow.getSession()?.sourceId || null
 });
 
 const textSizeSlider = document.getElementById("textSizeSlider");
@@ -1490,6 +1538,7 @@ initCombineUI({
             throw new Error("Select the transcript source again before editing.");
         }
 
+        readTranscriptIdentity(updatedText);
         const updatedFile = new File([updatedText], record.filename, {
             type: "text/plain",
             lastModified: Date.now()
@@ -1500,6 +1549,7 @@ initCombineUI({
             // edited transcript to the existing Files Share Sheet workflow.
             await storage.shareFile(updatedFile);
         } else {
+            if (await storage.readTextFile(sourceHandle, record.filename) !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);
         }
 
@@ -1969,7 +2019,7 @@ function buildTranscript(
         `Recording date: ${recordingDate}`,
         `File date: ${fileDate}`,
         `Duration: ${duration}`,
-        `Voice Memo ID: ${metadata.uuid || "Unknown"}`,
+        ...recordingIdentityLines(metadata),
         `Whisper model: ${model}`,
         `Operation: ${operation === "translate" ? "translate" : "transcribe"}`
     ];
@@ -1999,62 +2049,40 @@ function buildTranscript(
 }
 
 
-// --------------------------------------------------
-// Save transcript
-// --------------------------------------------------
-
-async function saveTranscript(
-    transcriptionFolder,
-    file,
-    metadata,
-    transcript,
-    model,
-    operation
-) {
-
-    const storage =
-        await getStorageModule();
-
-    if (sourceHandle?.kind === "file-input") {
-
-        const filename =
-            await createUniqueTranscriptFilename(
-                null,
-                file,
-                metadata,
-                model,
-                operation
-            );
-
-        await storage.saveTranscriptRecord(
-            filename,
-            transcript,
-            metadata,
-            model,
-            operation
-        );
-
-        return filename;
+// Save identity-bearing output only after the source persistence gate passed.
+async function savePreparedTranscript(prepared) {
+    const {transcriptionFolder,record,transcript,operation,identity} = prepared;
+    const storage = await getStorageModule();
+    await identityWorkflow.persist();
+    if (!prepared.filename) prepared.filename = await createUniqueTranscriptFilename(transcriptionFolder,record.file,record.metadata,record.model,operation);
+    const filename = prepared.filename;
+    if (transcriptionFolder) {
+        const existing = await storage.readTextFile(transcriptionFolder,filename);
+        if (existing !== null && existing !== transcript && !(prepared.emptyCreated && existing === "")) throw new Error("The pending transcript filename changed outside Memora. Keep the completed text and review that file before retrying.");
+        await identityWorkflow.addTranscript({recordingId:identity.recordingId,filename,model:record.model,operation});
+        if (existing === null || prepared.emptyCreated && existing === "") {
+            try { await storage.writeTextFile(transcriptionFolder,filename,transcript); }
+            catch (error) { if (existing === null && await storage.readTextFile(transcriptionFolder,filename) === "") prepared.emptyCreated = true; throw error; }
+        }
+        if (await storage.readTextFile(transcriptionFolder,filename) !== transcript) throw new Error("The saved transcript could not be verified. Retry the pending save.");
+    } else {
+        await identityWorkflow.addTranscript({recordingId:identity.recordingId,filename,model:record.model,operation});
+        await storage.saveTranscriptRecord(filename,transcript,record.metadata,record.model,operation);
     }
-
-    const filename =
-        await createUniqueTranscriptFilename(
-            transcriptionFolder,
-            file,
-            metadata,
-            model,
-            operation
-        );
-
-    await storage.writeTextFile(
-        transcriptionFolder,
-        filename,
-        transcript
-    );
-
-    return filename;
+    if (!transcriptionFolder && !pendingIPhoneExports.some(file => file.name === filename)) {
+        pendingIPhoneExports.push(new File([transcript],filename,{type:"text/plain"}));
+        updateIPhoneExportButton(true);
+    }
+    identityWorkflow.finishRecording(record.file);
 }
-
+retryTranscriptSaveButton?.addEventListener("click", async () => {
+    retryTranscriptSaveButton.disabled = true;
+    try {
+        while (pendingTranscriptSaves.length) { await savePreparedTranscript(pendingTranscriptSaves[0]); pendingTranscriptSaves.shift(); }
+        setTranscriptionComplete("Pending transcript save completed.");
+    } catch (error) { setTranscriptionError(error.message); }
+    finally { retryTranscriptSaveButton.disabled = false; updatePendingSaveButton(); }
+});
 
 function updateIPhoneExportButton(forceEnable = false) {
     if (!iphoneExportButton) {
@@ -2068,7 +2096,7 @@ function updateIPhoneExportButton(forceEnable = false) {
         `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
 
     if (forceEnable) {
-        iphoneExportButton.disabled = count === 0;
+        iphoneExportButton.disabled = count === 0 || !identityFilesReady();
     }
 }
 
@@ -2092,21 +2120,21 @@ function resetIPhoneExportState() {
 function setIPhoneExportSavedStatus(count) {
     if (iphoneExportButton) {
         iphoneExportButton.classList.toggle("has-pending-exports", pendingIPhoneExports.length > count);
-        iphoneExportButton.disabled = count === 0;
+        iphoneExportButton.disabled = count === 0 || !identityFilesReady();
         iphoneExportButton.textContent =
             `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
     }
 
     if (iphoneExportStatus) {
         iphoneExportStatus.textContent =
-            `${count} Transcript${count === 1 ? "" : "s"} saved`;
+            `Share completed for ${count} transcript${count === 1 ? "" : "s"}. Memora cannot verify the saved location.`;
     }
 
 }
 
 
 async function exportIPhoneTranscripts() {
-    if (pendingIPhoneExports.length === 0) {
+    if (pendingIPhoneExports.length === 0 || !identityFilesReady()) {
         return;
     }
 

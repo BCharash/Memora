@@ -40,3 +40,5 @@ imuse-recording-breadboard remains untouched. HTTP app caching and model Cache S
 - [Database audit/history](archive/IndexedDB_Audit_and_Repair_Design.md)
 - [Database repair plan](archive/IndexedDB_Repair_and_Ownership_Plan.md)
 - [Test reproduction](../tests/README.md)
+
+18 November 2026 checkpoint 3 candidate: identity now has production callers. Schema remains 6. Source recovery rows can also retain a pending transcript-archive JSON; no new store/index or transcript-cache expiry rule is introduced. Settings → Recording-list recovery offers explicit revision-checked removal, protects the active source, and does not delete files on disk.

@@ -1,7 +1,7 @@
 # Memora — Phase 1 Contract Review Package
 
 **Date:** 16 November 2026
-**Status — 18 November 2026:** Archive migration is complete according to the user and the tool is retired. iMuse UUID export is user-reported implemented/device-tested. Memora identity checkpoints 1/2A are committed; **2B persistence is implemented and uncommitted for review**, with isolated APIs and additive database schema 6. Next is review/manual harness, then separately authorized checkpoint 3 production wiring within architecture Phase 3. See [implementation contract section 14](Recording_Identity_Implementation_Contract.md#14-checkpoint-2b--isolated-source-persistence). No broader Combine implementation, publication or device acceptance is implied.
+**Status — 18 November 2026:** Archive migration is complete and retired. Identity checkpoints 1/2A/2B are committed; the user passed the 2B harness. Candidate **2026-11-18.1** now integrates checkpoint 3 transcription/storage identity within architecture Phase 3. It is uncommitted/undeployed, with desktop and real-iPhone acceptance pending. See [implementation contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration). Broader Combine phases, portable document imports and their gates remain pending.
 **Authority:** [Approved revised architecture](MEMORA_COMBINE_ARCHITECTURE.md). The eight-phase sequence, individual metadata contract and separate-destination migration implementation are authorized. Later integration and device acceptance remain phased.
 
 ## 1. Approval boundary

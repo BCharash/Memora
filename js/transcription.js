@@ -25,7 +25,8 @@ async function transcribeRecordingInternal(
     language,
     operation,
     statusCallback,
-    execution
+    execution,
+    embeddedIdentity = null
 ) {
     const timings = {};
     if (statusCallback) {
@@ -37,7 +38,7 @@ async function transcribeRecordingInternal(
     execution.checkpoint("metadata");
     let started = performance.now();
     const metadata =
-        await atWhisperFailureBoundary({ stage: "metadata" }, () => readAudioMetadata(file));
+        await atWhisperFailureBoundary({ stage: "metadata" }, () => readAudioMetadata(file, { embeddedIdentity }));
     timings.metadataMs = performance.now() - started;
 
     execution.checkpoint("decode", { timings });
@@ -100,7 +101,7 @@ async function transcribeRecordingInternal(
 
 // A self-test may release idle model resources; never overlap that with an
 // active recording transcription (including preparation and metadata work).
-export async function transcribeRecording(file, model, language, operation, statusCallback, afterInference = null) {
+export async function transcribeRecording(file, model, language, operation, statusCallback, afterInference = null, embeddedIdentity = null) {
     const release = acquireWhisperActivity("transcription");
     try {
         const selected = selectWhisperConfigurationDefinition(model, runtimeIdentity);
@@ -127,7 +128,7 @@ export async function transcribeRecording(file, model, language, operation, stat
         let value, failure;
         try { value = await journal.run(metadata, async execution => {
             let record;
-            try { record = await transcribeRecordingInternal(file, model, language, operation, statusCallback, execution); }
+            try { record = await transcribeRecordingInternal(file, model, language, operation, statusCallback, execution, embeddedIdentity); }
             finally { release(); } // Preserve the existing model activity boundary.
             record.executionId = execution.id;
             if (afterInference) await afterInference(record, execution);
