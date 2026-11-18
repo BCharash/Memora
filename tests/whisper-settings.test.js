@@ -53,22 +53,24 @@ try {
     summaryToggle.click();
     await waitFor(() => summarySection.textContent.includes("No passed self-tests"));
     assert(summaryToggle.textContent === "Hide" && summaryToggle.getAttribute("aria-expanded") === "true", "summary disclosure accessible");
-    const summaryKeys = ["summary-old", "summary-new", "summary-missing"].map(id => "memora.whisper-attempt.v1." + id);
+    const summaryKeys = ["summary-old", "summary-new", "summary-missing", "summary-tiny"].map(id => "memora.whisper-attempt.v1." + id);
     try {
         for (const [index, key] of summaryKeys.entries()) {
             const record = { schemaVersion: 1, id: key.split(".").pop(), startedAt: `2026-01-0${index + 1}T12:00:00Z`, finishedAt: `2026-01-0${index + 1}T12:00:10Z`, status: "passed",
-                configuration: { id: index === 2 ? "summary-missing" : "summary-model", label: index === 2 ? "Missing metrics" : "Summary model" },
-                environment: { operatingSystem: "macos" }, result: { results: [index === 2 ? {} : { loadMs: 1250, transcriptionMs: 2500, audioDurationMs: 10000 }] } };
+                configuration: { id: index === 3 ? "tiny-fixture" : index === 2 ? "summary-missing" : "summary-model", label: index === 3 ? "Tiny" : index === 2 ? "Missing metrics" : "Summary model" },
+                environment: { operatingSystem: index === 0 ? "ios" : "macos" }, result: { results: [index === 2 ? {} : { loadMs: index === 0 ? 99000 : 1250, transcriptionMs: 2500, audioDurationMs: 10000 }] } };
             localStorage.setItem(key, JSON.stringify(record));
         }
         summaryToggle.click(); summaryToggle.click();
-        await waitFor(() => summarySection.querySelectorAll("tbody tr").length === 2);
+        await waitFor(() => summarySection.querySelectorAll("tbody tr").length === 3);
         const content = summarySection.textContent;
         assert(content.includes("0.250") && content.includes("1.25"), "RTF and seconds calculated independently");
         assert(content.includes("Unavailable"), "missing metrics truthful");
+        assert(summarySection.querySelector("tbody td").textContent === "Tiny", "smallest model first regardless of test date");
+        assert(!content.includes("99.00"), "older pass from another platform suppressed");
         assert([...summarySection.querySelectorAll("th")].map(th => th.textContent).join("|") === "Model|RTF|Load (s)", "only three compact columns");
         assert(!content.includes("Memory") && !content.includes("Historical pass"), "removed RAM and status");
-        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Passed · macOS · Summary model"), "platform beside each history status");
+        assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Passed · Platform: macOS · Summary model"), "platform beside each history status");
         const frame = document.createElement("iframe");
         frame.style.cssText = "width:320px;height:300px;border:0";
         const loaded = new Promise(resolve => frame.onload = resolve);
@@ -110,6 +112,7 @@ try {
     await waitFor(() => !runButton().disabled);
     assert(document.getElementById("settingsWhisperSelfTestDetail").textContent.includes("1 cancelled"), "cancel terminal display");
     assert(cancelButton().disabled && cancelButton().hidden && document.getElementById("settingsWhisperSelfTestCancel").hidden, "cancel hidden after stop");
+    assert(document.getElementById("settingsWhisperSelfTestDetail").dataset.selfTestPlatform, "platform retained for immediate result rendering");
     lines.push("PASS Cancel during preparation, refresh safety and terminal display");
     const selectedId = document.getElementById("settingsWhisperSelfTestModel").value;
     const selectedContext = await getWhisperEligibilityContext(getWhisperConfigurationDefinitions().find(item => item.id === selectedId));

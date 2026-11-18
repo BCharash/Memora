@@ -67,6 +67,11 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
     }
 
+    function formatTestPlatform(environment = {}) {
+        const os = environment.operatingSystem || environment.platform;
+        return ({ ios: "iOS", macos: "macOS", windows: "Windows", linux: "Linux", android: "Android" })[os] || os || "Unknown platform";
+    }
+
     function formatSeconds(ms) {
         return `${(ms / 1000).toFixed(1)} s`;
     }
@@ -346,6 +351,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     async function checkModels() {
         const detail = document.getElementById("settingsWhisperModelsDetail");
         if (detail) {
+            detail.dataset.selfTestPlatform = formatTestPlatform(environment);
             detail.hidden = false;
             detail.innerHTML = `<p class="settings-note">Checking Whisper models…</p>`;
         }
@@ -429,7 +435,30 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     function renderWhisperSummary(records) {
         const target = document.getElementById("settingsWhisperSummary");
         if (!target) return;
-        const passes = visibleWhisperAttempts(records).filter(record => record.status === "passed");
+        // Summary groups across platform/browser revisions; history keeps every saved record.
+        const definitions = getWhisperConfigurationDefinitions();
+        const familyOrder = ["tiny", "base", "small", "medium", "large"];
+        const seen = new Set();
+        const passes = [...records].filter(record => record.status === "passed")
+            .sort((a, b) => (b.startedAt || "").localeCompare(a.startedAt || "") || (b.id || "").localeCompare(a.id || ""))
+            .filter(record => {
+                const configuration = record.configuration || {};
+                const key = configuration.id || record.eligibilityContext?.configurationId ||
+                    JSON.stringify([configuration.label || "Unknown model", configuration.configuration?.dtype || null]);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        const rank = record => {
+            const configuration = record.configuration || {};
+            const definition = definitions.find(item => item.id === (configuration.id || record.eligibilityContext?.configurationId));
+            const family = definition?.family || configuration.family ||
+                (configuration.label || configuration.id || "").toLowerCase().match(/(?:^|[^a-z])(tiny|base|small|medium|large)(?:$|[^a-z])/)?.[1];
+            const index = familyOrder.indexOf(family);
+            return index < 0 ? familyOrder.length : index;
+        };
+        passes.sort((a, b) => rank(a) - rank(b) ||
+            (a.configuration?.label || a.configuration?.id || "").localeCompare(b.configuration?.label || b.configuration?.id || ""));
         if (!passes.length) {
             target.textContent = "No passed self-tests in saved history. Run a self-test above to add a result.";
             return;
@@ -499,9 +528,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 const localDate = Number.isNaN(date.getTime()) ? record.startedAt : date.toLocaleString();
                 const model = record.configuration.label ? formatSelfTestOption(record.configuration) : record.configuration.id;
                 const environment = record.environment || record.eligibilityContext?.environment || {};
-                const os = environment.operatingSystem || environment.platform;
-                const platform = ({ ios: "iOS", macos: "macOS", windows: "Windows", linux: "Linux", android: "Android" })[os] || os || "Unknown platform";
-                const heading = `${outcome} · ${platform} · ${model} · ${localDate}`;
+                const heading = `${outcome} · Platform: ${formatTestPlatform(environment)} · ${model} · ${localDate}`;
                 label.append(selection.add(record, heading, record.status !== "running"), document.createTextNode(heading));
                 const description = document.createElement("p");
                 const phases = { prepare: "audio preparation", decode: "audio decoding", release: "previous model release", load: "model loading", inference: "transcription", validation: "accuracy validation" };
@@ -552,6 +579,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         }
         if (event.type === "run-start") {
             const environment = event.environment;
+            detail.dataset.selfTestPlatform = formatTestPlatform(environment);
             detail.hidden = false;
             detail.innerHTML = `
                 <div class="whisper-self-test-output">
@@ -596,7 +624,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 ? `PASS · inference completed · accuracy passed · load ${formatSeconds(r.loadMs)} · transcription ${formatSeconds(r.transcriptionMs)} · WER ${formatWhisperWer(r.wer)} (limit 15%)`
                 : `${r.status === "cancelled" ? "CANCELLED" : r.status === "timed-out" ? "TIMED OUT" : "FAIL"} · ${r.failedPhase || "unknown stage"} · ${r.error?.message || "Unknown error"}`;
             card.querySelector(".whisper-self-test-status").hidden = false;
-            card.querySelector(".whisper-self-test-status").textContent = status;
+            card.querySelector(".whisper-self-test-status").textContent = status.replace(" · ", ` · Platform: ${detail.dataset.selfTestPlatform || "Unknown platform"} · `);
             if (r.status !== "passed" && r.transcriptionStatus === "passed") {
                 card.insertAdjacentHTML("beforeend", `<div class="settings-note">Inference completed; accuracy failed${Number.isFinite(r.wer) ? ` · WER ${formatWhisperWer(r.wer)} (limit 15%)` : ""}.</div>`);
             }
