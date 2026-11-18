@@ -1,10 +1,10 @@
 # Recording identity — checkpoint and iMuse handoff
 
-**Latest resume point — checkpoint 2A complete, 17 November 2026:** Source JSON validation and identity decisions are implemented in memory only. New 31/31 and existing reader 21/21 groups passed in Node and isolated Edge. User already manually passed/committed checkpoint 1; 2A awaits user manual review/commit. Read [implementation contract section 13](Recording_Identity_Implementation_Contract.md#13-stable-checkpoint-2a--in-memory-source-schema-and-identity-decisions) for APIs, limits, technical choices and exact next scope. Stop before 2B (hashing/discovery/persistence); no production integration, source JSON writes, build change or deployment. Older scope notes below predate this checkpoint.
+**Current checkpoint — documentation reconciled 18 November 2026:** Recording identity **2A is complete and committed** (`5eb536e`), following checkpoint 1 (`4604e7e`). Recorded Node/isolated Edge results are 31/31 source-identity groups and 21/21 reader groups. These results are historical verification, not a new test run or inferred manual/iPhone acceptance. The modules remain isolated; live production is **2026-11-13.10**, reads Apple IDs only and writes `Voice Memo ID`.
 
-**Checkpoint 1 complete — 17 November 2026:** Isolated Apple/iMuse reader and tests added after explicit step-1 authorization; 21/21 groups passed in Node and isolated Edge. Production behavior remains unchanged (Apple-only reader and Voice Memo ID writer). Start at [implementation contract section 12](Recording_Identity_Implementation_Contract.md#12-stable-checkpoint-1--isolated-embedded-identity-reader). Step 2 (source JSON) is not authorized yet. Older no-code statements below describe the prior design stage.
+**Next checkpoint: 2B** — actual complete-file fingerprinting, source discovery/association, durable UUID reservation/recovery and safe persistence. The exact scope and unresolved technical items are in [implementation contract section 13](Recording_Identity_Implementation_Contract.md#13-stable-checkpoint-2a--in-memory-source-schema-and-identity-decisions). The current authorization covers documentation reconciliation; 2B begins in the following work step. Keep production integration for checkpoint 3 and retain later device/deployment gates. Do not restart migration or unrelated Search/Combine work.
 
-**Latest resume point — 17 November 2026:** Read [Recording Identity Implementation Contract](Recording_Identity_Implementation_Contract.md) first. It consolidates the subsequently approved source JSON schema, all-entry fingerprints, recovery reasons, safe writes, source-ID conflict handling and prompts. It supersedes earlier open questions below where those decisions have since been settled. Application code is still not authorized. The remaining technical checklist is in section 11 of that contract; do not restart the already approved decisions.
+The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) govern the broader plan. The [recording identity implementation contract](Recording_Identity_Implementation_Contract.md) governs current identity details and supersedes older design proposals. Sections 12 and 13 record completed isolated work; earlier design-stage authorization statements are historical.
 
 16 November 2026. All four existing archives were successfully migrated according to the user. The user then renamed the migrated TXT header label from `Voice Memo ID` to `Recording ID` externally, preserving the values. The disposable migration utility, its tests, generated HTML and temporary migration validation reports have been removed at the user's request. No further migration tool is needed.
 
@@ -22,7 +22,7 @@ Production Memora remains unchanged at build **2026-11-13.10**. It does not yet 
 
 The archive manifests remain with the user's actual archives, outside this repository. Migration-progress JSON was only a resume/checksum record; its output checksums became obsolete after the external header-label edits. It is not a production playback index. This repository cleanup does not delete, readjust or reverify any actual archive, manifest or progress file.
 
-## Historical iMuse review (superseded by the resume checkpoint below)
+## Historical iMuse review (superseded by the implemented exporter and current contract)
 
 Read-only review of the local sibling iMuse checkout:
 
@@ -40,7 +40,7 @@ Read-only review of the local sibling iMuse checkout:
 
 No iMuse implementation change, production Memora change, commit or deployment is part of this checkpoint. Historical journal entries retain earlier migration experiments for context; they are not active instructions to recreate or ship the tool.
 
-## Earlier checkpoint — 16 November 2026: source-owned recording identity
+## Historical checkpoint — 16 November 2026: source-owned recording identity
 
 The user stopped after a read-only integration/design review. **No application code is authorized yet.** No application code, build, database schema, actual archive or audio was changed. Resume with the focused design below, asking only one question at a time when user input is needed.
 
@@ -87,7 +87,9 @@ Recommendation given, not yet a finalized schema: keep transcript paths in each 
 
 Planned tests: actual iMuse exporter/readback fixtures for all containers and both Ogg codecs; misleading extensions and renamed/repeated exports; Apple values and legacy/new TXT labels; malformed UTF-8/JSON, UUIDs, format/version, duplicates, limits and truncated containers; combined-provenance agreement; repeat/model/operation/different-destination fallback reuse; same-named distinct sources and changed files; source write failure/interruption/concurrency; iPhone persistence/export; unchanged transcript bodies, filenames, inference settings and existing IndexedDB. No automated/device Memora integration tests have run in this review.
 
-## Current resume checkpoint — 17 November 2026: agreed behavior and prompts
+## Approved design record — 17 November 2026: agreed behavior and prompts
+
+The prompts and settled behavior below remain relevant. Open schema/design and authorization statements record that earlier checkpoint; the implementation contract and completed sections 12–13 supersede them.
 
 **This section supersedes conflicting proposals and open questions in the earlier checkpoint. No application code is authorized yet.** This session settled behavior and prompt wording only. Production still does not read iMuse's embedded UUID and still writes Voice Memo ID; the user observed this, consistent with the inspected code. No application build/schema change, deployment or actual archive/audio modification is part of this documentation checkpoint. Ask only one question at a time if further user input is needed; do not ask again about settled decisions.
 
@@ -174,7 +176,7 @@ This concise guidance records the agreed removal of the local-retention sentence
 >
 > **Create recording list** · **Cancel**
 
-### Next steps on resume — design first, no code yet
+### Historical design-stage next steps — superseded by contract sections 12–13
 
 1. Consolidate the minimal source JSON schema and lifecycle for review: schema version, Audio Source ID, recording-relative path, Recording ID, origin, bounded change evidence and explicit unreadable-metadata recovery state. Specify validation/preservation of unknown fields, source-ID reuse, safe interrupted/concurrent writes, and reliable local recovery matching. Preserve standard UUIDs and original Apple values. Do not reopen approved behavior or add move/copy tracking.
 2. Map that design to existing desktop folder and iPhone selection/save flows. Specify persistence failure messages, cancellation and recovery without claiming share completion proves a saved file. Do not introduce another save mechanism or change established transcript filenames/text/inference behavior.

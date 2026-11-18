@@ -1,16 +1,16 @@
 # Recording identity implementation contract
 
-**Latest checkpoint — 17 November 2026: 2A complete.** The user manually passed and committed checkpoint 1, then authorized only 2A: in-memory audio-source JSON validation and identity resolution. Its 31 groups and the reader's 21 regression groups pass in Node and isolated Edge. See section 13 for exact APIs, implementation choices and resume boundary. No persistence or production integration is authorized by 2A; earlier authorization/status notes below are historical.
+**Current checkpoint — documentation reconciled 18 November 2026:** Recording identity **2A is complete and committed** (`5eb536e`), following checkpoint 1 (`4604e7e`). Recorded Node/isolated Edge results are 31/31 source-identity groups and 21/21 reader groups. These results are historical verification, not a new test run or inferred manual/iPhone acceptance. The modules remain isolated; live production is **2026-11-13.10**, reads Apple IDs only and writes `Voice Memo ID`.
 
-**Latest checkpoint — 17 November 2026:** The user authorized step 1 only. Its isolated read-only Apple/iMuse reader and tests are complete, without production integration. See section 12 for the API, evidence and resume point. Earlier no-code statements describe the design checkpoint; no later implementation step or deployment is authorized.
+**Next checkpoint: 2B** — actual complete-file fingerprinting, source discovery/association, durable UUID reservation/recovery and safe persistence. The exact scope and unresolved technical items are in [implementation contract section 13](Recording_Identity_Implementation_Contract.md#13-stable-checkpoint-2a--in-memory-source-schema-and-identity-decisions). The current authorization covers documentation reconciliation; 2B begins in the following work step. Keep production integration for checkpoint 3 and retain later device/deployment gates. Do not restart migration or unrelated Search/Combine work.
 
-17 November 2026. **Design and implementation plan only. Application code is not authorized yet.** This document consolidates the user's approved identity decisions and makes technical recommendations explicit. Read it with [the handoff](Recording_Identity_Handoff.md), [approved architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md). For recording identity, the latest user decisions here supersede conflicting older proposals. They do not authorize unrelated architecture phases.
+The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) govern the broader plan. The [recording identity implementation contract](Recording_Identity_Implementation_Contract.md) governs current identity details and supersedes older design proposals. Sections 12 and 13 record completed isolated work; earlier design-stage authorization statements are historical.
 
 ## 1. Outcome and current implementation
 
 Every transcript of the same source recording must reuse its Recording ID regardless of model, operation or transcript destination. Use a valid, supported embedded source identity when available. Otherwise reuse a previously established Memora assignment, or assign a cryptographic UUID once and persist it with the audio source. Never claim that a generated identity was embedded in audio.
 
-Current production is build 2026-11-13.10. `metadata.js` reads Apple's `voice-memo-uuid` only; `app.js` still writes Voice Memo ID. iMuse UUID reading and the universal Recording ID writer are not implemented. The user confirmed that current iMuse imports do not expose their UUID in Memora. No application integration/device testing has occurred for this design.
+Current production is build 2026-11-13.10. `metadata.js` reads Apple's `voice-memo-uuid` only; `app.js` still writes Voice Memo ID. Production iMuse UUID reading and the universal Recording ID writer are not integrated; the isolated reader is implemented (section 12). The user confirmed that current iMuse imports do not expose their UUID in Memora. No application integration/device testing has occurred for this design.
 
 All four migrated archives contain Apple Voice Memos and established Voice Memo IDs, now labeled Recording ID. Archived iMuse or historical Memora-assigned identities are not a user migration requirement; previous iMuse transcriptions were disposable. The disposable migration tool remains retired.
 
@@ -483,7 +483,7 @@ Node was supplied locally by installed VS Code's Electron runtime with ELECTRON_
 
 ### Exact stop/resume boundary
 
-Checkpoint 2A is ready for user review/manual harness and commit. No commit/deployment is performed by the agent. Production source selection, `metadata.js`, `app.js`, TXT labels, inference, save/share controls, archive manifests and database remain unchanged. Build remains 2026-11-13.10. **The live app still does not read iMuse UUIDs or write Recording ID.** No actual audio-source JSON was created or overwritten.
+Checkpoint 2A is committed as `5eb536e`. The manual harness remains available; commit status does not establish user manual/device acceptance. No deployment is recorded. Production source selection, `metadata.js`, `app.js`, TXT labels, inference, save/share controls, archive manifests and database remain unchanged. Build remains 2026-11-13.10. **The live app still does not read iMuse UUIDs or write Recording ID.** No actual audio-source JSON was created or overwritten.
 
 Next, only if authorized, **2B** implements actual complete-file fingerprinting, source discovery/association, durable UUID reservation/recovery and safe persistence. Before production wiring it must settle:
 
