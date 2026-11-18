@@ -1,10 +1,12 @@
 # Memora — Archives, Dynamic Transcript Selection, Edit & Combine
 
 **Date:** 16 November 2026
-**Status — 18 November 2026:** Archive migration is complete and retired. Identity checkpoints 1/2A/2B are committed; the user passed the 2B harness. Candidate **2026-11-18.1** now integrates checkpoint 3 transcription/storage identity within architecture Phase 3. It is uncommitted/undeployed, with desktop and real-iPhone acceptance pending. See [implementation contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration). Broader Combine phases, portable document imports and their gates remain pending.
+**Status — 18 November 2026:** Archive migration is complete and retired. Identity checkpoints 1/2A/2B are committed; the user passed the 2B harness. Candidate **2026-11-18.1** now integrates checkpoint 3 transcription/storage identity within architecture Phase 3. Checkpoint 3 is committed as `4c8e5f7`; complete desktop/real-iPhone acceptance remains pending. See [implementation contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration). Broader Combine phases, portable document imports and their gates remain pending.
 **Scope:** Archive identity and migration, dynamic preferred transcripts, authoritative editing, persistent Combine, reference-based TXT/DOCX/HTML interchange, query-only Search History, and audio provenance/playback.
 
 This revision supersedes the previous snapshot/version-based architecture. The user's revised instructions and subsequent mandatory dynamic-selection clarification govern. Unchanged requirements are retained below. The detailed Phase 1 review package is [MEMORA_COMBINE_PHASE_1_CONTRACTS.md](MEMORA_COMBINE_PHASE_1_CONTRACTS.md).
+
+**Architecture review takes precedence for new library/indexing work:** See [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md). Parent-catalogue discovery, complete-source inventory, nested ownership and shared multi-archive playback/Search are under discussion only. Preserve the approved identity/merge/edit contracts pending specific revisions; do not implement the proposed hierarchy yet. Candidate 2026-11-18.4 contains the separately approved list-selection clarity, pending-save pulse and TXT header ordering; it does not implement that architecture.
 
 ## 1. Approved decisions and boundaries
 

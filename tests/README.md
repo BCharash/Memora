@@ -1,14 +1,16 @@
-# Current checkpoint 3 candidate — 2026-11-18.1
+# Current interface/header candidate — 2026-11-18.4; library architecture paused
 
-The user passed checkpoint 2B and committed it as `9d38697`. The new candidate connects identity to production transcription; desktop and real-iPhone acceptance are pending.
+Checkpoint 3 is committed as `4c8e5f7`. The user clarified selecting the wrong kind of JSON and had not tried .2; a native iCloud picker defect is unconfirmed. This candidate implements approved **Audio recording list** / **Transcript file list** prompts, correct-file/folder guidance, expected-kind validation, the existing Memora pulse for pending saves and the readable TXT header order. No recursive/library implementation is included. Direct transcription/translation comparisons also verified unchanged metadata values and body bytes after the header reorder.
 
-Open **`tests/transcription-identity.html`** through Live Server in Chrome. Expected: **17/17 groups passed**, shown above the app after the test completes. It loads the actual page with synthetic files, mocked inference, memory recovery for fake handles and a disposable transcript-cache database. It does not select user folders, run real models or use the real Memora database. The native 2B harness remains a separate **32/32** check of actual browser handle/IndexedDB behavior.
+Open **`tests/transcription-identity.html`** through Live Server in Chrome. Expected: **22/22 groups passed**, shown above the app after the test completes. It loads the actual page with synthetic files, mocked inference, memory recovery for fake handles and a disposable transcript-cache database. It does not select user folders, run real models or use the real Memora database. The native 2B harness remains a separate **32/32** check of actual browser handle/IndexedDB behavior.
 
-Verification also passed 31 source-identity, 21 embedded-reader, six Whisper diagnostics, four failure-classification, nine Settings/ownership and seven storage/Settings integration groups. No real-device acceptance is inferred from these results.
+Earlier checkpoint-3 verification also passed 31 source-identity, 21 embedded-reader, six Whisper diagnostics, four failure-classification, nine Settings/ownership and seven storage/Settings integration groups. No real-device acceptance is inferred from these results.
 
 Run `node tests/run-recording-identity.mjs --suite=transcription-identity --browser` with `MEMORA_TEST_BROWSER` set to Chromium. Other focused browser suites now supported by the runner: `--suite=whisper-diagnostics`, `--suite=whisper-failures`, `--suite=whisper-settings`, `--suite=database`, `--suite=database-integration` (each with `--browser`).
 
-Manual acceptance uses copied short audio and a new empty output destination; do not test writes against the four migrated archives. Follow [contract section 15](../docs/Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for the ordered desktop/iPhone checks and the supported-container limitation. No agent commit/deployment was performed.
+For this candidate, test the wording on the actual iPhone using disposable copies: choose the wrong list once, confirm that it names the right file/folder and lets you retry/cancel, then choose the correct list. Before sharing, both pending list buttons should pulse like existing Memora save buttons. Cancel one share and confirm it still pulses; complete each share and confirm only that list's pulse clears. Reduced motion should suppress animation. File names/schemas stay unchanged and successful sharing does not prove saved placement. The automated suite covers these state transitions and reads actual CSS animation rules, but native picker/visual acceptance remains pending. See [the library proposal](../docs/Audio_Library_Architecture_Proposal.md) for the paused architecture.
+
+Broader checkpoint-3 manual acceptance uses copied short audio and a new empty output destination; do not test writes against the four migrated archives. Follow [contract section 15](../docs/Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for the ordered desktop/iPhone checks and the supported-container limitation. No agent commit/deployment was performed.
 
 ---
 

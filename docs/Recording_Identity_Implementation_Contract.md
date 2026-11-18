@@ -1,6 +1,8 @@
 # Recording identity implementation contract
 
-**Current candidate — 18 November 2026: checkpoint 3 integration, build 2026-11-18.1.** The user passed the 2B manual harness and committed it as `9d38697`, then authorized integration. Recording-list discovery/prompts, Apple/iMuse identity, source persistence, readable universal headers, transcript archive references, pending-save retry and separate file-input JSON/share actions are now connected. This candidate is uncommitted and not deployed. Desktop/real-iPhone acceptance remains pending. Start with [contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for scope, evidence and the disposable-folder checklist.
+**Architecture pause — 18 November 2026:** Complete-source indexing, nested-folder ownership and a parent audio-library catalogue are under review. Read [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) before further indexing/Search/Combine changes. The user wants all audio in the managed source inventoried independently of transcription selection; the current selected-recording enrollment is not the agreed end state. No recursive implementation or archive reorganization is authorized yet.
+
+**iPhone clarity candidate — 2026-11-18.3:** The user clarified that the wrong kind of JSON was selected; a native picker defect is unconfirmed and the earlier .2 update was not tried. Approved interface names are **Audio recording list** (`memora-audio-source.json`, in the audio folder) and **Transcript file list** (`memora-archive.json`, in the transcription folder). Wrong-kind selection now explains the correct file/folder without changing data. Pending list-save buttons reuse the existing subtle pulse, retain it after cancellation and clear it after completed sharing, respecting reduced motion. Device/visual acceptance is pending. Changes are uncommitted and undeployed by the agent.
 
 Database schema remains **6**; existing stores/model evidence are preserved. The new candidate writes `Recording ID` and accepts legacy `Voice Memo ID`; conflicting identities block affected operations. The broader persistent Combine redesign is still pending. No actual user archive/audio/database was used in automated verification. Earlier build/status/authorization statements below are historical where superseded here.
 
@@ -10,7 +12,7 @@ The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contract
 
 Every transcript of the same source recording must reuse its Recording ID regardless of model, operation or transcript destination. Use a valid, supported embedded source identity when available. Otherwise reuse a previously established Memora assignment, or assign a cryptographic UUID once and persist it with the audio source. Never claim that a generated identity was embedded in audio.
 
-Current working-tree candidate is **2026-11-18.1**. Source-owned identity is wired through transcription and delivery; universal `Recording ID` headers and legacy input compatibility are implemented. Earlier published/source checkpoint 2026-11-13.10 was Apple-only / Voice Memo ID. No deployment or real-device acceptance of the new candidate is recorded. The full current boundary is section 15.
+Current interface/header candidate is **2026-11-18.4**, following committed checkpoint 3 (`4c8e5f7`). Source-owned identity is wired through transcription and delivery; universal `Recording ID` headers and legacy input compatibility are implemented. Earlier published/source checkpoint 2026-11-13.10 was Apple-only / Voice Memo ID. No deployment or real-device acceptance of the new candidate is recorded. Section 15 records the integration; section 16 and the library proposal define the current pause and picker retest.
 
 All four migrated archives contain Apple Voice Memos and established Voice Memo IDs, now labeled Recording ID. Archived iMuse or historical Memora-assigned identities are not a user migration requirement; previous iMuse transcriptions were disposable. The disposable migration tool remains retired.
 
@@ -587,3 +589,27 @@ Run `node tests/run-recording-identity.mjs --suite=transcription-identity --brow
 Known boundaries: the identity reader supports MP4/M4A, WebM, WAV and Ogg Opus/Vorbis. Unsupported/unchecked containers (including currently listed MP3/AIFF/FLAC) are blocked with skip/cancel instead of being silently treated as missing identity. Extending those readers is a separate bounded compatibility task if required. Large-file/device throughput remains unmeasured. Quota, externally changed manifests and conflicting identity can block authoritative delivery; pending text remains available for retry/review, without automatic last-writer-wins repair. Earlier static combined exports are not upgraded into reference-importable documents by this work.
 
 Stop at candidate/device review. Do not commit, publish, reset data, rewrite the four archives, recreate migration, or start the broader Combine phases automatically.
+
+## 16. Architecture pause and historical picker investigation
+
+The user's complete-source inventory requirement supersedes the earlier incremental-enrollment recommendation as the intended behavior. Implementation is paused pending the [library hierarchy review](Audio_Library_Architecture_Proposal.md); the current code still enrolls selected recordings. Parent/child ownership, nested scanning and the common Search/Combine resolver are proposals with open decisions, not a new schema or coding authorization.
+
+Historical .2 investigation, superseded by the user clarification in section 17: checkpoint 3 is committed as `4c8e5f7`. The initial report was an existing archive index visible but unselectable in the iPhone iCloud Drive picker. Candidate **2026-11-18.2** removes the shared picker's `.json,application/json` filter, keeping bounded content/schema validation. The UI now says **Select archive index** and **Save archive index to Files**; no existing filename, manifest format or ID changes. Automated picker/integration verification does not establish actual iCloud resolution. Retest the same file on the iPhone before claiming the fix accepted. No agent deployment or library implementation is performed.
+
+Picker follow-up verification: **19/19** isolated Chrome integration groups passed, including provider-classified JSON selection without an `accept` filter and cancellation cleanup. The user-facing archive index filename remains unchanged. This does not establish native iPhone/iCloud acceptance.
+
+## 17. Approved iPhone list clarity and pending-save feedback
+
+18 November 2026, candidate **2026-11-18.3**. The user clarified that the audio recording list was being confused with the transcript file list; the initial picker-defect report is unconfirmed and the .2 update was not tried. This candidate implements the approved prompts and confirmations with exact filenames/folders, validates the expected document kind before leaving the picker action, and retains the chooser after wrong-kind selection. Both schemas retain existing bounded validation; no list is overwritten or converted merely by selection. Unknown/malformed content still fails validation.
+
+User-facing names: **Audio recording list** (`memora-audio-source.json`, audio folder) and **Transcript file list** (`memora-archive.json`, transcription folder). This supersedes the earlier user-facing archive-index wording only. File names, schemas, IDs and the distinction between audio and transcript archives are unchanged.
+
+Pending-save buttons reuse the existing Memora animation and reduced-motion rules. Cancellation or share failure retains pending emphasis. Completed sharing clears the emphasis only for the artifact actually shared; a newer pending artifact stays pending. Status names its list and intended folder, without claiming verified filesystem saving. The broader library/full-source indexing architecture remains paused. No agent commit or deployment was made; actual iPhone acceptance is still required.
+
+Candidate .3 verification: **22/22** isolated Chrome groups passed. The runner now serves CSS with its proper MIME type so computed animation tests exercise the real stylesheet. No user files, actual archives or real model inference were used. Manual iPhone prompt/pulse acceptance is pending.
+
+## 18. Readable TXT header ordering — candidate 2026-11-18.4
+
+Approved order for new outputs: audio filename; blank line; Recording date, File date, Duration, Whisper model, Operation and optional Original language; blank line; Metadata version, Archive UUID, Audio Source ID, Original Audio Folder, Recording ID and optional Audio Relative Path; existing header/body separator and spacing. Metadata values/body formatting remain unchanged, as verified for transcription and translation. No existing file, JSON schema or iMuse audio export is rewritten.
+
+The interface/header candidate is separate from the paused complete-source/library work and isolated reconciliation prototype. Real-archive repair remains blocked on comparing the unsynced migrated Windows copies, or a deliberately separate test-copy workflow. This candidate does not turn a partial manifest into a complete verified inventory or implement multi-archive audio resolution.

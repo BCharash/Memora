@@ -1,10 +1,33 @@
 import {openAudioSourceSession} from './audioSourcePersistence.js';
+import {AUDIO_SOURCE_LIMITS,parseBoundedIdentityJson,validateAudioSourceManifest} from './audioSourceIdentity.js';
+import {readAudioSourceBytes} from './storage.js';
+import {parseTranscriptArchive} from './transcriptArchive.js';
+export async function validateIdentitySelection(file,kind){
+    const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes);
+    let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{throw Error('This file is not readable JSON text. Select the list named in this step.');}
+    const parsed=parseBoundedIdentityJson(text);
+    if(parsed.status!=='valid')throw Error(parsed.issues[0].message);
+    const audio=validateAudioSourceManifest(parsed.value);
+    let transcript=false;try{parseTranscriptArchive(text);transcript=true;}catch{/* Keep each schema's validation independent. */}
+    if(audio.status==='valid'&&transcript)throw Error('This file mixes audio and transcript list identities. Select a separate list for this step.');
+    if(kind==='transcript'){
+        if(audio.status==='valid')throw Error('This is your audio recording list. Here, select the transcript file list: memora-archive.json, in your transcription folder. Your files have not been changed.');
+        parseTranscriptArchive(text);
+    }else if(kind==='audio'){
+        if(transcript)throw Error('This is your transcript file list. Here, select the audio recording list: memora-audio-source.json, in your audio folder. Your files have not been changed.');
+        if(audio.status!=='valid')throw Error(audio.issues[0].message);
+    }else throw Error('Choose whether this step needs an audio recording list or a transcript file list.');
+    return file;
+}
 // One bounded, text-only dialog. Picker/share actions run directly in the button
 // event, preserving browser user activation; no hidden automatic share/picker.
-export function pickIdentityJson(){
+export function pickIdentityJson({kind='transcript'}={}){
     return new Promise((resolve,reject)=>{
-        const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.hidden=true;document.body.append(input);
-        input.onchange=()=>{const file=input.files?.[0];input.remove();file?resolve(file):reject(new DOMException('Selection cancelled.','AbortError'));};
+        const input=document.createElement('input');input.type='file';
+        // Files providers can classify JSON differently on iOS. Do not apply
+        // an accept filter (including */*); validate bounded content after selection.
+        input.hidden=true;document.body.append(input);
+        input.onchange=async()=>{const file=input.files?.[0];input.remove();if(!file){reject(new DOMException('Selection cancelled.','AbortError'));return;}try{resolve(await validateIdentitySelection(file,kind));}catch(error){reject(error);}};
         input.oncancel=()=>{input.remove();reject(new DOMException('Selection cancelled.','AbortError'));};input.click();
     });
 }
@@ -20,7 +43,7 @@ export function askIdentity({title,message,choices}){
     });
 }
 const cancel={action:'cancel',label:'Cancel'};
-const pick={action:'select',label:'Select existing JSON',run:pickIdentityJson};
+const pick={action:'select',label:'Select audio recording list',run:()=>pickIdentityJson({kind:'audio'})};
 export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},onStatus=()=>{},shareFile,openSession=openAudioSourceSession}={}){
     let session=null,source=null;
     return {
@@ -37,20 +60,20 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
                     answer=await ask({title:'These source associations do not match',message:'Choose the audio-source association to use. Existing transcripts will not be changed.',choices:[...result.association.candidates.map((id,i)=>({action:id,label:sourceLabels.get(id.toLowerCase())||`${i===0?'Selected recording list':'Established audio source'} (${id.slice(0,8)}…)`})),cancel]});
                     if(answer.action!=='cancel'){options.selectedAudioSourceId=answer.action;continue;}
                 }else if(result.code==='recovery-association-conflict'&&result.candidates?.length){
-                    answer=await ask({title:'Choose a saved recording list',message:'More than one saved source association is available for this folder.',choices:[...result.candidates.map(item=>({action:item.audioSourceId,label:`${item.sourceName||'Saved audio source'} (${item.audioSourceId.slice(0,8)}…)`})),cancel]});
+                    answer=await ask({title:'Choose a saved audio recording list',message:'More than one saved source association is available for this folder.',choices:[...result.candidates.map(item=>({action:item.audioSourceId,label:`${item.sourceName||'Saved audio source'} (${item.audioSourceId.slice(0,8)}…)`})),cancel]});
                     if(answer.action!=='cancel'){options.selectedRecoverySourceId=answer.action;options.action='restore';continue;}
                 }else if(result.code==='confirm-replacement'){
-                    answer=await ask({title:'Replace this recording list?',message:'The recording list in the selected audio folder will be replaced. Your audio and existing transcripts will remain unchanged.',choices:[{action:'replace',label:'Replace recording list'},cancel]});
+                    answer=await ask({title:'Replace the audio recording list?',message:'Replace memora-audio-source.json in your audio folder? This changes the list of original recordings, not the transcript file list. Your audio and existing transcripts will remain unchanged.',choices:[{action:'replace',label:'Replace audio recording list'},cancel]});
                     if(answer.action==='replace'){options.replacementConfirmed=true;continue;}
                 }else if(['unreadable-source-list','source-changed'].includes(result.code)){
                     const diagnosis=result.discovery?.validation?.status==='unsupported'?'uses an unsupported version':'cannot be read safely';
-                    answer=await ask({title:'Memora cannot use this recording list',message:`memora-audio-source.json ${diagnosis}. Select another copy or explicitly create a replacement.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved copy'}]:[]),{action:'replace',label:'Create replacement list'},cancel]});
+                    answer=await ask({title:'Memora cannot use this audio recording list',message:`memora-audio-source.json ${diagnosis}. Select another copy or explicitly create a replacement.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved copy'}]:[]),{action:'replace',label:'Create replacement list'},cancel]});
                 }else if(result.code==='pending-source-list'){
-                    answer=await ask({title:'Continue the pending recording list?',message:'A recording list is waiting to be saved. Continue with its existing Recording IDs.',choices:[{action:'resume',label:'Continue pending list'},cancel]});
+                    answer=await ask({title:'Continue the pending audio recording list?',message:'memora-audio-source.json is waiting to be saved in your audio folder. Continue with its existing Recording IDs.',choices:[{action:'resume',label:'Continue pending list'},cancel]});
                 }else if(result.code==='restore-available'){
-                    answer=await ask({title:'Restore this folder’s recording list?',message:'Memora has a saved copy for this audio folder. Restore it to reuse its Recording IDs.',choices:[{action:'restore',label:'Restore recording list'},cancel]});
+                    answer=await ask({title:'Restore this folder’s audio recording list?',message:'Restore memora-audio-source.json for your audio folder to reuse its Recording IDs. This does not replace the transcript file list.',choices:[{action:'restore',label:'Restore audio recording list'},cancel]});
                 }else if(['create-source-list','select-existing-or-create'].includes(result.code)){
-                    answer=await ask({title:'Does this audio folder already have a Memora recording list?',message:'Select memora-audio-source.json if you previously saved it for this folder. Otherwise create a list. Memora will reuse embedded Recording IDs and assign IDs where none are present.',choices:[pick,{action:'create',label:'Create recording list'},cancel]});
+                    answer=await ask({title:'Choose the audio recording list',message:'Select memora-audio-source.json in your audio folder. This identifies the original recordings. If this is the first time, create an audio recording list. This step does not need the transcript file list (memora-archive.json).',choices:[pick,{action:'create',label:'Create audio recording list'},cancel]});
                 }else throw Error(result.discovery?.error?.message||`Memora could not open this recording list (${result.code}). Check source access and try again.`);
                 if(!answer||answer.action==='cancel')throw new DOMException('Recording-list selection cancelled.','AbortError');
                 if(answer.action==='select'){options.selectedFile=answer.value;options.action=null;options.replacementConfirmed=false;}
@@ -87,7 +110,7 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
             for(;;){
                 try{const result=await session.persist();if(result.status==='export-pending')onPendingList(result.file);return result;}
                 catch(error){
-                    const answer=await ask({title:'The recording list could not be saved',message:error.message,choices:[{action:'retry',label:'Retry'},{action:'export',label:'Save pending JSON',run:()=>shareFile(session.exportPending())},cancel]});
+                    const answer=await ask({title:'The audio recording list could not be saved',message:error.message,choices:[{action:'retry',label:'Retry'},{action:'export',label:'Save audio recording list',run:()=>shareFile(session.exportPending())},cancel]});
                     if(answer.action==='cancel')throw new DOMException('Recording-list save cancelled.','AbortError');
                 }
             }

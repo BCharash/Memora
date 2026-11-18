@@ -65,7 +65,7 @@ if (!process.argv.includes('--browser')) {
             const path = resolve(root, '.' + decodeURIComponent(new URL(request.url, 'http://localhost').pathname));
             if (!path.startsWith(root + sep)) { response.writeHead(403).end(); return; }
             const data = await readFile(path);
-            response.setHeader('Content-Type', path.endsWith('.js') ? 'text/javascript' : path.endsWith('.html') ? 'text/html; charset=utf-8' : path.endsWith('.json') ? 'application/json' : 'application/octet-stream');
+            response.setHeader('Content-Type', path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.html') ? 'text/html; charset=utf-8' : path.endsWith('.json') ? 'application/json' : 'application/octet-stream');
             response.end(data);
         } catch { response.writeHead(404).end(); }
     });

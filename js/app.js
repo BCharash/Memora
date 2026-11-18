@@ -220,14 +220,14 @@ const identityWorkflow = createTranscriptionIdentity({
     onStatus: message => setTranscriptionBusy(message),
     onPendingList: file => {
         pendingRecordingList = file; recordingListShared = false;
-        if (saveRecordingListButton) saveRecordingListButton.hidden = !file;
-        document.getElementById("recordingListSaveStatus").textContent = file ? "Save memora-audio-source.json in the audio folder before sharing transcripts." : "";
+        if (saveRecordingListButton) { saveRecordingListButton.hidden = !file; saveRecordingListButton.classList.toggle("has-pending-archive-save", !!file); }
+        document.getElementById("recordingListSaveStatus").textContent = file ? "Audio recording list: save memora-audio-source.json in your audio folder before sharing transcripts." : "";
         updateIPhoneExportButton(true);
     },
     onPendingArchive: file => {
         pendingTranscriptArchive = file; transcriptArchiveShared = false;
-        if (saveTranscriptArchiveButton) saveTranscriptArchiveButton.hidden = !file;
-        document.getElementById("transcriptArchiveSaveStatus").textContent = file ? "Save memora-archive.json beside the transcripts." : "";
+        if (saveTranscriptArchiveButton) { saveTranscriptArchiveButton.hidden = !file; saveTranscriptArchiveButton.classList.toggle("has-pending-archive-save", !!file); }
+        document.getElementById("transcriptArchiveSaveStatus").textContent = file ? "Transcript file list: save memora-archive.json in your transcription folder before sharing transcripts." : "";
         updateIPhoneExportButton(true);
     }
 });
@@ -246,10 +246,18 @@ for (const [button, kind] of [[saveRecordingListButton, "source"], [saveTranscri
             await shareIdentityFile(file);
             if (kind === "source" && file === pendingRecordingList) recordingListShared = true;
             if (kind === "archive" && file === pendingTranscriptArchive) transcriptArchiveShared = true;
-            document.getElementById(kind === "source" ? "recordingListSaveStatus" : "transcriptArchiveSaveStatus").textContent = "Share completed. Memora cannot verify the saved location.";
+            if (file === (kind === "source" ? pendingRecordingList : pendingTranscriptArchive)) {
+                document.getElementById(kind === "source" ? "recordingListSaveStatus" : "transcriptArchiveSaveStatus").textContent = kind === "source"
+                    ? "Audio recording list shared. Save memora-audio-source.json in your audio folder. Memora cannot verify the saved location."
+                    : "Transcript file list shared. Save memora-archive.json in your transcription folder. Memora cannot verify the saved location.";
+            }
         } catch (error) {
             if (error.name !== "AbortError") alert(error.message);
-        } finally { button.disabled = false; updateIPhoneExportButton(true); }
+        } finally {
+            button.disabled = false;
+            button.classList.toggle("has-pending-archive-save", !!(kind === "source" ? pendingRecordingList && !recordingListShared : pendingTranscriptArchive && !transcriptArchiveShared));
+            updateIPhoneExportButton(true);
+        }
     });
 }
 function updatePendingSaveButton() {
@@ -2019,7 +2027,6 @@ function buildTranscript(
         `Recording date: ${recordingDate}`,
         `File date: ${fileDate}`,
         `Duration: ${duration}`,
-        ...recordingIdentityLines(metadata),
         `Whisper model: ${model}`,
         `Operation: ${operation === "translate" ? "translate" : "transcribe"}`
     ];
@@ -2033,6 +2040,9 @@ function buildTranscript(
             `Original language: ${formatLanguageName(language)}`
         );
     }
+
+    // Keep recording/transcription details together, then identity/provenance.
+    metadataLines.push("", ...recordingIdentityLines(metadata));
 
     if (audioRelativePath) {
         metadataLines.push(

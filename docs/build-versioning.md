@@ -19,3 +19,7 @@ The 13 November candidate application build was **2026-11-13.10** (self-test tim
 18 November 2026: isolated identity checkpoint 2B adds shared database schema 6. No release is prepared and the build ID remains unchanged; advance it before publishing these changed application contents. This does not certify checkpoint 3 integration or iPhone acceptance.
 
 Checkpoint 3 candidate, 18 November 2026: **2026-11-18.1** identifies actual transcription/metadata/save UI changes. No deployment is performed. Database schema remains 6 and model configuration fingerprints/options are unchanged. Manual desktop and real-iPhone acceptance remain pending.
+
+Current interface/header candidate **2026-11-18.4** consolidates the approved Audio recording list / Transcript file list wording, bounded expected-kind picker validation, existing-style pending-save pulse and readable TXT header ordering. The earlier .2 picker defect hypothesis was not confirmed; the user clarified selecting the other JSON type. Intermediate .2/.3 candidates were superseded; do not reuse those identifiers for changed releases.
+
+New TXT headers group dates/duration, Whisper model/operation/optional language before a blank line and identity/provenance. Values and body formatting are unchanged. Existing files, schemas, audio exports and model configuration fingerprints/options are unchanged. 22 focused integration groups passed; iPhone visual/native-picker acceptance remains pending. Library/reconciliation implementation is separate. No agent commit/deployment was performed.

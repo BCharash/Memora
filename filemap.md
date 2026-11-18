@@ -1,8 +1,8 @@
 # Memora file map
 
-Updated 18 November 2026. Checkpoint 3 candidate **2026-11-18.1** integrates identity, with shared database schema 6 and desktop/iPhone acceptance pending; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
+Updated 18 November 2026. Checkpoint 3 is committed as `4c8e5f7`; interface/header candidate **2026-11-18.4** distinguishes audio/transcript file lists, validates picker kind, pulses pending save buttons and groups readable TXT metadata, with shared database schema 6 and desktop/iPhone acceptance pending; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
 
-This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) for what we are doing next. This inventory makes no code changes.
+This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) and [the paused library architecture review](docs/Audio_Library_Architecture_Proposal.md) for what we are doing next. This inventory makes no code changes.
 
 ## The short answer about the number of files
 

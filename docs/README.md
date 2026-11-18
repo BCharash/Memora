@@ -1,6 +1,10 @@
 # Memora documentation
 
-**Current candidate — 18 November 2026: checkpoint 3 integration, build 2026-11-18.1.** The user passed the 2B manual harness and committed it as `9d38697`, then authorized integration. Recording-list discovery/prompts, Apple/iMuse identity, source persistence, readable universal headers, transcript archive references, pending-save retry and separate file-input JSON/share actions are now connected. This candidate is uncommitted and not deployed. Desktop/real-iPhone acceptance remains pending. Start with [contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for scope, evidence and the disposable-folder checklist.
+**Architecture pause — 18 November 2026:** Complete-source indexing, nested-folder ownership and a parent audio-library catalogue are under review. Read [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) before further indexing/Search/Combine changes. The user wants all audio in the managed source inventoried independently of transcription selection; the current selected-recording enrollment is not the agreed end state. No recursive implementation or archive reorganization is authorized yet.
+
+**Current candidate — 2026-11-18.4:** The user clarified that the wrong kind of JSON was selected; a native picker defect is unconfirmed and the earlier .2 update was not tried. Approved interface names are **Audio recording list** (`memora-audio-source.json`, in the audio folder) and **Transcript file list** (`memora-archive.json`, in the transcription folder). Wrong-kind selection now explains the correct file/folder without changing data. Pending list-save buttons reuse the existing subtle pulse, retain it after cancellation and clear it after completed sharing, respecting reduced motion. Device/visual acceptance is pending. Changes are uncommitted and undeployed by the agent.
+
+New TXT headers now place Whisper model, operation and optional original language directly below Duration, followed by a blank line and identity/provenance. This presentation-only change applies to new outputs; existing transcripts and audio are unchanged.
 
 Database schema remains **6**; existing stores/model evidence are preserved. The new candidate writes `Recording ID` and accepts legacy `Voice Memo ID`; conflicting identities block affected operations. The broader persistent Combine redesign is still pending. No actual user archive/audio/database was used in automated verification. Earlier build/status/authorization statements below are historical where superseded here.
 
@@ -10,6 +14,7 @@ Reviewed 13 November 2026 through candidate build **2026-11-13.10** (self-test t
 
 | Document | Role |
 |---|---|
+| [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) | Current architecture pause: parent/child manifests, full-source inventory, access pathways, shared playback/Search and unresolved decisions. |
 | [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) | Approved eight-phase plan and implementation/acceptance boundaries. |
 | [Combine Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | Detailed identity, selection, editing, workspace, merge and portable-format contracts. |
 | [Recording identity implementation contract](Recording_Identity_Implementation_Contract.md) | Latest approved source schema and identity decisions, explicit persistence/error flows, implementation map, acceptance tests and remaining technical checklist. |

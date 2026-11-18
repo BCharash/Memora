@@ -32,10 +32,10 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             let selectedFile=null;
             if(selectedSource.kind==='file-input'){
                 const pending=session.getPendingTranscriptArchive();
-                const answer=await ask({title:'Choose the transcript archive',message:'Select memora-archive.json to add transcripts to an existing archive, or create a new transcript archive. Save its JSON beside the resulting transcripts.',choices:[
-                    {action:'select',label:'Select transcript archive JSON',run:pickIdentityJson},
-                    ...(pending?[{action:'pending',label:'Continue pending transcript archive'}]:[]),
-                    {action:'create',label:'Create transcript archive'},{action:'cancel',label:'Cancel'}]});
+                const answer=await ask({title:'Choose the transcript file list',message:'Select memora-archive.json in your transcription folder. This lists the transcript files in the archive. This step does not need the audio recording list (memora-audio-source.json).',choices:[
+                    {action:'select',label:'Select transcript file list',run:()=>pickIdentityJson({kind:'transcript'})},
+                    ...(pending?[{action:'pending',label:'Use pending transcript file list'}]:[]),
+                    {action:'create',label:'Create transcript file list'},{action:'cancel',label:'Cancel'}]});
                 if(answer.action==='cancel')throw new DOMException('Transcript archive selection cancelled.','AbortError');
                 selectedFile=answer.action==='select'?answer.value:answer.action==='pending'?new File([pending],'memora-archive.json',{type:'application/json'}):null;
             }
