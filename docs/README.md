@@ -1,5 +1,7 @@
 # Memora documentation
 
+Library maintenance and delivery sequence: [Audio library plan](Audio_Library_Architecture_Proposal.md#ordered-implementation-and-acceptance-checkpoints). Agreed open/Refresh behavior is documented; production reconciliation, catalogue, multi-source resolution and persistent Combine remain pending.
+
 **Architecture pause — 18 November 2026:** Complete-source indexing, nested-folder ownership and a parent audio-library catalogue are under review. Read [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) before further indexing/Search/Combine changes. The user wants all audio in the managed source inventoried independently of transcription selection; the current selected-recording enrollment is not the agreed end state. No recursive implementation or archive reorganization is authorized yet.
 
 **Current candidate — 2026-11-18.4:** The user clarified that the wrong kind of JSON was selected; a native picker defect is unconfirmed and the earlier .2 update was not tried. Approved interface names are **Audio recording list** (`memora-audio-source.json`, in the audio folder) and **Transcript file list** (`memora-archive.json`, in the transcription folder). Wrong-kind selection now explains the correct file/folder without changing data. Pending list-save buttons reuse the existing subtle pulse, retain it after cancellation and clear it after completed sharing, respecting reduced motion. Device/visual acceptance is pending. Changes are uncommitted and undeployed by the agent.

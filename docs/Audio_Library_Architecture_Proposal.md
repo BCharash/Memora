@@ -1,8 +1,10 @@
-# Audio library hierarchy — architectural review
+# Audio library hierarchy — agreed behavior and delivery plan
 
-18 November 2026. **Design discussion recorded at the user's request; implementation is paused.** The user wants a complete audio-source inventory independent of transcription selection and proposed a parent `All Audio Archives` folder containing individually self-contained archives. This note records that direction and the recommendations/open decisions; it does not approve a final parent schema, recursive indexing implementation, reorganization or migration. The separately approved iPhone list-selection clarity and pending-save feedback work is allowed to proceed.
+18 November 2026. **The user agreed to the maintenance behavior below and requested this documentation update. Application implementation remains pending.** Opening or refreshing a library discovers child sources; opening or refreshing an audio source inventories all eligible recordings, independently of transcription selection. Manually added folders/files are discovered on the next open/refresh. This is agreement on behavior, not approval of a parent JSON schema or authorization to implement application changes in this documentation-only task.
 
-The current code still enrolls selected recordings incrementally. It does not implement the library catalogue, complete-source indexing or a unified recursive scan. Checkpoint 3 is committed as `4c8e5f7`; broader acceptance is incomplete. Candidate 2026-11-18.4 includes the reordered TXT header and implements the separately approved iPhone list-selection wording, wrong-kind checks and pending-save pulse; the previous picker defect report is unconfirmed after the user clarified selecting the other JSON type.
+Current production code still enrolls selected recordings incrementally. It does not implement the parent catalogue, complete-source reconciliation, shared multi-source audio resolver or persistent multi-archive Combine workspace. The reconciliation prototype passed 27 isolated groups and the user's harness run; that does not establish production or iCloud/mobile completeness. Identity checkpoint 3 is committed as `4c8e5f7`; interface/header changes are committed in `22ec32d`, source build **2026-11-18.4**. Remaining acceptance gates are recorded below.
+
+The user reports all four archives migrated successfully and Search embeddings rebuilt on the Mac. iPhone Search returned to the default Transcribe tab during folder preparation, then worked after Safari Web Inspector Empty Caches and reload and again after reopening. This is user-reported recovery, not proof of memory exhaustion, a stale-file diagnosis or a complete device acceptance pass. No IndexedDB reset is required. The Windows/iCloud mismatch described at the end is historical, not a current migration blocker.
 
 ## Proposed preferred organization
 
@@ -38,7 +40,7 @@ All Audio Archives/
 
 Latest approved user-facing names: **Audio recording list** and **Transcript file list**. Prompts identify the exact filename and destination folder. The earlier “Transcript archive index” recommendation was superseded after the user explained confusing the two JSON documents. The file names, schemas and identities remain unchanged. A separate Search index remains derived search data.
 
-Recommendation: the parent catalogue should reference existing child identities/manifest locations rather than duplicate every recording entry. A derived lookup cache may accelerate resolution, but child manifests remain authoritative and refresh/validation rules must prevent a stale cache from claiming current file availability. Whether the library itself needs a UUID, exact schema fields and discovery/update rules remain open.
+Recommendation: the parent catalogue should reference existing child identities/manifest locations rather than duplicate every recording entry. A derived lookup cache may accelerate resolution, but child manifests remain authoritative and refresh/validation rules must prevent a stale cache from claiming current file availability. Whether the library itself needs a UUID and the exact schema fields remain open. Discovery/update behavior is agreed below; serialization and validation details still need specification.
 
 The folder layout commonly gives one audio source a nearby transcript archive, but these identities must stay distinct. Different transcript destinations can refer to the same audio source; provenance remains per recording rather than assuming every transcript archive permanently has exactly one audio source.
 
@@ -53,7 +55,7 @@ Recommended separation:
 3. **Transcription:** run inference only for explicitly selected recordings.
 4. **Search/Combine resolution:** use validated source/archive references and current access associations.
 
-Opening a library need not automatically fingerprint all audio or assign IDs. An explicit indexing action or transcription-triggered full inventory is proposed; the exact timing, progress/cancellation, refresh policy and persistence failure behavior are not settled. Avoid full-library hashing every time one file is played or a search runs.
+Opening a library starts catalogue discovery and checks available child lists; opening an audio source starts its complete eligible-file inventory. Both views offer an explicit Refresh action for changes made while Memora stays open. Discovery, inventory and transcription remain separate operations: opening a parent does not silently assign identities to every unregistered child. New-source registration is confirmed first. Enumeration and any required fingerprinting need bounded work, progress and cancellation. Exact change-detection optimizations remain to be specified; do not rehash an entire library whenever one recording is played or a query runs.
 
 Do not recursively enrol a child recording into both a parent source list and its own child source list. The proposed parent is a catalogue of sources, not another source encompassing every child recording. A nested folder with its own source manifest introduces an ownership boundary. Generated `transcription`/`combine` outputs should not be scanned indiscriminately for source audio; inclusion/exclusion rules remain to be specified, especially if combined audio is intentionally stored there.
 
@@ -97,16 +99,48 @@ Search and Combine should share the library catalogue, source association regist
 
 If only some referenced sources are accessible, preserve other entries visibly as unresolved and request access on use. One source's association must not overwrite another's. Browser-local handles/permissions/object URLs are not portable catalogue data. Standalone HTML relative playback, browser-session playback and imported reference resolution have separate acceptance requirements; the catalogue does not automatically make exported HTML able to bypass browser file-access restrictions.
 
-## Decisions and evidence needed before implementation resumes
+## Agreed catalogue and recording-list maintenance
 
-1. Agree individual-source nested-folder ownership and child-manifest boundaries.
-2. Confirm the preferred layout and whether it remains optional for independently located archives.
-3. Specify the parent catalogue schema, identity if needed, relative paths and validation/conflict/update rules without duplicating child authority.
-4. Specify complete-source inventory timing, supported formats, changed/invalid recordings, cancellation, write failures and large-library limits. Indexing completion must not be reported after silently skipping unresolved audio.
-5. Inspect a disposable nested hierarchy on actual desktop and real iPhone/iCloud Drive: file/path completeness, JSON selection, save/refresh and playback across at least two child sources. Do not use the user's four real archives for write tests.
-6. Review shared playback/Search interfaces and incremental implementation/acceptance checkpoints. Existing approved merge/edit/preferred-transcript rules remain unless a specific revision is agreed.
+The JSONs are saved inventories maintained by Memora from authorized folder access, not documents the user must edit manually and not continuous filesystem watchers.
 
-No recursive/library implementation, filesystem reorganization, new schema or migration is authorized by this documentation update.
+### Parent library
+
+- On library open or Refresh, compare accessible child archive folders with the catalogue. Register an existing child manifest using its established Audio Source ID; validate conflicting/duplicate identities rather than choosing by folder name. Do not silently adopt an unrelated or malformed manifest.
+- A newly discovered folder without an audio recording list is a proposed source. Ask whether to register it; after confirmation, inventory its eligible recordings, establish identities through the existing identity policy and prepare its recording list and parent catalogue reference. No transcription is required.
+- A child manifest is authoritative for that source's recording inventory. The parent records child identities and manifest locations, not another copy of every recording.
+- Preserve existing source identities. A renamed/moved source requires validated rediscovery or explicit reassociation; a matching name/content is insufficient. Flag absent/inaccessible children for review, retaining references instead of silently deleting them.
+- Coordinate child-list and parent-catalogue persistence: never report both saved when only one succeeded. Detect interruption/concurrent replacement, retain pending work and allow a fresh reviewed retry without issuing replacement identities. Exact write/recovery contract is a prerequisite below.
+
+### Individual audio source and transcript destination
+
+- On source open or Refresh, enumerate all eligible audio within the agreed ownership boundary. Only selected recordings are transcribed; selecting one never limits the recording-list inventory to one.
+- Enroll new recordings under the established embedded-ID/fallback-assignment policy. Changed recordings, conflicting IDs and confirmed-missing recordings require the applicable review/retention decisions. Neither paths nor content alone authorize identity reassignment or deletion.
+- On transcript destination open or Refresh, reconcile eligible transcript files with its transcript file list, preserving Archive UUID, Recording IDs, model/operation alternatives, unknown extension data and transcript bodies. Legacy/foreign/conflicting metadata requires explicit resolution; do not relabel it from folder membership.
+- Partial selections, cloud placeholders, read failures or permission errors do not prove deletion. Add only validated observations where safe; preserve unobserved entries and show incomplete coverage. The production apply policy must retain the prototype's blocking rules for read/provider errors and reviewed removals.
+- With writable directory access, save approved updates directly using conflict checks. With file-input access, offer each updated JSON through Files, name its destination and retain pending-save feedback after cancellation/error. Sharing is not proof of placement: verify the next selected/read copy before declaring it current.
+- Library/source views need visible inventory coverage, unresolved decisions, pending saves and Refresh. No background watcher or automatic cloud synchronization is promised.
+
+Example: the user adds `All Audio Archives/New Journal/` with two audio files. On the next library open/Refresh, Memora proposes registering that child, inventories both recordings after confirmation, and prepares its recording list and the parent reference. Existing children remain independently usable. No transcript or embedding generation is involved.
+
+## Ordered implementation and acceptance checkpoints
+
+The library prerequisites below amend the old delivery order: shared audio resolution moves ahead of persistent Combine, while existing identity, preferred-transcript, edit, merge and portable-document contracts remain in force. Agreement on this plan does not mark any checkpoint implemented.
+
+| Order | Deliverable | Required acceptance before continuing |
+|---|---|---|
+| 1. Finish contracts and disposable access check | Settle nested source ownership, eligible formats and output exclusions; parent filename/schema and optional library identity; relative-path rules; discovery scope; cancellation, conflict and interrupted multi-file-save behavior. Keep independent/outside-root archives supported. | Review the concrete contract. On disposable desktop and real iPhone/iCloud hierarchies, establish actual returned paths/files, coverage limits, save/reselection behavior and two-source access. Do not write test changes to the four real archives. |
+| 2. Production complete-source reconciliation on desktop | Integrate the isolated planner/apply safeguards into source and transcript destination open/Refresh, with progress, review and pending-save state. | One selected transcription out of 120 audio files still produces a 120-record audio inventory; existing eligible transcripts are inventoried independently. Add an audio file, add/delete a transcript, refresh twice, cancel and retry, and interrupt a save. Stable IDs, idempotence, extension preservation, reviewed removals and unchanged audio/TXT bodies must hold. |
+| 3. Mobile inventory and save pathway | Use actual folder-input coverage, explicit missing-list selection when needed and separate Save-to-Files actions. | Real iPhone/iCloud tests: partial selection, offline/provider failure, cancelled/repeated save and reread. No unobserved entry is removed, no false complete/saved status, and existing Search remains usable. |
+| 4. Shared multi-source audio resolver | Search and Combine resolve Audio Source ID + Recording ID through validated child lists and source-specific access associations. Preserve other sources when adding one. | Two sources with identical audio basenames play the correct recordings; wrong folder, stale paths, conflicts and denied permission cannot select a substitute. Reuse associations where access survives; request only the affected source otherwise. |
+| 5. Parent catalogue and discovery | Implement the agreed catalogue on top of child inventories/resolution; select a parent or register independent sources. | Add a new child with an existing list and one without a list; confirmation/refresh updates the right JSONs. Test moved/inaccessible children, duplicate source IDs, partial access and interrupted child/parent saves. No duplicate parent-owned audio inventory. |
+| 6. Shared authoritative editing (architecture Phase 4) | Search and Combine share preferred-transcript selection and exact-file editing. | Both interfaces select the same candidate; higher/lower-model changes, operation separation, external modification and dirty-editor protections pass. Saving preserves identity and updates only affected derived Search data. |
+| 7. Persistent Combine and imports (Phase 5) | Persist multi-archive reference membership, selections, order, title/settings and applicable draft state; implement reviewed Merge/import contracts. | Add recordings from two archives, play either, reopen and retain both references. Unavailable sources remain visible/unresolved; access prompts are source-specific. JSON catalogues alone do not provide workspace persistence. |
+| 8. Portable exports and Output (Phase 6) | TXT/DOCX/HTML reference round trips and agreed presentation controls. | Metadata/identity round trips, readable static exports, import/merge, desktop/iPhone save flows and standalone HTML playback restrictions pass. |
+| 9. Search scope/history and final regression | Complete agreed query-only history (Phase 7); specify and separately validate multi-archive/library Search scope using the same resolver. Finish Phase 8 audio/export regression gates. | Query-only retention/settings, no unrelated data deletion, supported per-archive/index configuration, two-source selection and full desktop/iPhone regression pass. Multi-archive Search is not assumed to exist merely because the catalogue exists. |
+
+Resource checks apply throughout: measure folder-open, JSON parse/decode, reconciliation, cache restoration and peak-memory behavior on representative iPhone archives. Use bounded work and avoid unnecessary whole-library copies or model loading during inventory. A healthy matching Search index should not be regenerated just because a catalogue/source list is refreshed; preserve existing model/configuration/text validation. Do not clear IndexedDB or rebuild all embeddings as a routine prerequisite.
+
+Immediate next work is checkpoint 1: a concrete contract and disposable device-access validation, followed by separately authorized, small implementation checkpoints. This documentation update changes no application code, build ID, JSON schema, user archive or filesystem layout.
 
 ## Approved interface changes — candidate 2026-11-18.4
 
@@ -122,7 +156,9 @@ Approved names and messages:
 
 Verification: **22/22** isolated Chrome integration groups passed. Direct comparison of transcription and translation headers confirmed identical metadata values and transcript body bytes after reordering. Actual iPhone wording, wrapping, picker and pulse acceptance remain pending. These changes do not implement the parent library or archive-wide reconciliation.
 
-## Migration-copy and inventory findings
+## Historical migration-copy and inventory findings (superseded by successful remigration)
+
+The earlier investigation recorded the following; these availability constraints are superseded by the later successful four-archive migration and rebuilt indexes. Preserve this as evidence of that earlier snapshot, not current repair instructions.
 
 The user clarified that migration was completed on Windows: `transcription1` retains the legacy files and `transcription` contains the migrated files. Those migrated folders remain unsynced on the Windows desktop and are unavailable while the user is away. The Mac/iCloud copies examined contain legacy headers; this is not evidence that migration failed.
 

@@ -6,7 +6,7 @@
 
 This revision supersedes the previous snapshot/version-based architecture. The user's revised instructions and subsequent mandatory dynamic-selection clarification govern. Unchanged requirements are retained below. The detailed Phase 1 review package is [MEMORA_COMBINE_PHASE_1_CONTRACTS.md](MEMORA_COMBINE_PHASE_1_CONTRACTS.md).
 
-**Architecture review takes precedence for new library/indexing work:** See [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md). Parent-catalogue discovery, complete-source inventory, nested ownership and shared multi-archive playback/Search are under discussion only. Preserve the approved identity/merge/edit contracts pending specific revisions; do not implement the proposed hierarchy yet. Candidate 2026-11-18.4 contains the separately approved list-selection clarity, pending-save pulse and TXT header ordering; it does not implement that architecture.
+**Library plan update — 18 November 2026:** The user agreed that opening/refreshing the library discovers child sources, opening/refreshing a source inventories all eligible audio independently of transcription selection, and new source registration is confirmed. Writable access saves approved changes directly; file-input access uses explicit JSON saves. Incomplete access never proves deletion. See [agreed maintenance and ordered checkpoints](Audio_Library_Architecture_Proposal.md#agreed-catalogue-and-recording-list-maintenance). First finish ownership/schema/access contracts, then production desktop/mobile reconciliation, shared multi-source audio resolution and parent discovery; resume shared editing, persistent Combine/imports and exports/history afterward. Parent schema and application implementation remain pending; this task authorizes documentation only. Four-archive remigration and rebuilt Search indexes are user-reported successful. iPhone Search worked after cache/reload and reopening; the crash cause is unconfirmed.
 
 ## 1. Approved decisions and boundaries
 
@@ -144,6 +144,8 @@ Workspace/history writes should be transactional. Stage/validate imports before 
 Avoid unnecessary abstractions/dependencies. Security limits include payload sizes, DOCX expanded size/entry counts, inert HTML parsing and rejection of traversal/unsafe paths. Large-collection behavior and lazy rendering require measurement and real iPhone acceptance.
 
 ## 12. Approved eight-phase implementation sequence
+
+The phase numbers below retain their original scope identifiers. Delivery order is amended by the [library checkpoints](Audio_Library_Architecture_Proposal.md#ordered-implementation-and-acceptance-checkpoints): inventory, mobile access, shared resolution and parent discovery precede shared editing and persistent Combine. Phase 8 resolution therefore starts earlier; its export regressions still run after export implementation.
 
 Phase 1 prepares contracts only until their approval. Subsequent phases require implementation authorization and acceptance evidence. Data-integrity testing applies throughout.
 
