@@ -2,7 +2,7 @@
 
 ## Current boundary and later selection decision — 19 November 2026
 
-Build **2026-11-19.23** implements root transcript reconciliation/Edit/Combine source reading and save guidance, not the full workspace/import contracts below. Canonical transcript list: memora-transcript-archive.json. Paragraph controls are removed from Combine; DOCX/HTML output-metadata selectors remain deferred.
+Reviewed at **47ca641**, displayed build **2026-11-19.25**, the source implements root transcript reconciliation/Edit/Combine source reading and save guidance, not the full workspace/import contracts below. Canonical transcript list: memora-transcript-archive.json. Paragraph controls are removed from Combine; DOCX/HTML output-metadata selectors remain deferred.
 
 The later user decision keeps transcript model-family metadata simple: no repository/configuration/precision/backend expansion, transcription timestamp or backfill tool. Priority should be family then recognized filename counter for the same archive/recording/operation, preserving all alternatives. Counter priority is agreed but not implemented; desktop generates -2/-3 names and file-input/iPhone leaves collisions to Files. Missing timestamps are not to be filled by guessing filesystem creation dates. Parent/recursive catalogue work, persistent workspace/imports and Search/Transcribe full reconciliation are still subsequent stages. See [current status](CURRENT_STATUS.md) before interpreting older “current/next” statements.
 
@@ -53,7 +53,7 @@ Recording association is archive-scoped. Names alone do not establish shared ide
 
 ## 4. Preferred-transcript decision table
 
-Use one shared implementation behind current Search and Combine integration. Present ranking remains tiny 1, base 2, small 3, medium 4, large-v3 5, matching `combine.js`; no new model aliases/ranks without evidence.
+Use the shared selector behind current Search and Combine integration. Implemented family ranks are tiny 1, base 2, small 3, medium 4, and historical large/large-v3 5. Current equal ranks keep first encounter. The table below records the approved target, including the later filename-counter decision; it is not a claim that the whole workspace/import contract or tie-breaker is implemented.
 
 | Situation within archive/recording/operation | Result |
 |---|---|
@@ -62,7 +62,8 @@ Use one shared implementation behind current Search and Combine integration. Pre
 | Winning file removed | Next highest valid file; no candidates leaves unresolved reference. |
 | Winning file edited | Same candidate, new text; invalidate affected derived search/index data. |
 | Lower-ranked file edited | It remains lower-ranked; no correction propagation or override. |
-| Multiple distinct highest-ranked files, conflicting metadata or unknown candidate model | Report unresolved selection; do not invent a tie-break or silently ignore ambiguity. |
+| Multiple recognized same-family versions | Agreed target: highest recognized filename counter; unsuffixed = 1. This tie-breaker is not implemented yet. Retain older TXT/edits; define iPhone Files naming scope explicitly. |
+| Conflicting identity, unknown candidate model or names outside the recognized counter policy | Keep the conflict/unresolved state explicit; do not invent a generation, filesystem date or precision priority. |
 | Different operation or archive UUID | Independent group, regardless of matching text/name/Voice Memo ID. |
 | Archive unavailable | Preserve reference, request archive; no validated-current claim. |
 

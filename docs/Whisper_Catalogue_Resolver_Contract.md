@@ -1,5 +1,7 @@
 # Whisper catalogue and selection contract
 
+Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](CURRENT_STATUS.md) and the [five-volume journal index](journal-index.md) give the current implementation boundary.
+
 ## Current catalogue/cache boundary — 19 November 2026
 
 Reviewed through **2026-11-19.23**. The 13 canonical definitions and loader precision/selection policies are unchanged by the recent Settings/reconciliation work. Settings' Model Registry Cache is a persisted projection: Refresh Storage Information synchronizes canonical fields before counting; View does not initialize it; deletion does not immediately recreate it. Historical registry evidence/extensions are preserved during synchronization. Current qualification, downloaded weights and self-test reports have separate owners.

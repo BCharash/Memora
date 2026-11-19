@@ -2,7 +2,7 @@
 
 ## Current recorded verification — 19 November 2026
 
-Candidate **2026-11-19.25**, schema **6**, based on committed source **d03d432**. The audio whole-folder correction has now been tested as described below; earlier .23 documentation consolidation itself did not rerun tests. The counts below are previously recorded runs, not a sum of independent model/device validations.
+Reviewed source **47ca641**, displayed build **2026-11-19.25**, schema **6**. The audio whole-folder correction has now been tested as described below; earlier .23 documentation consolidation itself did not rerun tests. The counts below are previously recorded runs, not a sum of independent model/device validations.
 
 | Page / checkpoint | Latest relevant recorded groups | Coverage |
 |---|---:|---|

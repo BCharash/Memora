@@ -2,7 +2,7 @@
 
 ## Current review identity — 19 November 2026
 
-Build **2026-11-19.23** includes .22's browser-version-independent qualification. Recognized browser family and unchanged execution/platform context match existing passes and review evidence across version updates. Raw browser versions remain in technical reports; historical keys/reports are preserved. Latest decisions, actual failure holds and pending/required reviews survive updates; resolved reviews remain resolved. Review cards and the Transcribe notice use that same normalized identity. Unknown browsers and genuine context changes are not silently promoted.
+Reviewed source 47ca641, displayed build **2026-11-19.25**, includes .22's browser-version-independent qualification. Recognized browser family and unchanged execution/platform context match existing passes and review evidence across version updates. Raw browser versions remain in technical reports; historical keys/reports are preserved. Latest decisions, actual failure holds and pending/required reviews survive updates; resolved reviews remain resolved. Review cards and the Transcribe notice use that same normalized identity. Unknown browsers and genuine context changes are not silently promoted.
 
 The self-test summary is passed-only measurement history, distinct from qualification, the loaded model and failure-review history. Current storage/history deletion controls use Select All/Deselect All and Delete Selected, protecting active/unprocessed evidence. See [current status](CURRENT_STATUS.md) and [testing design](Whisper_Configuration_and_Test_Design.md). Earlier per-build acceptance below is historical.
 
@@ -12,7 +12,7 @@ Historical handoff through source .14 (10 November): .7 normal transcription pas
 
 ## One authority per responsibility
 
-Canonical definitions remain in `whisperConfigurations.js`. `whisperFailures.js` owns the shared boundary/category vocabulary and error annotation. Execution evidence belongs to a future durable execution record, while permission remains owned by the existing eligibility bridge. Its production-review overlay preserves the existing reference-qualified base record, as the legacy-review overlay already does; it is not a second model catalogue or independent decision authority. A local failure never edits global model definitions or establishes universal device incompatibility.
+Canonical definitions remain in `whisperConfigurations.js`. `whisperFailures.js` owns the shared boundary/category vocabulary and error annotation. Execution evidence belongs to the implemented durable execution journal, while permission remains owned by the existing eligibility bridge. Its production-review overlay preserves the existing reference-qualified base record, as the legacy-review overlay already does; it is not a second model catalogue or independent decision authority. A local failure never edits global model definitions or establishes universal device incompatibility.
 
 The first checkpoint keeps original user-facing error messages and attaches `error.whisperFailure`. Original error identity/details are retained through `cause` and serialized name/message/stack. The description and diagnostic payload are frozen. Outer workflow catches preserve more specific inner worker evidence. No audio/transcript bytes are included in this description.
 

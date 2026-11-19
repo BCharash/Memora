@@ -1,5 +1,9 @@
 # Memora Search Model Optimization
 
+## Review status — 19 November 2026
+
+The 26 October lexical-first ranking decision below remains governing; its date is the decision date, not a claim of a new implementation review that day. Current source at 47ca641 retains MiniLM, sentence-heavy fusion, lexical-before-semantic ordering and incremental result presentation. Recent changes add shared in-app audio-location guidance and bounded checks where an embedded ID is available, not a ranking/model/UI-result-composition redesign. Full shared transcript-list reconciliation and independently dirty two-JSON delivery in Search remain future work. See [current status](CURRENT_STATUS.md), [journal Volume 4, through section 59](04-design-journal-sections-49-51.md), and [Volume 5](05-design-journal-sections-60-62.md). No research/model benchmark was rerun in this documentation review.
+
 # CURRENT PRODUCTION STRATEGY — 2026-10-26 (GOVERNING)
 
 > **This section records the latest user-approved direction and supersedes any conflicting earlier proposal in this document, especially the earlier statement that lexical priority was still an open question.** The historical research record is archived for provenance; do not treat superseded proposals as current requirements.

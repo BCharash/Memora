@@ -1,4 +1,6 @@
-> Historical overlapping journal extract. Preserved without restructuring. The latest runtime/Whisper decisions are in [main journal section 60](design-journal.md#60-runtime-and-whisper-consolidation-through-build-2026-11-0923); use [CURRENT_STATUS.md](CURRENT_STATUS.md) for current work.
+> **Volume 4 of 5 — sections 49–59.** Synchronized against the whole journal on 19 November 2026. These entries retain their historical dates and decisions; the current handoff governs implementation status.
+>
+> [Whole journal](design-journal.md) · [Journal index](journal-index.md) · [Current status](CURRENT_STATUS.md) · [Previous volume](03-design-journal-sections-44-48.md) · [Next volume](05-design-journal-sections-60-62.md)
 
 # 49. Latest Development Milestone: Whisper Model Testing, Desktop Worker Isolation, and Medium q4 Resolution
 

@@ -8,6 +8,10 @@ The application populates “Memora build …” at the very bottom of the page,
 
 This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database schema versions and model configuration revisions remain separate identifiers.
 
+## Reviewed source checkpoint — 19 November 2026
+
+Current build module displays **2026-11-19.25**; committed source **47ca641** also contains a subsequent html.js reader update. The .24 audio-folder fix and .25 shared in-app guidance were committed together in 33e69dc. A footer value therefore does not uniquely identify the later HTML revision; retain both commit and displayed build in the documentation/test record. This review does not alter APP_BUILD or claim deployment. The rule above still applies to future changed releases; documentation-only changes need no new application number.
+
 ## Release consistency — deferred
 
 The user confirmed an iPhone caching mismatch after this label was published. Generated asset URLs and a build/deployment conversion were proposed, but the isolated Vite setup was intentionally discarded. GitHub Pages remains `main` → `/(root)`; normal Live Server/source publishing continues. See the archived [asset inventory](archive/Asset_and_Deployment_Inventory.md) and [Vite plan](archive/Vite_Design_and_Rollout_Plan.md) if revisiting that separate project. They require a fresh audit; they are not prerequisites for current Whisper work.

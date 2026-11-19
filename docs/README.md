@@ -1,6 +1,6 @@
 # Memora documentation
 
-Reviewed **19 November 2026** against application candidate **2026-11-19.25**, database schema **6**, based on committed source **d03d432**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
+Reviewed **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, database schema **6**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
 
 ## What changed on 18–19 November
 
@@ -30,6 +30,8 @@ Transcribe's full-folder transcript reconciliation and Search's shared scan/two-
 
 | Document | Role |
 |---|---|
+| [Documentation review](Documentation_Review_2026-11-19.md) | Scope, document inventory, corrections and validation limits. |
+| [Journal index and five volumes](journal-index.md) | Whole/split navigation and synchronization rules. |
 | [Current status and resume instructions](CURRENT_STATUS.md) | Consolidated current behavior, tests, gaps, decisions and chronological build notes. |
 | [Recording identity implementation contract](Recording_Identity_Implementation_Contract.md) | Root inventory, IDs, schemas, persistence/conflict rules and staged transcript integration. |
 | [Recording identity handoff](Recording_Identity_Handoff.md) | Operational rebuild instructions and preserved historical migration/iMuse evidence. |
@@ -51,8 +53,8 @@ Transcribe's full-folder transcript reconciliation and Search's shared scan/two-
 
 ## Design journals
 
-The [main journal](design-journal.md#62-self-test-summary-settings-and-root-archive-maintenance--1819-november-2026) now includes **section 62**, consolidating the 18–19 November work and subsequent simplified-metadata/filename-priority decisions. Sections through 61 retain earlier history.
+The [whole journal](design-journal.md) and [five-volume index](journal-index.md) now cover the same sections through **62**. [Volume 5](05-design-journal-sections-60-62.md) contains sections **60–62**, including the November runtime, Whisper, identity, Settings and reconciliation work. The first four volumes preserve their historical bodies; Volume 4 actually covers **49–59** and retains its existing filename for bookmark compatibility.
 
-The four overlapping split journals remain historical: [1–35](01-design-journal-sections-1-35.md), [36–43](02-design-journal-sections-36-43.md), [44–48](03-design-journal-sections-44-48.md), [49 onward](04-design-journal-sections-49-51.md). This update does not duplicate the new section into those files.
+Update the whole journal first, then synchronize the affected volume. Historical section-number gaps and duplicates are preserved; compare number and heading together. The [review report](Documentation_Review_2026-11-19.md) records the checks and remaining implementation boundaries.
 
 Documentation changes alone do not change the application build, schemas, models, user files or deployment.

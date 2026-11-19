@@ -19,6 +19,12 @@ Current Transcribe/Edit/Combine transcript-list guidance uses meaningful validat
 
 Code inspection: 29 October 2026. This records existing behavior after the worker and Combine module renames; it does not authorize or implement a refactor. Both renames passed the user's testing. No new browser or device testing was performed for this inventory.
 
+## Standalone HTML reader — source revision 47ca641
+
+createCombinedHTML in html.js generates its own date/name sort and direction controls, text-size controls (with a CSS fallback), and Locate Audio Folder UI. Its script preserves creation-time record order until reader interaction. It first uses relative audio references, then lets the reader explicitly select a folder; directory-input fallback handles environments without a working native directory picker. Audio is matched by filename, ambiguous/previously registered basenames are not silently replaced, and selected audio uses page-local object URLs.
+
+This exported document does not import searchUI.js or inherit the app's scoped caches/embedded-ID checks. Reader controls are not Memora collection-reference metadata, workspace persistence or document import. Source inspection during this review is not new browser/Files/audio acceptance. The latest HTML change has no distinct APP_BUILD increment, so record commit 47ca641 as well as the displayed .25 label when reproducing its behavior.
+
 ## Loading and access
 
 `storage.selectFolder()` prefers `showDirectoryPicker({ mode: "readwrite" })`. Otherwise it uses the directory file input and returns `{ kind: "file-input", selectionScope: "folder", name, files }`. That descriptor provides readable files, not a writable folder handle. A picker rejection does not automatically retry using the fallback.

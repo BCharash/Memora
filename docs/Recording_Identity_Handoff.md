@@ -2,7 +2,7 @@
 
 ## Current handoff — 19 November 2026
 
-Candidate **2026-11-19.24**, schema **6**, based on committed source **d03d432**. Read [current status](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) before using the historical migration/checkpoint instructions below.
+Reviewed source **47ca641**, displayed build **2026-11-19.25**, schema **6**. Read [current status](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) before using the historical migration/checkpoint instructions below.
 
 1. The former one-time migration is complete and retired. Do not recreate it or change Recording ID/Archive UUID/Audio Source ID while maintaining lists.
 2. Canonical files: memora-audio-source.json beside audio; memora-transcript-archive.json beside transcripts; search-embeddings.json remains separate derived Search data.

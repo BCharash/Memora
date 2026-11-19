@@ -2,7 +2,7 @@
 
 ## Consolidated handoff — 19 November 2026
 
-Application candidate **2026-11-19.25**, database schema **6**, based on committed source **d03d432** (`doc updates`). The .24 change completes successful whole-folder iPhone audio coverage; .25 adds shared Combine/Search audio-location guidance and scoped playback matching. These changes affect neither schemas nor model settings and do not delete user audio. The preceding .23 consolidation was documentation-only; this subsequent fix was separately authorized. Earlier per-build notes below are history and are superseded by this overview where decisions changed. Earlier checkpoints were committed by the user; the .24/.25 changes currently remain uncommitted. “No agent commit/deployment” in older notes describes the agent action at that time.
+Source reviewed at committed **47ca641** (`Update html.js`); the application still displays **2026-11-19.25**, database schema **6**. The user committed the .24 audio-coverage and .25 shared-audio changes together in **33e69dc**; the later HTML-reader revision is a separate commit without a new build label. Record both commit and displayed build when distinguishing these revisions. This comprehensive review changes documentation only. Older “no commit” notes retain their original agent-turn meaning and are not current Git status. Historical checkpoint statements below are superseded by this overview where decisions changed.
 
 ### Implemented on 18–19 November
 
@@ -24,6 +24,7 @@ Application candidate **2026-11-19.25**, database schema **6**, based on committ
 | Transcript safety | Mixed Archive UUIDs, conflicting IDs/paths, invalid JSON/headers, read failures or active/pending transcription work block updates; readable transcripts can still be viewed. Native saves compare prior JSON bytes, lock by archive, verify readback and retain retry state. This is optimistic concurrency protection, not a filesystem-wide TXT/JSON transaction. |
 | Archive naming/guidance | Canonical filename is **memora-transcript-archive.json**. iPhone Transcribe/Edit/Combine prompts identify both archive and folder, e.g. the “transcription” folder for archive “2016”. These are labels, not a verified full Files path. |
 | Audio location in Combine/Search | Shared playback control shows archive (when known), Original Audio Folder and requested recording before the picker; repeats guidance when missing. iPhone/file-input selects individual recordings or a batch. Cache/root reuse is scoped to source/archive; embedded IDs are checked when inspectable. Filename fallback remains for absent/legacy IDs without claiming verification. |
+| Standalone HTML reader | Current html.js exports reader date/name sorting and direction controls, retains initial record order until a reader sorts, offers text-size controls and Locate Audio Folder with file-input fallback. This is standalone generated HTML, separate from the app playback component. Audio selection is filename-based there; portable collection import/structured output metadata is not implemented. Source reviewed at 47ca641, with no new reader/device test claim. |
 | Historical Large | Accept and preserve `Whisper model: large` and `-large[-N].txt`, alongside large-v3. Do not relabel old Large transcripts as a particular generation. Missing-field errors identify the absent/unrecognized field. |
 | Browser updates | Existing valid qualification survives version changes within a recognized browser family and the same execution/platform context. Full UA strings remain in reports. Later failures/interruptions and unresolved reviews remain effective; resolved reviews do not reactivate solely after an update. Other configuration/capability/platform changes still require validation. |
 
@@ -60,7 +61,7 @@ The user reported audio-source behavior appeared functional and continued testin
 
 ### Resume boundary — remaining work
 
-1. The authorized .24 audio coverage correction is complete. The other agreed application stages below remain separate future work.
+1. This review is documentation-only. The .24/.25 corrections are implemented and committed; other application stages below remain separate future work.
 2. When implementation resumes, address same-family filename-counter priority and its iPhone naming scope. Keep model families/operations/archive identity separate and preserve alternatives.
 3. Perform real-iPhone acceptance of .24 with a disposable folder copy: remove/return a recording, save the updated list, cancel one share, and reopen unchanged. Recursive ownership is unchanged.
 4. Continue the agreed **Transcribe** reconciliation stage: reuse a destination snapshot and update the transcript list after successful TXT saves; avoid a full reread for every recording. Current Transcribe appends references and is not yet the shared full-folder reconciler.
@@ -68,7 +69,7 @@ The user reported audio-source behavior appeared functional and continued testin
 6. JSON save guidance and shared Combine/Search audio-location guidance are implemented. Extend known-location guidance to other delivery pathways only as separately needed; native pickers/share sheets cannot be forced to open or verify a destination.
 7. Keep broader parent catalogues, recursive ownership/discovery, multi-source resolution, persistent multi-archive Combine/workspaces, portable document imports, and DOCX/HTML output-metadata controls separate from completed root reconciliation. No revived migration or detailed transcript-metadata tool.
 
-Current ownership: settings.js; transcriptArchive.js/transcriptFolder.js; transcriptionIdentity.js/audioSourcePersistence.js/audioSourceRecovery.js; combine.js/combineUI.js; app.js/storage.js; whisperEligibility.js/whisperEligibilityEvidence.js/whisperProductionEvidence.js/whisperExecutionReports.js. See [file map](../filemap.md), [test guide](../tests/README.md), [recording contract](Recording_Identity_Implementation_Contract.md) and [Whisper design](Whisper_Configuration_and_Test_Design.md).
+Current ownership: settings.js; searchUI.js for shared in-app playback; html.js for the independent exported reader; transcriptArchive.js/transcriptFolder.js; transcriptionIdentity.js/audioSourcePersistence.js/audioSourceRecovery.js; combine.js/combineUI.js; app.js/storage.js; whisperEligibility.js/whisperEligibilityEvidence.js/whisperProductionEvidence.js/whisperExecutionReports.js. See [five-volume journal index](journal-index.md), [documentation review](Documentation_Review_2026-11-19.md), [file map](../filemap.md), [test guide](../tests/README.md), [recording contract](Recording_Identity_Implementation_Contract.md) and [Whisper design](Whisper_Configuration_and_Test_Design.md).
 
 ## Dated implementation log and earlier checkpoints
 

@@ -1,3 +1,5 @@
+> Documentation reviewed 19 November 2026 against source 47ca641 (displayed build .25). Original experiment/checkpoint evidence is retained, not rerun. Use [current status](../../../docs/CURRENT_STATUS.md) for implemented behavior; historical pending instructions are not current authorization.
+
 # Disposable archive-wide reconciliation lab
 
 18 November 2026. Created after the user asked to test reconciliation while the migrated Windows copies are unavailable. **This is an isolated proof of concept, not a production repair or permission to reorganize/migrate real archives.** The existing 18 pending candidate files are left unchanged.

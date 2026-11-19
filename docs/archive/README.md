@@ -1,6 +1,6 @@
 # Archived and deferred documents
 
-Reviewed 9 November 2026 through build .23. These records preserve unique decisions, observations, experiments and earlier proposals. Historical “current”, “next” and “pending” statements describe their checkpoint. Start with [the live handoff](../CURRENT_STATUS.md) and [documentation index](../README.md); archived instructions do not authorize work.
+Reviewed for documentation consistency on **19 November 2026**, against source **47ca641** (displayed build .25). These records preserve unique decisions, observations, experiments and earlier proposals. Historical “current”, “next” and “pending” statements describe their checkpoint. Start with [the live handoff](../CURRENT_STATUS.md) and [documentation index](../README.md); archived instructions do not authorize work.
 
 ## Checkpoint history
 
@@ -31,4 +31,4 @@ Reviewed 9 November 2026 through build .23. These records preserve unique decisi
 | [Search research](Search_Optimization_Research_Record.md) | Full experiments/caveats; [active Search strategy](../search%20model%20optimization.md) and journal retain governing production decisions. |
 | [Paragraphing R4/R5 analysis](Memora_Revision4_vs_Revision5_Complete_Analysis.md) | Historical comparison; selected direction is recorded in the journal. |
 
-Nothing was deleted in this refresh. Five overlapping journals remain in the parent folder; only the main journal receives the new section 60. No journal restructuring or application change accompanies archiving.
+Nothing was deleted in this refresh. The whole journal and **five synchronized split volumes** remain in the parent folder; see the [journal index](../journal-index.md). Volume 5 covers sections 60–62. Original archived dates/evidence remain historical; this review does not rerun experiments or authorize deferred implementation.

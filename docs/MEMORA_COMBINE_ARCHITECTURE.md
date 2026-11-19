@@ -2,7 +2,7 @@
 
 ## Implementation and selection addendum — 19 November 2026
 
-Current build **2026-11-19.23**. Root transcript read/reconciliation is connected to Edit/Combine: one inventory/text parse per snapshot, safe immediate-reference maintenance, native verified saves and explicit iPhone new-name JSON sharing. Complete iPhone folder input can prune missing immediate references; errors/partial selections cannot. The paragraph selector is removed; Output has document title plus desktop format buttons or iPhone format/save controls. Document-output metadata selectors remain deferred.
+Reviewed at **47ca641**, displayed build **2026-11-19.25**; this review changes no application code. Root transcript read/reconciliation is connected to Edit/Combine: one inventory/text parse per snapshot, safe immediate-reference maintenance, native verified saves and explicit iPhone new-name JSON sharing. Complete iPhone folder input can prune missing immediate references; errors/partial selections cannot. The paragraph selector is removed; Output has document title plus desktop format buttons or iPhone format/save controls. Document-output metadata selectors remain deferred.
 
 The user rejected detailed Whisper configuration/precision metadata and an extra transcription timestamp as unnecessary for ordinary selection. Keep current family headers and legacy compatibility. **Agreed next selection policy:** same archive/recording/operation → highest family → highest recognized filename counter; unsuffixed desktop version is 1. Retain older TXT/edits. This tie-breaker is not implemented: equal family currently retains first encounter. Desktop creates -2/-3 suffixes; iPhone delegates collision naming to Files, so cross-device counter scope must be settled before claiming parity.
 
@@ -20,7 +20,7 @@ This revision supersedes the previous snapshot/version-based architecture. The u
 
 - Archives have persistent UUIDs; recordings have persistent IDs within their archive. Names and paths are descriptive, never sufficient identity.
 - Transcripts belong to an archive, recording, Whisper model, and operation (`transcribe` or `translate`). Translation never replaces transcription.
-- Search and Combine dynamically select the highest-ranked currently available transcript for each archive/recording/operation. No permanent preferred flag is authoritative.
+- Search and Combine share a highest-family selector for each archive/recording/operation. The agreed next same-family filename-counter tie-breaker remains unimplemented; current equal ranks retain first encounter. No permanent preferred flag is authoritative.
 - Lower-model transcripts remain in the archive. Corrections affect only the selected transcript; do not synchronize corrections to alternatives.
 - Edits use explicit Save Changes and replace the current saved text. No historical transcript-version store or collection-local edited copies.
 - Combine persists across searches, archive changes, reloads and combined-document imports. Preserve membership, checked selections, order, sorting choice, title, settings and unsaved edits.
@@ -36,18 +36,18 @@ This revision supersedes the previous snapshot/version-based architecture. The u
 
 ## 2. Repository evidence and reuse
 
-Repository reviewed on 16 November 2026; this is a source audit, not browser/device acceptance.
+Repository ownership rechecked on 19 November 2026 at 47ca641; this is a source audit, not browser/device acceptance. Historical migration plans below retain their original scope.
 
 | Existing module | Relevant ownership and required extension |
 |---|---|
 | `js/app.js` | Actual orchestrator; `useSearchSelectionInCombine`, `combineSelectedFiles`, `buildTranscript`, saving and destination controls. Current Search handoff resets source/destination context. |
-| `js/combine.js` | Single-transcript TXT parsing, sorting, model ranks and model selection. Group keys currently lack archive identity. TXT output loses some parsed metadata. |
+| `js/combine.js` | Single-transcript TXT parsing, sorting, model ranks and model selection. Group keys include Archive UUID/Recording ID/operation when identity exists. Family ranking is implemented; equal-ranked records currently keep first encounter. TXT exports preserve a readable subset, not a portable collection-reference payload. |
 | `js/combineUI.js` | Rows, selection, editing and playback integration; filename-based selection/replacement must become stable-reference based. |
 | `js/search.js` | Already imports `selectHighestModelRecords` from Combine and selects records before sentence/index work. Preserve shared logic and invalidate stale derived search data. |
 | `js/searchUI.js` | Search, selected-results handoff, editing and audio controls/resolution. Extend existing Add to Combine; do not create a competing pathway. |
 | `js/database.js` | Sole database schema/open owner. Audited at version 5; checkpoint 2B now adds schema 6 audioSourceRecovery beside transcripts, semanticEntries, semanticMetadata and modelRegistry. Transcript key remains filename. |
 | `js/storage.js` | File access and transcript persistence. Desktop writable handles differ from file-input/iPhone access. |
-| `js/docx.js`, `js/html.js` | Existing browser export generators; DOCX loads docx 9.7.1. No verified structured DOCX import/embedding capability yet. |
+| `js/docx.js`, `js/html.js` | Browser export generators; DOCX loads docx 9.7.1. Standalone HTML now has reader sorting/text-size and explicit audio-folder locating. Neither that UI nor the prior isolated DOCX tests implement portable collection import/workspace restoration. |
 | `js/combineShareExport.js` | Existing iPhone file-sharing transport; preserve cancellation and user-gesture behavior. |
 | `js/settings.js`, `js/storageManager.js` | Settings, storage reporting/cleanup; history and new durable data must be included deliberately. |
 | `index.html`, `css/`, `tests/` | Existing layout/styling and isolated browser test conventions. |
@@ -70,7 +70,7 @@ New transcription writes must produce the same metadata and manifest contract as
 
 ## 4. Dynamic preferred-transcript contract
 
-The membership key is `(archiveUuid, recordingId, operation)`. Evaluate candidates at Search/Combine invocation, combined-document import, and relevant archive refresh/access. Use one shared selector. The current ordering is tiny < base < small < medium < large-v3; unknown models and tied conflicting candidates must not be guessed into a winner.
+The membership key is `(archiveUuid, recordingId, operation)`. Evaluate candidates at Search/Combine invocation, combined-document import, and relevant archive refresh/access. Use one shared selector. The model-family ordering is tiny < base < small < medium < Large; accepted historical large and large-v3 labels both have rank 5 without relabeling their provenance. The later agreed target for recognized same-family versions is the highest filename counter (unsuffixed = 1). That tie-breaker is not yet implemented: current code retains first encounter. Unknown/conflicting identities or unrecognized ambiguous names must not acquire an invented date/model priority.
 
 Search selects preferred transcripts **before** text matching/indexing. Derived indexes may be reused only when validated against the current candidate inventory and saved content. Added, removed or modified files can change preference or searchable text. Do not persist a selected file/model as authoritative during migration, import or transcription.
 

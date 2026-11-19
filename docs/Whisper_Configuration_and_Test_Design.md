@@ -1,5 +1,7 @@
 # Whisper testing and eligibility — current design
 
+Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](CURRENT_STATUS.md) and the [five-volume journal index](journal-index.md) give the current implementation boundary.
+
 ## Browser continuity and Settings addendum — 19 November 2026
 
 Implemented in **2026-11-19.22** and retained in .23: recognized browser-family identity, not browser/engine version numbers, is used for qualification matching. Full user agents remain in report contexts and existing raw eligibility storage keys. Existing version-specific rows are read non-destructively; the latest eligibility decision wins across matching versions. Neutral outcomes cannot erase a later hold, and replaying an old pass cannot restore newer blocked/suspended evidence. Unknown agents remain exact; another browser family or changed configuration/fingerprint/worker/protocol/fixture/recipe/platform/capabilities still needs validation.

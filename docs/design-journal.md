@@ -1,12 +1,12 @@
 # Memora Design Journal
 
-**Version:** 16
+**Version:** 17
 **Status:** Living document; current through section 62 (19 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
 
 
-Latest decisions: [section 62](#62-self-test-summary-settings-and-root-archive-maintenance--1819-november-2026). Earlier entries preserve historical behavior; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current resume boundary.
+Latest decisions: [section 62](#62-self-test-summary-settings-and-root-archive-maintenance--1819-november-2026). Read this whole journal or use the [five-volume index](journal-index.md); [Volume 5, sections 60–62](05-design-journal-sections-60-62.md) contains the recent runtime, identity, Settings and archive-maintenance work. Earlier entries preserve historical behavior; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current resume boundary.
 
 ---
 
@@ -4445,6 +4445,18 @@ Twenty-one focused groups passed in Node v24.22.1 and isolated Windows Edge, inc
 31/31 new groups and the reader's existing 21/21 passed in Node v24.22.1 and isolated Windows Edge. The new manual page is tests/audio-source-identity.html. No application entry point imports these modules; no hashing, UUID generation, database/file writes, transcript/audio/archive edits, build change, commit or deployment. Existing production remains Apple-only/Voice Memo ID. See Recording_Identity_Implementation_Contract.md section 13 for precise APIs, limits and conservative unresolved-conflict policies. Stop for checkpoint review/commit before separately authorized 2B (actual source discovery/hashing/recovery storage/persistence), then later production integration. No migration, move/copy tracking or unrelated Search/Combine scope.
 
 
+### 61.10 Source persistence and recovery checkpoint 2B — 18 November 2026
+
+The subsequent isolated persistence checkpoint implemented actual source-list discovery, bounded validation/readback, staged identity ownership, optimistic concurrent-write checks and explicit pending file-input exports. The shared schema advanced additively to 6 for audioSourceRecovery without dropping existing stores. Device/source capability and portable saved state remain separate; a browser-local recovery copy alone is not proof of JSON placement beside audio. The user reported passing the checkpoint-2B harness before production integration. The full API, original checks and boundaries remain in [contract section 14](Recording_Identity_Implementation_Contract.md#14-checkpoint-2b--isolated-source-persistence). Later 19 November membership-only policy supersedes the original whole-audio hash/change-review path in normal inventory; do not revive it from this historical description.
+
+### 61.11 Production identity integration checkpoint 3 — 18 November 2026
+
+Production transcription was connected to source-owned identity, readable Recording ID/Archive UUID/Audio Source ID provenance, transcript archive references and pending-save recovery. Source identity persistence precedes dependent transcription delivery; desktop saves verify JSON/TXT bytes and retain completed text/filename for retry after save failure, without rerunning inference. iPhone has explicit JSON/transcript sharing actions, and successful sharing cannot establish destination placement. Universal Recording ID accepts legacy Voice Memo ID and rejects conflicts; iMuse container identity does not imply Apple recording-date metadata. Checkpoint 3 was committed as 4c8e5f7. See [contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration). Full real-device acceptance remained separate from isolated fixtures.
+
+### 61.12 Readable file-list terminology and header layout — 18 November 2026
+
+The user clarified that the wrong JSON kind had been selected; the initially suspected native-picker defect was not established. Guidance distinguishes Audio Recording List and Transcript File List, validates the expected JSON kind and keeps retry/cancellation in the chooser. Pending saves use the existing subtle pulse and respect reduced motion. New headers group model/operation/language after dates/duration, followed by a blank line and identity/provenance. Existing transcript body bytes and identities are preserved. The former transcript filename at this checkpoint was memora-archive.json; section 62 records its later rename to memora-transcript-archive.json. The old standalone migration remains complete/retired.
+
 ## 62. Self-test summary, Settings and root archive maintenance — 18–19 November 2026
 
 Consolidated documentation at source **957b493**, application build **2026-11-19.23**, schema **6**. See [current handoff](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) for current behavior, checks and exact resume boundaries. This entry records the completed work and subsequent decisions without rewriting earlier checkpoints.
@@ -4506,3 +4518,10 @@ Six new workflow/UI groups verify deletion, returning embedded identity, unchang
 The user authorized archive/folder guidance when locating audio in Combine and Search. Both already share a playback control, now showing known archive label, Original Audio Folder and requested basename above Play before Files opens and again in missing/wrong-file messages. iPhone/file-input selects recordings or batches; native folder fallback uses the same context. Combine supplies its reconciled archive label; Search uses transcript provenance. No full Files path/start-folder control is claimed.
 
 Inspection found prior playback matched filenames without a shared Recording ID check. The focused change scopes caches/root handles to source/archive (or selected-source object for unidentified legacy results) and uses the existing bounded reader to reject inspectable ID mismatches and invalid/conflicting metadata. Absence/unsupported-container IDs preserve legacy filename matching without claiming verification; the full source-JSON/multi-source resolver is still deferred. Audio/transcripts/indexes are not rewritten. Eight isolated guidance/playback groups, 49 app integration and 29 transcript-folder groups passed (86), including 240px hints, cancellation/missing/correct batches, identical filenames across archives and native fallback. Actual iPhone/Files/media playback acceptance remains pending. The earlier .24 correction remains in the working changes; no agent commit/deployment.
+
+
+### 62.11 Whole-journal and five-volume documentation review — 19 November 2026
+
+The whole journal had acquired sections 60–62 while the split set stopped at 59. A comprehensive documentation pass verified the first four split bodies against the matching whole-journal sections by section number **and title**. The pre-existing repeated section numbers 22/24 and numbering gaps are historical and retained; they are not silently renumbered. Volume 4's stable filename ends in 49-51 but its actual range is 49–59. Volume 5 now contains sections 60–62, including the checkpoint-2B/3/header bridge added to section 61 above. A new [journal index](journal-index.md) gives actual ranges, navigation and the maintenance rule: edit the canonical whole journal, then synchronize its affected extract. All five bodies must match; navigation stays outside the copied section content.
+
+The audit checked active documents against source at 47ca641, updated stale candidate/commit claims and conflicting selection text, and retained archives/research/licences/validation evidence with their original dates and limits. Recent HTML-reader work at 47ca641 adds standalone date/name sort controls and explicit audio-folder locating; it is distinct from the app's source-scoped playback checks and does not implement portable collection import or structured metadata settings. The build module remains 2026-11-19.25, so that label alone does not identify the later html.js revision. Only static source review, journal parity, links and documentation consistency were checked on this turn; prior test evidence is not a new test run or new device acceptance. See [documentation review](Documentation_Review_2026-11-19.md) and [current status](CURRENT_STATUS.md).

@@ -1,3 +1,5 @@
+> Documentation reviewed 19 November 2026 against source 47ca641 (displayed build .25). Original experiment/checkpoint evidence is retained, not rerun. Use [current status](../../CURRENT_STATUS.md) for implemented behavior; historical pending instructions are not current authorization.
+
 # DOCX custom-property validation
 
 Date: 16 November 2026. Scope: isolated validation, not production implementation or complete device acceptance.

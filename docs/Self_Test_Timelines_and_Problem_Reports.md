@@ -1,5 +1,7 @@
 # Self-test timelines and problem reports
 
+Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](CURRENT_STATUS.md) and the [five-volume journal index](journal-index.md) give the current implementation boundary.
+
 ## Compact summary and current interpretation — 18–19 November 2026
 
 Implemented compact summary in the 18 November .9 checkpoint, retained in current build **2026-11-19.23**. Settings → History and Reviews → Self-test Summary → View shows Model, RTF and Load (s), with one latest retained **passed** row per family, ordered Tiny/Base/Small/Medium/Large. Grouping spans configuration IDs, variants and platforms/browser revisions; detailed history retains configuration-specific evidence and failed/cancelled/interrupted attempts. The summary does not use the history card deduplicator.

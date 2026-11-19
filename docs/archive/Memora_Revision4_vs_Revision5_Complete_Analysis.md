@@ -1,3 +1,5 @@
+> Documentation reviewed 19 November 2026 against source 47ca641 (displayed build .25). Original experiment/checkpoint evidence is retained, not rerun. Use [current status](../CURRENT_STATUS.md) for implemented behavior; historical pending instructions are not current authorization.
+
 # Memora Paragraphing: Revision 4 vs Revision 5 — Complete Decision and Technical Record
 
 **Prepared:** 17 October 2026  

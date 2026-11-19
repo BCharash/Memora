@@ -1,3 +1,5 @@
+> Historical/deferred record reviewed for documentation consistency on 19 November 2026. Original conclusions, dates and evidence are retained; this is not a current implementation instruction. Use [current status](../CURRENT_STATUS.md) and the [documentation index](../README.md) before resuming any proposal.
+
 # iMuse Migration Plan
 
 **Status:** Agreed direction and planning notes  

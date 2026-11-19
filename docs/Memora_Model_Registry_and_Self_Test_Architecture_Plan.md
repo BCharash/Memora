@@ -2,14 +2,14 @@
 
 ## Current implementation addendum — 19 November 2026
 
-Source **2026-11-19.23**: the compact passed-only per-family summary, Settings storage/cache reorganization and browser-version-independent qualification are implemented. Summary columns are Model/RTF/Load (s); it is historical measurement, not loaded status or permission. Detailed results/failures stay in history. Registry cache and downloaded weights/eligibility are distinct, with one-action registry synchronization/counting and explicit selection-only deletion. Full browser versions remain diagnostic; preserved cross-version passes cannot bypass actual failure holds. These changes do not implement automatic retries, cooldowns or sequence-stability policy. Canonical configurations remain unchanged. The detailed transcript metadata/backfill proposal was dropped; consult [current status](CURRENT_STATUS.md) for scope and evidence.
+Reviewed at 47ca641, displayed build **2026-11-19.25**: the compact passed-only per-family summary, Settings storage/cache reorganization and browser-version-independent qualification are implemented. Summary columns are Model/RTF/Load (s); it is historical measurement, not loaded status or permission. Detailed results/failures stay in history. Registry cache and downloaded weights/eligibility are distinct, with one-action registry synchronization/counting and explicit selection-only deletion. Full browser versions remain diagnostic; preserved cross-version passes cannot bypass actual failure holds. These changes do not implement automatic retries, cooldowns or sequence-stability policy. Canonical configurations remain unchanged. The detailed transcript metadata/backfill proposal was dropped; consult [current status](CURRENT_STATUS.md) for scope and evidence.
 
 **Planning document:** 17 October 2026  
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  
 **Status:** Broader design reference with partial implementation; current disposition below. **Not authorization to edit code.**
 
 
-## Handoff summary — read this first when resuming
+## Historical handoff summary — use the current addendum first
 
 **Implementation status — 10 November 2026, source 2026-11-10.14:** Runtime/database/catalogue, worker parity/provenance and durable execution history are implemented. The user accepted .7 on both devices. Checkpoint 2 now evaluates new production evidence through the existing bridge: mandatory reference retest for clear runtime failure, persistent user reviews for uncertain active-model incidents, and separate nonblocking stability observations after completion. Definitions/model inputs remain unchanged. Controlled reload reviews were observed on both devices; later .13 observation presentation was accepted, and .14 grouping is accepted locally with final Pages/iPhone visual confirmation pending. This is a stable stopping point. [CURRENT_STATUS.md](CURRENT_STATUS.md) governs the resume boundary.
 
@@ -20,7 +20,7 @@ Source **2026-11-19.23**: the compact passed-only per-family summary, Settings s
 | Shared runtime and canonical database owner | Complete for agreed scope; do not repeat migration or reset storage. |
 | Canonical definitions and selection | Implemented; legacy registry/availability shapes are projections, not separate loader authorities. |
 | Trustworthy single-model tests and recovery | Implemented, including WER gate, stage limits, reports, diagnostics and manual recovery. |
-| Exact-context transcription eligibility | Implemented for self-test evidence and loader/selector checks. New context-complete production evidence now contributes through the bridge; legacy records without exact context do not acquire invented identity. |
+| Context-bound transcription eligibility | Implemented for self-test evidence and loader/selector checks, with browser-version continuity within a recognized family since .22. Production evidence/reviews share that identity; legacy records without established execution context do not acquire invented qualification. |
 | Resource safety and automatic sequences | Repeated disposable iPhone-test instability unresolved. Disposal acknowledgement is not memory-reclamation proof. Sequences/automatic retry remain deferred. |
 | Offline readiness, immutable upstream assets and broader device support | Not established by the fixture or cache checks; require separate scope/evidence. |
 

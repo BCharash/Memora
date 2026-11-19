@@ -1,6 +1,6 @@
 # Memora file map
 
-Updated **19 November 2026** against candidate **2026-11-19.25**, schema **6**, based on committed source **d03d432**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Audio whole-folder iPhone removal parity is implemented in .24. Shared Transcribe/Search full reconciliation and filename-counter priority remain incomplete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
+Updated **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, schema **6**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Audio whole-folder iPhone removal parity is implemented in .24. Shared Transcribe/Search full reconciliation and filename-counter priority remain incomplete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
 
 ## The short answer about the number of files
 
@@ -133,7 +133,7 @@ The tiny activity/report modules could be grouped differently later. They are no
 | [html.js](js/html.js) | Generates standalone combined HTML documents, including their embedded functionality. | App exports |
 | [docx.js](js/docx.js) | Generates combined Word documents using an external document library. | App exports |
 
-Standalone exported HTML needs its own embedded behavior; it is not simply another copy of the live application's UI.
+Standalone exported HTML has its own date/name/order and text-size controls plus explicit audio-folder locating at source 47ca641. It matches selected audio by filename and does not import the app's scoped playback/embedded-ID checks. These reader controls do not implement portable collection-reference import or workspace persistence. No fresh reader/device tests were run for this docs review.
 
 ## Search and stored embeddings — 4 files
 
@@ -222,7 +222,7 @@ There are **27 top-level HTML developer test pages**. Most import a matching `.t
 | [whisper-loader-gate.html](tests/whisper-loader-gate.html) | Loader guard and prevention of repository/dtype override bypasses. |
 | [whisper-disposal.html](tests/whisper-disposal.html) | Disposal handshake, deadlines and mandatory termination fallback. |
 
-The other four test JavaScript files are support fixtures: [whisper-executions-fixture.js](tests/whisper-executions-fixture.js), [database-adapter.js](tests/database-adapter.js), [whisper-loader-gate-fixture.js](tests/whisper-loader-gate-fixture.js) and [whisper-diagnostics-fixtures.js](tests/whisper-diagnostics-fixtures.js). They replace dependencies during tests. `tests/fixtures/whisper-registry-baseline-v2.json` is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
+The **eight** top-level support JavaScript files are transcription-recovery-fixtures.js, whisper-diagnostics-fixtures.js, recording-identity-fixtures.js, source-database-adapter.js, database-adapter.js, whisper-executions-fixture.js, transcription-identity-fixtures.js and whisper-loader-gate-fixture.js. The remaining 25 top-level JS files are test modules. The five lab JS files are additional, under tests/labs. tests/fixtures/whisper-registry-baseline-v2.json is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
 
 ## Cleanup findings
 
