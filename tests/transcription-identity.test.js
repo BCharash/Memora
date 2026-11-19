@@ -373,6 +373,37 @@ await test('A provider read failure saves no partial inventory and retains the p
  finally{window.alert=originalAlert;}
  eq(document.getElementById('sourceButton').textContent,previous);eq((await store.list()).length,before);
 });
+await test('Combine reconciles a complete folder, reuses read records for sorting and preserves body-only edits',async()=>{
+ const root=directory('Combine reconciliation');const encode=value=>new TextEncoder().encode(value);
+ root.state.files.set('a.txt',encode(header()));root.state.files.set('b.txt',encode(header().replace('Whisper model: tiny','Whisper model: base').replace('memo.wav','zulu.wav')));
+ root.state.files.set('memora-archive.json',encode(JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:root.root.name,recordings:[{recordingId:ID,transcripts:[{relativePath:'gone.txt',model:'tiny',operation:'transcribe'}]}]})));
+ root.state.files.set('search-embeddings.json',encode('synthetic untouched search data'));
+ const originalText=File.prototype.text,originalEntries=root.root.entries;let reads=0,scans=0;
+ File.prototype.text=function(){if(/^[ab]\.txt$/.test(this.name))reads++;return originalText.call(this);};root.root.entries=async function*(){scans++;yield*originalEntries.call(this);};
+ try{
+  click('combineTab');selections.push(root.root);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(root.root.name));
+  eq(scans,1);eq(reads,2);assert(document.getElementById('combineTranscriptListStatus').textContent.includes('saved and verified'));assert(document.getElementById('saveCombineTranscriptListButton').hidden);
+  const saved=decoder.decode(root.state.files.get('memora-archive.json'));const list=parseTranscriptArchive(saved);eq(list.recordings[0].transcripts.map(item=>item.relativePath),['a.txt','b.txt']);eq(decoder.decode(root.state.files.get('search-embeddings.json')),'synthetic untouched search data');
+  const sort=document.getElementById('transcriptSort');sort.value='name-desc';sort.dispatchEvent(new Event('change'));await waitFor(()=>document.querySelector('#transcripts .recording-checkbox')?.dataset.filename==='b.txt');eq(reads,2);
+  const row=document.querySelector('#transcripts .recording-checkbox').closest('.recording-item');row.querySelector('.search-transcript-toggle:not(.combine-edit-toggle)').click();row.querySelector('.combine-edit-toggle').click();const editor=row.querySelector('textarea');editor.value='Body edited in Combine';row.querySelector('.combine-transcript-editor-actions button:last-child').click();await waitFor(()=>decoder.decode(root.state.files.get('b.txt')).includes('Body edited in Combine'));eq(decoder.decode(root.state.files.get('memora-archive.json')),saved);
+ }finally{File.prototype.text=originalText;root.root.entries=originalEntries;}
+});
+await test('A failed Combine inventory leaves the previous source visible and writes no transcript list',async()=>{
+ const before=document.getElementById('textSourceButton').textContent,root=directory('Unreadable combine inventory');root.root.entries=async function*(){throw Error('Interrupted transcript enumeration');};
+ selections.push(root.root);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);eq(document.getElementById('textSourceButton').textContent,before);assert(document.getElementById('combineStatus').textContent.includes('Interrupted transcript enumeration'));assert(!root.state.files.has('memora-archive.json'));
+});
+await test('Combine iPhone saves name the folder, retain partial references, survive cancellation and avoid repeated unchanged saves',async()=>{
+ const transcript=new File([header()],'new.txt'),list=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Phone transcripts',recordings:[{recordingId:ID,transcripts:[{relativePath:'unseen.txt',model:'tiny',operation:'transcribe'}]}]})],'memora-archive.json');
+ const source={kind:'file-input',name:'Phone transcripts',files:[transcript,list]};const before=shared.length;selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(source.name));
+ const button=document.getElementById('saveCombineTranscriptListButton');assert(!button.hidden&&button.classList.contains('has-pending-archive-save'));assert(document.getElementById('combineTranscriptListStatus').textContent.includes('Phone transcripts'));eq(shared.length,before);
+ cancelShare=true;button.click();await waitFor(()=>!button.disabled);assert(!button.hidden&&button.classList.contains('has-pending-archive-save'));eq(shared.length,before);
+ click('textSourceButton');await choose('Keep current folder');await waitFor(()=>!document.getElementById('textSourceButton').disabled);assert(!button.hidden);eq(document.getElementById('textSourceButton').textContent,'Text Source: Phone transcripts');
+ cancelShare=false;button.click();await waitFor(()=>button.hidden);assert(!button.classList.contains('has-pending-archive-save'));eq(shared.length,before+1);const exported=shared.at(-1)[0];eq(exported.name,'memora-archive.json');eq(parseTranscriptArchive(await exported.text()).recordings[0].transcripts.map(item=>item.relativePath),['unseen.txt','new.txt']);
+ selections.push({...source,files:[transcript,exported]});click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);assert(button.hidden);assert(document.getElementById('combineTranscriptListStatus').textContent.includes('up to date'));eq(shared.length,before+1);
+});
+await test('Combine keeps readable transcripts available while an invalid manifest blocks JSON replacement',async()=>{
+ const source={kind:'file-input',name:'Invalid transcript list',files:[new File([header()],'a.txt'),new File(['invalid list'],'memora-archive.json')]};selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(source.name));assert(document.querySelector('#transcripts .recording-checkbox'));assert(document.getElementById('combineTranscriptListStatus').textContent.includes('not updated'));assert(document.getElementById('saveCombineTranscriptListButton').hidden);
+});
 // Temporary browser profile contains only synthetic runtime logs; remove only the
 // explicit identity fixture database here, never any user database.
 await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase(testRecoveryDatabaseName);request.onsuccess=resolve;request.onerror=()=>reject(request.error);});

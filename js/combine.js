@@ -132,11 +132,24 @@ function extractModelFromFilename(filename) {
 }
 
 
+// File objects are immutable snapshots. A new folder selection supplies new
+// objects, so reuse within a selection never hides changes on the next scan.
+const transcriptSnapshots = new WeakMap();
+function transcriptSnapshot(file) {
+    if (!transcriptSnapshots.has(file)) {
+        const pending = file.text().then(text => ({ text, record: parseTranscriptFile(file, text) }));
+        transcriptSnapshots.set(file, pending);
+        pending.catch(() => { if (transcriptSnapshots.get(file) === pending) transcriptSnapshots.delete(file); });
+    }
+    return transcriptSnapshots.get(file);
+}
 export async function readTranscriptFile(file) {
-
-    const text = await file.text();
-
-    return parseTranscriptFile(file, text);
+    // Editors may mutate their working records. Keep the cached snapshot
+    // independent so another consumer of the same File still sees its bytes.
+    return { ...(await transcriptSnapshot(file)).record };
+}
+export async function readTranscriptSourceText(file) {
+    return (await transcriptSnapshot(file)).text;
 }
 
 

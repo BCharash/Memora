@@ -4,7 +4,7 @@ import {readAudioSourceBytes,writeTextFile} from './storage.js';
 export const TRANSCRIPT_ARCHIVE_FILENAME='memora-archive.json';
 const textDecoder=new TextDecoder('utf-8',{fatal:true});
 const queues=new Map();
-async function archiveLock(key,work){
+export async function archiveLock(key,work){
     const previous=queues.get(key)||Promise.resolve();
     const task=previous.catch(()=>{}).then(()=>globalThis.navigator?.locks ? navigator.locks.request(`memora-archive:${key}`,work):work());
     queues.set(key,task);try{return await task;}finally{if(queues.get(key)===task)queues.delete(key);}

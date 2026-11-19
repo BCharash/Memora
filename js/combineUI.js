@@ -1,4 +1,5 @@
 import { replaceTranscriptBody } from "./transcriptMetadata.js";
+import { readTranscriptSourceText } from "./combine.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -441,7 +442,7 @@ export async function displayTranscriptFiles(files) {
                     saveEdit.textContent = "Saving…";
 
                     try {
-                        const originalText = await record.file.text();
+                        const originalText = await readTranscriptSourceText(record.file);
                         const editedBody = editor.value;
                         const updatedText = replaceTranscriptBody(originalText, editedBody);
                         const updatedFile = await saveTranscriptEdits(record, updatedText);
@@ -661,7 +662,7 @@ export async function displayTranscriptFiles(files) {
         updateTranscriptCollapseUI();
     }
 
-    render("date-desc");
+    await render("date-desc");
 
     sortSelect.addEventListener(
         "change",

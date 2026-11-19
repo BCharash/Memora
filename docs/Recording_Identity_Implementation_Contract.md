@@ -34,6 +34,18 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Transcript-folder reconciliation stage 1 — 19 November 2026
+
+Candidate `2026-11-19.19` connects the shared reader/reconciler to Edit/Combine source opening. Transcribe and Search integration, shared Search records and combined iPhone JSON saving remain subsequent stages. The source reader returns parsed records from one root enumeration and one text read per File snapshot, with bounded manifest parsing and explicit read issues. The records also serve Combine sorting/export/editor preparation without another initial text read; a fresh source selection obtains new snapshots.
+
+Existing headers/manifest establish archive and recording identity; reconciliation never assigns or replaces IDs. A missing manifest can be reconstructed only when the selected transcripts establish one consistent Archive UUID and usable recording/model metadata. Mixed archive identities, invalid JSON, conflicting references, unreadable/invalid transcript headers or unsuccessful inventory prevent manifest updates. These findings are shown separately while successfully parsed transcripts can still be viewed/combined. A failed enumeration leaves the previous source selected.
+
+Successful complete native-root inventories remove absent immediate references and empty recording groups. Nested references remain outside the scanned scope. File-input is conservatively partial, retaining unseen references. Existing extension fields are preserved on surviving entries. Membership/model/operation changes can dirty the manifest; text-only edits do not. Unchanged manifests retain their original bytes and require no save.
+
+Updates are deferred while this page has active transcription or pending completed TXT saves. Native persistence uses the same per-archive lock as append saves, rechecks original JSON bytes, verifies readback and keeps a retryable pending candidate on write/readback errors. Concurrently changed JSON is not overwritten. This is optimistic file concurrency protection, not a filesystem-wide transaction across TXT and JSON files. iPhone changes use Save Transcript File List with the intended folder and filename displayed before sharing; cancellation keeps the pending action, and completed sharing acknowledges only the current session's exact File object. Sharing cannot verify delivery/location. An unsaved pending Combine update must be kept or explicitly discarded before switching sources; it is session-local and not added to the audio-recovery database.
+
+No transcript/audio files or embedding JSON are rewritten by folder reconciliation, and no model inference is required. See CURRENT_STATUS for synthetic verification and real-device acceptance boundaries.
+
 ## Local-copy Settings, retention and deletion — 19 November 2026
 
 Candidate `2026-11-19.15` presents audio recovery data once as **Audio Recording List — Saved Local Copies**, separate from **Model Registry Cache**. The generic Other IndexedDB category is removed. Empty reserved semantic metadata is hidden without dropping its schema store; nonempty legacy data remains surfaced for explicit clearing.

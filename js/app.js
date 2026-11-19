@@ -1,4 +1,6 @@
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
+import { readTranscriptFolder, createTranscriptFolderSession } from "./transcriptFolder.js";
+import { readTranscriptSourceText } from "./combine.js";
 import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
 import { shareFile as shareIdentityFile } from "./storage.js";
 import { askIdentity } from "./recordingIdentityUI.js";
@@ -277,6 +279,44 @@ async function confirmPendingDiscard({includeLists=false}={}) {
 
 
 let textSourceHandle = null;
+let combineFolderSession = null;
+const saveCombineTranscriptListButton = document.getElementById('saveCombineTranscriptListButton');
+const combineTranscriptListStatus = document.getElementById('combineTranscriptListStatus');
+function renderCombineTranscriptList(error = null) {
+    const session=combineFolderSession;
+    const pending=session?.status==='save-required';
+    saveCombineTranscriptListButton.hidden=!pending;
+    saveCombineTranscriptListButton.classList.toggle('has-pending-archive-save',pending&&session.source.kind==='file-input');
+    combineTranscriptListStatus.hidden=!session;
+    if(!session)return;
+    const folder=`“${session.source.name}”`;
+    const messages={
+        empty:'No transcript file list is needed for this empty folder.',
+        unchanged:session.source.kind==='file-input'?'Transcript file list is up to date for the selected files.':'Transcript file list is up to date.',
+        saved:`Transcript file list saved and verified in ${folder}.`,
+        shared:`Transcript file list shared for ${folder}. Memora cannot verify the saved location.`,
+        'save-required':`Save memora-archive.json in ${folder}, alongside the transcripts. Replace the existing file of the same name if prompted.`,
+        blocked:`Transcript file list not updated: ${session.error?.message||'The folder could not be reconciled safely.'}`
+    };
+    combineTranscriptListStatus.textContent=error?`${error.message} ${messages['save-required']}`:messages[session.status];
+}
+async function retainPendingCombineList() {
+    if(combineFolderSession?.status!=='save-required')return true;
+    const answer=await askIdentity({title:'Unsaved transcript file list',message:`The transcript file list for “${combineFolderSession.source.name}” has not been saved. Save it before switching folders, or discard this pending update.`,choices:[{action:'keep',label:'Keep current folder'},{action:'discard',label:'Discard pending update'}]});
+    return answer.action==='discard';
+}
+saveCombineTranscriptListButton.addEventListener('click',async()=>{
+    const session=combineFolderSession;
+    if(session?.status!=='save-required')return;
+    saveCombineTranscriptListButton.disabled=true;
+    let failure=null;
+    try{
+        if(transcriptionBatchActive||pendingTranscriptSaves.length)throw Error('Finish transcription and save pending transcripts before updating this file list.');
+        if(session.source.kind==='directory')await session.save();
+        else{await shareIdentityFile(session.file);session.acknowledgeShared(session.file);}
+    }catch(error){if(error.name!=='AbortError')failure=error;}
+    finally{saveCombineTranscriptListButton.disabled=false;if(session===combineFolderSession)renderCombineTranscriptList(failure);}
+});
 let combineDestinationHandle = null;
 
 function setActiveDestinationButton(button) {
@@ -1252,6 +1292,9 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
         return;
     }
 
+    if(!await retainPendingCombineList())return;
+    combineFolderSession=null;
+    renderCombineTranscriptList();
     textSourceHandle =
         searchSourceHandle;
 
@@ -1322,24 +1365,29 @@ if (textSourceButton) {
         "click",
         async () => {
 
+            textSourceButton.disabled=true;
+            saveCombineTranscriptListButton.disabled=true;
             try {
 
                 const storage =
                     await getStorageModule();
 
-                textSourceHandle =
-                    await storage.selectFolder();
-
-                updateDestinationVisibility(textSourceHandle.kind === "file-input");
-
-                const files =
-                    textSourceHandle.kind === "file-input"
-                        ? textSourceHandle.files.filter(
-                            file => /\.txt$/i.test(file.name)
-                        )
-                        : await storage.listTextFiles(
-                            textSourceHandle
-                        );
+                if(!await retainPendingCombineList())return;
+                const selectedSource=await storage.selectFolder();
+                combineStatus.textContent='Reading transcript files…';
+                const snapshot=await readTranscriptFolder(selectedSource,{onProgress:({completed,total})=>{
+                    combineStatus.textContent=`Reading transcript files: ${completed} of ${total}…`;
+                }});
+                const session=createTranscriptFolderSession(snapshot,{updatesAllowed:!transcriptionBatchActive&&!pendingTranscriptSaves.length});
+                let saveError=null;
+                if(session.status==='save-required'&&selectedSource.kind==='directory'){
+                    try{await session.save();}catch(error){saveError=error;}
+                }
+                textSourceHandle=selectedSource;
+                combineFolderSession=session;
+                renderCombineTranscriptList(saveError);
+                updateDestinationVisibility(textSourceHandle.kind === 'file-input');
+                const files=snapshot.files;
 
                 if (combineTitleInput) {
                     combineTitleInput.value =
@@ -1348,7 +1396,7 @@ if (textSourceButton) {
 
                 combineDestinationHandle = null;
                 setActiveCombineDestinationButton(null);
-                await updateCombineFolderButton();
+                if(textSourceHandle.kind==='directory')await updateCombineFolderButton();
 
                 await displayTranscriptFiles(
                     files
@@ -1372,8 +1420,11 @@ if (textSourceButton) {
                     );
 
                     combineStatus.textContent =
-                        "Unable to read the text source folder.";
+                        `Unable to read the text source folder. ${error.message}`;
                 }
+            } finally {
+                textSourceButton.disabled=false;
+                saveCombineTranscriptListButton.disabled=false;
             }
         }
     );
@@ -1527,7 +1578,7 @@ initCombineUI({
             // edited transcript to the existing Files Share Sheet workflow.
             await storage.shareFile(updatedFile);
         } else {
-            if (await storage.readTextFile(sourceHandle, record.filename) !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
+            if (await storage.readTextFile(sourceHandle, record.filename) !== await readTranscriptSourceText(record.file)) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);
         }
 
