@@ -2,7 +2,7 @@ import {directory,selections,calls,seedAudio,pauseNextTranscription} from './tra
 import {readTranscriptIdentity,replaceTranscriptBody,recordingIdentityLines} from '../js/transcriptMetadata.js';
 import {parseTranscriptArchive,appendTranscriptReference,openTranscriptArchive} from '../js/transcriptArchive.js';
 import {parseTranscriptFile,combineTranscriptRecords,selectHighestModelRecords} from '../js/combine.js';
-import {associatedSourceEvidence} from '../js/transcriptionIdentity.js';
+import {associatedSourceEvidence,createTranscriptionIdentity} from '../js/transcriptionIdentity.js';
 import {readAudioMetadata as readRealMetadata} from '../js/metadata.js?identity-dates';
 import {readEmbeddedRecordingIdentity} from '../js/recordingIdentity.js';
 import * as f from './recording-identity-fixtures.js';
@@ -159,6 +159,7 @@ await test('Production page boots with isolated database and synthetic model sel
  parsed.querySelectorAll('script').forEach(script=>script.remove());document.body.replaceChildren(...parsed.body.childNodes);pageInstalled=true;
  await import('../js/app.js');await waitFor(()=>document.getElementById('modelSelect').value==='tiny');
  assert(!document.getElementById('refreshAudioSourceButton'),'Obsolete refresh control remains');
+ assert(!document.getElementById('cancelAudioInventoryButton'),'Obsolete Cancel Scan control remains');
  eq(document.getElementById('saveRecordingListButton').textContent,'Save Audio Recording List');
  assert(document.getElementById('saveRecordingListButton').closest('.source-section'),'Audio list save is not beside the source controls');
  document.getElementById('paragraphingCheckbox').checked=false;
@@ -230,7 +231,11 @@ await test('Post-inference write failure retains text; retry saves without anoth
 let shared=[],cancelShare=true;
 await test('File-input prepares separate pending source/archive JSON and blocks transcript sharing',async()=>{
  const file=new File([await originalAudio.arrayBuffer()],'memo.wav');const sourceJson=new File([desktop.state.files.get('memora-audio-source.json')],'memora-audio-source.json');
+ const saveButton=document.getElementById('saveRecordingListButton');let prematureSave=false;
+ const observer=new MutationObserver(()=>{if(document.getElementById('sourceButton').disabled&&!saveButton.hidden)prematureSave=true;});
+ observer.observe(document.querySelector('.source-section'),{attributes:true,subtree:true,attributeFilter:['disabled','hidden']});
  selections.push({kind:'file-input',name:'Audio',files:[file,new File([await originalAudio.arrayBuffer()],'new.wav'),sourceJson]});click('sourceButton');await waitFor(()=>document.getElementById('iphoneTranscriptionDestinationOptions').style.display === 'flex' && document.querySelector('#recordings .recording-checkbox') && !document.getElementById('transcribeButton').disabled);
+ observer.disconnect();assert(!prematureSave,'Save button was visible while source reading was active');
  assert(!document.getElementById('saveRecordingListButton').hidden,'Updated audio list was not offered at source selection');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Compiled audio list did not highlight its save action before transcription');
  click('transcribeButton');await choose('Create transcript file list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
@@ -292,15 +297,14 @@ await test('File-input missing JSON is resolved before showing a new source and 
  await choose('Create audio recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
  assert(document.getElementById('sourceButton').textContent.includes('Phone source'),'New source was not committed');eq(calls.length,before);assert(!document.querySelector('dialog[open]'),'Source resolution deferred');
 });
-await test('Cancelling a header scan retains the previous source and saves no recovery or JSON',async()=>{
+await test('Internal scan cancellation retains the previous source and saves no recovery or JSON',async()=>{
  const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore(),before=(await store.list()).length,previous=document.getElementById('sourceButton').textContent;
  const audio=new File([f.wav([f.wavChunk('JUNK',new Uint8Array(2*1024*1024))])],'large.wav');
  const json=new File([JSON.stringify({schemaVersion:1,audioSourceId:crypto.randomUUID(),recordings:[]})],'memora-audio-source.json');
- selections.push({kind:'file-input',name:'Cancelled inventory',files:[audio,json]});
- const observer=new MutationObserver(()=>{if(document.getElementById('audioInventoryStatus').textContent.startsWith('Checking audio recording list:')){observer.disconnect();click('cancelAudioInventoryButton');}});
- observer.observe(document.getElementById('audioInventoryStatus'),{childList:true,subtree:true});
- click('sourceButton');await choose('Discard pending lists');await waitFor(()=>document.getElementById('audioInventoryStatus').textContent.includes('cancelled')&&!document.getElementById('sourceButton').disabled);observer.disconnect();
- eq(document.getElementById('sourceButton').textContent,previous);eq((await store.list()).length,before);
+ const source={kind:'file-input',name:'Cancelled inventory',files:[audio,json]},controller=new AbortController();
+ const workflow=createTranscriptionIdentity();
+ await rejects(()=>workflow.prepareSource(source,[audio],{signal:controller.signal,onProgress:()=>controller.abort()}));
+ assert(controller.signal.aborted,'Internal cancellation not exercised');eq(document.getElementById('sourceButton').textContent,previous);eq((await store.list()).length,before);
 });
 await test('A provider read failure saves no partial inventory and retains the previous source',async()=>{
  const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore(),before=(await store.list()).length,previous=document.getElementById('sourceButton').textContent;

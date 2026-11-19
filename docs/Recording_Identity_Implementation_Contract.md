@@ -34,6 +34,10 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Simplified scan controls — 19 November 2026
+
+Candidate `2026-11-19.9` removes the Cancel Scan UI. The source picker retains its native Cancel action; internal workflow cancellation and failed/interrupted-read protections remain. A reading status begins after folder selection. Save Audio Recording List is kept hidden until inventory, compilation and metadata/list display preparation finish, then uses the existing pending-save highlight. Failed/cancelled selection restores the prior pending action. This supersedes earlier references to a user-facing Cancel Scan control.
+
 ## Source controls — 19 November 2026
 
 Candidate `2026-11-19.8` removes the dedicated Refresh Source button. Reselect the source folder to reread it. For file-input/iPhone access, the source row now contains **Save Audio Recording List**, shown immediately when a compiled JSON needs saving. It uses the existing pending-save pulse and outline, retains them on cancellation and clears them after completed sharing. The status appears under the source row. A saved unchanged list needs no new save, and writable desktop access still saves automatically. This supersedes earlier references to a dedicated Refresh Source control.

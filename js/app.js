@@ -212,7 +212,7 @@ const saveTranscriptArchiveButton = document.getElementById("saveTranscriptArchi
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
 function setPendingRecordingList(file) {
         pendingRecordingList = file; recordingListShared = false;
-        if (saveRecordingListButton) { saveRecordingListButton.hidden = !file; saveRecordingListButton.classList.toggle("has-pending-archive-save", !!file); }
+        if (saveRecordingListButton) { saveRecordingListButton.hidden = !file || sourceSelectionActive; saveRecordingListButton.classList.toggle("has-pending-archive-save", !!file); }
         document.getElementById("recordingListSaveStatus").textContent = file ? "Audio recording list: save memora-audio-source.json in your audio folder before sharing transcripts." : "";
         updateIPhoneExportButton(true);
 }
@@ -590,24 +590,21 @@ if (iphoneCombineDestinationOptions) {
     iphoneCombineDestinationOptions.style.display = "none";
 }
 
-const cancelAudioInventoryButton=document.getElementById("cancelAudioInventoryButton");
 const audioInventoryStatus=document.getElementById("audioInventoryStatus");
-let audioInventoryController=null;
 sourceButton.addEventListener("click",()=>loadAudioSource());
-cancelAudioInventoryButton?.addEventListener("click",()=>audioInventoryController?.abort());
 async function loadAudioSource() {
     if(transcriptionBatchActive||sourceSelectionActive)return;
     try {
         const storage=await getStorageModule();
         if(!(await confirmPendingDiscard({includeLists:true})))return;
         sourceSelectionActive=true;sourceButton.disabled=true;transcribeButton.disabled=true;
-        audioInventoryController=new AbortController();
-        cancelAudioInventoryButton.hidden=false;cancelAudioInventoryButton.disabled=false;
-        audioInventoryStatus.textContent='Reading source folder…';
+        saveRecordingListButton.hidden=true;
+        audioInventoryStatus.textContent='Select a source folder.';
         const selectedSource=await storage.selectFolder();
+        audioInventoryStatus.textContent='Reading audio recording list…';
         const files=await storage.listAudioFiles(selectedSource);
         const selectedIdentityWorkflow=createIdentityWorkflow();
-        await selectedIdentityWorkflow.prepareSource(selectedSource,files,{signal:audioInventoryController.signal,onProgress:message=>{audioInventoryStatus.textContent=message;if(message==='Writing audio recording list…')cancelAudioInventoryButton.disabled=true;}});
+        await selectedIdentityWorkflow.prepareSource(selectedSource,files,{onProgress:message=>{audioInventoryStatus.textContent=message;}});
         // Commit the source and its pending JSON only after a successful scan.
         identityWorkflow.reset();identityWorkflow=selectedIdentityWorkflow;
         sourceHandle=selectedSource;
@@ -615,21 +612,21 @@ async function loadAudioSource() {
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
         setActiveDestinationButton(null);
-        await identityWorkflow.activateSource();
+        sourceButton.textContent=`Source: ${sourceHandle.name}`;
+        if(sourceHandle.kind!=='file-input')await updateTranscriptionFolderButton();
+        if(!files.length)showEmptyMessage();
+        else await displayFiles(files,readAudioMetadata,formatRecordingDate,formatDuration);
         const summary=identityWorkflow.getInventorySummary();
         audioInventoryStatus.textContent=`${summary.checked} audio recording(s) checked. ${summary.removed} removed from list, ${summary.unverified} unverified, ${summary.skipped} skipped. `+
             (summary.coverage==='folder'?'Audio directly in this folder was checked; subfolders are not included.':'Only the supplied files were checked; unobserved recordings are retained as unverified.')+
             (summary.pendingSave?' Choose Save Audio Recording List to keep these changes.':'');
-        sourceButton.textContent=`Source: ${sourceHandle.name}`;
-        if(sourceHandle.kind!=='file-input')await updateTranscriptionFolderButton();
-        if(!files.length){showEmptyMessage();return;}
-        await displayFiles(files,readAudioMetadata,formatRecordingDate,formatDuration);
+        await identityWorkflow.activateSource();
     } catch(error) {
         audioInventoryStatus.textContent=error.name==='AbortError'?'Source scan cancelled. The previous source is retained.':`Source scan not saved: ${error.message}`;
         if(error.name!=='AbortError'){console.error('Source folder error:',error);alert(error.message||'Unable to read the source folder.');}
     } finally {
         sourceSelectionActive=false;sourceButton.disabled=false;
-        audioInventoryController=null;cancelAudioInventoryButton.hidden=true;
+        saveRecordingListButton.hidden=!pendingRecordingList;
         if(!transcriptionBatchActive)await refreshQualifiedWhisperModels();
     }
 }
