@@ -1706,15 +1706,11 @@ button:disabled {
 /* Named local-storage categories stay readable on narrow Settings panels. */
 :is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
 }
 :is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item-info {
     overflow-wrap: anywhere;
-}
-:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item > button {
-    max-width: 124px;
-    white-space: normal;
 }
 
 /* Storage headers share a stable summary column regardless of title length. */

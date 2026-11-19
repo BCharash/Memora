@@ -235,6 +235,18 @@ function modelNameFromUrl(url) {
 }
 
 
+function modelCacheLabel(name) {
+    if (name === 'all-minilm-l6-v2') return 'MiniLM — semantic embedding model';
+    if (/^whisper-/i.test(name)) return name;
+    try {
+        const url=new URL(name);
+        if (/\/onnxruntime-web(?:@|\/)/i.test(url.pathname)) return 'ONNX Runtime — shared inference files';
+        if (/\/(?:@huggingface\/)?transformers(?:@|\/)/i.test(url.pathname)) return 'Transformers.js — model runtime files';
+        return `${url.hostname} — model support files`;
+    } catch { return name; }
+}
+
+
 async function readModelCacheReport() {
     const result = {
         knownBytes: 0,
@@ -302,6 +314,7 @@ async function readModelCacheReport() {
             const group =
                 groups.get(name) || {
                     name,
+                    label: modelCacheLabel(name),
                     detail: "Cached model files · size not fully exposed by the browser",
                     bytes: 0,
                     count: 0,

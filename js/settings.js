@@ -351,8 +351,8 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
 
     function selectableRows(detail, onDelete){
         for(const row of detail.querySelectorAll('.settings-item')){
-            const action=row.querySelector('[data-settings-action]');if(!action)continue;
-            const check=document.createElement('input');check.type='checkbox';check.dataset.index=action.dataset.index;check.dataset.cacheName=action.dataset.cacheName||'';
+            if(!row.hasAttribute('data-selection-index')&&!row.hasAttribute('data-selection-cache'))continue;
+            const check=document.createElement('input');check.type='checkbox';check.dataset.index=row.dataset.selectionIndex;check.dataset.cacheName=row.dataset.selectionCache||'';
             check.setAttribute('aria-label',`Select ${row.querySelector('.settings-item-name')?.textContent||'item'}`);row.prepend(check);
         }
         selectionActions(detail,onDelete);
@@ -366,18 +366,14 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
         if (detail.hidden) return;
         const items = currentReport.indexedDB.semanticEntries.representations;
-        detail.innerHTML = items.length ? items.map(item => `
-            <div class="settings-item">
+        detail.innerHTML = items.length ? items.map((item,i) => `
+            <div class="settings-item" data-selection-index="${i}">
                 <div class="settings-item-info">
                     <div class="settings-item-name">${item.name}</div>
                     <div class="settings-item-detail">${formatBytes(item.embeddingBytes)} · ${item.count.toLocaleString()} entries</div>
                 </div>
-                <div class="settings-item-actions">${button("Clear", "clear-semantic", false)}</div>
             </div>
         `).join("") : `<p class="settings-note">No semantic index entries.</p>`;
-        detail.querySelectorAll('[data-settings-action="clear-semantic"]').forEach((b, i) => {
-            b.dataset.index = String(i);
-        });
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected semantic indexes? They will be regenerated when needed.`))return;const manager=await getStorageManager();for(const check of checks)await manager.clearSemanticRepresentation(items[Number(check.dataset.index)]);await refresh();await showSemantic();});
     }
 
@@ -770,7 +766,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             const row=document.createElement('div');row.className='settings-item';const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label',`Select ${record.label||record.id}`);
             check.dataset.recordId=record.id;
             const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.label||record.id;const text=document.createElement('div');text.className='settings-note';text.textContent=`${record.family||'Custom'} · ${record.platform||'Unspecified device'} · ${record.id}`;info.append(name,text);
-            const removeButton=document.createElement('button');removeButton.textContent='Delete';removeButton.onclick=()=>remove([record.id]).catch(error=>{status.textContent=error.message;});row.append(check,info,removeButton);detail.append(row);
+            row.append(check,info);detail.append(row);
         }
         selectionActions(detail,checks=>remove(checks.map(check=>check.dataset.recordId)));
     }
@@ -790,21 +786,17 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
 
         detail.innerHTML = otherModels.length
             ? otherModels.map((model, i) => `
-                <div class="settings-item">
+                <div class="settings-item" data-selection-index="${i}">
                     <div class="settings-item-info">
-                        <div class="settings-item-name">${escapeHtml(model.name)}</div>
+                        <div class="settings-item-name">${escapeHtml(model.label||model.name)}</div>
                         <div class="settings-item-detail">${escapeHtml(model.detail)}</div>
                         ${(model.files||[]).map(file=>`<div class="settings-item-detail settings-cache-path">${escapeHtml(file)}</div>`).join("")}
                     </div>
-                    <div class="settings-item-actions">${button("Clear", "clear-other-model", false)}</div>
                 </div>
             `).join("")
             : `<p class="settings-note">No other cached model files were identified.</p>`;
 
         detail._otherModels = otherModels;
-        detail.querySelectorAll('[data-settings-action="clear-other-model"]').forEach(
-            (b, i) => b.dataset.index = String(i)
-        );
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached models? They will download again when needed.`))return;const manager=await getStorageManager();for(const check of checks)await manager.clearCachedModel(otherModels[Number(check.dataset.index)].name);await refresh();await showOtherModels();});
     }
 
@@ -845,25 +837,16 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                     : updatedText || "Model files found");
 
             return `
-                <div class="settings-item">
+                <div class="settings-item" ${cached?`data-selection-cache="${cachedName}"`:''}>
                     <div class="settings-item-info">
                         <div class="settings-item-name">${item.label}</div>
                         <div class="settings-item-detail">${status}${cacheText}</div>
                         <div class="settings-item-detail">${detailText}</div>
                         <div class="settings-item-detail">Runtime: ${runtimeText}</div>
                     </div>
-                    <div class="settings-item-actions">
-                        ${cached ? button("Clear", "clear-whisper-model", false) : ""}
-                    </div>
                 </div>
             `;
         }).join("");
-
-        detail.querySelectorAll('[data-settings-action="clear-whisper-model"]').forEach((b, i) => {
-            const cachedItems=modelAvailability.filter(item=>currentReport.modelCache.models.some(cached=>cached.name.toLowerCase()===whisperCacheNames[item.model]));
-            b.dataset.model = cachedItems[i].model;
-            b.dataset.cacheName = whisperCacheNames[cachedItems[i].model];
-        });
 
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached Whisper models? They will download again when needed.`))return;const manager=await getStorageManager();for(const check of checks)await manager.clearCachedModel(check.dataset.cacheName);await refresh();await showWhisperModels();});
 
@@ -1048,12 +1031,10 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const manager = await getStorageManager();
         const items = await manager.listCachedTranscripts();
         detail.innerHTML = items.length ? items.map((item, i) => `
-            <div class="settings-item">
+            <div class="settings-item" data-selection-index="${i}">
                 <div class="settings-item-info"><div class="settings-item-name">${item.filename}</div><div class="settings-item-detail">${formatBytes(item.bytes)}${item.model ? ` · ${item.model}` : ""}</div></div>
-                <div class="settings-item-actions">${button("Clear", "clear-transcript", false)}</div>
             </div>
         `).join("") : `<p class="settings-note">No cached transcripts.</p>`;
-        detail.querySelectorAll('[data-settings-action="clear-transcript"]').forEach((b, i) => b.dataset.index = String(i));
         if (items.length) detail.insertAdjacentHTML("beforeend", `<div class="action-row" style="margin-top:10px;">${button("Save Cached Transcripts", "save-transcripts")}</div>`);
         detail._items = items;
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].filename);await refresh();await showTranscripts();});
@@ -1089,7 +1070,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.sourceName||'Audio source';
             const text=document.createElement('p');text.className='settings-note';const time=Date.parse(record.updatedAt);const pending=group.records.filter(item=>item.pendingTranscriptArchive).length;
             text.textContent=`${Number.isFinite(time)?new Date(time).toLocaleString():'Update time unavailable'} · ${group.recordingCount??'Unknown'} recordings · ${record.state==='verified'?'Saved local copy':'List save awaiting confirmation'}${pending?` · ${pending} retained transcript-list exports`:''}${group.invalid?' · Recovery data needs inspection':''}${active(group)?' · In use; protected from deletion':''}`;info.append(name,text);
-            const removeButton=document.createElement('button');removeButton.textContent='Delete Saved Copy';removeButton.disabled=active(group);removeButton.onclick=()=>run([group]);row.append(check,info,removeButton);detail.append(row);
+            row.append(check,info);detail.append(row);
         }
         selectionActions(detail,checks=>run(checks.map(check=>check._group)));
     }
@@ -1173,25 +1154,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 return;
             }
             const manager = await getStorageManager();
-            if (action === "clear-semantic") {
-                const item = currentReport.indexedDB.semanticEntries.representations[Number(target.dataset.index)];
-                if (!item || !confirm(`Clear ${item.name}? The index will be regenerated when needed.`)) return;
-                await manager.clearSemanticRepresentation(item);
-            } else if (action === "clear-other-model") {
-                const items = document.getElementById("settingsOtherModelsDetail")?._otherModels || [];
-                const item = items[Number(target.dataset.index)];
-                if (!item || !confirm(`Clear cached ${item.name}? The model will be downloaded again when needed.`)) return;
-                await manager.clearCachedModel(item.name);
-            } else if (action === "clear-whisper-model") {
-                const cacheName = target.dataset.cacheName;
-                if (!cacheName || !confirm(`Clear cached ${cacheName}? The model will be downloaded again when needed.`)) return;
-                await manager.clearCachedModel(cacheName);
-            } else if (action === "clear-transcript") {
-                const items = document.getElementById("settingsTranscriptsDetail")?._items || [];
-                const item = items[Number(target.dataset.index)];
-                if (!item || !confirm(`Clear the cached transcript “${item.filename}”?`)) return;
-                await manager.clearCachedTranscript(item.filename);
-            } else if (action === "save-transcripts") {
+            if (action === "save-transcripts") {
                 await saveCachedTranscripts(manager);
                 return;
             }

@@ -102,6 +102,10 @@ try {
         const cacheName='memora-settings-selection-test',cache=await caches.open(cacheName);
         const urls=['https://huggingface.co/example/model-one/resolve/main/onnx/model.onnx','https://huggingface.co/example/model-two/resolve/main/tokenizer.json','https://huggingface.co/example/whisper-small/resolve/main/onnx/model.onnx'];
         for(const url of urls)await cache.put(url,new Response('fixture',{headers:{'content-length':'7'}}));
+        const runtimeUrl='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.25.0-dev.20260327-722743c0e2/dist/ort-wasm-simd-threaded.wasm',miniUrl='https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx';
+        await cache.put(runtimeUrl,new Response('runtime'));await cache.put(miniUrl,new Response('model'));
+        const report=await manager.getStorageReport();const runtime=report.modelCache.models.find(item=>item.files.includes(runtimeUrl)),mini=report.modelCache.models.find(item=>item.files.includes(miniUrl));
+        assert(runtime.label==='ONNX Runtime — shared inference files'&&mini.label==='MiniLM — semantic embedding model','runtime confused with embedding model');
         const originalFetch=window.fetch,originalConfirm=window.confirm;window.fetch=async()=>({ok:false,status:503});window.confirm=()=>true;
         try{
             document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
@@ -113,12 +117,15 @@ try {
             const button=(detail,label)=>[...detail.querySelectorAll('button')].find(node=>node.textContent===label);
             open('toggle-other-models');let detail=document.getElementById('settingsOtherModelsDetail');
             assert(detail.textContent.includes('example/model-one')&&detail.textContent.includes(urls[0]),'specific model identity and filename');
+            assert([...detail.querySelectorAll('.settings-item-name')].some(node=>node.textContent==='MiniLM — semantic embedding model'),'readable MiniLM label absent');
+            assert(![...detail.querySelectorAll('.settings-item-name')].some(node=>node.textContent.startsWith('https://')),'URL duplicated as title');assert(!detail.querySelector('.settings-item button'),'individual model delete remains');
+            await cache.delete(runtimeUrl);await cache.delete(miniUrl);await ui.refresh();open('toggle-other-models');detail=document.getElementById('settingsOtherModelsDetail');
             assert(button(detail,'Delete Selected').disabled,'empty selection enabled');button(detail,'Select All').click();assert(button(detail,'Deselect All'),'selection toggle');button(detail,'Deselect All').click();
             detail.querySelector('input').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsOtherModelsDetail').querySelectorAll('.settings-item').length===1);
             assert(!(await cache.match(urls[0]))&&await cache.match(urls[1]),'unselected model preserved');
-            open('toggle-whisper-models');await waitFor(()=>document.querySelector('[data-settings-action="clear-whisper-model"]'));
-            detail=document.getElementById('settingsWhisperModelsDetail');assert(detail.querySelector('[data-settings-action="clear-whisper-model"]').dataset.cacheName==='whisper-small','cached action shifted onto unavailable tiny');
-            button(detail,'Select All').click();button(detail,'Delete Selected').click();await waitFor(()=>!document.querySelector('[data-settings-action="clear-whisper-model"]'));assert(!await cache.match(urls[2]),'selected Whisper cache survived');assert(await cache.match(urls[1]),'Whisper deletion removed other model');
+            open('toggle-whisper-models');await waitFor(()=>document.querySelector('#settingsWhisperModelsDetail input[data-cache-name]'));
+            detail=document.getElementById('settingsWhisperModelsDetail');assert(detail.querySelector('#settingsWhisperModelsDetail input[data-cache-name]').dataset.cacheName==='whisper-small','cached action shifted onto unavailable tiny');
+            button(detail,'Select All').click();button(detail,'Delete Selected').click();await waitFor(()=>!document.querySelector('#settingsWhisperModelsDetail input[data-cache-name]'));assert(!await cache.match(urls[2]),'selected Whisper cache survived');assert(await cache.match(urls[1]),'Whisper deletion removed other model');
             await storage.saveTranscriptRecord('selected.txt','body',{},'tiny','transcribe');await storage.saveTranscriptRecord('keep-selected.txt','keep',{},'tiny','transcribe');await ui.refresh();open('toggle-transcripts');await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('input').length===2);
             detail=document.getElementById('settingsTranscriptsDetail');[...detail.querySelectorAll('.settings-item')].find(row=>row.querySelector('.settings-item-name').textContent==='selected.txt').querySelector('input').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('.settings-item').length===1);assert(await storage.transcriptExists('keep-selected.txt')&&!await storage.transcriptExists('selected.txt'),'transcript selection');
             await manager.clearAllCachedTranscripts();
