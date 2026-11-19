@@ -17,6 +17,7 @@ export function createWhisperHistorySelection(container, { label, onClear }) {
     const boxes = [];
     let busy = false;
     const sync = () => {
+        controls.hidden = !boxes.length;
         const selectable = boxes.filter(box => box.dataset.selectable === "true");
         const checked = selectable.filter(box => box.checked).length;
         all.disabled = busy || !selectable.length;
@@ -35,7 +36,7 @@ export function createWhisperHistorySelection(container, { label, onClear }) {
         catch (error) { feedback.textContent = `Could not clear history: ${error.message}`; }
         finally { busy = false; sync(); }
     };
-    controls.append(all, clear, feedback); container.append(controls);
+    controls.append(all, clear, feedback); container.append(controls); sync();
     return { clear, add(record, title, selectable = true) {
         const box = document.createElement("input"); box.type = "checkbox";
         box.dataset.historyRecordId = record.id; box.dataset.selectable = String(selectable);

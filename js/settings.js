@@ -175,7 +175,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 <span>${formatBytes(registryStore.bytes)} · ${registryStore.count.toLocaleString()} entries</span>
                 ${button("View", "toggle-registry-cache")}
             </div>
-            <p class="settings-note">Stored model definitions used by Settings. Refresh storage information updates built-in definitions from Memora’s canonical configuration. Clearing this cache preserves downloaded models and current test qualification.</p>
+            <p class="settings-note">Model definitions cached by Memora. Deleting them preserves downloaded models and test results.</p>
             <div id="settingsRegistryCacheDetail" class="settings-detail" hidden></div>
             ${legacyMetadata?.count?`<div class="settings-row"><span>Unused Semantic Metadata · ${formatBytes(legacyMetadata.bytes)} · ${legacyMetadata.count} legacy entries</span>${button("Clear", "clear-unused-semantic-metadata")}</div><p class="settings-note">Retained legacy data; current Search does not use this store.</p>`:''}
 
@@ -338,6 +338,8 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     }
 
     function selectionActions(detail, onDelete) {
+        const firstRow=detail.querySelector('.settings-item');
+        if(!detail.querySelector('.settings-item input[type="checkbox"]'))return;
         const actions=document.createElement('div');actions.className='action-row settings-selection-actions';
         const all=document.createElement('button'),remove=document.createElement('button');
         all.textContent='Select All';remove.textContent='Delete Selected';
@@ -346,7 +348,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         function update(){const checks=available();all.disabled=busy||!checks.length;all.textContent=checks.length&&checks.every(check=>check.checked)?'Deselect All':'Select All';remove.disabled=busy||!checks.some(check=>check.checked);}
         all.onclick=()=>{const checked=!available().every(check=>check.checked);for(const check of available()){check.checked=checked;check.dispatchEvent(new Event('change',{bubbles:true}));}update();};
         remove.onclick=async()=>{if(busy)return;const checks=available().filter(check=>check.checked);if(!checks.length)return;busy=true;update();try{await onDelete(checks);}catch(error){status.textContent=error.message;}finally{busy=false;update();}};
-        detail.onchange=update;actions.append(all,remove);detail.prepend(actions);update();
+        detail.onchange=update;actions.append(all,remove);detail.insertBefore(actions,firstRow);update();
     }
 
     function selectableRows(detail, onDelete){
@@ -756,7 +758,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
         detail.hidden=false;toggle.textContent='Hide';detail.textContent='Loading Model Registry Cache…';
         const api=await getStorage(),records=await api.listModelRegistryRecords();detail.replaceChildren();
-        const note=document.createElement('p');note.className='settings-note';note.textContent='Viewing does not create cache entries. Deleted built-in definitions return on the next Refresh storage information. Historical customizations are removed only when you delete them.';detail.append(note);
+        const note=document.createElement('p');note.className='settings-note';note.textContent='Refresh storage information restores deleted built-in entries.';detail.append(note);
         async function remove(ids){
             if(!ids.length||!confirm(`Delete ${ids.length} Model Registry Cache entries? Downloaded models and current test qualification are preserved. Built-in definitions return on Refresh storage information.`))return;
             await api.deleteModelRegistryRecords(ids);await refresh({initializeRegistry:false});await showRegistryCache();
@@ -1053,7 +1055,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         }
         sourceRecoveryGroups=groups;detail.replaceChildren();
         const active=group=>group.records.some(record=>String(record.audioSourceId).toLowerCase()===getActiveAudioSourceId()?.toLowerCase());
-        const note=document.createElement('p');note.className='settings-note';note.textContent='One latest copy per verified source is shown. Distinct source identities are not combined by name. Pending transcript-list exports are retained. Deleting local copies does not delete audio, transcripts or JSON files in your folders. Copies currently in use are protected.';detail.append(note);
+        const note=document.createElement('p');note.className='settings-note';note.textContent='Latest local copies of your Audio Recording Lists. Deleting a copy leaves folder files unchanged. Lists in use are protected.';detail.append(note);
         async function remove(targets){
             if(!targets.length)return;
             if(targets.some(active))throw Error('A selected Audio Recording List is now in use. Its saved copy was kept.');

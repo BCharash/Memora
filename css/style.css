@@ -1728,3 +1728,5 @@ button:disabled {
     .settings-disclosure.settings-storage-category { grid-template-columns: minmax(0, 1fr) 64px; }
     .settings-storage-category > .settings-disclosure-title { grid-column: 1 / -1; }
 }
+
+.whisper-report-actions[hidden] { display: none; }
