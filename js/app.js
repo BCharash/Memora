@@ -1,4 +1,5 @@
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
+import { TRANSCRIPT_ARCHIVE_FILENAME, describeTranscriptArchiveDestination } from "./transcriptArchive.js";
 import { readTranscriptFolder, createTranscriptFolderSession } from "./transcriptFolder.js";
 import { readTranscriptSourceText } from "./combine.js";
 import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
@@ -207,6 +208,7 @@ let destinationHandle = null;
 
 let pendingIPhoneExports = [];
 let pendingRecordingList = null, pendingTranscriptArchive = null;
+let pendingTranscriptArchiveLocation = null;
 let recordingListShared = false, transcriptArchiveShared = false;
 const pendingTranscriptSaves = [];
 const saveRecordingListButton = document.getElementById("saveRecordingListButton");
@@ -221,10 +223,10 @@ function setPendingRecordingList(file) {
 function createIdentityWorkflow() { return createTranscriptionIdentity({
     onStatus: message => { if(sourceSelectionActive)document.getElementById("audioInventoryStatus").textContent=message;else setTranscriptionBusy(message); },
     onPendingList: setPendingRecordingList,
-    onPendingArchive: file => {
-        pendingTranscriptArchive = file; transcriptArchiveShared = false;
+    onPendingArchive: (file, location) => {
+        pendingTranscriptArchive = file; pendingTranscriptArchiveLocation = location || null; transcriptArchiveShared = false;
         if (saveTranscriptArchiveButton) { saveTranscriptArchiveButton.hidden = !file; saveTranscriptArchiveButton.classList.toggle("has-pending-archive-save", !!file); }
-        document.getElementById("transcriptArchiveSaveStatus").textContent = file ? "Transcript file list: save memora-archive.json in your transcription folder before sharing transcripts." : "";
+        document.getElementById("transcriptArchiveSaveStatus").textContent = file ? `Save ${TRANSCRIPT_ARCHIVE_FILENAME} in ${describeTranscriptArchiveDestination(location||{folderName:'transcription'})} before sharing transcripts.` : "";
         updateIPhoneExportButton(true);
     }
 }); }
@@ -249,7 +251,7 @@ for (const [button, kind] of [[saveRecordingListButton, "source"], [saveTranscri
             if (file === (kind === "source" ? pendingRecordingList : pendingTranscriptArchive)) {
                 document.getElementById(kind === "source" ? "recordingListSaveStatus" : "transcriptArchiveSaveStatus").textContent = kind === "source"
                     ? "Audio recording list shared. Save memora-audio-source.json in your audio folder. Memora cannot verify the saved location."
-                    : "Transcript file list shared. Save memora-archive.json in your transcription folder. Memora cannot verify the saved location.";
+                    : `Transcript file list shared. Save ${TRANSCRIPT_ARCHIVE_FILENAME} in ${describeTranscriptArchiveDestination(pendingTranscriptArchiveLocation||{folderName:'transcription'})}. Memora cannot verify the saved location.`;
             }
         } catch (error) {
             if (error.name !== "AbortError") alert(error.message);
@@ -289,20 +291,20 @@ function renderCombineTranscriptList(error = null) {
     saveCombineTranscriptListButton.classList.toggle('has-pending-archive-save',pending&&session.source.kind==='file-input');
     combineTranscriptListStatus.hidden=!session;
     if(!session)return;
-    const folder=`“${session.source.name}”`;
+    const folder=describeTranscriptArchiveDestination(session);
     const messages={
         empty:'No transcript file list is needed for this empty folder.',
         unchanged:session.source.kind==='file-input'&&session.source.selectionScope!=='folder'?'Transcript file list is up to date for the selected files.':'Transcript file list is up to date.',
         saved:`Transcript file list saved and verified in ${folder}.`,
         shared:`Transcript file list shared for ${folder}. Memora cannot verify the saved location.`,
-        'save-required':`Save memora-archive.json in ${folder}, alongside the transcripts. Replace the existing file of the same name if prompted.`,
+        'save-required':`Save ${TRANSCRIPT_ARCHIVE_FILENAME} in ${folder}, alongside the transcripts. Replace the existing file of the same name if prompted.`,
         blocked:`Transcript file list not updated: ${session.error?.message||'The folder could not be reconciled safely.'}`
     };
     combineTranscriptListStatus.textContent=error?`${error.message} ${messages['save-required']}`:messages[session.status];
 }
 async function retainPendingCombineList() {
     if(combineFolderSession?.status!=='save-required')return true;
-    const answer=await askIdentity({title:'Unsaved transcript file list',message:`The transcript file list for “${combineFolderSession.source.name}” has not been saved. Save it before switching folders, or discard this pending update.`,choices:[{action:'keep',label:'Keep current folder'},{action:'discard',label:'Discard pending update'}]});
+    const answer=await askIdentity({title:'Unsaved transcript file list',message:`The transcript file list for ${describeTranscriptArchiveDestination(combineFolderSession)} has not been saved. Save it before switching folders, or discard this pending update.`,choices:[{action:'keep',label:'Keep current folder'},{action:'discard',label:'Discard pending update'}]});
     return answer.action==='discard';
 }
 saveCombineTranscriptListButton.addEventListener('click',async()=>{

@@ -1,5 +1,5 @@
 import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordingIdentityUI.js';
-import {openTranscriptArchive} from './transcriptArchive.js';
+import {openTranscriptArchive, TRANSCRIPT_ARCHIVE_FILENAME, transcriptArchiveNameForRecords, describeTranscriptArchiveDestination} from './transcriptArchive.js';
 import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
 import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
 import {discoverAudioSource} from './audioSourcePersistence.js';
@@ -74,14 +74,15 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             let selectedFile=null;
             if(selectedSource.kind==='file-input'){
                 const pending=session.getPendingTranscriptArchive();
-                const answer=await ask({title:'Choose the transcript file list',message:'Select memora-archive.json in your transcription folder. This lists the transcript files in the archive. This step does not need the audio recording list (memora-audio-source.json).',choices:[
+                const location=describeTranscriptArchiveDestination({archiveName:selectedSource.name,folderName:selectedDestination?.name||'transcription'});
+                const answer=await ask({title:'Choose the transcript file list',message:`Select ${TRANSCRIPT_ARCHIVE_FILENAME} in ${location}. This lists the transcript files in the archive. This step does not need the audio recording list (memora-audio-source.json).`,choices:[
                     {action:'select',label:'Select transcript file list',run:()=>pickIdentityJson({kind:'transcript'})},
                     ...(pending?[{action:'pending',label:'Use pending transcript file list'}]:[]),
                     {action:'create',label:'Create transcript file list'},{action:'cancel',label:'Cancel'}]});
                 if(answer.action==='cancel')throw new DOMException('Transcript archive selection cancelled.','AbortError');
-                selectedFile=answer.action==='select'?answer.value:answer.action==='pending'?new File([pending],'memora-archive.json',{type:'application/json'}):null;
+                selectedFile=answer.action==='select'?answer.value:answer.action==='pending'?new File([pending],TRANSCRIPT_ARCHIVE_FILENAME,{type:'application/json'}):null;
             }
-            archive=await openTranscriptArchive(selectedDestination,{selectedFile,createNew:true});
+            archive=await openTranscriptArchive(selectedDestination,{selectedFile,createNew:true,archiveName:selectedSource.name||selectedDestination?.name||'Transcript archive'});
             source=selectedSource;destination=selectedDestination;
         },
         async prepare(file){
@@ -95,7 +96,8 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             const file=await archive.add(reference);
             if(source.kind==='file-input'){
                 await ui.getSession().retainTranscriptArchive(file);
-                onPendingArchive?.(file);
+                const folderName=destination?.name||'transcription';
+                onPendingArchive?.(file,{archiveName:transcriptArchiveNameForRecords(archive.getManifest(),[{originalAudioFolderName:source.name}],folderName),folderName});
             }
             return file;
         },

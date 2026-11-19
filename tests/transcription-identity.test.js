@@ -47,8 +47,8 @@ await test('Archive validation rejects duplicate JSON keys, unsafe paths and con
 });
 await test('Archive recheck refuses concurrent replacement without destroying it',async()=>{
  const {root,state}=directory();const archive=await openTranscriptArchive(root,{createNew:true});
- state.files.set('memora-archive.json',new TextEncoder().encode('{}'));
- await rejects(()=>archive.add({recordingId:ID,filename:'memo.txt',model:'tiny',operation:'transcribe'}));eq(decoder.decode(state.files.get('memora-archive.json')),'{}');
+ state.files.set('memora-transcript-archive.json',new TextEncoder().encode('{}'));
+ await rejects(()=>archive.add({recordingId:ID,filename:'memo.txt',model:'tiny',operation:'transcribe'}));eq(decoder.decode(state.files.get('memora-transcript-archive.json')),'{}');
 });
 await test('Identity prompts preserve cancellation without persistence or inference',async()=>{
  let stages=0,writes=0;
@@ -116,7 +116,7 @@ await test('Unreadable source-list replacement requires separate confirmation an
 
 await test('JSON picker omits type filtering and accepts provider-classified archive indexes',async()=>{
  const original=HTMLInputElement.prototype.click;
- const file=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Existing archive',recordings:[]})],'memora-archive.json',{type:'application/octet-stream'});
+ const file=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Existing archive',recordings:[]})],'memora-transcript-archive.json',{type:'application/octet-stream'});
  let input;
  try{
   HTMLInputElement.prototype.click=function(){
@@ -138,20 +138,20 @@ await test('Cancelling the JSON picker cleans up and leaves the archive untouche
 
 await test('Wrong list selection explains both filenames and the correct destination',async()=>{
  const audio=new File([JSON.stringify({schemaVersion:1,audioSourceId:SOURCE,recordings:[]})],'memora-audio-source.json');
- const transcript=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Archive',recordings:[]})],'memora-archive.json');
- for(const [file,kind,diagnosis,expected,folder] of [[audio,'transcript','audio recording list','memora-archive.json','transcription folder'],[transcript,'audio','transcript file list','memora-audio-source.json','audio folder']]){
+ const transcript=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Archive',recordings:[]})],'memora-transcript-archive.json');
+ for(const [file,kind,diagnosis,expected,folder] of [[audio,'transcript','audio recording list','memora-transcript-archive.json','transcription folder'],[transcript,'audio','transcript file list','memora-audio-source.json','audio folder']]){
   let failure;try{await validateIdentitySelection(file,kind);}catch(error){failure=error;}
   assert(failure?.message.includes(diagnosis)&&failure.message.includes(expected)&&failure.message.includes(folder),'Wrong-file guidance missing');
  }
  assert(await validateIdentitySelection(audio,'audio')===audio);assert(await validateIdentitySelection(transcript,'transcript')===transcript);
- await rejects(()=>validateIdentitySelection(new File(['not JSON'],'memora-archive.json'),'transcript'));
+ await rejects(()=>validateIdentitySelection(new File(['not JSON'],'memora-transcript-archive.json'),'transcript'));
 });
 await test('Wrong-file confirmation stays in the chooser and cancellation changes no archive',async()=>{
  const original=HTMLInputElement.prototype.click;
  const audio=new File([JSON.stringify({schemaVersion:1,audioSourceId:SOURCE,recordings:[]})],'memora-audio-source.json');
  try{
   HTMLInputElement.prototype.click=function(){if(this.type!=='file')return original.call(this);Object.defineProperty(this,'files',{configurable:true,value:[audio]});queueMicrotask(()=>this.dispatchEvent(new Event('change')));};
-  const result=askIdentity({title:'Choose the transcript file list',message:'Select memora-archive.json in your transcription folder.',choices:[{action:'select',label:'Select transcript file list',run:()=>pickIdentityJson({kind:'transcript'})},{action:'cancel',label:'Cancel'}]});
+  const result=askIdentity({title:'Choose the transcript file list',message:'Select memora-transcript-archive.json in your transcription folder.',choices:[{action:'select',label:'Select transcript file list',run:()=>pickIdentityJson({kind:'transcript'})},{action:'cancel',label:'Cancel'}]});
   document.querySelector('dialog[open] button').click();
   await waitFor(()=>document.querySelector('dialog[open] p')?.textContent.includes('This is your audio recording list'));
   assert(!document.querySelector('dialog[open] button').disabled,'Cannot retry selection');
@@ -207,7 +207,7 @@ await test('Desktop normal flow persists source and archive IDs before verified 
  click('sourceDestinationButton');click('transcribeButton');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  const filename=[...desktop.state.files.keys()].find(name=>name.endsWith('.txt'));assert(filename,'No transcript written');
  const identity=readTranscriptIdentity(decoder.decode(desktop.state.files.get(filename)));firstID=identity.recordingId;firstArchive=identity.archiveUuid;
- const source=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))),archive=JSON.parse(decoder.decode(desktop.state.files.get('memora-archive.json')));
+ const source=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))),archive=JSON.parse(decoder.decode(desktop.state.files.get('memora-transcript-archive.json')));
  eq(source.recordings[0].recordingId,firstID);eq(archive.archiveUuid,firstArchive);eq(archive.recordings[0].transcripts[0].relativePath,filename);
  eq(calls[0].operation,'transcribe');eq(calls[0].language,'en');eq(calls[0].embedded.source,'audio-recording-list','Known audio was inspected again');
  eq(Array.from(new Uint8Array(await originalAudio.arrayBuffer())),Array.from(desktop.state.files.get('memo.wav')),'Audio changed');
@@ -229,9 +229,9 @@ await test('Source Refresh adds files without hashes, ignores audio edits, remov
  const changed=new Uint8Array(await f.wav([f.wavChunk('JUNK',new Uint8Array([1,2,3,4]))]).arrayBuffer());
  desktop.state.files.set('extra.wav',changed);await refreshSource();
  eq(decoder.decode(desktop.state.files.get('memora-audio-source.json')),saved,'Existing audio changes rewrote the list');assert(!document.querySelector('dialog[open]'),'Unexpected edited-audio prompt');
- const archive=decoder.decode(desktop.state.files.get('memora-archive.json'));
+ const archive=decoder.decode(desktop.state.files.get('memora-transcript-archive.json'));
  desktop.state.files.delete('extra.wav');await refreshSource();
- manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,1);assert(!manifest.recordings.some(item=>item.recordingId===extraId),'Absent entry retained');eq(manifest.recordings[0].recordingId,firstID);eq(decoder.decode(desktop.state.files.get('memora-archive.json')),archive,'Audio removal modified transcripts');
+ manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,1);assert(!manifest.recordings.some(item=>item.recordingId===extraId),'Absent entry retained');eq(manifest.recordings[0].recordingId,firstID);eq(decoder.decode(desktop.state.files.get('memora-transcript-archive.json')),archive,'Audio removal modified transcripts');
  const writes=desktop.state.jsonWrites;await refreshSource();eq(desktop.state.jsonWrites,writes,'Unchanged refresh rewrote JSON');eq(calls.length,before);assert(document.getElementById('recordingListSaveStatus').textContent.startsWith('Already up to date: Audio / memora-audio-source.json'),'Unchanged scan falsely reported a write');
  desktop.state.files.set('extra.wav',changed);await refreshSource();manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));assert(manifest.recordings.find(item=>item.audioRelativePath==='extra.wav').recordingId!==extraId,'Removed fallback ID was silently restored');
  desktop.state.files.delete('extra.wav');await refreshSource();
@@ -268,6 +268,7 @@ await test('File-input prepares separate pending source/archive JSON and blocks 
  assert(!document.getElementById('saveRecordingListButton').hidden,'Updated audio list was not offered at source selection');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Compiled audio list did not highlight its save action before transcription');
  click('transcribeButton');await choose('Create transcript file list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
+ assert(document.getElementById('transcriptArchiveSaveStatus').textContent.includes('memora-transcript-archive.json')&&document.getElementById('transcriptArchiveSaveStatus').textContent.includes('archive “Audio”'),'Transcribe save guidance omitted archive name');
  assert(!document.getElementById('saveRecordingListButton').hidden&&!document.getElementById('saveTranscriptArchiveButton').hidden,'JSON actions missing');assert(document.getElementById('iphoneExportButton').disabled,'Transcript shared before JSON actions');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save')&&document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Pending save pulse missing');
  Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{if(cancelShare)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
@@ -278,7 +279,7 @@ await test('Share cancellation preserves pending files; completed JSON actions u
  assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Completed audio share still pulses');assert(document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Unshared transcript list stopped pulsing');
  assert(document.getElementById('iphoneExportButton').disabled,'Archive action bypassed');click('saveTranscriptArchiveButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);
  assert(!document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Completed transcript list share still pulses');
- click('iphoneExportButton');await waitFor(()=>shared.length===3);eq(shared[0][0].name,'memora-audio-source.json');eq(shared[1][0].name,'memora-archive.json');assert(shared[2][0].name.endsWith('.txt'),'Transcript transport changed');
+ click('iphoneExportButton');await waitFor(()=>shared.length===3);eq(shared[0][0].name,'memora-audio-source.json');eq(shared[1][0].name,'memora-transcript-archive.json');assert(shared[2][0].name.endsWith('.txt'),'Transcript transport changed');
  eq(readTranscriptIdentity(await shared[2][0].text()).recordingId,firstID);assert(document.getElementById('iphoneExportStatus').textContent.includes('cannot verify'),'False saved-location claim');
 });
 await test('Completed audio-list sharing survives repeated persistence during and after inference',async()=>{
@@ -291,7 +292,7 @@ await test('Completed audio-list sharing survives repeated persistence during an
  assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Completed transcript reset audio-list sharing');
  click('saveTranscriptArchiveButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);
  click('iphoneExportButton');await waitFor(()=>shared.length===5);
- eq(shared[3][0].name,'memora-archive.json');assert(shared[4][0].name.endsWith('.txt'),'Transcript required redundant audio JSON save');
+ eq(shared[3][0].name,'memora-transcript-archive.json');assert(shared[4][0].name.endsWith('.txt'),'Transcript required redundant audio JSON save');
 });
 await test('Archive save pulse reuses the existing animation and respects reduced motion',async()=>{
  const link=document.createElement('link');link.rel='stylesheet';link.href='../css/style.css';
@@ -376,33 +377,45 @@ await test('A provider read failure saves no partial inventory and retains the p
 await test('Combine reconciles a complete folder, reuses read records for sorting and preserves body-only edits',async()=>{
  const root=directory('Combine reconciliation');const encode=value=>new TextEncoder().encode(value);
  root.state.files.set('a.txt',encode(header()));root.state.files.set('b.txt',encode(header().replace('Whisper model: tiny','Whisper model: base').replace('memo.wav','zulu.wav')));
- root.state.files.set('memora-archive.json',encode(JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:root.root.name,recordings:[{recordingId:ID,transcripts:[{relativePath:'gone.txt',model:'tiny',operation:'transcribe'}]}]})));
+ root.state.files.set('memora-transcript-archive.json',encode(JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:root.root.name,recordings:[{recordingId:ID,transcripts:[{relativePath:'gone.txt',model:'tiny',operation:'transcribe'}]}]})));
  root.state.files.set('search-embeddings.json',encode('synthetic untouched search data'));
  const originalText=File.prototype.text,originalEntries=root.root.entries;let reads=0,scans=0;
  File.prototype.text=function(){if(/^[ab]\.txt$/.test(this.name))reads++;return originalText.call(this);};root.root.entries=async function*(){scans++;yield*originalEntries.call(this);};
  try{
   click('combineTab');selections.push(root.root);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(root.root.name));
   eq(scans,1);eq(reads,2);assert(document.getElementById('combineTranscriptListStatus').textContent.includes('saved and verified'));assert(document.getElementById('saveCombineTranscriptListButton').hidden);
-  const saved=decoder.decode(root.state.files.get('memora-archive.json'));const list=parseTranscriptArchive(saved);eq(list.recordings[0].transcripts.map(item=>item.relativePath),['a.txt','b.txt']);eq(decoder.decode(root.state.files.get('search-embeddings.json')),'synthetic untouched search data');
+  const saved=decoder.decode(root.state.files.get('memora-transcript-archive.json'));const list=parseTranscriptArchive(saved);eq(list.recordings[0].transcripts.map(item=>item.relativePath),['a.txt','b.txt']);eq(decoder.decode(root.state.files.get('search-embeddings.json')),'synthetic untouched search data');
   const sort=document.getElementById('transcriptSort');sort.value='name-desc';sort.dispatchEvent(new Event('change'));await waitFor(()=>document.querySelector('#transcripts .recording-checkbox')?.dataset.filename==='b.txt');eq(reads,2);
-  const row=document.querySelector('#transcripts .recording-checkbox').closest('.recording-item');row.querySelector('.search-transcript-toggle:not(.combine-edit-toggle)').click();row.querySelector('.combine-edit-toggle').click();const editor=row.querySelector('textarea');editor.value='Body edited in Combine';row.querySelector('.combine-transcript-editor-actions button:last-child').click();await waitFor(()=>decoder.decode(root.state.files.get('b.txt')).includes('Body edited in Combine'));eq(decoder.decode(root.state.files.get('memora-archive.json')),saved);
+  const row=document.querySelector('#transcripts .recording-checkbox').closest('.recording-item');row.querySelector('.search-transcript-toggle:not(.combine-edit-toggle)').click();row.querySelector('.combine-edit-toggle').click();const editor=row.querySelector('textarea');editor.value='Body edited in Combine';row.querySelector('.combine-transcript-editor-actions button:last-child').click();await waitFor(()=>decoder.decode(root.state.files.get('b.txt')).includes('Body edited in Combine'));eq(decoder.decode(root.state.files.get('memora-transcript-archive.json')),saved);
  }finally{File.prototype.text=originalText;root.root.entries=originalEntries;}
 });
 await test('A failed Combine inventory leaves the previous source visible and writes no transcript list',async()=>{
  const before=document.getElementById('textSourceButton').textContent,root=directory('Unreadable combine inventory');root.root.entries=async function*(){throw Error('Interrupted transcript enumeration');};
- selections.push(root.root);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);eq(document.getElementById('textSourceButton').textContent,before);assert(document.getElementById('combineStatus').textContent.includes('Interrupted transcript enumeration'));assert(!root.state.files.has('memora-archive.json'));
+ selections.push(root.root);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);eq(document.getElementById('textSourceButton').textContent,before);assert(document.getElementById('combineStatus').textContent.includes('Interrupted transcript enumeration'));assert(!root.state.files.has('memora-transcript-archive.json'));
 });
 await test('Combine iPhone folder saves remove missing references, survive cancellation and avoid repeated unchanged saves',async()=>{
- const transcript=new File([header()],'new.txt'),list=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Phone transcripts',recordings:[{recordingId:ID,transcripts:[{relativePath:'unseen.txt',model:'tiny',operation:'transcribe'}]}]})],'memora-archive.json');
+ const transcript=new File([header()],'new.txt'),list=new File([JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Phone transcripts',recordings:[{recordingId:ID,transcripts:[{relativePath:'unseen.txt',model:'tiny',operation:'transcribe'}]}]})],'memora-transcript-archive.json');
  const source={kind:'file-input',selectionScope:'folder',name:'Phone transcripts',files:[transcript,list]};const before=shared.length;selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(source.name));
  const button=document.getElementById('saveCombineTranscriptListButton');assert(!button.hidden&&button.classList.contains('has-pending-archive-save'));assert(document.getElementById('combineTranscriptListStatus').textContent.includes('Phone transcripts'));eq(shared.length,before);
  cancelShare=true;button.click();await waitFor(()=>!button.disabled);assert(!button.hidden&&button.classList.contains('has-pending-archive-save'));eq(shared.length,before);
  click('textSourceButton');await choose('Keep current folder');await waitFor(()=>!document.getElementById('textSourceButton').disabled);assert(!button.hidden);eq(document.getElementById('textSourceButton').textContent,'Text Source: Phone transcripts');
- cancelShare=false;button.click();await waitFor(()=>button.hidden);assert(!button.classList.contains('has-pending-archive-save'));eq(shared.length,before+1);const exported=shared.at(-1)[0];eq(exported.name,'memora-archive.json');eq(parseTranscriptArchive(await exported.text()).recordings[0].transcripts.map(item=>item.relativePath),['new.txt']);
+ cancelShare=false;button.click();await waitFor(()=>button.hidden);assert(!button.classList.contains('has-pending-archive-save'));eq(shared.length,before+1);const exported=shared.at(-1)[0];eq(exported.name,'memora-transcript-archive.json');eq(parseTranscriptArchive(await exported.text()).recordings[0].transcripts.map(item=>item.relativePath),['new.txt']);
  selections.push({...source,files:[transcript,exported]});click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);assert(button.hidden);assert(document.getElementById('combineTranscriptListStatus').textContent.includes('up to date'));eq(shared.length,before+1);
 });
 await test('Combine keeps readable transcripts available while an invalid manifest blocks JSON replacement',async()=>{
- const source={kind:'file-input',name:'Invalid transcript list',files:[new File([header()],'a.txt'),new File(['invalid list'],'memora-archive.json')]};selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(source.name));assert(document.querySelector('#transcripts .recording-checkbox'));assert(document.getElementById('combineTranscriptListStatus').textContent.includes('not updated'));assert(document.getElementById('saveCombineTranscriptListButton').hidden);
+ const source={kind:'file-input',name:'Invalid transcript list',files:[new File([header()],'a.txt'),new File(['invalid list'],'memora-transcript-archive.json')]};selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('textSourceButton').textContent.includes(source.name));assert(document.querySelector('#transcripts .recording-checkbox'));assert(document.getElementById('combineTranscriptListStatus').textContent.includes('not updated'));assert(document.getElementById('saveCombineTranscriptListButton').hidden);
+});
+await test('Rebuilding yearly Combine lists includes archive and folder in the actual iPhone save prompt',async()=>{
+ for(const [year,archive]of [['2016',ARCHIVE],['2017','12345678-1234-4234-8234-123456789abc']]){
+  const text=header().replace(ARCHIVE,archive).replace('Original Audio Folder: Audio',`Original Audio Folder: ${year}`),transcript=new File([text],'year.txt');const source={kind:'file-input',selectionScope:'folder',name:'transcription',files:[transcript]};
+  selections.push(source);click('textSourceButton');await waitFor(()=>!document.getElementById('textSourceButton').disabled);const note=document.getElementById('combineTranscriptListStatus').textContent;assert(note.includes('memora-transcript-archive.json')&&note.includes('“transcription”')&&note.includes(`“${year}”`),'year/folder missing from save prompt');
+  const button=document.getElementById('saveCombineTranscriptListButton');assert(!button.hidden);cancelShare=false;button.click();await waitFor(()=>button.hidden);const exported=shared.at(-1)[0];eq(exported.name,'memora-transcript-archive.json');const rebuilt=parseTranscriptArchive(await exported.text());eq(rebuilt.archiveUuid,archive);eq(rebuilt.archiveName,year);assert(document.getElementById('combineTranscriptListStatus').textContent.includes(`“${year}”`),'year missing after sharing');
+ }
+});
+await test('A new iPhone Transcribe archive uses the audio archive name in its chooser, JSON and pending-save context',async()=>{
+ const audio=new File([f.wav([f.wavChunk('imID',f.payload(ID))])],'year.m4a'),sourceId=crypto.randomUUID();const source={kind:'file-input',selectionScope:'folder',name:'2018',files:[audio,new File([JSON.stringify({schemaVersion:1,audioSourceId:sourceId,recordings:[]})],'memora-audio-source.json')]};let chooser=null,pending=null,location=null;
+ const workflow=createTranscriptionIdentity({ask:async request=>{chooser=request;return{action:'create'};},onPendingArchive:(file,context)=>{pending=file;location=context;}});await workflow.prepareSource(source,[audio]);await workflow.begin(source,null,[audio]);assert(chooser.message.includes('memora-transcript-archive.json')&&chooser.message.includes('“2018”')&&chooser.message.includes('“transcription”'),'chooser missing target');
+ const identity=await workflow.prepare(audio);await workflow.addTranscript({recordingId:identity.recordingId,filename:'year.txt',model:'large',operation:'transcribe'});eq(pending.name,'memora-transcript-archive.json');eq(parseTranscriptArchive(await pending.text()).archiveName,'2018');eq(location,{archiveName:'2018',folderName:'transcription'});workflow.reset();
 });
 // Temporary browser profile contains only synthetic runtime logs; remove only the
 // explicit identity fixture database here, never any user database.

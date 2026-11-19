@@ -1,9 +1,9 @@
 import { readTranscriptFolder, reconcileTranscriptRecords, createTranscriptFolderSession } from '../js/transcriptFolder.js';
 import { readTranscriptFiles, readTranscriptSourceText, parseTranscriptFile } from '../js/combine.js';
-import { parseTranscriptArchive } from '../js/transcriptArchive.js';
+import { parseTranscriptArchive, describeTranscriptArchiveDestination, transcriptArchiveNameForRecords } from '../js/transcriptArchive.js';
 import { selectFolder } from '../js/storage.js';
 const ARCHIVE='9599e552-b194-4511-8865-b37a07413a38',ID='4cd30ed1-dad7-4f9b-876c-0ba7f9d53ed9',OTHER='12345678-1234-4234-8234-123456789abc';
-const JSON_NAME='memora-archive.json',encode=value=>new TextEncoder().encode(value);
+const JSON_NAME='memora-transcript-archive.json',encode=value=>new TextEncoder().encode(value);
 const body=({id=ID,archive=ARCHIVE,model='tiny',operation='transcribe',text='Current body'}={})=>`memo.wav\n\nWhisper model: ${model}\nOperation: ${operation}\nArchive UUID: ${archive}\nRecording ID: ${id}\n\n--------------------------------------------------\n\n${text}\n`;
 const manifest=(refs=[{relativePath:'a.txt',model:'tiny',operation:'transcribe'}])=>({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Archive',custom:{retained:true},recordings:[{recordingId:ID,customEntry:'keep',transcripts:refs}]});
 const file=(name,text,path=null)=>{const value=new File([text],name);if(path)Object.defineProperty(value,'webkitRelativePath',{value:path});return value;};
@@ -25,6 +25,16 @@ await test('The production folder picker marks folder coverage independently of 
   let selected=await selectFolder();eq(selected.kind,'file-input');eq(selected.selectionScope,'folder');eq(selected.name,'Phone');
   input.webkitdirectory=false;selected=await selectFolder();eq(selected.selectionScope,'selection');
  }finally{input.webkitdirectory=true;input.click=click;if(files)Object.defineProperty(input,'files',files);else delete input.files;if(picker)Object.defineProperty(window,'showDirectoryPicker',picker);else delete window.showDirectoryPicker;}
+});
+await test('Rebuilt yearly archives retain their UUID and distinguish the same transcription folder by year',async()=>{
+ for(const [year,archive]of [['2016',ARCHIVE],['2017',OTHER]]){
+  const text=body({archive}).replace('Recording ID:',`Original Audio Folder: ${year}\nRecording ID:`),source={kind:'file-input',selectionScope:'folder',name:'transcription',files:[file('a.txt',text,'transcription/a.txt')]};
+  const session=createTranscriptFolderSession(await readTranscriptFolder(source));eq(session.file.name,'memora-transcript-archive.json');const rebuilt=parseTranscriptArchive(await session.file.text());eq(rebuilt.archiveUuid,archive);eq(rebuilt.archiveName,year);eq(describeTranscriptArchiveDestination(session),`the “transcription” folder for archive “${year}”`);
+ }
+});
+await test('Validated archive names take priority, and ambiguous or absent parent names never invent a path',()=>{
+ const records=[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}];eq(transcriptArchiveNameForRecords({archiveName:'2018'},records,'transcription'),'2018');eq(transcriptArchiveNameForRecords(null,records,'transcription'),'transcription');eq(describeTranscriptArchiveDestination({archiveName:'transcription',folderName:'transcription'}),'the “transcription” transcript folder');
+ eq(transcriptArchiveNameForRecords({archiveName:'transcription'},[{originalAudioFolderName:'2016'}],'transcription'),'2016');
 });
 await test('One inventory and one text read per transcript serve reconciliation, sorting and source text',async()=>{
  const root=directory({'a.txt':body(),'b.txt':body({model:'base'}),[JSON_NAME]:JSON.stringify(manifest())});const snapshot=await readTranscriptFolder(root.source);

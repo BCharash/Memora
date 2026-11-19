@@ -1,5 +1,5 @@
 import { readTranscriptFile, readTranscriptSourceText } from './combine.js';
-import { archiveLock, parseTranscriptArchive, TRANSCRIPT_ARCHIVE_FILENAME } from './transcriptArchive.js';
+import { archiveLock, parseTranscriptArchive, transcriptArchiveNameForRecords, TRANSCRIPT_ARCHIVE_FILENAME } from './transcriptArchive.js';
 import { readAudioSourceBytes, writeTextFile } from './storage.js';
 import { AUDIO_SOURCE_LIMITS } from './audioSourceIdentity.js';
 import { transcriptHeader } from './transcriptMetadata.js';
@@ -114,22 +114,23 @@ export function reconcileTranscriptRecords(manifest, records, { complete = false
 // The manifest has its own dirty/save state. No embedding data is loaded here.
 export function createTranscriptFolderSession(snapshot, { updatesAllowed = true } = {}) {
     const { source } = snapshot;
-    if (!updatesAllowed) return { status: 'blocked', source,
+    const location = { source, archiveName: transcriptArchiveNameForRecords(snapshot.manifest, snapshot.records, source.name), folderName: source.name };
+    if (!updatesAllowed) return { status: 'blocked', ...location,
         error: Error('Finish transcription and save pending transcripts, then select this folder again to update its file list.') };
     let result;
     try {
         if (snapshot.issues.length) throw Error(snapshot.issues.join(' '));
         result = reconcileTranscriptRecords(snapshot.manifest, snapshot.records, {
-            complete: snapshot.complete, archiveName: source.name
+            complete: snapshot.complete, archiveName: location.archiveName
         });
-    } catch (error) { return { status: 'blocked', error, source }; }
-    if (!result.changed) return { status: result.manifest ? 'unchanged' : 'empty', source };
+    } catch (error) { return { status: 'blocked', error, ...location }; }
+    if (!result.changed) return { status: result.manifest ? 'unchanged' : 'empty', ...location };
     const text = JSON.stringify(result.manifest, null, 2) + '\n';
     if (new TextEncoder().encode(text).length > AUDIO_SOURCE_LIMITS.jsonBytes)
-        return { status: 'blocked', error: Error('The transcript file list exceeds the supported size.'), source };
+        return { status: 'blocked', error: Error('The transcript file list exceeds the supported size.'), ...location };
     const file = new File([text], TRANSCRIPT_ARCHIVE_FILENAME, { type: 'application/json' });
     let createdEmpty = false;
-    const session = { status: 'save-required', source, file,
+    const session = { status: 'save-required', ...location, file,
         async save() {
             if (source.kind !== 'directory') throw Error('Use Save Transcript File List to save through Files.');
             return archiveLock(result.manifest.archiveUuid.toLowerCase(), async () => {

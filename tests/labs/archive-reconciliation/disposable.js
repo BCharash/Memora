@@ -24,11 +24,11 @@ export async function createDisposableArchive({count=3,beforeWrite=null}={}){
         const scenario=await makeScenario(count);
         for(let n=1;n<=count;n++){await write(root,audioPath(n),blobFor(n));await write(transcriptFolder,transcriptPath(n),transcriptFor(n));}
         await write(root,'memora-audio-source.json',JSON.stringify(scenario.audioManifest,null,2)+'\n');
-        await write(transcriptFolder,'memora-archive.json',JSON.stringify(scenario.transcriptManifest,null,2)+'\n');
+        await write(transcriptFolder,'memora-transcript-archive.json',JSON.stringify(scenario.transcriptManifest,null,2)+'\n');
     }catch(error){await cleanup();throw error;}
     async function scan(){
         if(!registered.has(root))throw Error('Disposable fixture is no longer available.');
-        const audioText=await read(root,'memora-audio-source.json'),transcriptText=await read(transcriptFolder,'memora-archive.json');
+        const audioText=await read(root,'memora-audio-source.json'),transcriptText=await read(transcriptFolder,'memora-transcript-archive.json');
         const checked=parseAudioSourceManifest(audioText);if(checked.status!=='valid')throw Error('Invalid disposable source list.');
         const audioFiles=[],transcriptFiles=[],errors=[];
         for await(const [path,handle] of root.entries()){
@@ -69,8 +69,8 @@ export async function createDisposableArchive({count=3,beforeWrite=null}={}){
             const completedWrites=[];
             try{
                 if(proof.audioText!==current.audioText){await beforeWrite?.('audio');if(await read(root,'memora-audio-source.json')!==proof.baseAudioText)throw Error('Audio JSON changed before its write.');await write(root,'memora-audio-source.json',proof.audioText);if(await read(root,'memora-audio-source.json')!==proof.audioText)throw Error('Audio JSON readback failed.');completedWrites.push('audio');}
-                if(await read(transcriptFolder,'memora-archive.json')!==proof.baseTranscriptText)throw Error('Transcript JSON changed before its write.');
-                if(proof.transcriptText!==current.transcriptText){await beforeWrite?.('transcripts');if(await read(transcriptFolder,'memora-archive.json')!==proof.baseTranscriptText)throw Error('Transcript JSON changed before its write.');await write(transcriptFolder,'memora-archive.json',proof.transcriptText);if(await read(transcriptFolder,'memora-archive.json')!==proof.transcriptText)throw Error('Transcript JSON readback failed.');completedWrites.push('transcripts');}
+                if(await read(transcriptFolder,'memora-transcript-archive.json')!==proof.baseTranscriptText)throw Error('Transcript JSON changed before its write.');
+                if(proof.transcriptText!==current.transcriptText){await beforeWrite?.('transcripts');if(await read(transcriptFolder,'memora-transcript-archive.json')!==proof.baseTranscriptText)throw Error('Transcript JSON changed before its write.');await write(transcriptFolder,'memora-transcript-archive.json',proof.transcriptText);if(await read(transcriptFolder,'memora-transcript-archive.json')!==proof.transcriptText)throw Error('Transcript JSON readback failed.');completedWrites.push('transcripts');}
                 return {status:'verified-disposable-write',completedWrites};
             }catch(cause){throw Object.assign(new Error('Reconciliation did not complete. Verified JSON writes: '+(completedWrites.join(', ')||'none')+'. Preview again before retrying.',{cause}),{completedWrites});}
         }

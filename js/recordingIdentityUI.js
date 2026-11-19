@@ -1,7 +1,7 @@
 import {openAudioSourceSession} from './audioSourcePersistence.js';
 import {AUDIO_SOURCE_LIMITS,parseBoundedIdentityJson,validateAudioSourceManifest} from './audioSourceIdentity.js';
 import {readAudioSourceBytes} from './storage.js';
-import {parseTranscriptArchive} from './transcriptArchive.js';
+import {parseTranscriptArchive,TRANSCRIPT_ARCHIVE_FILENAME} from './transcriptArchive.js';
 export async function validateIdentitySelection(file,kind){
     const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes);
     let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{throw Error('This file is not readable JSON text. Select the list named in this step.');}
@@ -11,7 +11,7 @@ export async function validateIdentitySelection(file,kind){
     let transcript=false;try{parseTranscriptArchive(text);transcript=true;}catch{/* Keep each schema's validation independent. */}
     if(audio.status==='valid'&&transcript)throw Error('This file mixes audio and transcript list identities. Select a separate list for this step.');
     if(kind==='transcript'){
-        if(audio.status==='valid')throw Error('This is your audio recording list. Here, select the transcript file list: memora-archive.json, in your transcription folder. Your files have not been changed.');
+        if(audio.status==='valid')throw Error(`This is your audio recording list. Here, select the transcript file list: ${TRANSCRIPT_ARCHIVE_FILENAME}, in your transcription folder. Your files have not been changed.`);
         parseTranscriptArchive(text);
     }else if(kind==='audio'){
         if(transcript)throw Error('This is your transcript file list. Here, select the audio recording list: memora-audio-source.json, in your audio folder. Your files have not been changed.');

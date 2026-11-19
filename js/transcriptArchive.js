@@ -1,7 +1,19 @@
 import {parseBoundedIdentityJson,AUDIO_SOURCE_LIMITS} from './audioSourceIdentity.js';
 import {isRecordingUuid} from './transcriptMetadata.js';
 import {readAudioSourceBytes,writeTextFile} from './storage.js';
-export const TRANSCRIPT_ARCHIVE_FILENAME='memora-archive.json';
+export const TRANSCRIPT_ARCHIVE_FILENAME='memora-transcript-archive.json';
+export function transcriptArchiveNameForRecords(manifest, records, folderName) {
+    const declared = manifest?.archiveName?.trim();
+    if (declared && declared !== folderName && declared !== 'Transcript archive') return declared;
+    const names = new Set(records.map(record => record.originalAudioFolderName?.trim()).filter(Boolean));
+    return names.size === 1 ? [...names][0] : declared || folderName || 'Transcript archive';
+}
+// This describes known archive/folder labels, not a verified full Files path.
+export function describeTranscriptArchiveDestination({ archiveName, folderName = 'transcription' }) {
+    return archiveName && archiveName !== folderName && archiveName !== 'Transcript archive'
+        ? `the “${folderName}” folder for archive “${archiveName}”`
+        : `the “${folderName}” transcript folder`;
+}
 const textDecoder=new TextDecoder('utf-8',{fatal:true});
 const queues=new Map();
 export async function archiveLock(key,work){
@@ -33,7 +45,7 @@ export function appendTranscriptReference(manifest,{recordingId,filename,model,o
     if(!entry){entry={recordingId,transcripts:[]};copy.recordings.push(entry);}
     entry.transcripts.push({relativePath:filename,model,operation});return parseTranscriptArchive(JSON.stringify(copy));
 }
-export async function openTranscriptArchive(destination,{selectedFile=null,createNew=false,randomUUID=()=>crypto.randomUUID()}={}) {
+export async function openTranscriptArchive(destination,{selectedFile=null,createNew=false,archiveName=destination?.name||'Transcript archive',randomUUID=()=>crypto.randomUUID()}={}) {
     let original=null;
     if(selectedFile)original=textDecoder.decode(await readAudioSourceBytes(selectedFile,AUDIO_SOURCE_LIMITS.jsonBytes));
     else if(destination?.kind==='directory'){
@@ -41,7 +53,7 @@ export async function openTranscriptArchive(destination,{selectedFile=null,creat
         if(handle)original=textDecoder.decode(await readAudioSourceBytes(await handle.getFile(),AUDIO_SOURCE_LIMITS.jsonBytes));
     }
     if(original===null&&!createNew)return {status:'missing'};
-    let manifest=original===null?{schemaVersion:1,archiveUuid:randomUUID(),archiveName:destination?.name||'Transcript archive',recordings:[]}:parseTranscriptArchive(original);
+    let manifest=original===null?{schemaVersion:1,archiveUuid:randomUUID(),archiveName,recordings:[]}:parseTranscriptArchive(original);
     // Validate before any file generation, including newly reserved UUIDs.
     manifest=parseTranscriptArchive(JSON.stringify(manifest));
     let written=null,createdEmpty=false;

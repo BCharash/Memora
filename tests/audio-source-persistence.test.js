@@ -186,16 +186,16 @@ await test('Returning embedded audio keeps its ID after complete inventory remov
 });
 await test('Completed sharing releases only matching pending exports and does not reflag the same audio list',async()=>{
  const {session,store}=await make({input:true,verifyAudioContents:false});await stage(session);const pending=await session.persist();
- const archiveA=new File(['archive A'],'memora-archive.json'),archiveB=new File(['archive B'],'memora-archive.json');await session.retainTranscriptArchive(archiveA);
+ const archiveA=new File(['archive A'],'memora-transcript-archive.json'),archiveB=new File(['archive B'],'memora-transcript-archive.json');await session.retainTranscriptArchive(archiveA);
  eq(await session.acknowledgeShared('source',pending.file),true);eq((await store.get(session.sourceId)).state,'verified');assert(session.getPendingTranscriptArchive(),'Pending transcript list lost during audio acknowledgement');
  eq(await session.acknowledgeShared('archive',archiveB),false);eq(session.getPendingTranscriptArchive(),'archive A');
  eq(await session.acknowledgeShared('archive',archiveA),true);eq(session.getPendingTranscriptArchive(),null);eq((await session.persist()).status,'unchanged','Shared audio list was reflagged');
  await session.retainTranscriptArchive(archiveB);eq((await store.get(session.sourceId)).state,'verified','Pending transcript changed audio-list save state');eq(await session.acknowledgeShared('archive',archiveA),false);eq(session.getPendingTranscriptArchive(),'archive B');
- store.failNext();await rejects(()=>session.retainTranscriptArchive(archiveA),'QuotaExceededError');const archiveC=new File(['archive C'],'memora-archive.json');await session.retainTranscriptArchive(archiveC);eq((await store.get(session.sourceId)).pendingTranscriptArchive,'archive C','Retry persisted an older pending export');
+ store.failNext();await rejects(()=>session.retainTranscriptArchive(archiveA),'QuotaExceededError');const archiveC=new File(['archive C'],'memora-transcript-archive.json');await session.retainTranscriptArchive(archiveC);eq((await store.get(session.sourceId)).pendingTranscriptArchive,'archive C','Retry persisted an older pending export');
 });
 await test('Fresh valid folder JSON overrides different phone pending data and stale decision actions',async()=>{
  const {session,source,store}=await make({input:true,verifyAudioContents:false});await stage(session);await session.persist();
- const pendingArchive=JSON.stringify({schemaVersion:1,archiveUuid:OTHER,archiveName:'Pending transcripts',recordings:[]});await session.retainTranscriptArchive(new File([pendingArchive],'memora-archive.json'));
+ const pendingArchive=JSON.stringify({schemaVersion:1,archiveUuid:OTHER,archiveName:'Pending transcripts',recordings:[]});await session.retainTranscriptArchive(new File([pendingArchive],'memora-transcript-archive.json'));
  const disk=session.getManifest();disk.recordings[0].recordingId=OTHER;disk.fromDesktop=true;
  const selected={...source,files:[...source.files,new File([JSON.stringify(disk)],AUDIO_SOURCE_FILENAME)]};
  for(const action of [null,'resume','replace','create']){

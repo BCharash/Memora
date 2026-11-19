@@ -34,6 +34,12 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Canonical transcript archive name and save location — 19 November 2026
+
+Candidate `2026-11-19.23` adopts `memora-transcript-archive.json` throughout production reads, writes, pending exports and picker guidance. References to `memora-archive.json` in older checkpoint sections below are historical. The user will delete/rebuild four active old-name lists; this change does not migrate, automatically discover or delete old-name files. Open each existing transcription folder through Edit/Combine to rebuild before creating new transcriptions. The existing TXT Archive UUID/Recording IDs establish identity for that rebuild; no IDs or transcript metadata are changed. A genuinely new archive created in Transcribe still reserves a new UUID.
+
+Save guidance identifies archiveName and transcription folder together. A meaningful validated manifest label takes priority; for a missing/generic label, one consistent Original Audio Folder name in the selected transcript headers can supply the human archive label. Multiple conflicting/missing provenance names never establish an invented parent path. The displayed archive/folder labels help the user choose the correct destination in Files but do not give the web app writable access or prove the final saved location. New Transcribe manifests use the selected audio archive name; pending export callbacks carry the validated destination labels. Cancellation/pending safeguards and byte-verified desktop saves remain unchanged.
+
 ## Transcript-folder reconciliation stage 1 — 19 November 2026
 
 Candidate `2026-11-19.19` connects the shared reader/reconciler to Edit/Combine source opening. Transcribe and Search integration, shared Search records and combined iPhone JSON saving remain subsequent stages. The source reader returns parsed records from one root enumeration and one text read per File snapshot, with bounded manifest parsing and explicit read issues. The records also serve Combine sorting/export/editor preparation without another initial text read; a fresh source selection obtains new snapshots.
