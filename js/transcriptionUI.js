@@ -14,7 +14,8 @@ export async function displayFiles(
     files,
     readAudioMetadata,
     formatRecordingDate,
-    formatDuration
+    formatDuration,
+    onProgress = () => {}
 ) {
 
     selectedFiles = files;
@@ -264,7 +265,10 @@ export async function displayFiles(
         }
     };
 
+    let detailsRead=0;
     for (const file of files) {
+        onProgress(`Reading recording details: ${++detailsRead} of ${files.length} — ${file.name}`);
+        if(detailsRead%16===0)await new Promise(resolve=>setTimeout(resolve,0));
 
         const entry = {
             file,

@@ -264,9 +264,9 @@ await test('Actual malformed provenance cannot masquerade as recoverable identit
 
 await test('Complete inventories prune absent root entries; partial inventories preserve identities and unknown extensions',async()=>{
  const original={schemaVersion:1,audioSourceId:SOURCE,extensions:{keep:true},recordings:[entry({extensions:{note:'keep'}}),entry({audioRelativePath:'nested/other.wav',recordingId:SOURCE2})]};
- const complete=planAudioSourceAvailability(original,{complete:true});equal(complete.manifest.recordings.length,1);equal(complete.counts.removed,1);equal(complete.manifest.recordings[0].sourceAvailability.status,'unverified');equal(complete.manifest.extensions,{keep:true});
- const partial=planAudioSourceAvailability(original,{});equal(partial.manifest.recordings[0].sourceAvailability.status,'unverified');equal(partial.manifest.recordings[0].recordingId,f.ID);equal(partial.manifest.recordings[0].extensions,{note:'keep'});
- const observed=planAudioSourceAvailability(partial.manifest,{observedPaths:['memo.wav'],verifiedPaths:['memo.wav']});equal(observed.manifest.recordings[0].sourceAvailability.status,'available');
+ const complete=planAudioSourceAvailability(original,{complete:true});equal(complete.manifest.recordings.length,1);equal(complete.counts.removed,1);equal(complete.counts.unverified,1);equal(complete.manifest.extensions,{keep:true});
+ const partial=planAudioSourceAvailability(original,{});equal(partial.counts.unverified,2);equal(partial.manifest.recordings[0].recordingId,f.ID);equal(partial.manifest.recordings[0].extensions,{note:'keep'});
+ const observed=planAudioSourceAvailability(partial.manifest,{observedPaths:['memo.wav'],verifiedPaths:['memo.wav']});equal(observed.counts.available,1);
  equal(planAudioSourceAvailability(observed.manifest,{observedPaths:['memo.wav'],verifiedPaths:['memo.wav']}).manifest,observed.manifest);equal(original.recordings[0].sourceAvailability,undefined);
 });
 await test('Header-only enrollment creates no fingerprint; known entries preserve IDs and historical hashes without new observations',()=>{
@@ -276,7 +276,7 @@ await test('Header-only enrollment creates no fingerprint; known entries preserv
 });
 await test('Availability validates status and retains unresolved observed recordings',async()=>{
  const original={schemaVersion:1,audioSourceId:SOURCE,recordings:[entry()]};
- equal(planAudioSourceAvailability(original,{observedPaths:['memo.wav']}).manifest.recordings[0].sourceAvailability.status,'unresolved');
+ equal(planAudioSourceAvailability(original,{observedPaths:['memo.wav']}).counts.unresolved,1);
  equal(validate({...original,recordings:[entry({sourceAvailability:{status:'invented'}})]}).status,'invalid');
 });
 

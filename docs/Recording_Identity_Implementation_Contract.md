@@ -34,6 +34,16 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Authoritative saved lists and bounded inventory work — 19 November 2026
+
+Candidate `2026-11-19.14` supersedes earlier requirements to resume a differing browser-local pending audio list when a valid saved audio JSON is selected. The selected valid JSON owns source/recording identity; stale pending audio data never forces a Resume choice or replacement of that file. Pending transcript-archive exports remain retained separately. If a valid folder JSON appears while an old Create/Replace/Resume decision is outstanding, the decision is cleared and that valid list is accepted. The obsolete audio pending-list dialog is removed. Invalid/unreadable documents still require explicit resolution; neither recovery storage nor databases are reset.
+
+Coverage is a session observation. Current available/unverified/unresolved/removed counts are shown, while historical `sourceAvailability` fields are preserved without being edited or added merely because the device/access scope changed. Complete authorized root scans still prune absent entries; partial/file-input scans retain them. Consequently reopening unchanged membership does not create a portable JSON edit. Actual additions/removals still require normal direct desktop save or explicit file-input sharing.
+
+Known-recording lookup uses validated indexes over source paths, Recording IDs and selected file paths. It does not clone, validate or serialize the entire manifest for each file. Newly inspected entries use compact identity planning with session-wide duplicate checks; complete manifests are validated before saving. Normal full-list serialization remains bounded to scan/persistence boundaries. Existing valid lists query their own recovery record rather than loading every source; file-input without a source identity loads no unrelated recovery archives. Identical persisted recovery records are not repeatedly staged. Unchanged source JSON is recognized before pending-write staging.
+
+Scans yield by batch and report metadata/list preparation separately. Synthetic scale tests cover 1500 known recordings and 250 new entries, with zero per-record full-list serializations and no reads of known audio bodies. This is not a claim of measured Safari/iCloud memory limits, guaranteed large-folder completeness, or actual iPhone acceptance. Existing Restore criteria, durable write/readback, source JSON conflict checks, bounded header reads and transcript data preservation remain enforced.
+
 ## Restore visibility and action eligibility — 19 November 2026
 
 Candidate `2026-11-19.13` supersedes the earlier general recovery chooser. Restore is offered and accepted only when all conditions hold:

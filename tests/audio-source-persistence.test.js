@@ -184,6 +184,49 @@ await test('Returning embedded audio keeps its ID after complete inventory remov
  await session.reconcileAvailability({observedPaths:[],verifiedPaths:[],complete:true});eq(session.getManifest().recordings.length,0);await session.persist();
  eq((await stage(session)).recordingId,f.ID);
 });
+await test('Fresh valid folder JSON overrides different phone pending data and stale decision actions',async()=>{
+ const {session,source,store}=await make({input:true,verifyAudioContents:false});await stage(session);await session.persist();
+ const pendingArchive=JSON.stringify({schemaVersion:1,archiveUuid:OTHER,archiveName:'Pending transcripts',recordings:[]});await session.retainTranscriptArchive(new File([pendingArchive],'memora-archive.json'));
+ const disk=session.getManifest();disk.recordings[0].recordingId=OTHER;disk.fromDesktop=true;
+ const selected={...source,files:[...source.files,new File([JSON.stringify(disk)],AUDIO_SOURCE_FILENAME)]};
+ for(const action of [null,'resume','replace','create']){
+  const opened=await openAudioSourceSession({source:selected,recoveryStore:store,verifyAudioContents:false,action});eq(opened.status,'ready');eq(opened.session.getManifest(),disk);eq(opened.session.getPendingTranscriptArchive(),pendingArchive);
+ }
+ const reopened=await openAudioSourceSession({source:selected,recoveryStore:store,verifyAudioContents:false});eq((await stage(reopened.session)).recordingId,OTHER);eq((await reopened.session.persist()).status,'unchanged');
+ eq(JSON.parse((await store.get(session.sourceId)).manifestText),disk);
+ const native=directory({'memo.wav':audio(),[AUDIO_SOURCE_FILENAME]:JSON.stringify(disk)}),record=await store.get(session.sourceId);
+ await store.put({...record,revision:'stale-native',state:'pending',manifestText:JSON.stringify(session.getManifest()),directoryHandle:native.root},record.revision);
+ const desktop=await openAudioSourceSession({source:native.root,recoveryStore:store,verifyAudioContents:false});eq(desktop.status,'ready');eq((await stage(desktop.session)).recordingId,OTHER);eq((await desktop.session.persist()).status,'unchanged');eq(native.state.writes,0);
+});
+await test('Unchanged desktop and partial iPhone membership cause no JSON rewrite or repeated recovery writes',async()=>{
+ const entry={audioRelativePath:'memo.wav',recordingId:SOURCE,identityOrigin:'memora-assigned',sourceAvailability:{status:'unverified',note:'keep'}};
+ const json=JSON.stringify({schemaVersion:1,audioSourceId:OTHER,recordings:[entry],extensions:{keep:true}}),{root,state}=directory({'memo.wav':audio(),[AUDIO_SOURCE_FILENAME]:json}),store=memoryStore();
+ let opened=await openAudioSourceSession({source:root,recoveryStore:store,verifyAudioContents:false});await stage(opened.session);await opened.session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:true});eq((await opened.session.persist()).status,'unchanged');eq(state.writes,0);const puts=store.puts;
+ await opened.session.persist();eq(store.puts,puts,'Unchanged persistence rewrote recovery');
+ opened=await openAudioSourceSession({source:root,recoveryStore:store,verifyAudioContents:false});await stage(opened.session);await opened.session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:true});eq((await opened.session.persist()).status,'unchanged');eq(store.puts,puts);eq(state.writes,0);
+ const partial=JSON.parse(json);partial.recordings.push({...entry,audioRelativePath:'not-supplied.wav',recordingId:'99999999-1234-1234-1234-123456789abc',sourceAvailability:{status:'available'}});
+ const source={kind:'file-input',name:'Audio',files:[new File([audio()],'memo.wav'),new File([JSON.stringify(partial)],AUDIO_SOURCE_FILENAME)]};
+ opened=await openAudioSourceSession({source,recoveryStore:store,verifyAudioContents:false});await stage(opened.session);const counts=await opened.session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:false});eq(counts.unverified,1);eq(opened.session.getManifest(),partial);eq((await opened.session.persist()).status,'unchanged');
+});
+await test('1500 known recordings use indexed lookups without serializing or rereading the full list per file',async()=>{
+ const count=1500,entries=Array.from({length:count},(_,i)=>({audioRelativePath:`memo-${i}.wav`,recordingId:`00000000-0000-4000-8000-${(i+1).toString(16).padStart(12,'0')}`,identityOrigin:'memora-assigned'}));
+ const files=entries.map(entry=>{const file=new File(['not read'],entry.audioRelativePath);file.slice=()=>{throw Error('Known audio was read');};return file;});
+ const source={kind:'file-input',name:'Audio',files:[...files,new File([JSON.stringify({schemaVersion:1,audioSourceId:OTHER,recordings:entries})],AUDIO_SOURCE_FILENAME)]},store=memoryStore();store.list=async()=>{throw Error('Unrelated recovery lists should not load for valid JSON');};
+ const opened=await openAudioSourceSession({source,recoveryStore:store,verifyAudioContents:false});eq(opened.status,'ready');assert(!opened.session.recoveryError,'Loaded unrelated backups');
+ const original=JSON.stringify;let fullSerializations=0;
+ try{JSON.stringify=function(value,...args){if(value?.recordings?.length>=count)fullSerializations++;return original(value,...args);};
+  for(let i=count-1;i>=0;i--){const identity=await opened.session.stageRecording({audioRelativePath:entries[i].audioRelativePath});eq(identity.recordingId,entries[i].recordingId);}
+ }finally{JSON.stringify=original;}
+ eq(fullSerializations,0,'Known-file loop serialized the complete list');eq((await opened.session.persist()).status,'unchanged');
+});
+await test('Bulk enrollment validates compact new entries and still catches cross-file duplicate IDs',async()=>{
+ const count=250,files=Array.from({length:count},(_,i)=>new File([f.wav()],`new-${i}.wav`)),source={kind:'file-input',name:'New audio',files},store=memoryStore();
+ const opened=await openAudioSourceSession({source,recoveryStore:store,verifyAudioContents:false,action:'create'});const original=JSON.stringify;let fullSerializations=0;
+ try{JSON.stringify=function(value,...args){if(value?.recordings?.length>1)fullSerializations++;return original(value,...args);};for(const file of files)eq((await opened.session.stageRecording({audioRelativePath:file.name})).status,'ready');}finally{JSON.stringify=original;}
+ eq(fullSerializations,0,'New-file enrollment repeatedly serialized the complete list');eq(opened.session.getManifest().recordings.length,count);eq((await opened.session.persist()).status,'export-pending');
+ const duplicateFiles=['first.wav','copy.wav'].map(name=>new File([f.wav([f.wavChunk('imID',f.payload(f.ID))])],name)),duplicateSource={kind:'file-input',name:'Duplicates',files:duplicateFiles};
+ const duplicate=await openAudioSourceSession({source:duplicateSource,recoveryStore:memoryStore(),verifyAudioContents:false,action:'create'});eq((await duplicate.session.stageRecording({audioRelativePath:'first.wav'})).status,'ready');eq((await duplicate.session.stageRecording({audioRelativePath:'copy.wav'})).code,'duplicate-recording-id');
+});
 await test('Recovery matches browser-confirmed directory or established ID, never folder name',async()=>{
  const {session,source,store}=await make();await stage(session);await session.persist();const records=await store.list();
  eq((await matchAudioSourceRecovery(records,{source})).length,1);
@@ -232,6 +275,8 @@ await test('File-input omission hides Restore even with saved copies, matching n
  const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'select-existing-or-create');assert(!prompt.canRestore,'Unassociated copies exposed');
  const identified=await openAudioSourceSession({source,recoveryStore:store,establishedAudioSourceIds:[session.sourceId]});assert(!identified.canRestore,'Omission mistaken for confirmed absence');
  eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore',selectedRecoverySourceId:session.sourceId})).code,'restore-not-available');
+ let listed=false;store.list=async()=>{listed=true;throw Error('Do not load unrelated recovery archives for unidentified file input');};
+ await openAudioSourceSession({source,recoveryStore:store});assert(!listed,'Unidentified file input loaded unrelated backups');
  const created=await openAudioSourceSession({source,recoveryStore:store,action:'create'});eq(created.status,'ready');assert(created.session.sourceId!==session.sourceId,'Create reused an unrelated saved source');
 });
 await test('Source revalidation catches JSON deletion or external edits before inference',async()=>{

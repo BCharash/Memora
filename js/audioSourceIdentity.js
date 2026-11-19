@@ -301,9 +301,14 @@ export function planAudioSourceAvailability(manifest,{observedPaths=[],verifiedP
     for(const entry of candidate.recordings){
         const path=entry.audioRelativePath;
         const status=verified.has(path)?'available':observed.has(path)?'unresolved':complete&&!path.includes('/')?'missing':'unverified';
-        entry.sourceAvailability={...(entry.sourceAvailability||{}),status};counts[status]++;
+        // Coverage is a current observation, not a portable membership change.
+        // Preserve legacy availability metadata instead of rewriting it per device.
+        counts[status]++;
     }
     const result=validateAudioSourceManifest(candidate);
     if(result.status!=='valid')throw Error(result.issues[0].message);
     return {manifest:result.manifest,counts};
 }
+
+// Shared path validation for indexed session operations.
+export { pathKey as audioSourcePathKey };

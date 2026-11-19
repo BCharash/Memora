@@ -616,7 +616,7 @@ async function loadAudioSource() {
         sourceButton.textContent=`Source: ${sourceHandle.name}`;
         if(sourceHandle.kind!=='file-input')await updateTranscriptionFolderButton();
         if(!files.length)showEmptyMessage();
-        else await displayFiles(files,readAudioMetadata,formatRecordingDate,formatDuration);
+        else await displayFiles(files,readAudioMetadata,formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
         const summary=identityWorkflow.getInventorySummary();
         audioInventoryStatus.textContent=`${summary.checked} audio recording(s) checked. ${summary.removed} removed from list, ${summary.unverified} unverified, ${summary.skipped} skipped. `+
             (summary.coverage==='folder'?'Audio directly in this folder was checked; subfolders are not included.':'Only the supplied files were checked; unobserved recordings are retained as unverified.')+

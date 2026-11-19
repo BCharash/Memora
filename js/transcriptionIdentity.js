@@ -50,7 +50,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
                 observedPaths.push(path);
                 const message=`Checking audio recording list: ${index+1} of ${files.length} — ${file.name}`;
                 onProgress(message);
-                await new Promise(resolve=>setTimeout(resolve,0));
+                if(index%16===0)await new Promise(resolve=>setTimeout(resolve,0));
                 checkAudioSourceAbort(signal);
                 const identity=await ui.prepareRecording(file,{onProgress:progress=>onProgress(`${message} (${Math.round(progress.bytesRead/Math.max(1,progress.byteLength)*100)}%)`)});
                 if(identity)verifiedPaths.push(path);else skipped++;

@@ -1,6 +1,6 @@
 // Checkpoint 2B: isolated source identity I/O. No production UI/inference imports.
 import { AUDIO_SOURCE_LIMITS, parseAudioSourceManifest, serializeAudioSourceManifest,
-    createAudioSourceManifest, resolveAudioSourceId, planRecordingIdentity, planAudioSourceAvailability } from './audioSourceIdentity.js';
+    createAudioSourceManifest, resolveAudioSourceId, planRecordingIdentity, planAudioSourceAvailability, audioSourcePathKey } from './audioSourceIdentity.js';
 import { readEmbeddedRecordingIdentity } from './recordingIdentity.js';
 import { fingerprintAudio, checkAudioSourceAbort } from './audioFingerprint.js';
 import { createAudioSourceRecoveryStore, matchAudioSourceRecovery } from './audioSourceRecovery.js';
@@ -56,6 +56,9 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     if (!['found','absent','not-included'].includes(discovery.status)) return {status:'blocked',code:discovery.status,discovery};
     const valid=discovery.validation?.status==='valid';
     const diskManifest=valid ? discovery.validation.manifest : null;
+    // A freshly selected valid list wins over older local pending audio data,
+    // including a file that appeared while a previous decision was open.
+    if(valid && !selectedFile && ['resume','replace','create'].includes(action))action=null;
     const sourceIds=[...establishedAudioSourceIds,...(diskManifest?[diskManifest.audioSourceId]:[])];
     const initialChoice=sourceIds.some(id=>typeof id==='string' && id.toLowerCase()===String(selectedAudioSourceId).toLowerCase()) ? selectedAudioSourceId : null;
     if (selectedAudioSourceId!==null && initialChoice===null && !['restore','resume'].includes(action)) return {status:'blocked',code:'invalid-source-choice'};
@@ -63,8 +66,12 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     if (association.status==='invalid') return {status:'blocked',code:'source-evidence',association};
     if (association.status==='decision-required') return {status:'decision-required',code:'source-id-conflict',association};
     if (action!==null && !['create','replace','restore','resume'].includes(action)) return {status:'blocked',code:'invalid-action'};
-    let records, recoveryError=null;
-    try { records=await recoveryStore.list(); } catch (error) { records=[]; recoveryError=error; }
+    let records,recoveryError=null;
+    try{
+        if(valid){const record=await recoveryStore.get(diskManifest.audioSourceId);records=record?[record]:[];}
+        else if(source.kind==='file-input'){const record=association.audioSourceId?await recoveryStore.get(association.audioSourceId):null;records=record?[record]:[];}
+        else records=await recoveryStore.list();
+    }catch(error){records=[];recoveryError=error;}
     checkAudioSourceAbort(signal);
     let matches=await matchAudioSourceRecovery(records,{source,establishedAudioSourceIds:association.audioSourceId?[association.audioSourceId]:[]});
     // Prefer explicit identity over older handle associations. An explicit new
@@ -139,17 +146,28 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         if (!manifest) throw fail('source-id','A cryptographic Audio Source UUID could not be reserved.');
     } else if (action!==null) return {status:'blocked',code:'inapplicable-action'};
     if (association.audioSourceId) manifest={...manifest,audioSourceId:association.audioSourceId};
-    // A pending list must be resumed explicitly before new assignments are made.
-    const suppliedRecovery=valid && recovery && serialize(diskManifest)===serialize(parseAudioSourceManifest(recovery.manifestText).manifest);
-    if (recovery && recovery.state!=='verified' && action===null && !suppliedRecovery) return {status:'decision-required',code:'pending-source-list',canResume:true};
+    // Recovery can retain pending transcript exports, but must never replace a
+    // valid audio list selected from the folder or force the user to resume it.
     const key=manifest.audioSourceId.toLowerCase();
     // Query by source ID too: do not overwrite an unassociated same-ID recovery.
-    const stored=await recoveryStore.get(key).catch(error=>{ recoveryError=error; return null; });
+    const stored=valid && key===diskManifest.audioSourceId.toLowerCase() ? matches.find(item=>item.audioSourceId.toLowerCase()===key)||null :
+        await recoveryStore.get(key).catch(error=>{recoveryError=error;return null;});
     if (stored && recovery && stored.revision!==recovery.revision) throw fail('recovery-conflict','The saved recording list changed. Open it again.');
     if (stored && !recovery) return {status:'decision-required',code:'recovery-association-conflict'};
     let revision=stored?.revision||null, baseline=selectedRootBytes===undefined?discovery.bytes:selectedRootBytes;
     let current=manifest, staged=null, pendingRecord=null, writtenBytes=null;
     let recoveryExtras=stored?.pendingTranscriptArchive ? {pendingTranscriptArchive:stored.pendingTranscriptArchive} : {};
+    let durableRecord=stored;
+    const entriesByPath=new Map(),entriesById=new Map(),inputFilesByPath=new Map();
+    function indexEntries(){
+        entriesByPath.clear();entriesById.clear();
+        for(const entry of (staged||current).recordings){entriesByPath.set(audioSourcePathKey(entry.audioRelativePath),entry);entriesById.set(entry.recordingId.toLowerCase(),entry);}
+    }
+    indexEntries();
+    if(source.kind==='file-input')for(const file of source.files){
+        const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
+        inputFilesByPath.set(path,inputFilesByPath.has(path)?null:file);
+    }
     const unresolved=new Set();
     const snapshots=new Map(), assignments=new Map();
     let busy=false;
@@ -177,12 +195,14 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         }
     }
     async function saveRecovery(state,text) {
+        if(durableRecord?.state===state && durableRecord.manifestText===text &&
+            (durableRecord.pendingTranscriptArchive||null)===(recoveryExtras.pendingTranscriptArchive||null) && sameBytes(durableRecord.baseBytes,baseline))return;
         // Keep revision/UUIDs in session on failure; retry does not regenerate IDs.
         if (!pendingRecord || pendingRecord.manifestText!==text || pendingRecord.state!==state) pendingRecord={
             ...recoveryExtras, audioSourceId:key, revision:randomUUID(), state, manifestText:text, baseBytes:baseline,
-            directoryHandle:source.kind==='directory'?source:null, sourceName:source.name||'Audio folder', updatedAt:new Date().toISOString()
+            directoryHandle:source.kind==='directory'?source:stored?.directoryHandle||null, sourceName:source.name||'Audio folder', updatedAt:new Date().toISOString()
         };
-        await recoveryStore.put(pendingRecord,revision); revision=pendingRecord.revision;
+        await recoveryStore.put(pendingRecord,revision); revision=pendingRecord.revision;durableRecord=pendingRecord;
         pendingRecord=null;
     }
     // A supplied valid list is already a saved copy. Export it again only when
@@ -209,7 +229,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         reconcileAvailability:options=>exclusive(async()=> {
             checkAudioSourceAbort(signal);
             const result=planAudioSourceAvailability(staged||current,options);
-            staged=result.manifest;
+            staged=result.manifest;indexEntries();
             return result.counts;
         }),
         stageRecording: options=>exclusive(async()=> {
@@ -222,23 +242,26 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                     staged.recordings=original ? staged.recordings.map(item=>item.audioRelativePath===audioRelativePath ? original : item) :
                         staged.recordings.filter(item=>item.audioRelativePath!==audioRelativePath);
                 }
-                unresolved.delete(audioRelativePath); snapshots.delete(audioRelativePath);
+                indexEntries();unresolved.delete(audioRelativePath); snapshots.delete(audioRelativePath);
                 return {status:'skipped',recordingId:null,candidate:null};
             }
             unresolved.add(audioRelativePath);
-            // Validate paths before any handle lookup, read or UUID reservation.
-            const pathCheck=planRecordingIdentity({manifest:staged||current,audioRelativePath,
-                fingerprint:{algorithm:'sha256',byteLength:0,digest:'0'.repeat(64)},embedded:{status:'absent',recordingId:null,issues:[]},verifyAudioContents});
-            if (['audio-path','path-spelling'].includes(pathCheck.code)) return pathCheck;
+            // Validate/index a path without cloning the complete manifest.
+            let pathKey;
+            try{pathKey=audioSourcePathKey(audioRelativePath);}catch(error){return {status:'blocked',code:error.code||'audio-path',recordingId:null,candidate:null};}
+            const known=entriesByPath.get(pathKey);
+            if(known && known.audioRelativePath!==audioRelativePath)return {status:'blocked',code:'path-spelling',recordingId:null,candidate:null};
             let file;
-            if (source.kind==='directory') file=await (await resolveAudioSourceHandle(source,audioRelativePath)).getFile();
-            else {
-                const files=source.files.filter(item=>(item.webkitRelativePath ? item.webkitRelativePath.slice(item.webkitRelativePath.indexOf('/')+1) : item.name)===audioRelativePath);
-                if (files.length!==1) throw fail('audio-selection',`Select one unambiguous copy of “${audioRelativePath}”.`);
-                file=files[0];
+            if(source.kind==='directory')file=await (await resolveAudioSourceHandle(source,audioRelativePath)).getFile();
+            else{
+                file=inputFilesByPath.get(audioRelativePath);
+                if(!file)throw fail('audio-selection',`Select one unambiguous copy of “${audioRelativePath}”.`);
+            }
+            if(!verifyAudioContents && known){
+                unresolved.delete(audioRelativePath);
+                return {status:'ready',code:'reused',recordingId:known.recordingId,identityOrigin:known.identityOrigin,file,fingerprint:null,embedded:null,requiresPersistence:false};
             }
             // One immutable File snapshot for reader, hash and future inference.
-            const known=(staged||current).recordings.find(item=>item.audioRelativePath===audioRelativePath);
             const embedded=!verifyAudioContents&&known?null:await readEmbeddedRecordingIdentity(file);
             checkAudioSourceAbort(signal);
             if(embedded?.issues.some(issue=>issue.code==='read-failed'))throw fail('audio-read-failed',`“${file.name}” could not be read. The audio recording list has not been updated.`);
@@ -249,7 +272,8 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 snapshots.set(audioRelativePath,{file,fingerprint,embedded,token});
                 return {status:'decision-required',code:'stale-choice',recordingId:null,candidate:null,message:'The recording changed or this choice has not been reviewed. Review its current identity before continuing.'};
             }
-            const args={manifest:staged||current,audioRelativePath,fingerprint,embedded,choice,verifyAudioContents};
+            const planningManifest=verifyAudioContents?(staged||current):{schemaVersion:1,audioSourceId:current.audioSourceId,recordings:[]};
+            const args={manifest:planningManifest,audioRelativePath,fingerprint,embedded,choice,verifyAudioContents};
             let result=planRecordingIdentity(args);
             if (result.status==='assignment-required') {
                 const assignmentKey=`${audioRelativePath}:${token}:${choice||'new'}`;
@@ -257,10 +281,19 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 result=planRecordingIdentity({...args,assignedRecordingId:assignments.get(assignmentKey)});
             }
             snapshots.set(audioRelativePath,{file,fingerprint,embedded,token});
-            if (result.status==='ready') { staged=result.candidate;
-                const entry=staged.recordings.find(item=>item.audioRelativePath===audioRelativePath);
-                if(entry.sourceAvailability)entry.sourceAvailability.status='available';
-                unresolved.delete(audioRelativePath); }
+            if(result.status==='ready'){
+                if(!verifyAudioContents){
+                    const entry=result.candidate.recordings[0];
+                    if((staged||current).recordings.length>=AUDIO_SOURCE_LIMITS.recordings)return {status:'blocked',code:'recording-count',recordingId:null,candidate:null};
+                    if(entriesById.has(entry.recordingId.toLowerCase()))return {status:'blocked',code:'duplicate-recording-id',recordingId:null,candidate:null};
+                    if(!staged)staged={...current,recordings:current.recordings.slice()};
+                    staged.recordings.push(entry);entriesByPath.set(pathKey,entry);entriesById.set(entry.recordingId.toLowerCase(),entry);
+                }else{
+                    staged=result.candidate;indexEntries();
+                    const entry=entriesByPath.get(pathKey);if(entry.sourceAvailability)entry.sourceAvailability.status='available';
+                }
+                unresolved.delete(audioRelativePath);
+            }
             return {...result,file,fingerprint,embedded,identityOrigin:known?.identityOrigin||result.candidate?.recordings.find(item=>item.audioRelativePath===audioRelativePath)?.identityOrigin};
         }),
         persist: ({onCommit}={})=>exclusive(()=>locked(key,async()=> {
@@ -272,11 +305,23 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 if (writtenBytes && sameBytes(disk,writtenBytes)) baseline=disk;
                 if (!sameBytes(disk,baseline)) throw fail('source-changed','This recording list changed after it was opened. Reload it before saving.');
             }
+            if(source.kind==='file-input' && text===suppliedSavedText){
+                await saveRecovery('verified',text);current=staged||current;staged=null;
+                return {status:'unchanged',sourceVerified:false,transcriptDeliveryAllowed:true};
+            }
+            if(source.kind==='directory'){
+                const parsedDisk=parse(baseline);
+                if(parsedDisk.status==='valid' && serialize(parsedDisk.manifest)===text){
+                    await revalidateAudio();checkAudioSourceAbort(signal);
+                    if(!sameBytes(await currentSource(),baseline))throw fail('source-changed','This recording list changed before validation. Select the source again.');
+                    await saveRecovery('verified',text);current=staged||current;staged=null;
+                    return {status:'unchanged',sourceVerified:true,transcriptDeliveryAllowed:true};
+                }
+            }
             await saveRecovery(source.kind==='directory'?'pending':'export-pending',text);
             checkAudioSourceAbort(signal);
-            if (source.kind==='file-input') {
-                current=staged||current; staged=null;
-                if(text===suppliedSavedText)return {status:'unchanged',sourceVerified:false,transcriptDeliveryAllowed:true};
+            if(source.kind==='file-input'){
+                current=staged||current;staged=null;
                 return {status:'export-pending',sourceVerified:false,transcriptDeliveryAllowed:true,
                     file:new File([bytes],AUDIO_SOURCE_FILENAME,{type:'application/json'}),
                     guidance:'Save memora-audio-source.json in the audio folder so Memora can reuse its Recording IDs.'};
@@ -285,12 +330,6 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             await revalidateAudio();
             checkAudioSourceAbort(signal);
             if (!sameBytes(await currentSource(),baseline)) throw fail('source-changed','This recording list changed before saving. Reload it; the pending list remains available.');
-            const parsedDisk=parse(baseline);
-            if(parsedDisk.status==='valid' && serialize(parsedDisk.manifest)===text){
-                current=staged||current;staged=null;
-                await saveRecovery('verified',text);
-                return {status:'unchanged',sourceVerified:true,transcriptDeliveryAllowed:true};
-            }
             onCommit?.();
             try { await writeAudioSourceFile(source,bytes); writtenBytes=bytes; }
             catch (error) {

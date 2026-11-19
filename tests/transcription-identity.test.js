@@ -160,6 +160,17 @@ await test('Wrong-file confirmation stays in the chooser and cancellation change
  }finally{HTMLInputElement.prototype.click=original;}
 });
 
+await test('A valid Mac-saved list opens on the phone without stale pending prompts or a replacement export',async()=>{
+ const id=crypto.randomUUID(),oldId=crypto.randomUUID(),diskId=crypto.randomUUID(),archive=JSON.stringify({schemaVersion:1,archiveUuid:ARCHIVE,archiveName:'Retained archive',recordings:[]});
+ const old={schemaVersion:1,audioSourceId:id,recordings:[{audioRelativePath:'memo.wav',recordingId:oldId,identityOrigin:'memora-assigned'}]};
+ const disk={...old,recordings:[{...old.recordings[0],recordingId:diskId}],desktopExtension:'preserve'};
+ const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore();await store.put({audioSourceId:id,revision:'stale-phone',state:'export-pending',manifestText:JSON.stringify(old),baseBytes:null,sourceName:'Audio',pendingTranscriptArchive:archive},null);
+ const file=new File(['no need to read known audio'],'memo.wav');file.slice=()=>{throw Error('Known audio reread');};const source={kind:'file-input',name:'Audio',files:[file,new File([JSON.stringify(disk)],'memora-audio-source.json')]};
+ let published=0;const workflow=createTranscriptionIdentity({ask:async()=>{throw Error('Valid saved JSON prompted for local pending data');},onPendingList:()=>{published++;}});
+ await workflow.prepareSource(source,[file]);await workflow.activateSource();eq(workflow.getInventorySummary().saveOutcome,'unchanged');eq(published,0);eq(workflow.getSession().getManifest(),disk);eq(workflow.getSession().getPendingTranscriptArchive(),archive);
+ const record=await store.get(id);await store.remove(id,record.revision);
+});
+
 let pageInstalled=false;
 await test('Production page boots with isolated database and synthetic model selection',async()=>{
  const html=await (await fetch('../index.html')).text(),parsed=new DOMParser().parseFromString(html,'text/html');
@@ -213,7 +224,7 @@ await test('Source Refresh adds files without hashes, ignores audio edits, remov
  const before=calls.length;await seedAudio(desktop.root,'extra.wav');
  await refreshSource();
  let manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,2);eq(calls.length,before);
- const extra=manifest.recordings.find(item=>item.audioRelativePath==='extra.wav'),extraId=extra.recordingId;eq(extra.sourceAvailability.status,'available');assert(!('audioFingerprint' in extra),'New audio was fingerprinted');
+ const extra=manifest.recordings.find(item=>item.audioRelativePath==='extra.wav'),extraId=extra.recordingId;assert(!extra.sourceAvailability,'Routine scans added portable coverage metadata');assert(!('audioFingerprint' in extra),'New audio was fingerprinted');
  const saved=decoder.decode(desktop.state.files.get('memora-audio-source.json'));
  const changed=new Uint8Array(await f.wav([f.wavChunk('JUNK',new Uint8Array([1,2,3,4]))]).arrayBuffer());
  desktop.state.files.set('extra.wav',changed);await refreshSource();
