@@ -243,6 +243,42 @@ export function createCombinedHTML(
             font-size: 32px;
         }
 
+        .audio-location {
+            display: none;
+            margin: 12px 0 24px;
+            padding: 12px 14px;
+            background: #F7F8FA;
+            border: 1px solid #E1E4E8;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .audio-location button {
+            margin: 4px 8px 4px 0;
+            padding: 7px 12px;
+            border: 1px solid #D5D9DE;
+            border-radius: 6px;
+            background: #FFFFFF;
+            color: #20242C;
+            cursor: pointer;
+        }
+
+        .audio-location-status {
+            display: block;
+            margin-top: 6px;
+            color: #707782;
+        }
+
+        .audio-location-needed {
+            display: none;
+            margin-left: 10px;
+            font-size: 13px;
+        }
+
+        .audio-control.audio-missing .audio-location-needed {
+            display: inline;
+        }
+
         .audio-control {
             display: none;
             margin: 0 0 18px;
@@ -383,6 +419,12 @@ export function createCombinedHTML(
                 </div>
             </div>
 
+            <div class="audio-location" id="audioLocation">
+                <button type="button" id="chooseAudioFolder">Locate Audio Folder</button>
+                <input id="audioFolderInput" type="file" webkitdirectory multiple accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" hidden>
+                <span class="audio-location-status" id="audioLocationStatus" role="status" aria-live="polite"></span>
+            </div>
+
             <div class="records">
                 ${sections}
             </div>
@@ -486,67 +528,180 @@ export function createCombinedHTML(
             textSizeValue.textContent = \`\${textSize.value}px\`;
         });
 
-        document
-            .querySelectorAll(".audio-control")
-            .forEach(control => {
-                const button =
-                    control.querySelector(".audio-play-button");
+        // Audio files are matched by their original filename. The browser grants
+        // access only to files explicitly selected by the reader; no uploads.
+        const audioLocation = document.getElementById("audioLocation");
+        const audioFolderInput = document.getElementById("audioFolderInput");
+        const audioLocationStatus = document.getElementById("audioLocationStatus");
+        const audioByName = new Map();
+        const audioObjectUrls = new Set();
+        const audioControls = Array.from(document.querySelectorAll(".audio-control"));
 
-                const audio =
-                    control.querySelector(".audio-player");
+        const audioKey = name => String(name || "").normalize("NFC").toLowerCase();
+        const audioFilename = audio =>
+            audio.dataset.filename || (audio.dataset.src || "").split(/[\\/]/).pop();
 
-                if (!button || !audio) {
-                    return;
+        function selectedAudioUrl(audio) {
+            const key = audioKey(audioFilename(audio));
+            return audioByName.get(key) || null;
+        }
+
+        function updateAudioStatus(message) {
+            audioLocationStatus.textContent = message;
+        }
+
+        function registerAudioFiles(files) {
+            let added = 0;
+            let duplicates = 0;
+            const batch = new Map();
+            for (const file of files) {
+                if (!/\.(m4a|mp3|wav|webm|ogg|aac|flac)$/i.test(file.name) &&
+                    !String(file.type).startsWith("audio/")) continue;
+                const key = audioKey(file.name);
+                if (batch.has(key)) {
+                    batch.set(key, null); // Ambiguous within the newly selected folder.
+                } else {
+                    batch.set(key, file);
+                }
+            }
+            for (const [key, file] of batch) {
+                if (!file) {
+                    duplicates++;
+                    continue;
+                }
+                // Do not silently replace a recording selected from an earlier folder.
+                if (audioByName.has(key)) {
+                    duplicates++;
+                    continue;
+                }
+                const url = URL.createObjectURL(file);
+                audioByName.set(key, url);
+                audioObjectUrls.add(url);
+                added++;
+            }
+            let matched = 0;
+            for (const control of audioControls) {
+                const audio = control.querySelector(".audio-player");
+                if (audio && selectedAudioUrl(audio)) {
+                    matched++;
+                    control.classList.remove("audio-missing");
+                }
+            }
+            updateAudioStatus(
+                added + " new audio file(s) linked; " + matched + " of " +
+                audioControls.length + " recordings matched from selected folders." +
+                (duplicates ? " " + duplicates +
+                    " duplicate filename(s) skipped; earlier links preserved." : "")
+            );
+        }
+
+        // Prefer the native directory permission picker where supported.
+        // A local HTML document may not be eligible for this API in every
+        // browser, so retain the directory-input picker as a fallback.
+        document.getElementById("chooseAudioFolder").addEventListener("click", async () => {
+            if (typeof window.showDirectoryPicker !== "function") {
+                audioFolderInput.value = "";
+                audioFolderInput.click();
+                return;
+            }
+
+            let directory;
+            try {
+                directory = await window.showDirectoryPicker({ mode: "read" });
+            } catch (error) {
+                if (error?.name === "AbortError") return; // User cancelled.
+                // Security restrictions or unsupported local-file contexts.
+                audioFolderInput.value = "";
+                audioFolderInput.click();
+                return;
+            }
+
+            try {
+                const files = [];
+                // Only the chosen folder's direct children are needed: Memora
+                // keeps its original audio files together in one folder.
+                for await (const entry of directory.values()) {
+                    if (entry.kind !== "file") continue;
+                    if (!/\.(m4a|mp3|wav|webm|ogg|aac|flac)$/i.test(entry.name)) continue;
+                    files.push(await entry.getFile());
+                }
+                registerAudioFiles(files);
+            } catch (error) {
+                updateAudioStatus("Unable to read the selected folder: " +
+                    (error?.message || String(error)) + ". Please try again.");
+            }
+        });
+        audioFolderInput.addEventListener("change", () => registerAudioFiles(audioFolderInput.files));
+        window.addEventListener("pagehide", () => {
+            for (const url of audioObjectUrls) URL.revokeObjectURL(url);
+        });
+
+        async function tryAudioSource(audio, source) {
+            audio.pause();
+            audio.removeAttribute("src");
+            audio.load();
+            audio.src = source;
+            try {
+                await audio.play();
+                return { ok: true };
+            } catch (error) {
+                audio.pause();
+                audio.removeAttribute("src");
+                audio.load();
+                return { ok: false, error };
+            }
+        }
+
+        audioControls.forEach(control => {
+            const button = control.querySelector(".audio-play-button");
+            const audio = control.querySelector(".audio-player");
+            if (!button || !audio) return;
+            control.classList.add("audio-enabled");
+
+            button.addEventListener("click", async () => {
+                control.classList.remove("audio-missing");
+                audio.controls = true;
+                control.classList.add("active");
+
+                const storedPath = audio.dataset.src || "";
+                const filename = audioFilename(audio);
+                const candidates = [...new Set([
+                    storedPath,
+                    filename,
+                    filename && "../" + filename,
+                    filename && "../../" + filename
+                ].filter(Boolean))];
+
+                for (const candidate of candidates) {
+                    const result = await tryAudioSource(audio, candidate);
+                    if (result.ok) return;
+                    if (result.error?.name === "NotAllowedError") {
+                        updateAudioStatus("Playback was blocked. Tap Play again or check browser permissions.");
+                        control.classList.remove("active");
+                        return;
+                    }
                 }
 
-                control.classList.add("audio-enabled");
-
-                button.addEventListener("click", async () => {
-                    const storedPath =
-                        audio.dataset.src || "";
-
-                    const recordingFilename =
-                        audio.dataset.filename || "";
-
-                    const candidates = [];
-
-                    if (storedPath) {
-                        candidates.push(storedPath);
+                // Relative paths failed: try a previously selected audio folder.
+                const selected = selectedAudioUrl(audio);
+                if (selected) {
+                    const result = await tryAudioSource(audio, selected);
+                    if (result.ok) return;
+                    if (result.error?.name === "NotAllowedError") {
+                        updateAudioStatus("Playback was blocked. Tap Play again or check browser permissions.");
+                        control.classList.remove("active");
+                        return;
                     }
+                }
 
-                    if (recordingFilename) {
-                        candidates.push(recordingFilename);
-                        candidates.push("../" + recordingFilename);
-                        candidates.push("../../" + recordingFilename);
-                    }
-
-                    const uniqueCandidates =
-                        [...new Set(candidates)];
-
-                    audio.controls = true;
-                    control.classList.add("active");
-
-                    for (const candidate of uniqueCandidates) {
-                        audio.pause();
-                        audio.removeAttribute("src");
-                        audio.load();
-
-                        audio.src = candidate;
-
-                        try {
-                            await audio.play();
-                            return;
-                        } catch (error) {
-                            audio.pause();
-                            audio.removeAttribute("src");
-                            audio.load();
-                        }
-                    }
-
-                    control.classList.remove("active");
-                    audio.controls = false;
-                });
+                audioLocation.style.display = "block";
+                control.classList.remove("active");
+                control.classList.add("audio-missing");
+                audio.controls = false;
+                updateAudioStatus("Recording not found: " + filename +
+                    ". Select its containing folder above.");
             });
+        });
     </script>
 </body>
 </html>`;
@@ -736,6 +891,7 @@ function createAudioControl(record) {
                 data-src="${safePath}"
                 data-filename="${escapeHTML(record.recordingFilename || "")}"
             ></audio>
+            <span class="audio-location-needed">Audio not found — use Locate Audio Folder above.</span>
         </div>
     `;
 }
