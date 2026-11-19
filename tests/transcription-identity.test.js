@@ -158,6 +158,9 @@ await test('Production page boots with isolated database and synthetic model sel
  const html=await (await fetch('../index.html')).text(),parsed=new DOMParser().parseFromString(html,'text/html');
  parsed.querySelectorAll('script').forEach(script=>script.remove());document.body.replaceChildren(...parsed.body.childNodes);pageInstalled=true;
  await import('../js/app.js');await waitFor(()=>document.getElementById('modelSelect').value==='tiny');
+ assert(!document.getElementById('refreshAudioSourceButton'),'Obsolete refresh control remains');
+ eq(document.getElementById('saveRecordingListButton').textContent,'Save Audio Recording List');
+ assert(document.getElementById('saveRecordingListButton').closest('.source-section'),'Audio list save is not beside the source controls');
  document.getElementById('paragraphingCheckbox').checked=false;
  const language=document.getElementById('languageSelect');language.value='en';language.dispatchEvent(new Event('change'));
 });
@@ -167,7 +170,7 @@ async function refreshSource(){
  const button=document.getElementById('sourceButton');let started=false;
  await new Promise(resolve=>{
   const observer=new MutationObserver(records=>{if(records.some(record=>record.attributeName==='disabled'&&record.oldValue===null))started=true;if(started&&!button.disabled){observer.disconnect();resolve();}});
-  observer.observe(button,{attributes:true,attributeOldValue:true,attributeFilter:['disabled']});click('refreshAudioSourceButton');
+  observer.observe(button,{attributes:true,attributeOldValue:true,attributeFilter:['disabled']});selections.push(desktop.root);click('sourceButton');
  });
 }
 
@@ -229,6 +232,7 @@ await test('File-input prepares separate pending source/archive JSON and blocks 
  const file=new File([await originalAudio.arrayBuffer()],'memo.wav');const sourceJson=new File([desktop.state.files.get('memora-audio-source.json')],'memora-audio-source.json');
  selections.push({kind:'file-input',name:'Audio',files:[file,new File([await originalAudio.arrayBuffer()],'new.wav'),sourceJson]});click('sourceButton');await waitFor(()=>document.getElementById('iphoneTranscriptionDestinationOptions').style.display === 'flex' && document.querySelector('#recordings .recording-checkbox') && !document.getElementById('transcribeButton').disabled);
  assert(!document.getElementById('saveRecordingListButton').hidden,'Updated audio list was not offered at source selection');
+ assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Compiled audio list did not highlight its save action before transcription');
  click('transcribeButton');await choose('Create transcript file list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  assert(!document.getElementById('saveRecordingListButton').hidden&&!document.getElementById('saveTranscriptArchiveButton').hidden,'JSON actions missing');assert(document.getElementById('iphoneExportButton').disabled,'Transcript shared before JSON actions');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save')&&document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Pending save pulse missing');

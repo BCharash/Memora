@@ -119,9 +119,10 @@
                         <button id="sourceButton" type="button">
                             Select Source Folder
                         </button>
-                        <button id="refreshAudioSourceButton" type="button" disabled>Refresh Source</button>
+                        <button id="saveRecordingListButton" type="button" hidden>Save Audio Recording List</button>
                         <button id="cancelAudioInventoryButton" type="button" hidden>Cancel Scan</button>
                     </div>
+                    <p id="recordingListSaveStatus" class="settings-note" role="status"></p>
                     <p id="audioInventoryStatus" class="settings-note" role="status" aria-live="polite"></p>
 
 
@@ -252,8 +253,6 @@
                     >
 
                         <div class="identity-save-controls">
-                            <button id="saveRecordingListButton" type="button" hidden>Save audio recording list to Files</button>
-                            <p id="recordingListSaveStatus" class="settings-note" role="status"></p>
                             <button id="saveTranscriptArchiveButton" type="button" hidden>Save transcript file list to Files</button>
                             <p id="transcriptArchiveSaveStatus" class="settings-note" role="status"></p>
                         </div>

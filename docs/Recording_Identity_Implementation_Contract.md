@@ -34,6 +34,10 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Source controls — 19 November 2026
+
+Candidate `2026-11-19.8` removes the dedicated Refresh Source button. Reselect the source folder to reread it. For file-input/iPhone access, the source row now contains **Save Audio Recording List**, shown immediately when a compiled JSON needs saving. It uses the existing pending-save pulse and outline, retains them on cancellation and clears them after completed sharing. The status appears under the source row. A saved unchanged list needs no new save, and writable desktop access still saves automatically. This supersedes earlier references to a dedicated Refresh Source control.
+
 ## Fast audio membership policy — 19 November 2026
 
 The user's subsequent approval supersedes audio-edit detection and retained-missing-root-entry rules below. Build `2026-11-19.7` tracks current source membership, not edits to audio contents. Known exact paths reuse saved Recording IDs/origins without reading identity headers or hashing payloads. New paths use bounded identity metadata reads and the established embedded/fallback identity policy. Duplicate/ambiguous paths and identities remain explicit conflicts; names are not used to associate different sources or deduplicate recordings.
