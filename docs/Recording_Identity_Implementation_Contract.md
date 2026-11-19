@@ -34,6 +34,25 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Production source inventory — 19 November 2026
+
+Build `2026-11-19.6` implements the user's subsequent approval to maintain the audio recording list on source open/Refresh, independently of transcription selection. This supersedes older selected-recording-only enrollment descriptions for the audio source. Parent catalogue, transcript destination reconciliation and recursive source ownership remain separate work.
+
+Both directory and file-input access inventory eligible audio immediately inside the selected source folder. Nested audio is excluded, and previously stored nested entries remain unverified. File-input Refresh requires folder reselection. Scans inspect IDs and fingerprints sequentially, show progress, and support cancellation before the final native write. Read/provider errors block partial publication. Existing identity choices apply to changed audio; Skip preserves incomplete coverage. Approved missing entries are retained rather than removed.
+
+Version 1 adds optional entry `sourceAvailability: {"status": "available"}`. Allowed statuses:
+
+| Status | Meaning |
+|---|---|
+| `available` | The entry's selected audio was inspected and its identity resolved during this scan. |
+| `missing` | Its immediate-root path was not observed after successful writable-folder enumeration and inspection. This does not delete its identity or prove permanent physical deletion. |
+| `unverified` | Not observed within accessible scope: partial/file-input access, skipped scan coverage, or a nested entry outside the root inventory. |
+| `unresolved` | The path was observed but the user skipped resolving its identity. |
+
+Old manifests without this optional field remain valid; unrelated fields and nested availability extension fields survive. Availability is an observation, never an identity-matching key. A read failure is not a completed inventory. No transcript references are removed or rewritten by these scans.
+
+Desktop saves changed JSON through durable staging and readback; equivalent JSON is not rewritten. File-input publishes a changed JSON for explicit sharing only after successful scan completion; selecting an identical already-saved copy does not request another export. Model inference is never started by inventory. Transcription rechecks source/audio state before delivery. Synthetic verification is recorded in CURRENT_STATUS; real iPhone/iCloud and representative performance acceptance remain pending.
+
 ## 3. Audio-source JSON schema, version 1
 
 Core fields, origin values, fingerprint structure and optional recovery reason below were approved incrementally by the user. Technical validation details and lifecycle recommendations in subsequent sections are the implementation proposal, not evidence of implemented behavior.

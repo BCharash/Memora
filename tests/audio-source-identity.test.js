@@ -1,6 +1,6 @@
 import { AUDIO_SOURCE_LIMITS as limits, parseAudioSourceManifest as parse, validateAudioSourceManifest as validate,
     serializeAudioSourceManifest as serialize, createAudioSourceManifest as create, resolveAudioSourceId as resolveSource,
-    planRecordingIdentity as plan } from '../js/audioSourceIdentity.js';
+    planRecordingIdentity as plan, planAudioSourceAvailability } from '../js/audioSourceIdentity.js';
 import { readEmbeddedRecordingIdentity } from '../js/recordingIdentity.js';
 import * as f from './recording-identity-fixtures.js';
 const SOURCE = '15d91f9a-735e-4d73-a6b6-427140869795', SOURCE2 = '9599e552-b194-4511-8865-b37a07413a38';
@@ -260,6 +260,21 @@ await test('Actual malformed provenance cannot masquerade as recoverable identit
     const damagedIdentity = await readEmbeddedRecordingIdentity(f.mp4([f.imuseBox(f.encode('{'))]));
     const recovered = checked(plan(input({ embedded: damagedIdentity, choice: 'assign-new', assignedRecordingId: f.OTHER })), 'ready');
     assert(recovered.candidate.recordings[0].identityRecovery.reason === 'invalid-embedded-metadata', 'Identity JSON recovery blocked');
+});
+
+await test('Inventory availability retains identities and extensions, distinguishes missing from partial access, and is idempotent',async()=>{
+ const original={schemaVersion:1,audioSourceId:SOURCE,extensions:{keep:true},recordings:[entry({extensions:{note:'keep'}}),entry({audioRelativePath:'nested/other.wav',recordingId:SOURCE2})]};
+ const complete=planAudioSourceAvailability(original,{complete:true});
+ equal(complete.manifest.recordings[0].sourceAvailability.status,'missing');equal(complete.manifest.recordings[1].sourceAvailability.status,'unverified');equal(complete.manifest.recordings[0].recordingId,f.ID);equal(complete.manifest.extensions,{keep:true});equal(complete.manifest.recordings[0].extensions,{note:'keep'});
+ const partial=planAudioSourceAvailability(complete.manifest,{});equal(partial.manifest.recordings[0].sourceAvailability.status,'unverified');
+ const observed=planAudioSourceAvailability(partial.manifest,{observedPaths:['memo.wav'],verifiedPaths:['memo.wav']});equal(observed.manifest.recordings[0].sourceAvailability.status,'available');
+ equal(planAudioSourceAvailability(observed.manifest,{observedPaths:['memo.wav'],verifiedPaths:['memo.wav']}).manifest,observed.manifest);
+ equal(original.recordings[0].sourceAvailability,undefined);
+});
+await test('Availability validates status and retains unresolved observed recordings',async()=>{
+ const original={schemaVersion:1,audioSourceId:SOURCE,recordings:[entry()]};
+ equal(planAudioSourceAvailability(original,{observedPaths:['memo.wav']}).manifest.recordings[0].sourceAvailability.status,'unresolved');
+ equal(validate({...original,recordings:[entry({sourceAvailability:{status:'invented'}})]}).status,'invalid');
 });
 
 document.body.dataset.testStatus = failures.length ? 'failed' : 'passed';

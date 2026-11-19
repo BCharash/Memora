@@ -1,6 +1,6 @@
 // Checkpoint 2B: isolated source identity I/O. No production UI/inference imports.
 import { AUDIO_SOURCE_LIMITS, parseAudioSourceManifest, serializeAudioSourceManifest,
-    createAudioSourceManifest, resolveAudioSourceId, planRecordingIdentity } from './audioSourceIdentity.js';
+    createAudioSourceManifest, resolveAudioSourceId, planRecordingIdentity, planAudioSourceAvailability } from './audioSourceIdentity.js';
 import { readEmbeddedRecordingIdentity } from './recordingIdentity.js';
 import { fingerprintAudio, checkAudioSourceAbort } from './audioFingerprint.js';
 import { createAudioSourceRecoveryStore, matchAudioSourceRecovery } from './audioSourceRecovery.js';
@@ -123,7 +123,8 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     } else if (action!==null) return {status:'blocked',code:'inapplicable-action'};
     if (association.audioSourceId) manifest={...manifest,audioSourceId:association.audioSourceId};
     // A pending list must be resumed explicitly before new assignments are made.
-    if (recovery && recovery.state!=='verified' && action===null) return {status:'decision-required',code:'pending-source-list',canResume:true};
+    const suppliedRecovery=valid && recovery && serialize(diskManifest)===serialize(parseAudioSourceManifest(recovery.manifestText).manifest);
+    if (recovery && recovery.state!=='verified' && action===null && !suppliedRecovery) return {status:'decision-required',code:'pending-source-list',canResume:true};
     const key=manifest.audioSourceId.toLowerCase();
     // Query by source ID too: do not overwrite an unassociated same-ID recovery.
     const stored=await recoveryStore.get(key).catch(error=>{ recoveryError=error; return null; });
@@ -165,6 +166,9 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         await recoveryStore.put(pendingRecord,revision); revision=pendingRecord.revision;
         pendingRecord=null;
     }
+    // A supplied valid list is already a saved copy. Export it again only when
+    // its contents change; restored/pending copies still need explicit sharing.
+    const suppliedSavedText=source.kind==='file-input' && valid && serialize(diskManifest)===serialize(manifest) ? serialize(diskManifest) : null;
     const session={
         sourceId:manifest.audioSourceId, discovery, recoveryError,
         needsInitialSave:action!==null || diskManifest?.audioSourceId!==manifest.audioSourceId,
@@ -182,6 +186,12 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes);
             recoveryExtras={pendingTranscriptArchive:decoder.decode(bytes)};
             await saveRecovery(source.kind==='directory'?'verified':'export-pending',serialize(staged||current));
+        }),
+        reconcileAvailability:options=>exclusive(async()=> {
+            checkAudioSourceAbort(signal);
+            const result=planAudioSourceAvailability(staged||current,options);
+            staged=result.manifest;
+            return result.counts;
         }),
         stageRecording: options=>exclusive(async()=> {
             checkAudioSourceAbort(signal);
@@ -226,10 +236,13 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 result=planRecordingIdentity({...args,assignedRecordingId:assignments.get(assignmentKey)});
             }
             snapshots.set(audioRelativePath,{file,fingerprint,embedded,token});
-            if (result.status==='ready') { staged=result.candidate; unresolved.delete(audioRelativePath); }
+            if (result.status==='ready') { staged=result.candidate;
+                const entry=staged.recordings.find(item=>item.audioRelativePath===audioRelativePath);
+                if(entry.sourceAvailability)entry.sourceAvailability.status='available';
+                unresolved.delete(audioRelativePath); }
             return {...result,file,fingerprint,embedded};
         }),
-        persist: ()=>exclusive(()=>locked(key,async()=> {
+        persist: ({onCommit}={})=>exclusive(()=>locked(key,async()=> {
             checkAudioSourceAbort(signal);
             if (unresolved.size) throw fail('unresolved-recording','Review or skip the unresolved recording before saving this list.');
             const text=serialize(staged||current), bytes=encoder.encode(text);
@@ -242,6 +255,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             checkAudioSourceAbort(signal);
             if (source.kind==='file-input') {
                 current=staged||current; staged=null;
+                if(text===suppliedSavedText)return {status:'unchanged',sourceVerified:false,transcriptDeliveryAllowed:true};
                 return {status:'export-pending',sourceVerified:false,transcriptDeliveryAllowed:true,
                     file:new File([bytes],AUDIO_SOURCE_FILENAME,{type:'application/json'}),
                     guidance:'Save memora-audio-source.json in the audio folder so Memora can reuse its Recording IDs.'};
@@ -250,6 +264,13 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             await revalidateAudio();
             checkAudioSourceAbort(signal);
             if (!sameBytes(await currentSource(),baseline)) throw fail('source-changed','This recording list changed before saving. Reload it; the pending list remains available.');
+            const parsedDisk=parse(baseline);
+            if(parsedDisk.status==='valid' && serialize(parsedDisk.manifest)===text){
+                current=staged||current;staged=null;
+                await saveRecovery('verified',text);
+                return {status:'unchanged',sourceVerified:true,transcriptDeliveryAllowed:true};
+            }
+            onCommit?.();
             try { await writeAudioSourceFile(source,bytes); writtenBytes=bytes; }
             catch (error) {
                 // Creating a new handle can leave an empty file even when the

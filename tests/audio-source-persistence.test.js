@@ -97,7 +97,7 @@ await test('Write and close failure retain pending IDs and abort without publish
 await test('Final recovery failure after verified source write retries without rotating identity',async()=>{
  const {session,state,store}=await make();const ready=await stage(session);store.failOnPut(2);await rejects(()=>session.persist(),'QuotaExceededError');
  eq(parseAudioSourceManifest(textOf(state)).manifest.recordings[0].recordingId,ready.recordingId);
- eq((await session.persist()).status,'verified');eq(parseAudioSourceManifest(textOf(state)).manifest.recordings[0].recordingId,ready.recordingId);
+ eq((await session.persist()).status,'unchanged');eq(parseAudioSourceManifest(textOf(state)).manifest.recordings[0].recordingId,ready.recordingId);
 });
 await test('Corrupt readback never reports verified persistence',async()=>{
  const {session,state,store}=await make();await stage(session);state.corruptRead=true;await rejects(()=>session.persist(),'readback-failed');eq([...store.records.values()][0].state,'pending');
@@ -155,6 +155,15 @@ await test('Cancelled file sharing retains pending JSON and IDs for the next use
   if(share)Object.defineProperty(navigator,'share',share);else delete navigator.share;
   if(canShare)Object.defineProperty(navigator,'canShare',canShare);else delete navigator.canShare;
  }
+});
+await test('Rereading a saved iPhone inventory reuses IDs without asking to export unchanged JSON',async()=>{
+ const {session,source,store}=await make({input:true});const first=await stage(session);
+ await session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:false});
+ const exported=await session.persist();eq(exported.status,'export-pending');
+ const selected={...source,files:[...source.files,exported.file]};const reopened=await openAudioSourceSession({source:selected,recoveryStore:store});eq(reopened.status,'ready');
+ const checked=await stage(reopened.session);eq(checked.recordingId,first.recordingId);
+ await reopened.session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:false});
+ const unchanged=await reopened.session.persist();eq(unchanged.status,'unchanged');assert(!unchanged.file,'Unchanged list requested another export');
 });
 await test('Recovery matches browser-confirmed directory or established ID, never folder name',async()=>{
  const {session,source,store}=await make();await stage(session);await session.persist();const records=await store.list();

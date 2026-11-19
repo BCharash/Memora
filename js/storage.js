@@ -169,7 +169,8 @@ export async function listAudioFiles(directoryHandle) {
 
     if (directoryHandle?.kind === "file-input") {
         return directoryHandle.files.filter(
-            file => audioExtensions.test(file.name)
+            file => audioExtensions.test(file.name) &&
+                (!file.webkitRelativePath || file.webkitRelativePath === `${directoryHandle.name}/${file.name}`)
         );
     }
 

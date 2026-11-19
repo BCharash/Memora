@@ -2,6 +2,7 @@ import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordin
 import {openTranscriptArchive} from './transcriptArchive.js';
 import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
 import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
+import {checkAudioSourceAbort} from './audioFingerprint.js';
 import {listTextFiles,shareFile} from './storage.js';
 // Inspect only the explicitly selected transcript destination. Embedded IDs
 // corroborate associations; folder names and filenames cannot establish identity.
@@ -29,14 +30,34 @@ export async function associatedSourceEvidence(destination,files){
 }
 export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPendingArchive,onStatus}={}){
     const ui=createRecordingIdentityUI({ask,onPendingList,onStatus,shareFile});
-    let archive=null,destination=null,source=null,preparedSource=null;
+    let archive=null,destination=null,source=null,preparedSource=null,pendingInventoryList=null,inventorySummary=null;
     return {
         reset(){ui.reset();archive=null;destination=null;source=null;preparedSource=null;onPendingArchive?.(null);},
         getSession:()=>ui.getSession(),
-        async prepareSource(selectedSource,files){
+        getInventorySummary:()=>inventorySummary,
+        async activateSource(){if(pendingInventoryList)await ui.publishPendingList(pendingInventoryList);},
+        async prepareSource(selectedSource,files,{signal,onProgress=()=>{}}={}){
+            checkAudioSourceAbort(signal);
             const evidence=await associatedSourceEvidence(selectedSource,files);
-            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels);
-            if(selectedSource.kind==='directory' && session.needsInitialSave)await ui.persist();
+            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels,{signal});
+            const observedPaths=[],verifiedPaths=[];let skipped=0;
+            for(let index=0;index<files.length;index++){
+                checkAudioSourceAbort(signal);
+                const file=files[index];
+                const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
+                observedPaths.push(path);
+                const message=`Checking audio recording list: ${index+1} of ${files.length} — ${file.name}`;
+                onProgress(message);
+                const identity=await ui.prepareRecording(file,{onProgress:progress=>onProgress(`${message} (${Math.round(progress.bytesRead/Math.max(1,progress.byteLength)*100)}%)`)});
+                if(identity)verifiedPaths.push(path);else skipped++;
+            }
+            checkAudioSourceAbort(signal);
+            const counts=await session.reconcileAvailability({observedPaths,verifiedPaths,complete:selectedSource.kind==='directory'&&skipped===0});
+            onProgress('Saving audio recording list…');
+            const result=await ui.persist({notify:false,onCommit:()=>onProgress('Writing audio recording list…')});
+            pendingInventoryList=result.status==='export-pending'?result.file:null;
+            for(const path of verifiedPaths)session.releaseRecordingSnapshot(path);
+            inventorySummary={...counts,checked:verifiedPaths.length,skipped,coverage:selectedSource.kind==='directory'&&skipped===0?'folder':'selection',pendingSave:!!pendingInventoryList};
             preparedSource=selectedSource;
             return session;
         },

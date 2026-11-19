@@ -128,6 +128,10 @@ function checkManifest(value) {
         requireValue(!ids.has(id), 'duplicate-recording-id', 'Multiple audio paths have the same Recording ID; explicit review is required.', 'conflicting'); ids.add(id);
         requireValue(ORIGINS.includes(entry.identityOrigin), 'identity-origin', 'A recording entry has an unknown identity origin.');
         checkFingerprint(entry.audioFingerprint);
+        if (has(entry, 'sourceAvailability')) {
+            requireValue(object(entry.sourceAvailability) && ['available','missing','unverified','unresolved'].includes(entry.sourceAvailability.status),
+                'source-availability', 'A recording has an invalid source availability status.');
+        }
         if (has(entry, 'identityRecovery')) {
             requireValue(object(entry.identityRecovery), 'identity-recovery', 'Identity recovery must be an object.');
             // Extension-only objects can remain after clearing an active reason;
@@ -276,4 +280,22 @@ export function planRecordingIdentity({ manifest, audioRelativePath, fingerprint
         return outcome('ready', code, { recordingId: id, candidate: final.manifest,
             requiresPersistence: JSON.stringify(final.manifest) !== originalText });
     } catch (error) { return outcome('blocked', error instanceof SourceError ? error.code : 'invalid-input', { validation: errorResult(error) }); }
+}
+
+// Availability never removes an identity. Complete coverage applies only to
+// eligible immediate files; nested and partially supplied files stay unverified.
+export function planAudioSourceAvailability(manifest,{observedPaths=[],verifiedPaths=[],complete=false}={}) {
+    const checked=validateAudioSourceManifest(manifest);
+    if(checked.status!=='valid')throw Error(checked.issues[0].message);
+    const observed=new Set(observedPaths),verified=new Set(verifiedPaths);
+    for(const path of [...observed,...verified])pathKey(path);
+    const candidate=checked.manifest,counts={available:0,missing:0,unverified:0,unresolved:0};
+    for(const entry of candidate.recordings){
+        const path=entry.audioRelativePath;
+        const status=verified.has(path)?'available':observed.has(path)?'unresolved':complete&&!path.includes('/')?'missing':'unverified';
+        entry.sourceAvailability={...(entry.sourceAvailability||{}),status};counts[status]++;
+    }
+    const result=validateAudioSourceManifest(candidate);
+    if(result.status!=='valid')throw Error(result.issues[0].message);
+    return {manifest:result.manifest,counts};
 }
