@@ -227,7 +227,11 @@ function modelNameFromUrl(url) {
         return known;
     }
 
-    return "Other cached model files";
+    try {
+        const parsed=new URL(value);
+        const match=parsed.pathname.match(/\/([^/]+\/[^/]+)\/resolve\//i);
+        return match ? decodeURIComponent(match[1]) : parsed.origin+decodeURIComponent(parsed.pathname.substring(0,parsed.pathname.lastIndexOf('/')));
+    } catch { return value; }
 }
 
 
@@ -300,9 +304,11 @@ async function readModelCacheReport() {
                     name,
                     detail: "Cached model files · size not fully exposed by the browser",
                     bytes: 0,
-                    count: 0
+                    count: 0,
+                    files: []
                 };
 
+            group.files.push(request.url);
             group.count++;
             group.bytes += bytes;
 

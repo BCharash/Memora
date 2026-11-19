@@ -144,7 +144,7 @@ try {
         const container = document.createElement("div"); fixture.append(container);
         await renderWhisperExecutionHistory(container, { journal, beforeClear: async () => {} });
         const all = container.querySelector("[data-history-check-all]"), boxes = [...container.querySelectorAll("[data-history-record-id]")];
-        const clear = [...container.querySelectorAll("button")].find(button => button.textContent === "Clear selected transcription history");
+        const clear = [...container.querySelectorAll("button")].find(button => button.textContent === "Delete Selected");
         assert(!all.checked && boxes.every(box => !box.checked) && clear.disabled, "unchecked by default");
         assert(!container.querySelector("summary")?.textContent.includes("Technical"), "no redundant technical disclosure");
         const row = container.querySelector("article"), stability = row.querySelector("details"), title = row.querySelector(".whisper-report-title");
@@ -204,3 +204,5 @@ try {
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }
 finally { document.getElementById("results").textContent = lines.join("\n"); }
+
+if(location.search.includes("report=1"))await fetch("/_identity-test-result",{method:"POST",body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result==="passed"?[]:["suite failed"],output:document.getElementById("results").textContent})});

@@ -6,13 +6,13 @@ import { isIOS, runtimeIdentity } from "./runtime.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 
 // Shared selection controls for the two clearable histories. Selection starts
-// empty on every render; protected records cannot be selected by Check all.
+// empty on every render; protected records cannot be selected by Select All.
 export function createWhisperHistorySelection(container, { label, onClear }) {
     const controls = document.createElement("div"); controls.className = "whisper-report-actions";
-    const allLabel = document.createElement("label"), all = document.createElement("input");
-    all.type = "checkbox"; all.dataset.historyCheckAll = "";
-    allLabel.append(all, " Check all");
-    const clear = document.createElement("button"); clear.type = "button"; clear.textContent = label; clear.disabled = true;
+    const all = document.createElement("button");
+    all.type = "button"; all.dataset.historyCheckAll = "";
+    all.textContent = "Select All";
+    const clear = document.createElement("button"); clear.type = "button"; clear.textContent = "Delete Selected"; clear.setAttribute("aria-label",label); clear.disabled = true;
     const feedback = document.createElement("span"); feedback.setAttribute("role", "status");
     const boxes = [];
     let busy = false;
@@ -22,10 +22,11 @@ export function createWhisperHistorySelection(container, { label, onClear }) {
         all.disabled = busy || !selectable.length;
         all.checked = !!selectable.length && checked === selectable.length;
         all.indeterminate = checked > 0 && checked < selectable.length;
+        all.textContent = all.checked ? "Deselect All" : "Select All";
         clear.disabled = busy || !checked;
         for (const box of boxes) box.disabled = busy || box.dataset.selectable !== "true";
     };
-    all.onchange = () => { for (const box of boxes) if (box.dataset.selectable === "true") box.checked = all.checked; sync(); };
+    all.onclick = () => { if (busy) return; const checked=!all.checked; for (const box of boxes) if (box.dataset.selectable === "true") box.checked = checked; sync(); };
     clear.onclick = async () => {
         const ids = boxes.filter(box => box.checked && box.dataset.selectable === "true").map(box => box.dataset.historyRecordId);
         if (busy || !ids.length) return;
@@ -34,7 +35,7 @@ export function createWhisperHistorySelection(container, { label, onClear }) {
         catch (error) { feedback.textContent = `Could not clear history: ${error.message}`; }
         finally { busy = false; sync(); }
     };
-    controls.append(allLabel, clear, feedback); container.append(controls);
+    controls.append(all, clear, feedback); container.append(controls);
     return { clear, add(record, title, selectable = true) {
         const box = document.createElement("input"); box.type = "checkbox";
         box.dataset.historyRecordId = record.id; box.dataset.selectable = String(selectable);

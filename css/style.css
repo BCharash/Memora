@@ -1704,8 +1704,6 @@ button:disabled {
 }
 
 /* Named local-storage categories stay readable on narrow Settings panels. */
-.settings-storage-category { flex-wrap: wrap; }
-.settings-storage-category .settings-disclosure-title { flex: 1 1 180px; }
 :is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1717,4 +1715,20 @@ button:disabled {
 :is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item > button {
     max-width: 124px;
     white-space: normal;
+}
+
+/* Storage headers share a stable summary column regardless of title length. */
+.settings-disclosure.settings-storage-category {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+}
+.settings-storage-category > span:nth-child(2) { text-align: center; overflow-wrap: anywhere; }
+.settings-storage-category > button { width: 64px; justify-self: end; }
+.settings-selection-actions { margin: 10px 0; flex-wrap: wrap; }
+.settings-detail .settings-item-info { min-width: 0; overflow-wrap: anywhere; }
+.settings-cache-path { font-size: .8em; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+    .settings-disclosure.settings-storage-category { grid-template-columns: minmax(0, 1fr) 64px; }
+    .settings-storage-category > .settings-disclosure-title { grid-column: 1 / -1; }
 }

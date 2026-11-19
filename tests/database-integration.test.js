@@ -98,6 +98,34 @@ try {
         await manager.clearSemanticRepresentation({ modelId: "minilm", representationType: "chunk", chunkSize: 3, chunkOverlap: 1 });
         assert((await semantic.getSemanticStoreStats()).entryCount === 0, "representation clearing");
     });
+    await test("Storage order, specific cache paths and selection deletion preserve unselected data",async()=>{
+        const cacheName='memora-settings-selection-test',cache=await caches.open(cacheName);
+        const urls=['https://huggingface.co/example/model-one/resolve/main/onnx/model.onnx','https://huggingface.co/example/model-two/resolve/main/tokenizer.json','https://huggingface.co/example/whisper-small/resolve/main/onnx/model.onnx'];
+        for(const url of urls)await cache.put(url,new Response('fixture',{headers:{'content-length':'7'}}));
+        const originalFetch=window.fetch,originalConfirm=window.confirm;window.fetch=async()=>({ok:false,status:503});window.confirm=()=>true;
+        try{
+            document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
+            const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();
+            const names=[...document.querySelectorAll('.settings-storage-category .settings-disclosure-title')].map(node=>node.textContent);
+            assert(JSON.stringify(names)===JSON.stringify(['Semantic Index','Other Cached Models','DOM Diagnostics','Cached Transcripts','Audio Recording List — Saved Local Copies','Model Registry Cache','Whisper Models']),'storage section order');
+            assert(!document.querySelector('[data-settings-action^="clear-all-"]'),'old bulk deletion remains');
+            const open=action=>document.querySelector(`[data-settings-action="${action}"]`).click();
+            const button=(detail,label)=>[...detail.querySelectorAll('button')].find(node=>node.textContent===label);
+            open('toggle-other-models');let detail=document.getElementById('settingsOtherModelsDetail');
+            assert(detail.textContent.includes('example/model-one')&&detail.textContent.includes(urls[0]),'specific model identity and filename');
+            assert(button(detail,'Delete Selected').disabled,'empty selection enabled');button(detail,'Select All').click();assert(button(detail,'Deselect All'),'selection toggle');button(detail,'Deselect All').click();
+            detail.querySelector('input').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsOtherModelsDetail').querySelectorAll('.settings-item').length===1);
+            assert(!(await cache.match(urls[0]))&&await cache.match(urls[1]),'unselected model preserved');
+            open('toggle-whisper-models');await waitFor(()=>document.querySelector('[data-settings-action="clear-whisper-model"]'));
+            detail=document.getElementById('settingsWhisperModelsDetail');assert(detail.querySelector('[data-settings-action="clear-whisper-model"]').dataset.cacheName==='whisper-small','cached action shifted onto unavailable tiny');
+            button(detail,'Select All').click();button(detail,'Delete Selected').click();await waitFor(()=>!document.querySelector('[data-settings-action="clear-whisper-model"]'));assert(!await cache.match(urls[2]),'selected Whisper cache survived');assert(await cache.match(urls[1]),'Whisper deletion removed other model');
+            await storage.saveTranscriptRecord('selected.txt','body',{},'tiny','transcribe');await storage.saveTranscriptRecord('keep-selected.txt','keep',{},'tiny','transcribe');await ui.refresh();open('toggle-transcripts');await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('input').length===2);
+            detail=document.getElementById('settingsTranscriptsDetail');[...detail.querySelectorAll('.settings-item')].find(row=>row.querySelector('.settings-item-name').textContent==='selected.txt').querySelector('input').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('.settings-item').length===1);assert(await storage.transcriptExists('keep-selected.txt')&&!await storage.transcriptExists('selected.txt'),'transcript selection');
+            await manager.clearAllCachedTranscripts();
+            const db=await openMemoraDatabase();await new Promise((resolve,reject)=>{const tx=db.transaction('semanticEntries','readwrite');tx.objectStore('semanticEntries').put({id:'selection-fixture',modelId:'fixture',representationType:'document',embedding:[1]});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+            await ui.refresh();open('toggle-semantic');detail=document.getElementById('settingsSemanticDetail');button(detail,'Select All').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsSemanticDetail').textContent.includes('No semantic index entries'));assert((await semantic.getSemanticStoreStats()).entryCount===0,'semantic selection');
+        }finally{window.fetch=originalFetch;window.confirm=originalConfirm;await caches.delete(cacheName);}
+    });
     await test("Registry initialization failure leaves storage inspection and deletion accessible",async()=>{
         await storage.clearModelRegistry();document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
         const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='modelRegistry')throw new DOMException('Injected registry quota failure','QuotaExceededError');return original.apply(this,args);};
