@@ -1,46 +1,58 @@
 # Memora documentation
 
-Current implementation and acceptance boundaries: [CURRENT_STATUS](CURRENT_STATUS.md). Build **2026-11-19.23** uses **Audio Recording List** (`memora-audio-source.json`) and **Transcript File List** (`memora-transcript-archive.json`). iPhone transcript-list saves identify the archive and folder together. For the user-approved rebuild of the four old transcript JSONs, delete the old `memora-archive.json` files yourself, then open each existing transcription folder in Edit/Combine to rebuild from its TXT headers before using Transcribe again. Desktop saves the rebuilt list automatically; iPhone uses Save Transcript File List. Archive/recording UUIDs in existing headers are retained. Sections below describe earlier checkpoints where superseded by CURRENT_STATUS.
+Reviewed **19 November 2026** against application build **2026-11-19.23**, database schema **6**, source **957b493**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
 
-Library maintenance and delivery sequence: [Audio library plan](Audio_Library_Architecture_Proposal.md#ordered-implementation-and-acceptance-checkpoints). Agreed open/Refresh behavior is documented; production reconciliation, catalogue, multi-source resolution and persistent Combine remain pending.
+## What changed on 18–19 November
 
-**Architecture pause — 18 November 2026:** Complete-source indexing, nested-folder ownership and a parent audio-library catalogue are under review. Read [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) before further indexing/Search/Combine changes. The user wants all audio in the managed source inventoried independently of transcription selection; the current selected-recording enrollment is not the agreed end state. No recursive implementation or archive reorganization is authorized yet.
+- Added the compact passed-only self-test summary: Model, RTF, Load (s), latest retained pass per model family.
+- Aligned the Transcribe controls and desktop/iPhone flow; removed paragraph controls from Combine and reorganized Output controls.
+- Reworked Settings storage categories, readable cache identities, centered counts, selection-only deletion, empty-list controls and one-action model-registry refresh.
+- Reconciled Audio Recording Lists on source opening, removed full-audio hashing from production inventory, improved recovery/save state and made unchanged lists no-op saves.
+- Added shared transcript-folder reading and Edit/Combine transcript-list reconciliation, including complete iPhone folder coverage, conflict protection and explicit mobile saving.
+- Renamed the transcript JSON and added archive/year plus folder guidance to iPhone Transcribe/Edit/Combine saves.
+- Preserved valid Whisper qualification across browser-version updates while retaining actual failure/review holds; accepted historical `large` labels without rewriting them.
 
-**Historical candidate — 2026-11-18.4:** The user clarified that the wrong kind of JSON was selected; a native picker defect is unconfirmed and the earlier .2 update was not tried. Approved interface names are **Audio recording list** (`memora-audio-source.json`, in the audio folder) and **Transcript file list** (`memora-archive.json`, in the transcription folder). Wrong-kind selection now explains the correct file/folder without changing data. Pending list-save buttons reuse the existing subtle pulse, retain it after cancellation and clear it after completed sharing, respecting reduced motion. Device/visual acceptance is pending. Changes are uncommitted and undeployed by the agent.
+## File names and decisions
 
-New TXT headers now place Whisper model, operation and optional original language directly below Duration, followed by a blank line and identity/provenance. This presentation-only change applies to new outputs; existing transcripts and audio are unchanged.
+| File | Role |
+|---|---|
+| memora-audio-source.json | Audio Recording List beside source audio. |
+| memora-transcript-archive.json | Transcript File List in the transcript folder. |
+| search-embeddings.json | Separate derived Search archive. |
 
-Database schema remains **6**; existing stores/model evidence are preserved. The new candidate writes `Recording ID` and accepts legacy `Voice Memo ID`; conflicting identities block affected operations. The broader persistent Combine redesign is still pending. No actual user archive/audio/database was used in automated verification. Earlier build/status/authorization statements below are historical where superseded here.
+The user will rebuild the four old memora-archive.json lists through **Edit/Combine before Transcribe**; preserve identities from TXT headers. Desktop saves automatically; iPhone explicitly saves into the named archive's transcription folder. The rename does not require deleting audio lists or embeddings.
 
-The four archive migrations are complete according to the user, and the disposable tool is retired. iMuse UUID export is implemented/device-tested according to the user. The [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) preserve the broader approved plan; the recording identity contract governs its current Phase 3 prerequisites. See [current status](CURRENT_STATUS.md) for earlier production acceptance boundaries.
+The detailed Whisper metadata/backfill-tool proposal and extra transcription timestamp have been dropped. Keep existing model-family metadata. The agreed family-then-filename-counter priority rule is **not yet implemented**, and iPhone Files naming does not yet guarantee the desktop `-N` pattern. Audio iPhone missing-entry removal also remains a coverage parity gap: reconciliation runs, but unseen audio entries are retained on that pathway. See the exact [resume boundary](CURRENT_STATUS.md#resume-boundary--documentation-only-on-this-turn).
 
-Reviewed 13 November 2026 through candidate build **2026-11-13.10** (self-test timeline/problem reporting). The earlier 2026-11-11.4 runtime/Settings acceptance remains pending as recorded in Current status. The prior .14 checkpoint is accepted on Mac/iPhone. The latest Settings history controls and retention await device acceptance. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current test scope and ordered resource-investigation plan. Historical pending statements are not current tasks.
+Transcribe's full-folder transcript reconciliation and Search's shared scan/two-JSON saving remain future stages. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
+
+## Documentation map
 
 | Document | Role |
 |---|---|
-| [Audio library hierarchy proposal](Audio_Library_Architecture_Proposal.md) | Current architecture pause: parent/child manifests, full-source inventory, access pathways, shared playback/Search and unresolved decisions. |
-| [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) | Approved eight-phase plan and implementation/acceptance boundaries. |
-| [Combine Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | Detailed identity, selection, editing, workspace, merge and portable-format contracts. |
-| [Recording identity implementation contract](Recording_Identity_Implementation_Contract.md) | Latest approved source schema and identity decisions, explicit persistence/error flows, implementation map, acceptance tests and remaining technical checklist. |
-| [Recording identity and iMuse handoff](Recording_Identity_Handoff.md) | Completed migration checkpoint, readable universal metadata, Apple/iMuse compatibility findings and next steps. |
-| [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md) | Per-test sequence/timing snapshots, older-history reconstruction, separate problem notes and safe exports. |
-| [Current status and resume instructions](CURRENT_STATUS.md) | Current candidate, acceptance evidence, history checks and ordered future options. |
-| [Plain-language file map](../filemap.md) | Application and isolated identity JavaScript files, including 19 Whisper files, plus flows, storage and focused tests. |
-| [Runtime and database foundation](Runtime_and_Database_Status.md) | Completed ownership/repair scope and verification limits. |
-| [Whisper catalogue and selection contract](Whisper_Catalogue_Resolver_Contract.md) | Current canonical definitions/selection plus future candidate discovery and device-specific variant roadmap. |
-| [Execution-failure contract](Whisper_Execution_Failure_Contract.md) | Shared classification, saved execution history, production decisions, human reviews and separate session-stability observations. |
-| [Whisper testing and eligibility](Whisper_Configuration_and_Test_Design.md) | Current PASS/recovery/eligibility rules and deferred sequence/retry design. |
-| [Broader registry/self-test architecture](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Long-term requirements; implementation-status map at the top distinguishes completed and future work. |
-| [File workflows](File_Workflow_Inventory.md) | Overview for future full dependency audits; sharing consolidation remains deferred. |
-| [Search strategy](search%20model%20optimization.md) | Governing Search requirements and research provenance; no new Search refactor requested. |
-| [Build numbering](build-versioning.md) | Active release identification, distinct from schema/configuration versions. |
-| [Test guide](../tests/README.md) | Safe isolated browser harnesses, focused verification and real-device boundaries. |
-| [Archive](archive/README.md) | Historical checkpoints/research and deferred Vite, asset-publication, Offline Tiny and iMuse plans. |
+| [Current status and resume instructions](CURRENT_STATUS.md) | Consolidated current behavior, tests, gaps, decisions and chronological build notes. |
+| [Recording identity implementation contract](Recording_Identity_Implementation_Contract.md) | Root inventory, IDs, schemas, persistence/conflict rules and staged transcript integration. |
+| [Recording identity handoff](Recording_Identity_Handoff.md) | Operational rebuild instructions and preserved historical migration/iMuse evidence. |
+| [Audio library plan](Audio_Library_Architecture_Proposal.md) | Completed root reconciliation versus deferred parent/recursive ownership. |
+| [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) | Current selection/editing boundary and broader approved architecture. |
+| [Combine Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | Detailed future workspace/import/interchange contracts and implemented subsets. |
+| [Self-test summary, timelines and reports](Self_Test_Timelines_and_Problem_Reports.md) | Summary versus history/eligibility, timing interpretation and saved observations. |
+| [Whisper testing and eligibility](Whisper_Configuration_and_Test_Design.md) | PASS/recovery rules, browser-family continuity and retained diagnostic identity. |
+| [Execution-failure contract](Whisper_Execution_Failure_Contract.md) | Runtime incidents, durable review decisions and stability observations. |
+| [Whisper catalogue contract](Whisper_Catalogue_Resolver_Contract.md) | Canonical configuration/selection authority; registry cache is a projection. |
+| [Broader registry/self-test architecture](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Long-term requirements with current implementation status. |
+| [Runtime/database foundation](Runtime_and_Database_Status.md) | Schema ownership, capability/identity distinctions and storage management. |
+| [File workflow inventory](File_Workflow_Inventory.md) | Current save/access/reconciliation map and pending sharing integration. |
+| [Plain-language file map](../filemap.md) | Production modules, ownership, data and focused tests. |
+| [Test guide](../tests/README.md) | Current safe harnesses/counts and historical test instructions. |
+| [Search strategy](search%20model%20optimization.md) | Search requirements; shared reconciliation is a later stage. |
+| [Build numbering](build-versioning.md) | Build IDs, separate from schema/configuration versions. |
+| [Archive](archive/README.md) | Historical investigations/checkpoints and deferred release/offline designs. |
 
 ## Design journals
 
-The [main journal](design-journal.md) now has **section 60**, recording runtime/database completion, Whisper consolidation through .23, eligibility/reporting, device evidence and deferred work. Older entries are chronological history and may describe superseded behavior.
+The [main journal](design-journal.md#62-self-test-summary-settings-and-root-archive-maintenance--1819-november-2026) now includes **section 62**, consolidating the 18–19 November work and subsequent simplified-metadata/filename-priority decisions. Sections through 61 retain earlier history.
 
-The four overlapping split journals remain in place without restructuring: [1–35](01-design-journal-sections-1-35.md), [36–43](02-design-journal-sections-36-43.md), [44–48](03-design-journal-sections-44-48.md), [49 onward](04-design-journal-sections-49-51.md). The last filename understates its content; it includes sections through 59. New section 60 is in the main journal only, avoiding another duplicate update.
+The four overlapping split journals remain historical: [1–35](01-design-journal-sections-1-35.md), [36–43](02-design-journal-sections-36-43.md), [44–48](03-design-journal-sections-44-48.md), [49 onward](04-design-journal-sections-49-51.md). This update does not duplicate the new section into those files.
 
-This refresh preserves unique history in the archive rather than deleting it. No application code, build ID, database, model settings or deployment configuration changed.
+Documentation changes alone do not change the application build, schemas, models, user files or deployment.

@@ -1,12 +1,12 @@
 # Memora Design Journal
 
 **Version:** 16
-**Status:** Living document; current through section 60 (9 November 2026)
+**Status:** Living document; current through section 62 (19 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
 
 
-Latest decisions: [section 60](#60-runtime-and-whisper-consolidation-through-build-2026-11-0923). Earlier entries preserve historical behavior; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current resume boundary.
+Latest decisions: [section 62](#62-self-test-summary-settings-and-root-archive-maintenance--1819-november-2026). Earlier entries preserve historical behavior; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for the current resume boundary.
 
 ---
 
@@ -4443,3 +4443,52 @@ Twenty-one focused groups passed in Node v24.22.1 and isolated Windows Edge, inc
 17 November 2026. The user reported 21/21 manual browser passes and committed checkpoint 1, then authorized 2A only. Added isolated `audioSourceIdentity.js`: bounded schema-v1 parsing/validation/serialization, lossless unknown JSON fields, path/UUID collision reporting, source-ID association decisions, embedded-ID priority, unchanged/change-fingerprint decisions, caller-supplied fallback UUID staging and explicit unreadable-ID recovery. Active recovery reasons are cleared on later valid embedded promotion while unknown extension data is retained. Reader issues now include identity/container/provenance scope so recovery cannot bypass malformed provenance as though it were damaged identity JSON.
 
 31/31 new groups and the reader's existing 21/21 passed in Node v24.22.1 and isolated Windows Edge. The new manual page is tests/audio-source-identity.html. No application entry point imports these modules; no hashing, UUID generation, database/file writes, transcript/audio/archive edits, build change, commit or deployment. Existing production remains Apple-only/Voice Memo ID. See Recording_Identity_Implementation_Contract.md section 13 for precise APIs, limits and conservative unresolved-conflict policies. Stop for checkpoint review/commit before separately authorized 2B (actual source discovery/hashing/recovery storage/persistence), then later production integration. No migration, move/copy tracking or unrelated Search/Combine scope.
+
+
+## 62. Self-test summary, Settings and root archive maintenance — 18–19 November 2026
+
+Consolidated documentation at source **957b493**, application build **2026-11-19.23**, schema **6**. See [current handoff](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) for current behavior, checks and exact resume boundaries. This entry records the completed work and subsequent decisions without rewriting earlier checkpoints.
+
+### 62.1 Passed self-test summary and its limits
+
+18 November added the compact Model/RTF/Load (s) table, latest retained successful test per Tiny/Base/Small/Medium/Large family, grouped across variants/platforms. Detailed history retains failures and interruptions. RTF excludes model loading; unavailable measurements are explicit, not fabricated RAM estimates. A summary row is not a current loaded-model/qualification indicator. The supplied earlier Large attempt was interrupted; the later one passed. Current summary filtering excludes non-passes; the specific earlier displayed row remains unconfirmed.
+
+### 62.2 Transcribe/Combine flow and Settings
+
+Transcribe has grouped, horizontally aligned model/language/operation selectors, checked paragraphing, destination/action controls and Transcripts output. Combine's paragraph option is removed; Output groups title and desktop formats or iPhone format/save. Additional DOCX/HTML output-metadata selectors remain deferred.
+
+Settings storage categories are ordered Semantic Index, Other Cached Models, DOM Diagnostics, Cached Transcripts, Audio Recording List — Saved Local Copies, Model Registry Cache, Whisper Models. Counts center consistently. Readable model/runtime descriptions precede exact cached URLs. Descriptions precede Select All/Deselect All and Delete Selected, then checkbox rows; empty lists hide actions, individual/all-delete buttons are removed and active items remain protected. Cache View is read-only; one Refresh initializes/synchronizes canonical model definitions before counting. Empty unused semanticMetadata is hidden without dropping its store.
+
+### 62.3 Audio inventory, saves and recovery
+
+Source opening reconciles immediate audio before transcription, independently of which recordings will be transcribed. Known IDs are reused without content hashing; new files use bounded identity reads; work yields by batch and no longer serializes the full manifest per recording. Unchanged lists/availability observations do not cause JSON rewrites. Non-M4A folder-list durations use media metadata rather than whole-file Web Audio decoding.
+
+Desktop saves/verifies changed lists; iPhone explicitly shares Save Audio Recording List after reading, with pending highlighting and cancellation retention. Refresh Source and Cancel Scan were removed. Valid selected JSON overrides stale pending recovery; successful exact sharing releases only matching pending exports, preserving newer work. Restore requires the specific missing-list/association evidence. Settings shows latest proven-source copies once, with guarded deletion and safe verified-copy cleanup; pending work is retained. The user reported functional improvement and continued testing, not complete cross-device acceptance.
+
+Coverage gap found during this documentation audit: complete native scans prune absent audio, but file-input audio still retains unseen entries. The later transcript coverage fix did not change this audio caller.
+
+### 62.4 Transcript folder reconciliation
+
+Edit/Combine uses transcriptFolder.js for a single immediate inventory/read/parse and cached immutable File snapshots, reused by sorting/export/editor preparation. Writable JSON updates use an archive lock, prior-byte comparison, readback and retry. Complete successful native and explicitly marked whole-folder iPhone selections prune absent immediate transcript references; partial/error/cancelled coverage cannot prove deletion. Nested references remain out of scope. Conflicting identities/invalid data block updates while readable transcripts remain available. Body-only edits do not dirty membership JSON. Shared Transcribe-save/Search reconciliation is not yet implemented.
+
+### 62.5 Naming and destination guidance
+
+Current files: memora-audio-source.json, memora-transcript-archive.json and separate search-embeddings.json. The user plans to delete/rebuild four old memora-archive.json lists. Rebuild existing transcription folders through Edit/Combine first, preserving header Archive UUID/Recording IDs, then use those rebuilt files in Transcribe. Desktop auto-saves; iPhone explicitly saves. This is not another migration or a request to delete audio lists/embeddings.
+
+iPhone Transcribe/Edit/Combine guidance includes archive/year plus folder, such as the “transcription” folder for archive “2016”. Use meaningful validated archiveName or one consistent Original Audio Folder when rebuilding; missing/ambiguous provenance cannot establish a full Files path. The web share cannot force or verify the chosen destination.
+
+### 62.6 Large compatibility and browser continuity
+
+Historical `large` headers/filenames are accepted and kept distinct from a claimed large-v3 generation. Exact current runtime precision stays in diagnostic evidence. Recognized browser version changes alone no longer invalidate valid qualification (.22). Existing raw keys/reports remain; latest matching decisions and unresolved failures/interruptions still govern. Resolved reviews do not reactivate; other browser families or actual execution/context changes cannot borrow qualification.
+
+### 62.7 Simpler transcript metadata and agreed priority
+
+A proposal to add model repository/configuration/encoder-decoder precision/backend/provenance, plus a later transcription timestamp/backfill tool, was discussed and **dropped**. It is unnecessary for ordinary Memora selection; keep family metadata and Metadata version 1. No standalone ChatGPT metadata-tool prompt is currently required.
+
+The user instead agreed on higher family, then higher Memora filename counter for the same archive/recording/operation, retaining older edited TXT alternatives. That preference is not coded: equal ranks still take first encounter. Desktop generates -2/-3 counters, while iPhone leaves collisions to Files. Future counter implementation must explicitly handle that naming scope; Finder/Explorer creation dates are not available through the standard browser File API, and modification time is not the chosen authority.
+
+### 62.8 Evidence and next boundaries
+
+Recorded .23 core checks: 29 transcript-folder, 43 production integration and 47 persistence groups (119), plus 27 independent historical-lab fixture checks. Browser continuity .22 passed 112 groups across eligibility/reviews/selector/UI/history. Repeated checkpoint groups are not independent model validations. Tests use synthetic/disposable profiles, database and OPFS fixtures; no user archive/database modifications. Current source was committed by the user; this consolidation changes docs only, not build/model/schema or deployment.
+
+Remaining work: filename-counter preference and iPhone naming scope; audio whole-folder parity; Transcribe's shared full-folder/save reconciliation; Search's shared scan/records and independent two-JSON dirty/save state; possible same-folder batch JSON sharing after device validation; broader save-location guidance. Parent/recursive ownership, multi-source resolution, persistent Combine/imports and document-output metadata remain distinct later phases. Real iPhone/iCloud destination, final layout and large-archive timing/memory acceptance remain pending. This documentation request does not authorize those code changes.

@@ -1,5 +1,9 @@
 # Memora — Model Registry and Self-Test Architecture Overhaul
 
+## Current implementation addendum — 19 November 2026
+
+Source **2026-11-19.23**: the compact passed-only per-family summary, Settings storage/cache reorganization and browser-version-independent qualification are implemented. Summary columns are Model/RTF/Load (s); it is historical measurement, not loaded status or permission. Detailed results/failures stay in history. Registry cache and downloaded weights/eligibility are distinct, with one-action registry synchronization/counting and explicit selection-only deletion. Full browser versions remain diagnostic; preserved cross-version passes cannot bypass actual failure holds. These changes do not implement automatic retries, cooldowns or sequence-stability policy. Canonical configurations remain unchanged. The detailed transcript metadata/backfill proposal was dropped; consult [current status](CURRENT_STATUS.md) for scope and evidence.
+
 **Planning document:** 17 October 2026  
 **Purpose:** A detailed design and implementation plan to use when development resumes on the desktop.  
 **Status:** Broader design reference with partial implementation; current disposition below. **Not authorization to edit code.**

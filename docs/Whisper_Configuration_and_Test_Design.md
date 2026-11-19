@@ -1,6 +1,16 @@
 # Whisper testing and eligibility — current design
 
-Reviewed 10 November 2026 through source build **2026-11-10.14**. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
+## Browser continuity and Settings addendum — 19 November 2026
+
+Implemented in **2026-11-19.22** and retained in .23: recognized browser-family identity, not browser/engine version numbers, is used for qualification matching. Full user agents remain in report contexts and existing raw eligibility storage keys. Existing version-specific rows are read non-destructively; the latest eligibility decision wins across matching versions. Neutral outcomes cannot erase a later hold, and replaying an old pass cannot restore newer blocked/suspended evidence. Unknown agents remain exact; another browser family or changed configuration/fingerprint/worker/protocol/fixture/recipe/platform/capabilities still needs validation.
+
+Production incident/reference matching, legacy review resolutions and current review notices use the same qualification identity. A browser update cannot hide an unresolved actual failure or reactivate a resolved review. Reference recovery remains manual and qualifying; old interrupted attempts never become passes. No database reset, report rewriting or blanket promotion occurred. 112 focused synthetic browser groups passed, including the actual Large production gate across Chrome versions and later-failure rejection.
+
+The compact self-test summary shows retained successful measurements only, one latest pass per family. It is not loaded-model status or current qualification. Detailed failures remain in history. Registry cache rows are only Settings definitions projected from the canonical registry; viewing/deleting/refreshing that cache does not supply new qualification or delete model weights.
+
+Exact configuration/precision/backend evidence remains in self-test/execution reports. The later proposal to add all of those fields and a transcription timestamp to every TXT was dropped. Model-family metadata and Metadata version 1 remain the transcript contract. Source code and runtime model settings are unchanged by this documentation update.
+
+Reviewed **19 November 2026** through source build **2026-11-19.23**; the earlier functional baseline was 10 November build 2026-11-10.14. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
 
 ## Current execution and PASS gate
 

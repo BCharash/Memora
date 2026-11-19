@@ -1,14 +1,12 @@
 # Memora file map
 
-Updated 18 November 2026. Checkpoint 3 is committed as `4c8e5f7`; interface/header candidate **2026-11-18.4** distinguishes audio/transcript file lists, validates picker kind, pulses pending save buttons and groups readable TXT metadata, with shared database schema 6 and desktop/iPhone acceptance pending; the completed disposable migration utility has been removed. Earlier self-test/runtime acceptance remains pending.
-
-This guide explains which file to open and why it exists. Start with [current project status](docs/CURRENT_STATUS.md) and [the paused library architecture review](docs/Audio_Library_Architecture_Proposal.md) for what we are doing next. This inventory makes no code changes.
+Updated **19 November 2026** against build **2026-11-19.23**, schema **6**, source **957b493**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Shared Transcribe/Search full reconciliation, iPhone audio removal parity and filename-counter priority are not all complete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
 
 ## The short answer about the number of files
 
-There are **53 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are another **31 JavaScript files under `tests/`**. Test files are separate from the normal application.
+There are **54 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **32 top-level test/fixture JavaScript files under `tests/`** and **5 more in its isolated lab subtree** (37 total). Test files are separate from the normal application.
 
-**All 53 application files have a dependency path from the main page.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+**All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
 The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
 
@@ -38,7 +36,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 - **Transcribe:** `index.html` → `app.js` → source identity/persistence and transcript archive coordination → `transcription.js` → `whisper.js` → the iOS or desktop worker. Production transcriptions reuse the loaded model while the configuration stays the same.
 - **Self-test:** `settings.js` → `whisperSelfTest.js` → `whisperTestLifecycle.js` → the same platform worker. Each standalone test creates a fresh worker and ends it after the test. This repeated-load behavior is under investigation on iPhone.
 - **Permission to transcribe:** canonical configurations + saved eligibility → `whisperProductionEligibility.js` → the selector and the loader. File availability/cache presence alone does not grant eligibility.
-- **Combine:** `app.js` + `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls.
+- **Combine:** `app.js` → `transcriptFolder.js`/`transcriptArchive.js` for root read/reconciliation, then `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls.
 - **Search:** `searchUI.js` + `search.js` → `semantic.js` → `semantic-worker.js` for meaning-based search. Keyword search is also implemented in `search.js`.
 - **Paragraphs:** `paragraphing.js` → `paragraphing-worker.js`. This is a separate feature from speech recognition.
 
@@ -154,7 +152,7 @@ Standalone exported HTML needs its own embedded behavior; it is not simply anoth
 
 Search and paragraphing both can use MiniLM, but perform different jobs and own separate workers. This is a potential shared-service/resource-lifecycle design opportunity, not proof either file is disposable or the cause of the iPhone restarts.
 
-## Recording and transcript identity — 9 files
+## Recording and transcript identity — 10 files
 
 These modules are now connected to normal transcription. Standalone harnesses keep automated tests separate from user data.
 
@@ -162,12 +160,13 @@ These modules are now connected to normal transcription. Standalone harnesses ke
 |---|---|---|
 | [recordingIdentity.js](js/recordingIdentity.js) | Bounded read-only Apple/iMuse embedded ID and provenance inspection. | Isolated tests and source persistence API |
 | [audioSourceIdentity.js](js/audioSourceIdentity.js) | Pure recording-list validation, serialization and identity decisions. | Isolated tests and source persistence/recovery APIs |
-| [audioFingerprint.js](js/audioFingerprint.js) | Incremental raw-byte SHA-256 with bounded chunks and cancellation. | Transcription identity workflow, source persistence API and tests |
+| [audioFingerprint.js](js/audioFingerprint.js) | Incremental SHA-256 helpers for isolated APIs/tests plus abort checks; production source membership does not hash full audio. | Source APIs/tests; production identity uses its abort helper |
 | [audioSourceRecovery.js](js/audioSourceRecovery.js) | Revision-checked schema-6 recovery persistence and evidence-based source matching. | Transcription identity workflow, source persistence API and tests |
 | [audioSourcePersistence.js](js/audioSourcePersistence.js) | Source discovery, staged identities, safe writes and pending file-input JSON exports. | Transcription workflow and tests |
 | [recordingIdentityUI.js](js/recordingIdentityUI.js) | Text-only source/recording prompts and explicit picker/share actions. | Transcription identity workflow |
 | [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
-| [transcriptArchive.js](js/transcriptArchive.js) | Bounded transcript-archive validation, additive references and verified/concurrency-checked manifest writes. | Transcription identity workflow |
+| [transcriptArchive.js](js/transcriptArchive.js) | Canonical memora-transcript-archive.json name, bounded validation, archive/folder labels, reference appends and locked/verified writes. | App, transcription identity, shared transcript reader |
+| [transcriptFolder.js](js/transcriptFolder.js) | One root inventory/read; safe reconciliation; complete-folder coverage; independent pending/native JSON session and rebuild identity. | Edit/Combine through app.js; shared Transcribe/Search integration is pending |
 | [transcriptionIdentity.js](js/transcriptionIdentity.js) | Coordinates source evidence, identity, archive selection, persistence gates and snapshot release. | App |
 
 
@@ -196,10 +195,11 @@ These modules are now connected to normal transcription. Standalone harnesses ke
 
 ## Developer tests — separate from the application
 
-There are **19 HTML test runners**. Each imports its matching `.test.js` file. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
+There are **26 top-level HTML developer test pages**. Most import a matching `.test.js`; the isolated reconciliation lab has its own page module. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
 
 | Test page | What it checks |
 |---|---|
+| [transcript-folder.html](tests/transcript-folder.html) | Complete/partial coverage, manifest reconciliation, identity preservation, year-specific rebuild guidance, retries/concurrency and isolated OPFS saves. |
 | [whisper-executions.html](tests/whisper-executions.html) | Production history ownership, retention, privacy, real navigation recovery and linked report controls. |
 | [whisper-production-reviews.html](tests/whisper-production-reviews.html) | Durable policy/user reviews, reference recovery, ordering, stability and persistence safety in isolated fixtures. |
 | [whisper-worker-failures.html](tests/whisper-worker-failures.html) | Typed actual-worker fault evidence, legacy/mismatched envelopes and self-test verdict preservation. |
@@ -247,6 +247,10 @@ Checked the initial 41 `js/` filenames (40 remained after obsolete-worker remova
 This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. Subsequent authorized cleanups removed the obsolete worker/test case and unused page-side loader/fallback branches. Build .20 identifies the latter change. Active worker files, HTML, CSS, databases, model options and configuration fingerprints are unchanged.
 
 ## Current next checkpoint and future selection
+
+As of 19 November build .23, family-then-filename-counter priority is agreed but not implemented. Equal-family records still keep first encounter. Desktop names increment -2/-3; file-input/iPhone leaves collision naming to Files. No detailed Whisper TXT metadata/backfill tool or added timestamp is planned. Audio iPhone missing-entry removal, Transcribe destination/full-save reconciliation and Search shared records/independent two-JSON saves are next implementation gaps. Parent/recursive catalogue, shared multi-source resolution and persistent multi-archive Combine/imports remain separate. Follow [CURRENT_STATUS](docs/CURRENT_STATUS.md) rather than the older pause below.
+
+### Earlier checkpoint note
 
 Current source uses fixed qualified family defaults, not automatic competition among passing variants. Worker failure provenance is implemented in .7 in the existing workers/classifier, with no eligibility changes; normal Mac/iPhone acceptance is next. Production-evidence ingestion/reviews are implemented in .8 through the existing bridge on failure/startup recovery; normal-use acceptance is next. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.
 

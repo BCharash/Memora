@@ -1,8 +1,16 @@
 # Audio library hierarchy — agreed behavior and delivery plan
 
-**19 November 2026 implementation update:** Candidate `2026-11-19.14` maintains immediate audio membership on source selection. A valid selected list is authoritative over stale local pending audio data; pending transcript exports remain separate. Known IDs are reused through indexed lookups without audio hashes or per-file whole-manifest copies. New identities use bounded metadata reads and compact planning with global duplicate checks. Complete writable-root scans remove absent entries; partial selections retain them. Availability is reported in the current session instead of modifying portable JSON for device/coverage differences; historical availability fields are preserved. Unchanged JSON and identical recovery records are not rewritten. Large-inventory work yields by batch and reports the detail-reading phase. Source reselection replaces the former Refresh control; file-input saves retain the explicit Save Audio Recording List action. Synthetic regressions cover stale-pending recovery, no-op saves and scale, while actual iPhone/iCloud acceptance remains pending.
+## Implemented roots and remaining hierarchy work — 19 November 2026
 
-The parent catalogue, recursive source discovery/ownership, transcript-destination reconciliation, shared multi-source audio resolver and persistent multi-archive Combine workspace remain pending. The ordered plan below remains applicable to those broader changes. See [production inventory contract](Recording_Identity_Implementation_Contract.md#production-source-inventory--19-november-2026) and [current status](CURRENT_STATUS.md). Earlier 18 November authorization statements refer to that documentation-only task; the new audio-source implementation was explicitly authorized afterward.
+Current build **2026-11-19.23**. Audio source opening inventories immediate audio independently of transcription selection and reconciles the Audio Recording List before transcription on desktop and iPhone. Native successful complete scans remove absent immediate audio; file-input audio currently retains unseen entries. Valid selected JSON takes precedence over stale pending recovery; unchanged lists are not re-saved. Existing audio IDs are reused without content hashing; new files use bounded embedded metadata inspection. Source reselection replaces Refresh Source; explicit iPhone saving remains.
+
+Edit/Combine now uses shared root transcript reading/reconciliation. Whole-folder iPhone input is complete transcript coverage, while explicit partial input/read errors cannot prove deletion. Canonical transcript list is memora-transcript-archive.json; archive/year plus folder guidance reduces ambiguity between yearly archives. The user's four old-name lists are to be rebuilt from existing headers before Transcribe use.
+
+These root implementations do **not** establish the proposed parent library catalogue, recursive child ownership, multi-source resolution, persistent multi-archive Combine or document import. Shared reconciliation in Transcribe saves/Search and iPhone audio removal parity remain subsequent work. The detailed Whisper metadata/backfill plan was dropped; family-then-filename-counter priority is agreed but not coded. Read [current status](CURRENT_STATUS.md) before applying the earlier ordered checkpoints.
+
+**Earlier 19 November implementation checkpoint:** Candidate `2026-11-19.14` maintains immediate audio membership on source selection. A valid selected list is authoritative over stale local pending audio data; pending transcript exports remain separate. Known IDs are reused through indexed lookups without audio hashes or per-file whole-manifest copies. New identities use bounded metadata reads and compact planning with global duplicate checks. Complete writable-root scans remove absent entries; partial selections retain them. Availability is reported in the current session instead of modifying portable JSON for device/coverage differences; historical availability fields are preserved. Unchanged JSON and identical recovery records are not rewritten. Large-inventory work yields by batch and reports the detail-reading phase. Source reselection replaces the former Refresh control; file-input saves retain the explicit Save Audio Recording List action. Synthetic regressions cover stale-pending recovery, no-op saves and scale, while actual iPhone/iCloud acceptance remains pending.
+
+The parent catalogue, recursive source discovery/ownership, Transcribe/Search full-folder transcript integration, shared multi-source audio resolver and persistent multi-archive Combine workspace remain pending. Edit/Combine root transcript reconciliation is implemented as noted above. The ordered plan below remains applicable to those broader changes. See [production inventory contract](Recording_Identity_Implementation_Contract.md#production-source-inventory--19-november-2026) and [current status](CURRENT_STATUS.md). Earlier 18 November authorization statements refer to that documentation-only task; the new audio-source implementation was explicitly authorized afterward.
 
 The user reports all four archives migrated successfully and Search embeddings rebuilt on the Mac. iPhone Search returned to the default Transcribe tab during folder preparation, then worked after Safari Web Inspector Empty Caches and reload and again after reopening. This is user-reported recovery, not proof of memory exhaustion, a stale-file diagnosis or a complete device acceptance pass. No IndexedDB reset is required. The Windows/iCloud mismatch described at the end is historical, not a current migration blocker.
 
@@ -16,7 +24,7 @@ All Audio Archives/
 │   ├── recording-b.m4a
 │   ├── memora-audio-source.json        # Recording list for this audio source
 │   └── transcription/
-│       ├── memora-archive.json         # Transcript file list
+│       ├── memora-transcript-archive.json         # Transcript file list
 │       ├── individual transcripts...
 │       └── combine/
 │           └── combined documents...
@@ -24,7 +32,7 @@ All Audio Archives/
     ├── recordings...
     ├── memora-audio-source.json
     └── transcription/
-        ├── memora-archive.json
+        ├── memora-transcript-archive.json
         └── combine/
 ```
 
@@ -36,7 +44,7 @@ All Audio Archives/
 |---|---|---|
 | Library catalogue (proposed parent JSON) | Identifies participating child audio sources and transcript archives, with locations relative to the chosen library root. | References child manifests; does not become a second authoritative recording inventory or a filesystem permission grant. |
 | Audio recording list (`memora-audio-source.json`) | Audio Source ID, recording paths, Recording IDs, origins, fingerprints and approved recovery state for one managed audio source. | Source-owned recording identity remains independent of transcript destination/model/operation. |
-| Transcript file list (`memora-archive.json`) | Archive UUID and associations between Recording IDs and transcript paths, models and operations. | Identifies a logical transcript archive; does not own fallback audio identity or contain transcript bodies. |
+| Transcript file list (`memora-transcript-archive.json`) | Archive UUID and associations between Recording IDs and transcript paths, models and operations. | Identifies a logical transcript archive; does not own fallback audio identity or contain transcript bodies. |
 
 Latest approved user-facing names: **Audio recording list** and **Transcript file list**. Prompts identify the exact filename and destination folder. The earlier “Transcript archive index” recommendation was superseded after the user explained confusing the two JSON documents. The file names, schemas and identities remain unchanged. A separate Search index remains derived search data.
 
@@ -149,7 +157,7 @@ The initial iPhone picker-defect report was withdrawn as a diagnosis: the user h
 Approved names and messages:
 
 - **Audio recording list:** select/save `memora-audio-source.json` in the audio folder.
-- **Transcript file list:** select/save `memora-archive.json` in the transcription folder.
+- **Transcript file list:** select/save `memora-transcript-archive.json` in the transcription folder.
 - Choosing the wrong list explains which document was selected and names the correct file/folder. The chooser remains open for retry/cancel; no file is converted or overwritten by selection.
 - Both pending list-save buttons reuse the existing blue-halo/black-outline animation. Cancellation/error retains the pending state. Completed sharing clears only that artifact's emphasis; reduced motion suppresses animation. Share completion does not establish filesystem placement.
 - New TXT headers place dates/duration, Whisper model/operation/optional language first, followed by a blank line and identity/provenance. Values, existing transcripts, audio and JSON schemas are unchanged.

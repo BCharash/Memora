@@ -1,3 +1,38 @@
+# Memora test guide
+
+## Current recorded verification — 19 November 2026
+
+Source build **2026-11-19.23**, schema **6**, checked at **957b493**. This documentation-only update does not rerun tests or imply a new application release. The counts below are previously recorded runs, not a sum of independent model/device validations.
+
+| Page / checkpoint | Latest relevant recorded groups | Coverage |
+|---|---:|---|
+| [transcript-folder.html](transcript-folder.html), .23 | 29 | One read/parse, immutable File snapshot isolation, complete desktop/iPhone versus partial coverage, invalid/conflicting identity, unchanged saves, retries/concurrency, real isolated OPFS, new filename and yearly labels. |
+| [transcription-identity.html](transcription-identity.html), .23 | 43 | Actual app with synthetic files/inference, source/recovery/save UI, Settings, Combine sorting/body editor, source failure retention, iPhone cancellation/share/reopen and Transcribe/Combine year-specific JSON guidance. |
+| [audio-source-persistence.html](audio-source-persistence.html), .23 | 47 | Source identity/storage, no-op/large-inventory paths, recovery cleanup, pending payloads, verified persistence and isolated native handles/database. |
+| [whisper-eligibility.html](whisper-eligibility.html), .22 | 13 | Qualification decisions, saved browser-version continuity, distinct browser families, later holds and raw report preservation. |
+| [whisper-evidence.html](whisper-evidence.html), .22 | 14 | Journal ingestion, manual recovery, old-context resolution and preserved holds. |
+| [whisper-production-reviews.html](whisper-production-reviews.html), .22 | 15 | Legacy/new production keys, cross-version hold/reference handling, review decisions and UI notices. |
+| [whisper-production-eligibility.html](whisper-production-eligibility.html), .22 | 8 | Actual Large gate continuity across Chrome versions, later-failure rejection, defaults/platform separation and cached-adapter refusal. |
+| [whisper-settings.html](whisper-settings.html), .22 | 12 | Passed summary grouping/measurements, 240/280/350px widths, history/controls and test lifecycle UI. |
+| [whisper-executions.html](whisper-executions.html), .22 | 9 | Saved execution/ownership/navigation recovery, selected history deletion and iOS report transport. |
+| [archive-reconciliation.html](archive-reconciliation.html), .23 fixture rename | 27 | Isolated historical lab and disposable filesystem. Its older policy is separate from production and is not a current acceptance requirement. |
+
+The .23 core set is **119 groups** (29+43+47); the .22 eligibility/UI set was **112 groups**, including overlapping app/Settings checks. Do not add repeated checkpoint totals together. No real Whisper inference or user archives/databases are used by these fixture runs. Real iPhone/iCloud replacement/destination behavior and representative large-archive timing/memory remain device acceptance.
+
+## Running current harnesses safely
+
+Serve the repository through Live Server/localhost and use a separate disposable browser profile, not the profile holding real model qualification or archives. Open the relevant page above without query parameters; it displays its own result. Some pages create/remove their own synthetic database/browser-private filesystem fixtures. Confirm Chromium supports the page's required APIs before interpreting a skipped native test as a pass.
+
+The committed Node runner supports `--suite=transcription-identity --browser`, `--persistence --browser`, and its listed Settings/schema/identity suites; set MEMORA_TEST_BROWSER to the browser executable. It does **not** currently accept transcript-folder or the newer eligibility-suite names as --suite values. Open those pages directly. Their optional `?report=1` mode posts to a runner endpoint and is intended for an orchestrator providing that endpoint, not ordinary Live Server use.
+
+Current manual checks: inspect storage order/centered counts/description→selection→rows; ensure empty lists have no actions; cancel and finish pending JSON sharing; rebuild disposable yearly archives and verify the displayed archive plus folder; re-open unchanged lists; confirm actual failure/review holds are preserved. A browser-version change alone no longer requires a reference retest. Do not deliberately crash or stress devices for this documentation task.
+
+Do not use the four user archives as disposable fixtures. The user's separately planned old-JSON rebuild uses Edit/Combine first to preserve header identities. No app changes were made to implement filename-counter priority, iPhone audio removal parity, new detailed Whisper metadata, shared Transcribe/Search reconciliation or batch JSON delivery during this documentation update.
+
+## Historical checkpoint instructions
+
+The following material records earlier counts/builds/filenames and acceptance at those dates. Current instructions above and [CURRENT_STATUS](../docs/CURRENT_STATUS.md) supersede contradictory “current”, “not wired”, unchanged-filename and old 22/32-group statements. Preserve the history without treating it as today's task list.
+
 # Current interface/header candidate — 2026-11-18.4; library architecture paused
 
 Checkpoint 3 is committed as `4c8e5f7`. The user clarified selecting the wrong kind of JSON and had not tried .2; a native iCloud picker defect is unconfirmed. This candidate implements approved **Audio recording list** / **Transcript file list** prompts, correct-file/folder guidance, expected-kind validation, the existing Memora pulse for pending saves and the readable TXT header order. No recursive/library implementation is included. Direct transcription/translation comparisons also verified unchanged metadata values and body bytes after the header reorder.
@@ -14,7 +49,7 @@ Broader checkpoint-3 manual acceptance uses copied short audio and a new empty o
 
 ---
 
-# Current identity checkpoint 2B — 18 November 2026
+## Historical identity checkpoint 2B — 18 November 2026
 
 Open `tests/audio-source-persistence.html` through Live Server. Expected: **32/32 groups passed** in a Chromium browser with browser-private filesystem support. All default database calls are redirected by the harness import map; only temporary fixture databases/private test directories are created and removed. No real Memora database, selected user folder, models or archive changes. The page writes synthetic data in its browser-private filesystem for native persistence verification.
 
@@ -26,7 +61,7 @@ Checkpoint 3 is not wired. Review [implementation contract section 14](../docs/R
 
 ---
 
-# Memora test guide
+## Earlier test guide
 
 Reviewed 9 November 2026 through candidate application build **2026-11-10.14**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
 

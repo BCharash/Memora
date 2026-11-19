@@ -1,5 +1,11 @@
 # Runtime and database foundation — completed
 
+## Current storage/access addendum — 19 November 2026
+
+Application **2026-11-19.23**, database schema **6**. Recent storage work changes presentation, safe deletion and cache synchronization without a new database version, store drop or reset. AudioSourceRecovery is shown as Audio Recording List — Saved Local Copies, with latest proven-source grouping, active protection and pending-work retention. Model Registry Cache is the canonical definition projection, not qualification; refreshing initializes it before counting. Empty unused semanticMetadata is hidden; nonempty legacy data can be explicitly cleared without deleting current embeddings.
+
+storage.selectFolder marks actual whole-folder file-input results with selectionScope=folder. Complete readable coverage does not imply write access. Transcript reconciliation honors successful iPhone folder coverage; the audio reconciliation caller still gates removal on native directory access, a remaining parity gap. iPhone saves require user sharing and cannot force/verify a Files destination. Recognized browser versions are retained in diagnostics but normalized to browser family for qualification continuity. Earlier runtime/database acceptance does not prove the latest iPhone layout, iCloud writes or large-archive timing. See [current status](CURRENT_STATUS.md).
+
 Closed for the agreed scopes as of 7 November 2026; reviewed again 9 November through build .23. Whisper configuration/testing has since progressed; release conversion remains deferred. See [current handoff](CURRENT_STATUS.md).
 
 ## Runtime ownership

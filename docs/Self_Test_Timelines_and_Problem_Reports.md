@@ -1,5 +1,15 @@
 # Self-test timelines and problem reports
 
+## Compact summary and current interpretation — 18–19 November 2026
+
+Implemented compact summary in the 18 November .9 checkpoint, retained in current build **2026-11-19.23**. Settings → History and Reviews → Self-test Summary → View shows Model, RTF and Load (s), with one latest retained **passed** row per family, ordered Tiny/Base/Small/Medium/Large. Grouping spans configuration IDs, variants and platforms/browser revisions; detailed history retains configuration-specific evidence and failed/cancelled/interrupted attempts. The summary does not use the history card deduplicator.
+
+RTF is transcriptionMs/audioDurationMs; loading is excluded. 0.25 means about 15 seconds of transcription per minute of audio for that short reference test. Missing measurements say Unavailable. No RAM estimate, verified memory reclamation or long-recording guarantee is implied. Automated containment checks include 240/280/350px widths; real iPhone visual acceptance remains separate.
+
+A summary row is neither proof of a currently loaded worker nor current qualification. Clearing retained reports can reveal an older retained pass/remove its measurements; separate qualification survives history clearing. The user's earlier Large report was interrupted during load, while the later report passed. Current summary code excludes that interrupted record; which record supplied the earlier observed row is unconfirmed. Do not describe it as a proven filter defect.
+
+Since .22, browser version alone no longer invalidates a valid pass within the same recognized browser family/platform/execution context. Full user agents remain in JSON reports, actual failures/holds remain effective and resolved reviews remain resolved. See [eligibility design](Whisper_Configuration_and_Test_Design.md) and [current status](CURRENT_STATUS.md).
+
 Implemented in Memora **2026-11-13.8**, with saved-note visibility and report presentation improvements through **2026-11-13.10**, 13 November 2026. This records evidence; it does not change model selection, accuracy thresholds, qualification rules, cooldowns or automatic retry behavior.
 
 ## Using existing tests

@@ -1,6 +1,12 @@
 # Whisper catalogue and selection contract
 
-Current through source build **2026-11-10.14**, reviewed 10 November 2026. This replaces the earlier staged 3A/3B handoff wording. See [current status](CURRENT_STATUS.md) for what is complete, deferred and authorized.
+## Current catalogue/cache boundary — 19 November 2026
+
+Reviewed through **2026-11-19.23**. The 13 canonical definitions and loader precision/selection policies are unchanged by the recent Settings/reconciliation work. Settings' Model Registry Cache is a persisted projection: Refresh Storage Information synchronizes canonical fields before counting; View does not initialize it; deletion does not immediately recreate it. Historical registry evidence/extensions are preserved during synchronization. Current qualification, downloaded weights and self-test reports have separate owners.
+
+Browser-version continuity is implemented by qualification matching, not by editing model definitions or fingerprints. The family label large is accepted for historical transcripts without inventing a generation; current Large configuration remains the catalogue's large-v3 repository with fp16/q4 loader settings. No detailed model-provenance TXT/backfill expansion is planned after the user's simpler-metadata decision. See [current status](CURRENT_STATUS.md).
+
+Historical foundation through source build **2026-11-10.14**, reviewed 10 November 2026; current addendum above applies. This replaces the earlier staged 3A/3B handoff wording. See [current status](CURRENT_STATUS.md) for what is complete, deferred and authorized.
 
 ## Ownership
 

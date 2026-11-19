@@ -1,5 +1,24 @@
 # Recording identity — checkpoint and iMuse handoff
 
+## Current handoff — 19 November 2026
+
+Build **2026-11-19.23**, schema **6**, source **957b493**. Read [current status](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) before using the historical migration/checkpoint instructions below.
+
+1. The former one-time migration is complete and retired. Do not recreate it or change Recording ID/Archive UUID/Audio Source ID while maintaining lists.
+2. Canonical files: memora-audio-source.json beside audio; memora-transcript-archive.json beside transcripts; search-embeddings.json remains separate derived Search data.
+3. The user plans to delete the four old memora-archive.json files, then open each existing transcription folder in **Edit/Combine first** to rebuild with existing header identities. Desktop auto-saves; iPhone uses Save Transcript File List in that archive's transcription folder. Do not create a fresh archive in Transcribe as a replacement for that rebuild. Completion has not been reported.
+4. Yearly archives with identical transcription folder names now get archive/year plus folder guidance. Meaningful validated archiveName takes precedence; one consistent Original Audio Folder can name a rebuild. Missing/conflicting provenance does not establish a full Files path.
+5. Audio reconciliation is performed before transcription on both pathways. Complete native scans can remove missing entries; iPhone audio still retains unseen entries. Transcript root reconciliation does support complete iPhone folder coverage. Both distinguish access coverage from writable delivery.
+6. Registry cache refresh/deletion, saved audio-copy cleanup and storage UI are implemented. Preserve pending work, active-source protection and valid selected JSON precedence; never reset IndexedDB for routine repair.
+7. Detailed Whisper metadata expansion, additional transcription timestamp and the standalone metadata-backfill tool/prompt are no longer planned. Existing family metadata stays valid. A new same-family filename-counter preference is agreed but not coded; desktop-only counter generation and iPhone Files collision names need an explicit scope.
+8. Next application stages are counter preference, audio coverage parity, Transcribe full-folder reconciliation and shared Search records/two-JSON save state. Parent/recursive library ownership, multi-source resolution, persistent Combine/imports and document-output metadata remain separate future work.
+
+Source/build and automated evidence are in CURRENT_STATUS. The user reported improved audio-source operation and continues testing; final iPhone/iCloud save-location behavior, large-archive timing/memory and phone layout are not established by synthetic checks. No new model self-test, storage reset, migration or deployment is required for this documentation update.
+
+## Earlier checkpoint record
+
+The material below is retained history. Its old filename, pause, implementation and authorization statements are superseded by the current handoff and implementation contract.
+
 **Current filename update — 2026-11-19.23:** Transcript lists now use `memora-transcript-archive.json`; old-name references below are historical. The user will delete/rebuild the four old lists through Edit/Combine before further Transcribe use. Rebuilds preserve identity from existing TXT headers, and iPhone save guidance includes both archive name and transcription folder. See [CURRENT_STATUS](CURRENT_STATUS.md) for implementation and acceptance boundaries.
 
 **Library plan update — 18 November 2026:** The user agreed that opening/refreshing the library discovers child sources, opening/refreshing a source inventories all eligible audio independently of transcription selection, and new source registration is confirmed. Writable access saves approved changes directly; file-input access uses explicit JSON saves. Incomplete access never proves deletion. See [agreed maintenance and ordered checkpoints](Audio_Library_Architecture_Proposal.md#agreed-catalogue-and-recording-list-maintenance). First finish ownership/schema/access contracts, then production desktop/mobile reconciliation, shared multi-source audio resolution and parent discovery; resume shared editing, persistent Combine/imports and exports/history afterward. Parent schema and application implementation remain pending; this task authorizes documentation only. Four-archive remigration and rebuilt Search indexes are user-reported successful. iPhone Search worked after cache/reload and reopening; the crash cause is unconfirmed.

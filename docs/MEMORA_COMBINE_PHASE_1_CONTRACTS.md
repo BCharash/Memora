@@ -1,5 +1,11 @@
 # Memora — Phase 1 Contract Review Package
 
+## Current boundary and later selection decision — 19 November 2026
+
+Build **2026-11-19.23** implements root transcript reconciliation/Edit/Combine source reading and save guidance, not the full workspace/import contracts below. Canonical transcript list: memora-transcript-archive.json. Paragraph controls are removed from Combine; DOCX/HTML output-metadata selectors remain deferred.
+
+The later user decision keeps transcript model-family metadata simple: no repository/configuration/precision/backend expansion, transcription timestamp or backfill tool. Priority should be family then recognized filename counter for the same archive/recording/operation, preserving all alternatives. Counter priority is agreed but not implemented; desktop generates -2/-3 names and file-input/iPhone leaves collisions to Files. Missing timestamps are not to be filled by guessing filesystem creation dates. Parent/recursive catalogue work, persistent workspace/imports and Search/Transcribe full reconciliation are still subsequent stages. See [current status](CURRENT_STATUS.md) before interpreting older “current/next” statements.
+
 **Date:** 16 November 2026
 **Status — 18 November 2026:** Archive migration is complete and retired. Identity checkpoints 1/2A/2B are committed; the user passed the 2B harness. Candidate **2026-11-18.1** now integrates checkpoint 3 transcription/storage identity within architecture Phase 3. Checkpoint 3 is committed as `4c8e5f7`; complete desktop/real-iPhone acceptance remains pending. See [implementation contract section 15](Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration). Broader Combine phases, portable document imports and their gates remain pending.
 **Authority:** [Approved revised architecture](MEMORA_COMBINE_ARCHITECTURE.md). The eight-phase sequence, individual metadata contract and separate-destination migration implementation are authorized. Later integration and device acceptance remain phased.

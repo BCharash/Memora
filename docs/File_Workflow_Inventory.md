@@ -1,10 +1,25 @@
 # File workflow inventory
 
+## Current workflow addendum — 19 November 2026
+
+Reviewed against **2026-11-19.23**. This is the current overview; earlier dated inventory/acceptance below is retained for audit history.
+
+| Workflow | Reading/reconciliation | Writable directory | File-input/iPhone |
+|---|---|---|---|
+| Audio Recording List | At source selection, before transcription; all immediate selected audio, known IDs reused, bounded new-file metadata, no content hashes | Save changed memora-audio-source.json and verify; complete native coverage can prune absent entries | Explicit pulsing Save Audio Recording List after reading; unseen audio entries currently retained, even with a folder selection |
+| Edit/Combine Transcript File List | Shared transcriptFolder.js returns records from one root scan/read; unchanged membership/body-only edits do not dirty JSON | Save changed memora-transcript-archive.json with prior-byte check, archive lock and readback | Whole-folder coverage can prune absent transcript references; Save Transcript File List names archive/year and folder; partial/error coverage cannot prune |
+| Transcribe Transcript File List | Existing append/save integration; shared full-folder reconciliation after successful TXT saves is a next stage | Append references and deliver/verify TXT through savePreparedTranscript | Choose/create named new-name archive and explicitly share JSON before transcript batch; pending callback carries archive/folder labels |
+| Search | Existing transcript/embedding indexing and search-embeddings.json reconciliation | Existing embedding save path | Existing separate embedding share path; shared transcript-list reconciliation/two-JSON save action is not implemented |
+
+storage.selectFolder returns a directory handle or a readable file-input descriptor with selectionScope=folder when the actual directory input was used. Coverage and writability are independent. JSONs track independent changes; transcript-list changes must not force unchanged embeddings to regenerate/save. A future batch share can group changed JSONs only if they share a destination and after real Files testing. Neither paths, share text nor title can force/verify an iPhone Files destination.
+
+Current Transcribe/Edit/Combine transcript-list guidance uses meaningful validated archiveName or consistent header provenance plus the selected transcript folder. Rebuild each old-name archive through Edit/Combine before further Transcribe use; no automatic old-file migration/deletion. Whole-folder counter priority and broader remaining save-location guidance are not silently included. Desktop increments transcript collision suffixes; iPhone currently supplies base filenames and Files handles collisions. Detailed Whisper metadata/backfill and an added timestamp were dropped. See [current status](CURRENT_STATUS.md) for remaining work and verification limits.
+
 Code inspection: 29 October 2026. This records existing behavior after the worker and Combine module renames; it does not authorize or implement a refactor. Both renames passed the user's testing. No new browser or device testing was performed for this inventory.
 
 ## Loading and access
 
-`storage.selectFolder()` prefers `showDirectoryPicker({ mode: "readwrite" })`. Otherwise it uses the directory file input and returns `{ kind: "file-input", files }`. That descriptor provides readable files, not a writable folder handle. A picker rejection does not automatically retry using the fallback.
+`storage.selectFolder()` prefers `showDirectoryPicker({ mode: "readwrite" })`. Otherwise it uses the directory file input and returns `{ kind: "file-input", selectionScope: "folder", name, files }`. That descriptor provides readable files, not a writable folder handle. A picker rejection does not automatically retry using the fallback.
 
 Transcription, Combine, and Search inspect source descriptors when reading files and selecting delivery paths. The variable name `isIPhoneSource` in `app.js` actually means a file-input source. These branches are not exclusively device checks: a desktop browser using the fallback can reach them. Conversely, a directory handle alone does not guarantee that subsequent writes succeed; permissions and write failures still matter.
 
@@ -14,7 +29,7 @@ Search audio also has its own platform-specific controls and an optional read-on
 
 | Workflow | Branch and direct-write path | Share path and owner |
 |---|---|---|
-| Transcription output | `app.js`: writable workflow uses `saveTranscript()` and `storage.writeTextFile()` | File-input workflow collects generated `File` objects in `pendingIPhoneExports`; `exportIPhoneTranscripts()` shares the batch from its save button. |
+| Transcription output | `app.js`: writable workflow uses `savePreparedTranscript()` and `storage.writeTextFile()` | File-input workflow collects generated `File` objects in `pendingIPhoneExports`; `exportIPhoneTranscripts()` shares the batch from its save button. |
 | Combined TXT/DOCX/HTML | `app.js`: directory destination receives text or binary writes through storage helpers | File-input workflow creates the chosen format in memory; `combineShareExport.js` manages controls/status and shares one file. |
 | Combine transcript edit | `app.js` callback `onSaveTranscriptEdits`: writes updated text through `storage.writeTextFile()` | File-input source shares a replacement through `storage.shareFile()`; successful completion invalidates Search state. |
 | Search transcript edit | `searchUI.js`: obtains the existing file handle and writes through `createWritable()` | File-input source shares a replacement through `storage.shareFile()`, updates the session's file list, and reindexes the edited transcript. |
@@ -33,7 +48,7 @@ These are behavior differences to preserve during naming work and explicitly set
 
 ## Status and next use
 
-Status reviewed 9 November 2026; the dependency inventory remains a dated overview, not a fresh exhaustive audit. Runtime identification is complete for the agreed scope and canonical IndexedDB ownership passed Mac/iPhone/Windows checks. No sharing extraction/consolidation has been implemented. No file-workflow change is currently underway; runtime/database and the agreed Whisper consolidation are complete for their scopes; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
+Historical status reviewed 9 November 2026; use the 19 November workflow addendum above for current behavior. Runtime identification is complete for the agreed scope and canonical IndexedDB ownership passed Mac/iPhone/Windows checks. No sharing extraction/consolidation has been implemented. No file-workflow change is currently underway; runtime/database and the agreed Whisper consolidation are complete for their scopes; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
 This document is an overview, not an exhaustive dependency audit. Before changing a file workflow, trace its preparation, UI state, delivery, cancellation and post-save effects end to end. Before migrating callers to a shared helper, audit all affected callers. Consider extending storage's helper and extracting transcription export controls only as separate authorized changes. Keep feature controls, pending batches, archive state and reindexing with feature owners. iPhone delivery changes need an explicit device checklist.
 
