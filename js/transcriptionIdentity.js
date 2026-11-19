@@ -57,12 +57,15 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
                 if(identity)verifiedPaths.push(path);else skipped++;
             }
             checkAudioSourceAbort(signal);
-            const counts=await session.reconcileAvailability({observedPaths,verifiedPaths,complete:selectedSource.kind==='directory'&&skipped===0});
+            // Folder coverage is independent of writable access: iPhone's
+            // directory input also inventories the whole immediate folder.
+            const complete=(selectedSource.kind==='directory'||selectedSource.selectionScope==='folder')&&skipped===0;
+            const counts=await session.reconcileAvailability({observedPaths,verifiedPaths,complete});
             onProgress('Preparing audio recording list…');
             const result=await ui.persist({notify:false,onCommit:()=>onProgress('Saving audio recording list…')});
             pendingInventoryList=result.status==='export-pending'?result.file:null;
             for(const path of verifiedPaths)session.releaseRecordingSnapshot(path);
-            inventorySummary={...counts,checked:verifiedPaths.length,skipped,coverage:selectedSource.kind==='directory'&&skipped===0?'folder':'selection',pendingSave:!!pendingInventoryList,saveOutcome:result.status,sourceVerified:result.sourceVerified,sourceFolder:selectedSource.name||'Selected folder',listFilename:AUDIO_SOURCE_FILENAME};
+            inventorySummary={...counts,checked:verifiedPaths.length,skipped,coverage:complete?'folder':'selection',pendingSave:!!pendingInventoryList,saveOutcome:result.status,sourceVerified:result.sourceVerified,sourceFolder:selectedSource.name||'Selected folder',listFilename:AUDIO_SOURCE_FILENAME};
             preparedSource=selectedSource;
             return session;
         },

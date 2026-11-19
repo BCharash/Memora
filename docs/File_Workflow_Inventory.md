@@ -2,14 +2,16 @@
 
 ## Current workflow addendum — 19 November 2026
 
-Reviewed against **2026-11-19.23**. This is the current overview; earlier dated inventory/acceptance below is retained for audit history.
+Reviewed against candidate **2026-11-19.25**. This is the current overview; earlier dated inventory/acceptance below is retained for audit history.
 
 | Workflow | Reading/reconciliation | Writable directory | File-input/iPhone |
 |---|---|---|---|
-| Audio Recording List | At source selection, before transcription; all immediate selected audio, known IDs reused, bounded new-file metadata, no content hashes | Save changed memora-audio-source.json and verify; complete native coverage can prune absent entries | Explicit pulsing Save Audio Recording List after reading; unseen audio entries currently retained, even with a folder selection |
+| Audio Recording List | At source selection, before transcription; all immediate selected audio, known IDs reused, bounded new-file metadata, no content hashes | Save changed memora-audio-source.json and verify; complete native coverage can prune absent entries | Explicit pulsing Save Audio Recording List after reading; complete folder coverage removes absent immediate entries as of .24, while partial/skipped/error/cancelled coverage cannot prune |
 | Edit/Combine Transcript File List | Shared transcriptFolder.js returns records from one root scan/read; unchanged membership/body-only edits do not dirty JSON | Save changed memora-transcript-archive.json with prior-byte check, archive lock and readback | Whole-folder coverage can prune absent transcript references; Save Transcript File List names archive/year and folder; partial/error coverage cannot prune |
 | Transcribe Transcript File List | Existing append/save integration; shared full-folder reconciliation after successful TXT saves is a next stage | Append references and deliver/verify TXT through savePreparedTranscript | Choose/create named new-name archive and explicitly share JSON before transcript batch; pending callback carries archive/folder labels |
 | Search | Existing transcript/embedding indexing and search-embeddings.json reconciliation | Existing embedding save path | Existing separate embedding share path; shared transcript-list reconciliation/two-JSON save action is not implemented |
+
+Combine/Search audio playback shares appendSearchAudioControl in searchUI.js. Since .25 it shows known archive, Original Audio Folder and requested basename before the picker and in missing-file guidance. File-input/iPhone chooses files/batches; native fallback chooses the audio folder. Caches are scoped by source/archive (or selected-source object for unidentified legacy results), and bounded embedded-ID checks reject known mismatches/invalid or conflicting inspectable metadata. Legacy/absent/unsupported-container IDs retain filename matching without a verified-identity claim. This is not a full source-JSON association or multi-source resolver, and it does not alter audio, transcripts or indexes. Exact picker starting locations remain outside the web app's control.
 
 storage.selectFolder returns a directory handle or a readable file-input descriptor with selectionScope=folder when the actual directory input was used. Coverage and writability are independent. JSONs track independent changes; transcript-list changes must not force unchanged embeddings to regenerate/save. A future batch share can group changed JSONs only if they share a destination and after real Files testing. Neither paths, share text nor title can force/verify an iPhone Files destination.
 

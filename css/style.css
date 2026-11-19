@@ -1730,3 +1730,15 @@ button:disabled {
 }
 
 .whisper-report-actions[hidden] { display: none; }
+
+/* Location labels are guidance, not a writable Files path. */
+.search-audio-location-note {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.search-audio-location-note[hidden] { display: none !important; }

@@ -1,6 +1,6 @@
 # Memora documentation
 
-Reviewed **19 November 2026** against application build **2026-11-19.23**, database schema **6**, source **957b493**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
+Reviewed **19 November 2026** against application candidate **2026-11-19.25**, database schema **6**, based on committed source **d03d432**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
 
 ## What changed on 18–19 November
 
@@ -9,7 +9,7 @@ Reviewed **19 November 2026** against application build **2026-11-19.23**, datab
 - Reworked Settings storage categories, readable cache identities, centered counts, selection-only deletion, empty-list controls and one-action model-registry refresh.
 - Reconciled Audio Recording Lists on source opening, removed full-audio hashing from production inventory, improved recovery/save state and made unchanged lists no-op saves.
 - Added shared transcript-folder reading and Edit/Combine transcript-list reconciliation, including complete iPhone folder coverage, conflict protection and explicit mobile saving.
-- Renamed the transcript JSON and added archive/year plus folder guidance to iPhone Transcribe/Edit/Combine saves.
+- Renamed the transcript JSON and added archive/year plus folder guidance to iPhone Transcribe/Edit/Combine saves. Shared Combine/Search audio playback now gives the same known-folder/recording guidance, with source-scoped caches and checks for inspectable embedded IDs.
 - Preserved valid Whisper qualification across browser-version updates while retaining actual failure/review holds; accepted historical `large` labels without rewriting them.
 
 ## File names and decisions
@@ -22,7 +22,7 @@ Reviewed **19 November 2026** against application build **2026-11-19.23**, datab
 
 The user will rebuild the four old memora-archive.json lists through **Edit/Combine before Transcribe**; preserve identities from TXT headers. Desktop saves automatically; iPhone explicitly saves into the named archive's transcription folder. The rename does not require deleting audio lists or embeddings.
 
-The detailed Whisper metadata/backfill-tool proposal and extra transcription timestamp have been dropped. Keep existing model-family metadata. The agreed family-then-filename-counter priority rule is **not yet implemented**, and iPhone Files naming does not yet guarantee the desktop `-N` pattern. Audio iPhone missing-entry removal also remains a coverage parity gap: reconciliation runs, but unseen audio entries are retained on that pathway. See the exact [resume boundary](CURRENT_STATUS.md#resume-boundary--documentation-only-on-this-turn).
+The detailed Whisper metadata/backfill-tool proposal and extra transcription timestamp have been dropped. Keep existing model-family metadata. The agreed family-then-filename-counter priority rule is **not yet implemented**, and iPhone Files naming does not yet guarantee the desktop `-N` pattern. Audio whole-folder coverage parity is fixed in .24: successful complete native and iPhone folder reads remove missing immediate entries; partial/skipped/error/cancelled reads retain safeguards. iPhone still explicitly saves changed JSON; audio files are not deleted. See the exact [resume boundary](CURRENT_STATUS.md#resume-boundary--remaining-work).
 
 Transcribe's full-folder transcript reconciliation and Search's shared scan/two-JSON saving remain future stages. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
 

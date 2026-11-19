@@ -4,7 +4,8 @@ import {readAudioSourceBytes,writeTextFile} from './storage.js';
 export const TRANSCRIPT_ARCHIVE_FILENAME='memora-transcript-archive.json';
 export function transcriptArchiveNameForRecords(manifest, records, folderName) {
     const declared = manifest?.archiveName?.trim();
-    if (declared && declared !== folderName && declared !== 'Transcript archive') return declared;
+    const genericNames=new Set(['transcription','transcripts','transcript archive','selected folder']);
+    if (declared && !genericNames.has(declared.toLowerCase())) return declared;
     const names = new Set(records.map(record => record.originalAudioFolderName?.trim()).filter(Boolean));
     return names.size === 1 ? [...names][0] : declared || folderName || 'Transcript archive';
 }

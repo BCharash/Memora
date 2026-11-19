@@ -1,4 +1,5 @@
-import { replaceTranscriptBody } from "./transcriptMetadata.js";
+import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
+import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 // --------------------------------------------------
 // Search UI
 // --------------------------------------------------
@@ -789,7 +790,38 @@ function appendColoredTranscript(container, group, { showMatchIndicators = false
     });
 }
 
-let searchAudioRootHandle = null;
+const searchAudioRoots = new Map();
+const audioScopeTokens = new WeakMap();
+let nextAudioScope = 0;
+function audioSourceScope(record, handle) {
+    if (record.audioSourceId || record.archiveUuid) return JSON.stringify([
+        record.audioSourceId?.toLowerCase() || null, record.archiveUuid?.toLowerCase() || null
+    ]);
+    const owner=handle||record;
+    if(!audioScopeTokens.has(owner))audioScopeTokens.set(owner,++nextAudioScope);
+    return `source-${audioScopeTokens.get(owner)}`;
+}
+export function audioLocationGuidance(record, archiveName = null) {
+    const filename=(record.recordingFilename||record.audioRelativePath||'').split(/[\\/]/).pop();
+    const folder=record.originalAudioFolderName;
+    const archive=archiveName||record.archiveName;
+    const prefix=archive?`Archive “${archive}”. `:'';
+    const target=folder?`Open audio folder “${folder}” and choose “${filename}”.`:`Choose the original audio recording “${filename}”.`;
+    return `${prefix}${target} Choose audio files rather than the transcription folder; you can select several recordings at once.`;
+}
+const audioIdentitySnapshots = new WeakMap();
+async function verifyPlaybackIdentity(file, record) {
+    const expected=record.recordingId||record.voiceMemoId;
+    if(!isRecordingUuid(expected))return;
+    if(!audioIdentitySnapshots.has(file))audioIdentitySnapshots.set(file,readEmbeddedRecordingIdentity(file));
+    const identity=await audioIdentitySnapshots.get(file);
+    if(identity.status==='valid'&&identity.recordingId.toLowerCase()!==expected.toLowerCase())
+        throw Error(`“${file.name}” belongs to a different recording.`);
+    if(identity.status==='invalid'||identity.status==='conflicting'||identity.status==='unsupported'&&identity.container)
+        throw Error(`The recording identity in “${file.name}” could not be verified.`);
+    // Assigned/legacy IDs and unsupported containers may have no inspectable
+    // embedded ID. Retain filename matching without claiming ID verification.
+}
 // Files chosen in iPhone Safari remain available for matching during this page
 // session. Keep File references, not copies of the audio data.
 const searchAudioFileCache = new Map();
@@ -824,20 +856,23 @@ async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
     return null;
 }
 
-async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride = null) {
+async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride = null, record = {}) {
+    const handle = sourceHandleOverride || searchSourceHandle;
+    const scope=audioSourceScope(record,handle);
+    const cache=searchAudioFileCache.get(scope);
     const candidates = [...new Set([relativePath, recordingFilename].filter(Boolean))];
     const wantedNames = candidates
         .map(value => value.split(/[\\/]/).pop().toLocaleLowerCase());
 
     // On iPhone, a recording selected once can be reused by later results.
-    // Match by basename because transcript metadata may contain relative paths.
+    // Match basenames within this source scope; playback checks embedded IDs
+    // when present because transcript metadata may contain relative paths.
     for (const name of wantedNames) {
-        if (searchAudioFileCache.has(name)) {
-            return searchAudioFileCache.get(name);
+        if (cache?.has(name)) {
+            return cache.get(name);
         }
     }
 
-    const handle = sourceHandleOverride || searchSourceHandle;
     if (!handle) return null;
 
     if (handle.kind === "file-input") {
@@ -845,7 +880,7 @@ async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHan
         return handle.files.find(file => wanted.has(file.name.toLocaleLowerCase())) || null;
     }
 
-    const roots = [...new Set([handle, searchAudioRootHandle].filter(Boolean))];
+    const roots = [...new Set([searchAudioRoots.get(scope), handle].filter(Boolean))];
     for (const root of roots) {
         for (const candidate of candidates) {
             try {
@@ -882,10 +917,20 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     const relativePath = group.record?.audioRelativePath || "";
     const recordingFilename = group.record?.recordingFilename || "";
     if (!relativePath && !recordingFilename) return;
+    const record=group.record||{};
+    const audioSourceHandle=sourceHandleOverride||searchSourceHandle;
+    const scope=audioSourceScope(record,audioSourceHandle);
+    if(!searchAudioFileCache.has(scope))searchAudioFileCache.set(scope,new Map());
+    const fileCache=searchAudioFileCache.get(scope);
+    const guidance=audioLocationGuidance(record,group.archiveName);
+    const usesFilePicker=isIOS||audioSourceHandle?.kind==='file-input'||!window.showDirectoryPicker;
 
     const control = document.createElement("div");
     control.className = "search-result-audio-control";
 
+    const locationNote=document.createElement('p');
+    locationNote.className='search-audio-location-note';
+    locationNote.textContent=guidance;
     const playButton = document.createElement("button");
     playButton.type = "button";
     playButton.className = "search-audio-play";
@@ -919,7 +964,7 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     // Select a batch of recordings once instead of revisiting Files for each result.
     audioFileInput.multiple = true;
     audioFileInput.hidden = true;
-    audioFileInput.setAttribute("aria-label", "Choose an audio recording");
+    audioFileInput.setAttribute("aria-label", guidance);
 
     function showLoadedPlayer(file) {
         if (audio.dataset.objectUrl) {
@@ -939,15 +984,17 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
         playButton.hidden = true;
         playButton.style.display = "none";
         errorMessage.hidden = true;
+        locationNote.hidden = true;
     }
 
     audioFileInput.addEventListener("change", async () => {
         const selectedFiles = Array.from(audioFileInput.files || []);
+        audioFileInput.value=''; // Allow choosing another copy with the same name.
         // Dismissing the iOS picker without choosing files leaves the result alone.
         if (!selectedFiles.length) return;
 
         for (const file of selectedFiles) {
-            searchAudioFileCache.set(file.name.toLocaleLowerCase(), file);
+            fileCache.set(file.name.toLocaleLowerCase(), file);
         }
 
         const wantedNames = new Set(
@@ -955,16 +1002,20 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
                 .filter(Boolean)
                 .map(value => value.split(/[\\/]/).pop().toLocaleLowerCase())
         );
-        const matchingFile = selectedFiles.find(file =>
-            wantedNames.has(file.name.toLocaleLowerCase())
-        ) || [...searchAudioFileCache.entries()]
-            .find(([name]) => wantedNames.has(name))?.[1];
-
-        if (!matchingFile) {
-            errorMessage.textContent = `Added ${selectedFiles.length} recording${selectedFiles.length === 1 ? "" : "s"} for this session, but the matching file “${recordingFilename || wantedNames.values().next().value || ""}” was not among them. Tap Play and select a batch containing that recording.`;
-            errorMessage.hidden = false;
-            return;
+        const candidates=[...new Set([
+            ...selectedFiles.filter(file=>wantedNames.has(file.name.toLocaleLowerCase())),
+            ...[...fileCache.values()].filter(file=>wantedNames.has(file.name.toLocaleLowerCase()))
+        ])];
+        let matchingFile=null,identityError=null;
+        for(const file of candidates){
+            try{await verifyPlaybackIdentity(file,record);matchingFile=file;break;}
+            catch(error){identityError=error;if(fileCache.get(file.name.toLocaleLowerCase())===file)fileCache.delete(file.name.toLocaleLowerCase());}
         }
+        if(!matchingFile){
+            const problem=identityError?.message||`The requested recording was not among the ${selectedFiles.length} selected files.`;
+            locationNote.hidden=false;errorMessage.textContent=`${problem} ${guidance} Tap Play to choose again.`;errorMessage.hidden=false;return;
+        }
+        fileCache.set(matchingFile.name.toLocaleLowerCase(),matchingFile);
 
         try {
             showLoadedPlayer(matchingFile);
@@ -977,22 +1028,23 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     });
 
     playButton.addEventListener("click", async () => {
-        // On iOS, open the native file chooser directly from the tap. A
-        // directory picker is not available there, and the share sheet cannot
-        // be opened until an actual File object has been obtained.
-        if (isIOS) {
-            const cachedFile = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
-            if (cachedFile) {
-                showLoadedPlayer(cachedFile);
-                try {
-                    await audio.play();
-                } catch (_) {
-                    errorMessage.textContent = "Audio is loaded. Tap Play in the audio controls to start playback.";
-                    errorMessage.hidden = false;
+        // Guidance is visible before the native picker covers the page.
+        if (usesFilePicker) {
+            playButton.disabled=true;
+            try {
+                const cachedFile=await resolveSearchAudioFile(relativePath,recordingFilename,audioSourceHandle,record);
+                if(cachedFile){
+                    await verifyPlaybackIdentity(cachedFile,record);
+                    showLoadedPlayer(cachedFile);
+                    try{await audio.play();}catch{errorMessage.textContent='Audio is loaded. Tap Play in the audio controls to start playback.';errorMessage.hidden=false;}
+                    return;
                 }
-                return;
-            }
-            audioFileInput.click();
+                locationNote.hidden=false;
+                audioFileInput.click();
+            }catch(error){
+                locationNote.hidden=false;errorMessage.textContent=`${error.message} ${guidance}`;errorMessage.hidden=false;
+                audioFileInput.click();
+            }finally{playButton.disabled=false;}
             return;
         }
 
@@ -1013,23 +1065,25 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
         playButton.textContent = "…";
         errorMessage.hidden = true;
         try {
-            let file = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
+            let file = await resolveSearchAudioFile(relativePath, recordingFilename, audioSourceHandle, record);
 
             // A selected directory handle cannot navigate upward to its parent.
             // Ask for the audio-containing parent once, then reuse that handle
             // for subsequent search results and searches in this page session.
-            if (!file && (sourceHandleOverride || searchSourceHandle)?.kind !== "file-input" && window.showDirectoryPicker) {
-                errorMessage.textContent = "The recording wasn't in the selected folder. Select the parent folder that contains the audio.";
+            if(file){try{await verifyPlaybackIdentity(file,record);}catch(error){errorMessage.textContent=error.message;file=null;}}
+            if (!file && window.showDirectoryPicker) {
+                errorMessage.textContent = `${guidance} Select the audio folder to search.`;
                 errorMessage.hidden = false;
                 const chosenRoot = await window.showDirectoryPicker({ mode: "read" });
-                searchAudioRootHandle = chosenRoot;
-                file = await resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride);
+                searchAudioRoots.set(scope,chosenRoot);
+                file = await resolveSearchAudioFile(relativePath, recordingFilename, audioSourceHandle, record);
             }
 
             if (!file) {
-                throw new Error("Recording not found. Select the parent folder that contains the audio files.");
+                throw new Error(`Recording not found. ${guidance}`);
             }
 
+            await verifyPlaybackIdentity(file,record);
             showLoadedPlayer(file);
             try {
                 await audio.play();
@@ -1039,7 +1093,7 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
             }
         } catch (error) {
             if (error?.name !== "AbortError") {
-                errorMessage.textContent = error?.message || "Could not load the recording.";
+                errorMessage.textContent = `${error?.message || "Could not load the recording."} ${guidance}`;
                 errorMessage.hidden = false;
             }
         } finally {
@@ -1048,6 +1102,7 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
         }
     });
 
+    control.appendChild(locationNote);
     control.appendChild(playButton);
     control.appendChild(audio);
     control.appendChild(audioFileInput);

@@ -33,7 +33,7 @@ await test('Rebuilt yearly archives retain their UUID and distinguish the same t
  }
 });
 await test('Validated archive names take priority, and ambiguous or absent parent names never invent a path',()=>{
- const records=[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}];eq(transcriptArchiveNameForRecords({archiveName:'2018'},records,'transcription'),'2018');eq(transcriptArchiveNameForRecords(null,records,'transcription'),'transcription');eq(describeTranscriptArchiveDestination({archiveName:'transcription',folderName:'transcription'}),'the “transcription” transcript folder');
+ const records=[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}];eq(transcriptArchiveNameForRecords({archiveName:'2016'},[{originalAudioFolderName:'Recordings'}],'2016'),'2016');eq(transcriptArchiveNameForRecords({archiveName:'2018'},records,'transcription'),'2018');eq(transcriptArchiveNameForRecords(null,records,'transcription'),'transcription');eq(describeTranscriptArchiveDestination({archiveName:'transcription',folderName:'transcription'}),'the “transcription” transcript folder');
  eq(transcriptArchiveNameForRecords({archiveName:'transcription'},[{originalAudioFolderName:'2016'}],'transcription'),'2016');
 });
 await test('One inventory and one text read per transcript serve reconciliation, sorting and source text',async()=>{

@@ -2,13 +2,14 @@
 
 ## Current recorded verification — 19 November 2026
 
-Source build **2026-11-19.23**, schema **6**, checked at **957b493**. This documentation-only update does not rerun tests or imply a new application release. The counts below are previously recorded runs, not a sum of independent model/device validations.
+Candidate **2026-11-19.25**, schema **6**, based on committed source **d03d432**. The audio whole-folder correction has now been tested as described below; earlier .23 documentation consolidation itself did not rerun tests. The counts below are previously recorded runs, not a sum of independent model/device validations.
 
 | Page / checkpoint | Latest relevant recorded groups | Coverage |
 |---|---:|---|
-| [transcript-folder.html](transcript-folder.html), .23 | 29 | One read/parse, immutable File snapshot isolation, complete desktop/iPhone versus partial coverage, invalid/conflicting identity, unchanged saves, retries/concurrency, real isolated OPFS, new filename and yearly labels. |
-| [transcription-identity.html](transcription-identity.html), .23 | 43 | Actual app with synthetic files/inference, source/recovery/save UI, Settings, Combine sorting/body editor, source failure retention, iPhone cancellation/share/reopen and Transcribe/Combine year-specific JSON guidance. |
-| [audio-source-persistence.html](audio-source-persistence.html), .23 | 47 | Source identity/storage, no-op/large-inventory paths, recovery cleanup, pending payloads, verified persistence and isolated native handles/database. |
+| [audio-location.html](audio-location.html), .25 | 8 | Shared Combine/Search hints, 240px layout, picker cancellation, missing/correct files, batch reuse, cross-archive names, inspectable embedded-ID mismatch, legacy fallback and native folder guidance. Uses stubbed media playback; no actual iPhone playback claim. |
+| [transcript-folder.html](transcript-folder.html), .24 recheck | 29 | One read/parse, immutable File snapshot isolation, complete desktop/iPhone versus partial coverage, invalid/conflicting identity, unchanged saves, retries/concurrency, real isolated OPFS, new filename and yearly labels. |
+| [transcription-identity.html](transcription-identity.html), .24 | 49 | Actual app with synthetic files/inference, source/recovery/save UI, Settings, Combine sorting/body editor, source failure retention, iPhone cancellation/share/reopen and Transcribe/Combine year-specific JSON guidance; whole-folder iPhone audio pruning, nested retention, returning files, skipped/partial/failure/cancellation safeguards and actual pending-save/reopen controls. |
+| [audio-source-persistence.html](audio-source-persistence.html), .24 recheck | 47 | Source identity/storage, no-op/large-inventory paths, recovery cleanup, pending payloads, verified persistence and isolated native handles/database. |
 | [whisper-eligibility.html](whisper-eligibility.html), .22 | 13 | Qualification decisions, saved browser-version continuity, distinct browser families, later holds and raw report preservation. |
 | [whisper-evidence.html](whisper-evidence.html), .22 | 14 | Journal ingestion, manual recovery, old-context resolution and preserved holds. |
 | [whisper-production-reviews.html](whisper-production-reviews.html), .22 | 15 | Legacy/new production keys, cross-version hold/reference handling, review decisions and UI notices. |
@@ -17,7 +18,7 @@ Source build **2026-11-19.23**, schema **6**, checked at **957b493**. This docum
 | [whisper-executions.html](whisper-executions.html), .22 | 9 | Saved execution/ownership/navigation recovery, selected history deletion and iOS report transport. |
 | [archive-reconciliation.html](archive-reconciliation.html), .23 fixture rename | 27 | Isolated historical lab and disposable filesystem. Its older policy is separate from production and is not a current acceptance requirement. |
 
-The .23 core set is **119 groups** (29+43+47); the .22 eligibility/UI set was **112 groups**, including overlapping app/Settings checks. Do not add repeated checkpoint totals together. No real Whisper inference or user archives/databases are used by these fixture runs. Real iPhone/iCloud replacement/destination behavior and representative large-archive timing/memory remain device acceptance.
+The .25 guidance change passed **86 groups** (8 shared-audio + 49 app integration + 29 transcript-folder), with overlap in the app checks. The .24 core set was **125 groups** (29+49+47), extending .23’s 119-group core set; the .22 eligibility/UI set was **112 groups**, including overlapping app/Settings checks. Do not add repeated checkpoint totals together. No real Whisper inference or user archives/databases are used by these fixture runs. Real iPhone/iCloud replacement/destination behavior and representative large-archive timing/memory remain device acceptance.
 
 ## Running current harnesses safely
 
@@ -27,7 +28,7 @@ The committed Node runner supports `--suite=transcription-identity --browser`, `
 
 Current manual checks: inspect storage order/centered counts/description→selection→rows; ensure empty lists have no actions; cancel and finish pending JSON sharing; rebuild disposable yearly archives and verify the displayed archive plus folder; re-open unchanged lists; confirm actual failure/review holds are preserved. A browser-version change alone no longer requires a reference retest. Do not deliberately crash or stress devices for this documentation task.
 
-Do not use the four user archives as disposable fixtures. The user's separately planned old-JSON rebuild uses Edit/Combine first to preserve header identities. No app changes were made to implement filename-counter priority, iPhone audio removal parity, new detailed Whisper metadata, shared Transcribe/Search reconciliation or batch JSON delivery during this documentation update.
+Do not use the four user archives as disposable fixtures. The user's separately planned old-JSON rebuild uses Edit/Combine first to preserve header identities. The separately authorized .24 change fixes whole-folder iPhone audio removal parity. It does not implement filename-counter priority, new detailed Whisper metadata, shared Transcribe/Search reconciliation or batch JSON delivery.
 
 ## Historical checkpoint instructions
 

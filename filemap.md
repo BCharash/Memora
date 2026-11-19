@@ -1,10 +1,10 @@
 # Memora file map
 
-Updated **19 November 2026** against build **2026-11-19.23**, schema **6**, source **957b493**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Shared Transcribe/Search full reconciliation, iPhone audio removal parity and filename-counter priority are not all complete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
+Updated **19 November 2026** against candidate **2026-11-19.25**, schema **6**, based on committed source **d03d432**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Audio whole-folder iPhone removal parity is implemented in .24. Shared Transcribe/Search full reconciliation and filename-counter priority remain incomplete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
 
 ## The short answer about the number of files
 
-There are **54 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **32 top-level test/fixture JavaScript files under `tests/`** and **5 more in its isolated lab subtree** (37 total). Test files are separate from the normal application.
+There are **54 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **33 top-level test/fixture JavaScript files under `tests/`** and **5 more in its isolated lab subtree** (38 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
@@ -37,6 +37,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 - **Self-test:** `settings.js` → `whisperSelfTest.js` → `whisperTestLifecycle.js` → the same platform worker. Each standalone test creates a fresh worker and ends it after the test. This repeated-load behavior is under investigation on iPhone.
 - **Permission to transcribe:** canonical configurations + saved eligibility → `whisperProductionEligibility.js` → the selector and the loader. File availability/cache presence alone does not grant eligibility.
 - **Combine:** `app.js` → `transcriptFolder.js`/`transcriptArchive.js` for root read/reconciliation, then `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls.
+- **Shared audio playback:** `searchUI.js` supplies Combine and Search with location guidance, scoped caches and bounded embedded-ID checks where available. Legacy filename fallback and the broader pending audio resolver remain distinct.
 - **Search:** `searchUI.js` + `search.js` → `semantic.js` → `semantic-worker.js` for meaning-based search. Keyword search is also implemented in `search.js`.
 - **Paragraphs:** `paragraphing.js` → `paragraphing-worker.js`. This is a separate feature from speech recognition.
 
@@ -195,10 +196,11 @@ These modules are now connected to normal transcription. Standalone harnesses ke
 
 ## Developer tests — separate from the application
 
-There are **26 top-level HTML developer test pages**. Most import a matching `.test.js`; the isolated reconciliation lab has its own page module. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
+There are **27 top-level HTML developer test pages**. Most import a matching `.test.js`; the isolated reconciliation lab has its own page module. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
 
 | Test page | What it checks |
 |---|---|
+| [audio-location.html](tests/audio-location.html) | Shared audio-location prompts, phone-width hints, source-scoped batch/cache reuse, identity mismatch and native fallback. |
 | [transcript-folder.html](tests/transcript-folder.html) | Complete/partial coverage, manifest reconciliation, identity preservation, year-specific rebuild guidance, retries/concurrency and isolated OPFS saves. |
 | [whisper-executions.html](tests/whisper-executions.html) | Production history ownership, retention, privacy, real navigation recovery and linked report controls. |
 | [whisper-production-reviews.html](tests/whisper-production-reviews.html) | Durable policy/user reviews, reference recovery, ordering, stability and persistence safety in isolated fixtures. |
@@ -248,7 +250,7 @@ This is a static dependency/organization audit, not a fresh device test, exhaust
 
 ## Current next checkpoint and future selection
 
-As of 19 November build .23, family-then-filename-counter priority is agreed but not implemented. Equal-family records still keep first encounter. Desktop names increment -2/-3; file-input/iPhone leaves collision naming to Files. No detailed Whisper TXT metadata/backfill tool or added timestamp is planned. Audio iPhone missing-entry removal, Transcribe destination/full-save reconciliation and Search shared records/independent two-JSON saves are next implementation gaps. Parent/recursive catalogue, shared multi-source resolution and persistent multi-archive Combine/imports remain separate. Follow [CURRENT_STATUS](docs/CURRENT_STATUS.md) rather than the older pause below.
+As of 19 November build .23, family-then-filename-counter priority is agreed but not implemented. Equal-family records still keep first encounter. Desktop names increment -2/-3; file-input/iPhone leaves collision naming to Files. No detailed Whisper TXT metadata/backfill tool or added timestamp is planned. Whole-folder iPhone audio removal parity is complete in .24; partial/skipped/error/cancelled coverage remains protected. Transcribe destination/full-save reconciliation and Search shared records/independent two-JSON saves are next implementation gaps. Parent/recursive catalogue, shared multi-source resolution and persistent multi-archive Combine/imports remain separate. Follow [CURRENT_STATUS](docs/CURRENT_STATUS.md) rather than the older pause below.
 
 ### Earlier checkpoint note
 

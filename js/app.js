@@ -1560,7 +1560,7 @@ if (combineTitleInput) {
 initCombineUI({
     getCombineModule,
     onSelectionChanged: combineShareExportUI.reset,
-    onAppendAudioControl: appendSearchAudioControl,
+    onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
     onSaveTranscriptEdits: async (record, updatedText) => {
         const storage = await getStorageModule();
