@@ -43,7 +43,7 @@ export async function discoverAudioSource(source, { selectedFile=null } = {}) {
 // create | replace (separate confirmation) | restore | resume, or null to open.
 export async function openAudioSourceSession({ source, action=null, replacementConfirmed=false,
     selectedFile=null, establishedAudioSourceIds=[], selectedAudioSourceId=null, selectedRecoverySourceId=null,
-    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal } = {}) {
+    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal, verifyAudioContents=true } = {}) {
     checkAudioSourceAbort(signal);
     const discovery=await discoverAudioSource(source,{selectedFile});
     let selectedRootBytes;
@@ -146,6 +146,8 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         return result.bytes;
     }
     async function revalidateAudio() {
+        checkAudioSourceAbort(signal);
+        if(!verifyAudioContents)return;
         for (const [path,snapshot] of snapshots) {
             checkAudioSourceAbort(signal);
             if (source.kind==='directory') {
@@ -209,7 +211,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             unresolved.add(audioRelativePath);
             // Validate paths before any handle lookup, read or UUID reservation.
             const pathCheck=planRecordingIdentity({manifest:staged||current,audioRelativePath,
-                fingerprint:{algorithm:'sha256',byteLength:0,digest:'0'.repeat(64)},embedded:{status:'absent',recordingId:null,issues:[]}});
+                fingerprint:{algorithm:'sha256',byteLength:0,digest:'0'.repeat(64)},embedded:{status:'absent',recordingId:null,issues:[]},verifyAudioContents});
             if (['audio-path','path-spelling'].includes(pathCheck.code)) return pathCheck;
             let file;
             if (source.kind==='directory') file=await (await resolveAudioSourceHandle(source,audioRelativePath)).getFile();
@@ -219,16 +221,18 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 file=files[0];
             }
             // One immutable File snapshot for reader, hash and future inference.
-            const embedded=await readEmbeddedRecordingIdentity(file);
+            const known=(staged||current).recordings.find(item=>item.audioRelativePath===audioRelativePath);
+            const embedded=!verifyAudioContents&&known?null:await readEmbeddedRecordingIdentity(file);
             checkAudioSourceAbort(signal);
-            const fingerprint=await fingerprintAudio(file,{signal,onProgress});
-            const token=JSON.stringify([fingerprint,embedded]);
+            if(embedded?.issues.some(issue=>issue.code==='read-failed'))throw fail('audio-read-failed',`“${file.name}” could not be read. The audio recording list has not been updated.`);
+            const fingerprint=verifyAudioContents?await fingerprintAudio(file,{signal,onProgress}):null;
+            const token=JSON.stringify([fingerprint,embedded,file.size,file.lastModified]);
             const previous=snapshots.get(audioRelativePath);
             if (choice && (!previous || previous.token!==token)) {
                 snapshots.set(audioRelativePath,{file,fingerprint,embedded,token});
                 return {status:'decision-required',code:'stale-choice',recordingId:null,candidate:null,message:'The recording changed or this choice has not been reviewed. Review its current identity before continuing.'};
             }
-            const args={manifest:staged||current,audioRelativePath,fingerprint,embedded,choice};
+            const args={manifest:staged||current,audioRelativePath,fingerprint,embedded,choice,verifyAudioContents};
             let result=planRecordingIdentity(args);
             if (result.status==='assignment-required') {
                 const assignmentKey=`${audioRelativePath}:${token}:${choice||'new'}`;
@@ -240,7 +244,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 const entry=staged.recordings.find(item=>item.audioRelativePath===audioRelativePath);
                 if(entry.sourceAvailability)entry.sourceAvailability.status='available';
                 unresolved.delete(audioRelativePath); }
-            return {...result,file,fingerprint,embedded};
+            return {...result,file,fingerprint,embedded,identityOrigin:known?.identityOrigin||result.candidate?.recordings.find(item=>item.audioRelativePath===audioRelativePath)?.identityOrigin};
         }),
         persist: ({onCommit}={})=>exclusive(()=>locked(key,async()=> {
             checkAudioSourceAbort(signal);

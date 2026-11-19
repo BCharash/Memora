@@ -81,6 +81,14 @@ await test('Apple dates/duration remain unchanged; iMuse identity does not imply
  const imuse=new File([f.mp4([f.box('moov',movie),f.imuseBox()])],'imuse.m4a');
  const metadata=await readRealMetadata(imuse,{embeddedIdentity:await readEmbeddedRecordingIdentity(imuse)});
  eq(metadata.uuid,null);eq(metadata.recordingDate,null);eq(metadata.duration,current.duration);eq(metadata.fileCreationDate,current.fileCreationDate);
+ eq(await readRealMetadata(imuse,{embeddedIdentity:{identityOrigins:['imuse-embedded'],source:'audio-recording-list'}}),metadata,'Saved identity origin changed metadata presentation');
+});
+await test('Non-M4A list metadata reads duration without whole-file JavaScript reads or Web Audio decoding',async()=>{
+ const header=new ArrayBuffer(44),view=new DataView(header),write=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i));};
+ const samples=16000;write(0,'RIFF');view.setUint32(4,36+samples*2,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,16000,true);view.setUint32(28,32000,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,samples*2,true);
+ const file=new File([header,new Uint8Array(samples*2)],'duration.wav',{type:'audio/wav'});file.arrayBuffer=()=>{throw Error('Whole-file metadata read attempted');};
+ const original=window.AudioContext;window.AudioContext=function(){throw Error('Audio decode during folder listing');};
+ try{const metadata=await readRealMetadata(file,{metadataOnly:true});eq(metadata.duration,1);eq(metadata.durationTimescale,1);}finally{window.AudioContext=original;}
 });
 await test('Selected destination evidence reuses established source IDs by embedded UUID',async()=>{
  const selected=directory(),output=directory('transcription');const file=await seedAudio(selected.root,'memo.wav',ID);
@@ -178,7 +186,7 @@ await test('Desktop normal flow persists source and archive IDs before verified 
  const identity=readTranscriptIdentity(decoder.decode(desktop.state.files.get(filename)));firstID=identity.recordingId;firstArchive=identity.archiveUuid;
  const source=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))),archive=JSON.parse(decoder.decode(desktop.state.files.get('memora-archive.json')));
  eq(source.recordings[0].recordingId,firstID);eq(archive.archiveUuid,firstArchive);eq(archive.recordings[0].transcripts[0].relativePath,filename);
- eq(calls[0].operation,'transcribe');eq(calls[0].language,'en');assert(calls[0].embedded.status==='absent','Inspected snapshot missing');
+ eq(calls[0].operation,'transcribe');eq(calls[0].language,'en');eq(calls[0].embedded.source,'audio-recording-list','Known audio was inspected again');
  eq(Array.from(new Uint8Array(await originalAudio.arrayBuffer())),Array.from(desktop.state.files.get('memo.wav')),'Audio changed');
 });
 await test('Deleted desktop JSON is resolved and restored at source selection before transcription',async()=>{
@@ -189,20 +197,21 @@ await test('Deleted desktop JSON is resolved and restored at source selection be
  await choose('Restore saved recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
  eq(calls.length,before);eq(JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))).recordings[0].recordingId,firstID);
 });
-await test('Source Refresh inventories additions, resolves changes, retains missing identities and avoids unchanged JSON writes',async()=>{
+await test('Source Refresh adds files without hashes, ignores audio edits, removes absent entries and reenrolls returning files',async()=>{
  const before=calls.length;await seedAudio(desktop.root,'extra.wav');
  await refreshSource();
  let manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,2);eq(calls.length,before);
- const extra=manifest.recordings.find(item=>item.audioRelativePath==='extra.wav'),extraId=extra.recordingId;eq(extra.sourceAvailability.status,'available');
+ const extra=manifest.recordings.find(item=>item.audioRelativePath==='extra.wav'),extraId=extra.recordingId;eq(extra.sourceAvailability.status,'available');assert(!('audioFingerprint' in extra),'New audio was fingerprinted');
  const saved=decoder.decode(desktop.state.files.get('memora-audio-source.json'));
- desktop.state.files.set('extra.wav',new Uint8Array(await f.wav([f.wavChunk('JUNK',new Uint8Array([1,2,3,4]))]).arrayBuffer()));
- click('refreshAudioSourceButton');await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='This audio file has changed');await choose('Cancel');await waitFor(()=>!document.getElementById('refreshAudioSourceButton').disabled);
- eq(decoder.decode(desktop.state.files.get('memora-audio-source.json')),saved,'Cancelled scan changed JSON');
- click('refreshAudioSourceButton');await choose('Keep existing ID');await waitFor(()=>!document.getElementById('refreshAudioSourceButton').disabled);
- manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.find(item=>item.audioRelativePath==='extra.wav').recordingId,extraId);
+ const changed=new Uint8Array(await f.wav([f.wavChunk('JUNK',new Uint8Array([1,2,3,4]))]).arrayBuffer());
+ desktop.state.files.set('extra.wav',changed);await refreshSource();
+ eq(decoder.decode(desktop.state.files.get('memora-audio-source.json')),saved,'Existing audio changes rewrote the list');assert(!document.querySelector('dialog[open]'),'Unexpected edited-audio prompt');
+ const archive=decoder.decode(desktop.state.files.get('memora-archive.json'));
  desktop.state.files.delete('extra.wav');await refreshSource();
- manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,2);eq(manifest.recordings.find(item=>item.recordingId===extraId).sourceAvailability.status,'missing');eq(manifest.recordings.find(item=>item.audioRelativePath==='memo.wav').recordingId,firstID);
+ manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,1);assert(!manifest.recordings.some(item=>item.recordingId===extraId),'Absent entry retained');eq(manifest.recordings[0].recordingId,firstID);eq(decoder.decode(desktop.state.files.get('memora-archive.json')),archive,'Audio removal modified transcripts');
  const writes=desktop.state.jsonWrites;await refreshSource();eq(desktop.state.jsonWrites,writes,'Unchanged refresh rewrote JSON');eq(calls.length,before);
+ desktop.state.files.set('extra.wav',changed);await refreshSource();manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));assert(manifest.recordings.find(item=>item.audioRelativePath==='extra.wav').recordingId!==extraId,'Removed fallback ID was silently restored');
+ desktop.state.files.delete('extra.wav');await refreshSource();
 });
 await test('Different output archive reuses source Recording ID and creates separate Archive UUID',async()=>{
  selections.push(second.root);click('destinationButton');await waitFor(()=>document.getElementById('destinationButton').textContent.includes('Other output'));
@@ -279,12 +288,12 @@ await test('File-input missing JSON is resolved before showing a new source and 
  await choose('Create audio recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
  assert(document.getElementById('sourceButton').textContent.includes('Phone source'),'New source was not committed');eq(calls.length,before);assert(!document.querySelector('dialog[open]'),'Source resolution deferred');
 });
-await test('Cancelling a hashing scan retains the previous source and saves no recovery or JSON',async()=>{
+await test('Cancelling a header scan retains the previous source and saves no recovery or JSON',async()=>{
  const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore(),before=(await store.list()).length,previous=document.getElementById('sourceButton').textContent;
  const audio=new File([f.wav([f.wavChunk('JUNK',new Uint8Array(2*1024*1024))])],'large.wav');
  const json=new File([JSON.stringify({schemaVersion:1,audioSourceId:crypto.randomUUID(),recordings:[]})],'memora-audio-source.json');
  selections.push({kind:'file-input',name:'Cancelled inventory',files:[audio,json]});
- const observer=new MutationObserver(()=>{if(document.getElementById('audioInventoryStatus').textContent.includes('%')){observer.disconnect();click('cancelAudioInventoryButton');}});
+ const observer=new MutationObserver(()=>{if(document.getElementById('audioInventoryStatus').textContent.startsWith('Checking audio recording list:')){observer.disconnect();click('cancelAudioInventoryButton');}});
  observer.observe(document.getElementById('audioInventoryStatus'),{childList:true,subtree:true});
  click('sourceButton');await choose('Discard pending lists');await waitFor(()=>document.getElementById('audioInventoryStatus').textContent.includes('cancelled')&&!document.getElementById('sourceButton').disabled);observer.disconnect();
  eq(document.getElementById('sourceButton').textContent,previous);eq((await store.list()).length,before);

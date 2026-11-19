@@ -2,6 +2,7 @@ import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordin
 import {openTranscriptArchive} from './transcriptArchive.js';
 import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
 import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
+import {discoverAudioSource} from './audioSourcePersistence.js';
 import {checkAudioSourceAbort} from './audioFingerprint.js';
 import {listTextFiles,shareFile} from './storage.js';
 // Inspect only the explicitly selected transcript destination. Embedded IDs
@@ -38,7 +39,8 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
         async activateSource(){if(pendingInventoryList)await ui.publishPendingList(pendingInventoryList);},
         async prepareSource(selectedSource,files,{signal,onProgress=()=>{}}={}){
             checkAudioSourceAbort(signal);
-            const evidence=await associatedSourceEvidence(selectedSource,files);
+            const discovery=await discoverAudioSource(selectedSource);
+            const evidence=discovery.validation?.status==='valid'?{ids:[],labels:new Map()}:await associatedSourceEvidence(selectedSource,files);
             const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels,{signal});
             const observedPaths=[],verifiedPaths=[];let skipped=0;
             for(let index=0;index<files.length;index++){
@@ -48,6 +50,8 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
                 observedPaths.push(path);
                 const message=`Checking audio recording list: ${index+1} of ${files.length} — ${file.name}`;
                 onProgress(message);
+                await new Promise(resolve=>setTimeout(resolve,0));
+                checkAudioSourceAbort(signal);
                 const identity=await ui.prepareRecording(file,{onProgress:progress=>onProgress(`${message} (${Math.round(progress.bytesRead/Math.max(1,progress.byteLength)*100)}%)`)});
                 if(identity)verifiedPaths.push(path);else skipped++;
             }
@@ -81,7 +85,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
         },
         async prepare(file){
             const identity=await ui.prepareRecording(file);if(!identity)return null;
-            const resolved={...identity,archiveUuid:archive.archiveUuid,audioSourceId:ui.getSession().sourceId,originalAudioFolderName:source.name};
+            const resolved={...identity,embedded:identity.embedded||{identityOrigins:identity.identityOrigin==='memora-assigned'?[]:[identity.identityOrigin],source:'audio-recording-list'},archiveUuid:archive.archiveUuid,audioSourceId:ui.getSession().sourceId,originalAudioFolderName:source.name};
             recordingIdentityLines(resolved);
             await ui.persist();
             return resolved;

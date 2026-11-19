@@ -8,7 +8,7 @@ const UUID_SCAN_HEAD_BYTES = 1024 * 1024;
 const UUID_CONTEXT_BYTES = 256;
 
 
-export async function readAudioMetadata(file, { embeddedIdentity = null } = {}) {
+export async function readAudioMetadata(file, { embeddedIdentity = null, metadataOnly = false } = {}) {
 
     const isMP4Container =
         /\.(m4a|mp4)$/i.test(file.name);
@@ -21,7 +21,7 @@ export async function readAudioMetadata(file, { embeddedIdentity = null } = {}) 
         return metadata;
     }
 
-    return readBrowserAudioMetadata(file);
+    return metadataOnly ? readMediaElementMetadata(file) : readBrowserAudioMetadata(file);
 }
 
 
@@ -531,6 +531,26 @@ function findByteSequence(
 // --------------------------------------------------
 // Generic browser-decodable audio
 // --------------------------------------------------
+
+// Folder listings need duration, not decoded audio samples. Let the browser
+// inspect metadata without allocating a whole-file buffer or an AudioContext.
+async function readMediaElementMetadata(file) {
+    return new Promise((resolve,reject)=>{
+        const media=document.createElement('audio');
+        const url=URL.createObjectURL(file);let timer;
+        const finish=(error)=>{
+            clearTimeout(timer);media.onloadedmetadata=null;media.onerror=null;
+            const duration=Number.isFinite(media.duration)?media.duration:null;
+            media.removeAttribute('src');media.load();URL.revokeObjectURL(url);
+            if(error)reject(error);else resolve({recordingDate:null,fileCreationDate:null,uuid:null,duration,durationTimescale:1});
+        };
+        media.preload='metadata';
+        media.onloadedmetadata=()=>finish();
+        media.onerror=()=>finish(Error(`Could not read audio metadata for ${file.name}.`));
+        timer=setTimeout(()=>finish(Error(`Audio metadata is unavailable for ${file.name}.`)),10000);
+        media.src=url;media.load();
+    });
+}
 
 async function readBrowserAudioMetadata(file) {
 

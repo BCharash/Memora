@@ -621,7 +621,7 @@ async function loadAudioSource({refresh=false}={}) {
         if(!keepDestination)setActiveDestinationButton(null);
         await identityWorkflow.activateSource();
         const summary=identityWorkflow.getInventorySummary();
-        audioInventoryStatus.textContent=`${summary.checked} audio recording(s) checked. ${summary.missing} missing, ${summary.unverified} unverified, ${summary.skipped} skipped. `+
+        audioInventoryStatus.textContent=`${summary.checked} audio recording(s) checked. ${summary.removed} removed from list, ${summary.unverified} unverified, ${summary.skipped} skipped. `+
             (summary.coverage==='folder'?'Audio directly in this folder was checked; subfolders are not included.':'Only the supplied files were checked; unobserved recordings are retained as unverified.')+
             (summary.pendingSave?' Save the updated audio recording list below.':'');
         sourceButton.textContent=`Source: ${sourceHandle.name}`;
@@ -2299,7 +2299,7 @@ async function readAudioMetadata(file) {
             await import("./metadata.js");
     }
 
-    return metadataModule.readAudioMetadata(file);
+    return metadataModule.readAudioMetadata(file,{metadataOnly:true});
 }
 
 

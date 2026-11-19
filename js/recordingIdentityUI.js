@@ -57,7 +57,7 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
         async prepareSource(selectedSource,establishedAudioSourceIds=[],sourceLabels=new Map(),{signal}={}){
             operationSignal=signal;
             if(session&&source===selectedSource)return session;
-            const options={source:selectedSource,establishedAudioSourceIds,signal};
+            const options={source:selectedSource,establishedAudioSourceIds,signal,verifyAudioContents:false};
             for(let attempts=0;attempts<20;attempts++){
                 const result=await openSession(options);
                 if(result.status==='ready'){source=selectedSource;session=result.session;return session;}

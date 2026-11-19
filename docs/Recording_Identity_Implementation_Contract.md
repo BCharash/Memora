@@ -34,6 +34,18 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Fast audio membership policy — 19 November 2026
+
+The user's subsequent approval supersedes audio-edit detection and retained-missing-root-entry rules below. Build `2026-11-19.7` tracks current source membership, not edits to audio contents. Known exact paths reuse saved Recording IDs/origins without reading identity headers or hashing payloads. New paths use bounded identity metadata reads and the established embedded/fallback identity policy. Duplicate/ambiguous paths and identities remain explicit conflicts; names are not used to associate different sources or deduplicate recordings.
+
+`audioFingerprint` is now optional in version 1. Existing valid fingerprint fields and their extensions are preserved as historical information, but production inventory/transcription preparation neither recomputes nor uses them to detect audio edits. New entries omit the field instead of inventing a digest. The low-level optional verification path and its historical tests remain isolated from the production UI. Old manifests remain readable by the current version; older builds that required fingerprints may not read newly enrolled entries without them.
+
+A successfully enumerated/inspected writable root removes entries for absent immediate audio paths. Partial, skipped, cancelled, provider-failed or file-input coverage cannot authorize pruning. Previously catalogued nested entries outside the immediate-root scope remain unverified. A returned file is enrolled anew: embedded IDs persist naturally; a removed Memora fallback ID is not recovered by name or digest. Source pruning never deletes audio, transcripts or transcript-archive references. Availability statuses remain accepted for older manifests, but complete scans now remove absent root entries instead of writing `missing`.
+
+Routine source listing also avoids full-file Web Audio decoding for non-M4A duration: HTML media metadata is requested with cleanup of its temporary URL. This is browser/provider metadata access, not a guarantee that every format/provider fetches only a fixed number of bytes. Actual transcription still decodes audio as needed. Saved identity origin supplies metadata context without pretending its headers were reverified.
+
+The production source scan below and older fingerprint/identity-mutation rules are historical where they conflict with this policy. Transcript content-change detection and archive reconciliation are separate and are not relaxed by this audio-only decision.
+
 ## Production source inventory — 19 November 2026
 
 Build `2026-11-19.6` implements the user's subsequent approval to maintain the audio recording list on source open/Refresh, independently of transcription selection. This supersedes older selected-recording-only enrollment descriptions for the audio source. Parent catalogue, transcript destination reconciliation and recursive source ownership remain separate work.
@@ -105,7 +117,7 @@ Illustrative document (digest placeholder must be replaced by an actual 64-digit
 | `identityRecovery` | Optional, only for explicit Memora assignment following unreadable embedded identity. |
 | `identityRecovery.reason` | `invalid-embedded-metadata` or `unsupported-embedded-metadata`. Omit for ordinary assignment when embedded identity is absent. |
 
-Every recording entry uses the fingerprint, including Apple/iMuse entries. A digest is change evidence, never a Recording ID, global match key or cross-source deduplication mechanism. Do not alter the audio to add a Memora ID.
+Fingerprints are optional historical information under the fast audio membership policy above. If present, their structure is validated and their data preserved. They are never a Recording ID, global match key or cross-source deduplication mechanism. Do not alter the audio to add a Memora ID.
 
 Do not add Archive UUID, transcript text, model/operation, device handles or transcript destinations to this minimal source schema. Transcript paths remain in transcript archive manifests. This is the recommended minimal separation; any later reverse links to transcripts require a separate concrete need and review.
 

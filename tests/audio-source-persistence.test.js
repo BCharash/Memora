@@ -165,6 +165,25 @@ await test('Rereading a saved iPhone inventory reuses IDs without asking to expo
  await reopened.session.reconcileAvailability({observedPaths:['memo.wav'],verifiedPaths:['memo.wav'],complete:false});
  const unchanged=await reopened.session.persist();eq(unchanged.status,'unchanged');assert(!unchanged.file,'Unchanged list requested another export');
 });
+await test('Production audio membership uses bounded header reads regardless of file size and never rehashes before saving',async()=>{
+ const reads=[];
+ for(const size of [64,8*1024*1024]){
+  const file=new File([f.wav([f.wavChunk('JUNK',new Uint8Array(size))])],'memo.wav');let bytesRead=0;
+  const slice=file.slice.bind(file);file.slice=(start,end)=>{assert((end??file.size)-start<=8192,'Payload-sized audio read attempted');bytesRead+=(end??file.size)-start;return slice(start,end);};file.arrayBuffer=()=>{throw Error('Whole-file audio read attempted');};
+  const source={kind:'file-input',name:'Audio',files:[file]},store=memoryStore();
+  const opened=await openAudioSourceSession({source,recoveryStore:store,action:'create',verifyAudioContents:false});const identity=await stage(opened.session);eq(identity.status,'ready');assert(!('audioFingerprint' in opened.session.getManifest().recordings[0]),'Fake digest stored');
+  const headers=bytesRead;await opened.session.persist();eq(bytesRead,headers,'Saving read audio contents again');assert(headers<8192,'Header inspection read too much audio');reads.push(headers);
+  file.slice=()=>{throw Error('Known audio headers were reread');};const repeated=await stage(opened.session);eq(repeated.recordingId,identity.recordingId);await opened.session.persist();eq(bytesRead,headers);
+ }
+ eq(reads[0],reads[1],'Reading cost scaled with audio payload length');
+});
+await test('Returning embedded audio keeps its ID after complete inventory removal; partial access never prunes',async()=>{
+ const file=new File([f.wav([f.wavChunk('imID',f.payload(f.ID))])],'memo.wav'),source={kind:'file-input',name:'Audio',files:[file]},store=memoryStore();
+ const opened=await openAudioSourceSession({source,recoveryStore:store,action:'create',verifyAudioContents:false});const session=opened.session;
+ eq((await stage(session)).recordingId,f.ID);await session.reconcileAvailability({observedPaths:[],verifiedPaths:[],complete:false});eq(session.getManifest().recordings.length,1);
+ await session.reconcileAvailability({observedPaths:[],verifiedPaths:[],complete:true});eq(session.getManifest().recordings.length,0);await session.persist();
+ eq((await stage(session)).recordingId,f.ID);
+});
 await test('Recovery matches browser-confirmed directory or established ID, never folder name',async()=>{
  const {session,source,store}=await make();await stage(session);await session.persist();const records=await store.list();
  eq((await matchAudioSourceRecovery(records,{source})).length,1);

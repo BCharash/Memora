@@ -127,7 +127,7 @@ function checkManifest(value) {
         const id = entry.recordingId.toLowerCase();
         requireValue(!ids.has(id), 'duplicate-recording-id', 'Multiple audio paths have the same Recording ID; explicit review is required.', 'conflicting'); ids.add(id);
         requireValue(ORIGINS.includes(entry.identityOrigin), 'identity-origin', 'A recording entry has an unknown identity origin.');
-        checkFingerprint(entry.audioFingerprint);
+        if(has(entry,'audioFingerprint'))checkFingerprint(entry.audioFingerprint);
         if (has(entry, 'sourceAvailability')) {
             requireValue(object(entry.sourceAvailability) && ['available','missing','unverified','unresolved'].includes(entry.sourceAvailability.status),
                 'source-availability', 'A recording has an invalid source availability status.');
@@ -195,7 +195,7 @@ const IDENTITY_ISSUES = new Set(['invalid-utf8', 'invalid-json', 'invalid-uuid',
 // Produces a complete staged manifest, never a committed/saved result.
 // choices: use-embedded | keep-existing | assign-new | skip | cancel.
 export function planRecordingIdentity({ manifest, audioRelativePath, fingerprint, embedded,
-    choice = null, assignedRecordingId = null, establishedAudioSourceIds = [], selectedAudioSourceId = null } = {}) {
+    choice = null, assignedRecordingId = null, establishedAudioSourceIds = [], selectedAudioSourceId = null, verifyAudioContents=true } = {}) {
     if (choice === 'cancel') return outcome('cancelled', 'cancelled');
     if (choice === 'skip') return outcome('skipped', 'skipped');
     try {
@@ -203,19 +203,24 @@ export function planRecordingIdentity({ manifest, audioRelativePath, fingerprint
         if (checked.status !== 'valid') return outcome('blocked', 'invalid-manifest', { validation: checked });
         const originalText = JSON.stringify(checked.manifest);
         requireValue(choice === null || ['use-embedded', 'keep-existing', 'assign-new'].includes(choice), 'choice', 'The identity choice is invalid.');
-        pathKey(audioRelativePath); fingerprint = copyJson(fingerprint); checkFingerprint(fingerprint);
+        pathKey(audioRelativePath);
+        if(verifyAudioContents){fingerprint=copyJson(fingerprint);checkFingerprint(fingerprint);}
+        else fingerprint=null;
         const source = resolveAudioSourceId({ audioSourceId: checked.manifest.audioSourceId, establishedAudioSourceIds, selectedAudioSourceId });
         if (source.status !== 'resolved') return outcome(source.status === 'decision-required' ? 'decision-required' : 'blocked', 'source-id-conflict', { sourceResolution: source });
         const candidate = checked.manifest;
         candidate.audioSourceId = source.audioSourceId;
         const entry = candidate.recordings.find(item => pathKey(item.audioRelativePath) === pathKey(audioRelativePath));
         requireValue(!entry || entry.audioRelativePath === audioRelativePath, 'path-spelling', 'The selected audio path differs in case or Unicode spelling; explicit file association is required.');
+        // Audio inventory tracks membership, not edits to known recordings.
+        // Preserve established identity and any historical fingerprint unchanged.
+        if(!verifyAudioContents && entry)return outcome('ready','reused',{recordingId:entry.recordingId,candidate,requiresPersistence:JSON.stringify(candidate)!==originalText});
         const observation = copyJson(embedded);
         requireValue(object(observation) && ['valid', 'absent', 'invalid', 'unsupported', 'conflicting'].includes(observation.status), 'embedded-result', 'A current embedded-identity reader result is required.');
         requireValue(Array.isArray(observation.issues), 'embedded-result', 'The embedded reader result has no issue list.');
         if (observation.status === 'conflicting') return outcome('blocked', 'embedded-conflict', { issues: observation.issues });
         let id, origin, reason = null, code;
-        const unchanged = !!entry && matchingFingerprint(entry.audioFingerprint, fingerprint);
+        const unchanged = !!entry && !!entry.audioFingerprint && matchingFingerprint(entry.audioFingerprint, fingerprint);
         if (observation.status === 'valid') {
             requireValue(uuid(observation.recordingId) && observation.issues.length === 0 && Array.isArray(observation.identityOrigins) && observation.identityOrigins.length > 0 &&
                 observation.identityOrigins.every(value => ['apple-embedded', 'imuse-embedded'].includes(value)), 'embedded-result', 'The embedded reader result is inconsistent.');
@@ -268,7 +273,7 @@ export function planRecordingIdentity({ manifest, audioRelativePath, fingerprint
         if (candidate.recordings.some(item => item !== entry && sameId(item.recordingId, id))) return outcome('blocked', 'duplicate-recording-id');
         const staged = entry || { audioRelativePath };
         staged.recordingId = id; staged.identityOrigin = origin;
-        staged.audioFingerprint = { ...(entry?.audioFingerprint || {}), ...copyJson(fingerprint), algorithm: 'sha256', digest: fingerprint.digest.toLowerCase() };
+        if(fingerprint)staged.audioFingerprint = { ...(entry?.audioFingerprint || {}), ...copyJson(fingerprint), algorithm: 'sha256', digest: fingerprint.digest.toLowerCase() };
         if (reason) staged.identityRecovery = { ...(entry?.identityRecovery || {}), reason };
         else if (staged.identityRecovery) {
             delete staged.identityRecovery.reason;
@@ -282,14 +287,17 @@ export function planRecordingIdentity({ manifest, audioRelativePath, fingerprint
     } catch (error) { return outcome('blocked', error instanceof SourceError ? error.code : 'invalid-input', { validation: errorResult(error) }); }
 }
 
-// Availability never removes an identity. Complete coverage applies only to
+// Complete folder membership may remove absent immediate entries. Coverage applies only to
 // eligible immediate files; nested and partially supplied files stay unverified.
 export function planAudioSourceAvailability(manifest,{observedPaths=[],verifiedPaths=[],complete=false}={}) {
     const checked=validateAudioSourceManifest(manifest);
     if(checked.status!=='valid')throw Error(checked.issues[0].message);
     const observed=new Set(observedPaths),verified=new Set(verifiedPaths);
     for(const path of [...observed,...verified])pathKey(path);
-    const candidate=checked.manifest,counts={available:0,missing:0,unverified:0,unresolved:0};
+    const candidate=checked.manifest,counts={available:0,missing:0,unverified:0,unresolved:0,removed:0};
+    if(complete)candidate.recordings=candidate.recordings.filter(entry=>{
+        if(!entry.audioRelativePath.includes('/')&&!observed.has(entry.audioRelativePath)){counts.removed++;return false;}return true;
+    });
     for(const entry of candidate.recordings){
         const path=entry.audioRelativePath;
         const status=verified.has(path)?'available':observed.has(path)?'unresolved':complete&&!path.includes('/')?'missing':'unverified';
