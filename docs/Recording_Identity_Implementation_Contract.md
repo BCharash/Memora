@@ -34,6 +34,22 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Restore visibility and action eligibility — 19 November 2026
+
+Candidate `2026-11-19.13` supersedes the earlier general recovery chooser. Restore is offered and accepted only when all conditions hold:
+
+1. Discovery establishes `absent` for the source JSON. A present valid/invalid/unsupported list, a denied or failed read, and file-input `not-included` do not establish absence.
+2. A validated recovery record is associated independently by a browser-confirmed directory handle or established Audio Source UUID. Folder names, matching filenames and hashes never establish source association.
+3. The current eligible files include a bounded-reader-confirmed `absent` embedded ID at a path whose entry in that associated recovery is `memora-assigned`. A backup containing only embedded IDs, no present matching fallback path, or no recordings is not a useful restoration candidate.
+
+Only qualifying copies can appear in a Restore comparison. Valid current JSON is authoritative over older same-directory backups. Ineligible direct restore requests are blocked in the session layer, so hiding a button is not the only safeguard. Explicit Browse remains available for selecting an existing list; replacing a present list with a browsed copy retains confirmation. Present interrupted-write shells are not called missing.
+
+Current iPhone/file-input access cannot prove JSON absence merely from omission and thus does not show Restore. This does not delete recovery records. Pending-list continuation is a separate workflow for an already-established source and is not a general Restore chooser. The source inventory/automatic desktop save/explicit iPhone sharing behavior remains unchanged.
+
+## Save outcome diagnostic — 19 November 2026
+
+Candidate `2026-11-19.10` retains the actual source-persistence outcome for the Source status: Saved and verified (native write plus readback), Already up to date (equivalent existing list), or Save required (prepared export). The selected root folder label and canonical audio-list filename are displayed; browser folder access does not expose a full absolute Finder/iCloud path. Native readback verifies the selected local file, not cloud synchronization. Saving progress is emitted at the native write boundary only. Retry dialogs and their cancelled outcomes preserve actual error name/message and target. The MacBook missing-file report is not reproduced or declared fixed; this diagnostic supports the user's next real-folder test. Restore visibility, Browse wording and transcript reconciliation remain separate pending changes.
+
 ## Simplified scan controls — 19 November 2026
 
 Candidate `2026-11-19.9` removes the Cancel Scan UI. The source picker retains its native Cancel action; internal workflow cancellation and failed/interrupted-read protections remain. A reading status begins after folder selection. Save Audio Recording List is kept hidden until inventory, compilation and metadata/list display preparation finish, then uses the existing pending-save highlight. Failed/cancelled selection restores the prior pending action. This supersedes earlier references to a user-facing Cancel Scan control.

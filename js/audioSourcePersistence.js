@@ -4,7 +4,7 @@ import { AUDIO_SOURCE_LIMITS, parseAudioSourceManifest, serializeAudioSourceMani
 import { readEmbeddedRecordingIdentity } from './recordingIdentity.js';
 import { fingerprintAudio, checkAudioSourceAbort } from './audioFingerprint.js';
 import { createAudioSourceRecoveryStore, matchAudioSourceRecovery } from './audioSourceRecovery.js';
-import { AUDIO_SOURCE_FILENAME, readAudioSourceBytes, discoverAudioSourceFile, writeAudioSourceFile, resolveAudioSourceHandle } from './storage.js';
+import { AUDIO_SOURCE_FILENAME, readAudioSourceBytes, discoverAudioSourceFile, writeAudioSourceFile, resolveAudioSourceHandle, listAudioFiles } from './storage.js';
 const encoder=new TextEncoder(), decoder=new TextDecoder('utf-8',{fatal:true});
 const sameBytes=(a,b)=>a===null || b===null ? a===b : a.length===b.length && a.every((value,i)=>value===b[i]);
 const sameFingerprint=(a,b)=>a.byteLength===b.byteLength && a.digest===b.digest;
@@ -43,7 +43,7 @@ export async function discoverAudioSource(source, { selectedFile=null } = {}) {
 // create | replace (separate confirmation) | restore | resume, or null to open.
 export async function openAudioSourceSession({ source, action=null, replacementConfirmed=false,
     selectedFile=null, establishedAudioSourceIds=[], selectedAudioSourceId=null, selectedRecoverySourceId=null,
-    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal, verifyAudioContents=true } = {}) {
+    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal, verifyAudioContents=true, audioFiles=null } = {}) {
     checkAudioSourceAbort(signal);
     const discovery=await discoverAudioSource(source,{selectedFile});
     let selectedRootBytes;
@@ -71,14 +71,31 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     // list can coexist with an older recovery record for the same directory.
     if (association.audioSourceId) {
         const exact=matches.filter(item=>item.audioSourceId.toLowerCase()===association.audioSourceId.toLowerCase());
-        if (exact.length) matches=exact;
+        if (exact.length || valid) matches=exact;
     }
-    // File-input access has no persistent directory handle. Offer saved copies
-    // for explicit comparison, but never associate one by folder name alone.
-    let unassociatedRecoveries=[];
-    if(source.kind==='file-input' && !valid && discovery.status==='not-included' && !matches.length){
-        unassociatedRecoveries=await matchAudioSourceRecovery(records,{establishedAudioSourceIds:records.map(item=>item?.audioSourceId).filter(id=>typeof id==='string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))});
-        if(action==='restore')matches=unassociatedRecoveries;
+    // Restore is for recovering needed fallback IDs, never a general backup
+    // chooser. File-input omission cannot establish that the JSON is absent.
+    const restoreIds=new Set();
+    if(discovery.status==='absent' && matches.length && [null,'restore'].includes(action)){
+        const files=audioFiles??await listAudioFiles(source);
+        const pathsBySource=new Map(matches.map(item=>[item.audioSourceId.toLowerCase(),new Set(
+            parseAudioSourceManifest(item.manifestText).manifest.recordings.filter(entry=>entry.identityOrigin==='memora-assigned').map(entry=>entry.audioRelativePath))]));
+        for(const file of files){
+            checkAudioSourceAbort(signal);
+            const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
+            const possible=matches.filter(item=>pathsBySource.get(item.audioSourceId.toLowerCase()).has(path));
+            if(!possible.length)continue;
+            const embedded=await readEmbeddedRecordingIdentity(file);
+            checkAudioSourceAbort(signal);
+            if(embedded.issues.some(issue=>issue.code==='read-failed'))throw fail('audio-read-failed',`“${file.name}” could not be read. Restore availability cannot be established.`);
+            if(embedded.status==='absent')for(const item of possible)restoreIds.add(item.audioSourceId.toLowerCase());
+        }
+    }
+    const restorable=matches.filter(item=>restoreIds.has(item.audioSourceId.toLowerCase()));
+    const canRestore=discovery.status==='absent' && restorable.length>0;
+    if(action==='restore'){
+        if(!canRestore)return {status:'blocked',code:'restore-not-available',discovery};
+        matches=restorable;
     }
     if (selectedRecoverySourceId!==null) {
         const chosen=matches.filter(item=>item.audioSourceId.toLowerCase()===String(selectedRecoverySourceId).toLowerCase());
@@ -88,10 +105,10 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     // Missing JSON is resolved before offering individual recovery copies.
     // A saved handle association alone never chooses a replacement list.
     if (!valid && discovery.status!=='found' && action===null) return {
-        status:'decision-required',code:matches.length||unassociatedRecoveries.length?'restore-available':discovery.status==='absent'?'create-source-list':'select-existing-or-create',
-        discovery,canRestore:matches.length>0||unassociatedRecoveries.length>0
+        status:'decision-required',code:canRestore?'restore-available':discovery.status==='absent'?'create-source-list':'select-existing-or-create',
+        discovery,canRestore
     };
-    if ((matches.length>1 || unassociatedRecoveries.length && action==='restore' && selectedRecoverySourceId===null) && action!=='create') return {status:'decision-required',code:'recovery-association-conflict',candidates:matches.map(item=>{
+    if (matches.length>1 && ['restore','resume'].includes(action)) return {status:'decision-required',code:'recovery-association-conflict',candidates:matches.map(item=>{
         const manifest=parseAudioSourceManifest(item.manifestText).manifest;
         return {audioSourceId:item.audioSourceId,sourceName:item.sourceName,updatedAt:item.updatedAt,
             recordingCount:manifest.recordings.length,
@@ -113,9 +130,9 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         manifest=parseAudioSourceManifest(recovery.manifestText).manifest;
     } else if (!valid) {
         if (discovery.status==='found' && !(action==='replace' && replacementConfirmed)) {
-            return {status:'decision-required',code:action==='replace'?'confirm-replacement':'unreadable-source-list',discovery,canRestore:!!recovery};
+            return {status:'decision-required',code:action==='replace'?'confirm-replacement':'unreadable-source-list',discovery,canRestore:false};
         }
-        if (discovery.status!=='found' && action!=='create') return {status:'decision-required',code:recovery?'restore-available':discovery.status==='absent'?'create-source-list':'select-existing-or-create',canRestore:!!recovery};
+        if (discovery.status!=='found' && action!=='create') return {status:'decision-required',code:canRestore?'restore-available':discovery.status==='absent'?'create-source-list':'select-existing-or-create',canRestore};
         if (discovery.status==='found' && action!=='replace') return {status:'blocked',code:'replacement-required'};
         // Explicit replacement may discard old recovery; ordinary opening may not.
         manifest=createAudioSourceManifest(association.audioSourceId||randomUUID()).manifest;

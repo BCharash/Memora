@@ -594,13 +594,14 @@ const audioInventoryStatus=document.getElementById("audioInventoryStatus");
 sourceButton.addEventListener("click",()=>loadAudioSource());
 async function loadAudioSource() {
     if(transcriptionBatchActive||sourceSelectionActive)return;
+    let selectedSource=null;
     try {
         const storage=await getStorageModule();
         if(!(await confirmPendingDiscard({includeLists:true})))return;
         sourceSelectionActive=true;sourceButton.disabled=true;transcribeButton.disabled=true;
         saveRecordingListButton.hidden=true;
         audioInventoryStatus.textContent='Select a source folder.';
-        const selectedSource=await storage.selectFolder();
+        selectedSource=await storage.selectFolder();
         audioInventoryStatus.textContent='Reading audio recording list…';
         const files=await storage.listAudioFiles(selectedSource);
         const selectedIdentityWorkflow=createIdentityWorkflow();
@@ -621,8 +622,20 @@ async function loadAudioSource() {
             (summary.coverage==='folder'?'Audio directly in this folder was checked; subfolders are not included.':'Only the supplied files were checked; unobserved recordings are retained as unverified.')+
             (summary.pendingSave?' Choose Save Audio Recording List to keep these changes.':'');
         await identityWorkflow.activateSource();
+        const target=`${summary.sourceFolder} / ${summary.listFilename}`;
+        const saveStatus=document.getElementById('recordingListSaveStatus');
+        if(summary.saveOutcome==='verified' && summary.sourceVerified){
+            saveStatus.textContent=`Saved and verified: ${target}.`;
+        }else if(summary.saveOutcome==='unchanged'){
+            saveStatus.textContent=`Already up to date: ${target}. No new save was needed.`;
+        }else if(summary.saveOutcome==='export-pending'){
+            saveStatus.textContent=`Save required: ${target}. Choose Save Audio Recording List.`;
+        }
     } catch(error) {
-        audioInventoryStatus.textContent=error.name==='AbortError'?'Source scan cancelled. The previous source is retained.':`Source scan not saved: ${error.message}`;
+        if(error.saveFailure){
+            const failure=error.saveFailure;
+            audioInventoryStatus.textContent=`Save failed: ${selectedSource?.name||'Selected folder'} / memora-audio-source.json — ${failure.name}: ${failure.message}. The previous source is retained.`;
+        }else audioInventoryStatus.textContent=error.name==='AbortError'?'Source scan cancelled. The previous source is retained.':`Source scan not saved: ${error.message}`;
         if(error.name!=='AbortError'){console.error('Source folder error:',error);alert(error.message||'Unable to read the source folder.');}
     } finally {
         sourceSelectionActive=false;sourceButton.disabled=false;

@@ -7,13 +7,13 @@ export function pauseNextTranscription(){let release;inferenceGate=new Promise(r
 export const selections=[];
 export function directory(name='Audio'){
     const files=new Map(),folders=new Map();
-    const state={files,folders,failTranscriptOnce:false,aborts:0,jsonWrites:0};
+    const state={files,folders,failTranscriptOnce:false,failSourceWriteOnce:false,aborts:0,jsonWrites:0};
     const root={kind:'directory',name,async isSameEntry(other){return root===other;},async resolve(handle){if(handle===root)return [];for(const [name,child]of folders)if(child===handle)return [name];return null;},
         async *entries(){for(const [name]of files)yield [name,await root.getFileHandle(name)];for(const [name,folder]of folders)yield [name,folder];},
         async getDirectoryHandle(name,{create=false}={}){if(!folders.has(name)){if(!create)throw new DOMException('Missing','NotFoundError');folders.set(name,directory(name).root);}return folders.get(name);},
         async getFileHandle(name,{create=false}={}){
             if(!files.has(name)){if(!create)throw new DOMException('Missing','NotFoundError');files.set(name,new Uint8Array());}
-            return {kind:'file',name,async getFile(){return new File([files.get(name)],name,{lastModified:123});},async createWritable(){let pending;return {async write(value){if(name==='memora-audio-source.json')state.jsonWrites++;if(state.failTranscriptOnce&&name.endsWith('.txt')){state.failTranscriptOnce=false;throw Error('Injected transcript write failure');}pending=typeof value==='string'?new TextEncoder().encode(value):new Uint8Array(value);},async close(){files.set(name,pending);},async abort(){state.aborts++;}};}};
+            return {kind:'file',name,async getFile(){return new File([files.get(name)],name,{lastModified:123});},async createWritable(){let pending;return {async write(value){if(name==='memora-audio-source.json'){state.jsonWrites++;if(state.failSourceWriteOnce){state.failSourceWriteOnce=false;throw Error('Injected audio-list write failure');}}if(state.failTranscriptOnce&&name.endsWith('.txt')){state.failTranscriptOnce=false;throw Error('Injected transcript write failure');}pending=typeof value==='string'?new TextEncoder().encode(value):new Uint8Array(value);},async close(){files.set(name,pending);},async abort(){state.aborts++;}};}};
         }
     };return {root,state};
 }

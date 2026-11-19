@@ -72,6 +72,13 @@ await test('Same-name recovery choices show dates and recordings and allow selec
  assert(shown.choices[1].label.includes('earlier.wav')&&shown.choices[2].label.includes('extra.wav'),'Recording examples missing');assert(shown.choices[1].label.includes('Last saved:')&&shown.choices[2].label.includes('2 recording(s)'),'Recovery detail missing');assert(shown.message.includes('Nothing is merged or deleted'),'Cancel guidance missing');
 });
 
+await test('Audio-list dialogs hide Restore whenever the session does not establish all eligibility criteria',async()=>{
+ for(const code of ['select-existing-or-create','create-source-list','unreadable-source-list']){
+  let shown;const ui=createRecordingIdentityUI({ask:async dialog=>{shown=dialog;return {action:'cancel'};},openSession:async()=>({status:'decision-required',code,canRestore:false})});
+  await rejects(()=>ui.prepareSource({kind:code==='select-existing-or-create'?'file-input':'directory'}));
+  assert(!shown.choices.some(choice=>choice.action==='restore'),'Restore offered without eligibility');assert(shown.choices.some(choice=>choice.action==='select'&&choice.label==='Browse for Audio Recording List…'),'Browse was lost');assert(shown.choices.some(choice=>['create','replace'].includes(choice.action)),'Create/replacement was lost');
+ }
+});
 await test('Apple dates/duration remain unchanged; iMuse identity does not imply an Apple date',async()=>{
  const movie=f.box('mvhd',f.join([f.number(0),f.number(3800000000),f.number(3800000000),f.number(1000),f.number(2000)]));
  const apple=f.mp4([f.box('moov',f.join([movie,f.box('udta',f.box('meta',f.join([f.number(0),f.box('ilst',f.appleItem())])))]))]);
@@ -185,6 +192,7 @@ await test('Cancelling missing-list resolution at source selection starts no inf
 await test('Desktop normal flow persists source and archive IDs before verified TXT delivery',async()=>{
  originalAudio=await seedAudio(desktop.root);selections.push(desktop.root);click('sourceButton');await choose('Create audio recording list');await waitFor(()=>document.querySelectorAll('#recordings input[type=checkbox]').length>0);
  assert(desktop.state.files.has('memora-audio-source.json'),'Desktop list was not created during source selection');eq(calls.length,0);
+ assert(document.getElementById('recordingListSaveStatus').textContent.includes('Saved and verified: Audio / memora-audio-source.json'),'Desktop save outcome/location missing');
  click('sourceDestinationButton');click('transcribeButton');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  const filename=[...desktop.state.files.keys()].find(name=>name.endsWith('.txt'));assert(filename,'No transcript written');
  const identity=readTranscriptIdentity(decoder.decode(desktop.state.files.get(filename)));firstID=identity.recordingId;firstArchive=identity.archiveUuid;
@@ -197,7 +205,7 @@ await test('Deleted desktop JSON is resolved and restored at source selection be
  desktop.state.files.delete('memora-audio-source.json');const before=calls.length;
  selections.push(desktop.root);click('sourceButton');await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='Audio recording list is missing');
  const choices=[...document.querySelectorAll('dialog[open] button')].map(button=>button.textContent);
- assert(choices.includes('Select audio recording list')&&choices.includes('Restore saved recording list')&&choices.includes('Create audio recording list'),'Missing-list choices incomplete');
+ assert(choices.includes('Browse for Audio Recording List…')&&choices.includes('Restore saved recording list')&&choices.includes('Create audio recording list'),'Missing-list choices incomplete');
  await choose('Restore saved recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
  eq(calls.length,before);eq(JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))).recordings[0].recordingId,firstID);
 });
@@ -213,7 +221,7 @@ await test('Source Refresh adds files without hashes, ignores audio edits, remov
  const archive=decoder.decode(desktop.state.files.get('memora-archive.json'));
  desktop.state.files.delete('extra.wav');await refreshSource();
  manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));eq(manifest.recordings.length,1);assert(!manifest.recordings.some(item=>item.recordingId===extraId),'Absent entry retained');eq(manifest.recordings[0].recordingId,firstID);eq(decoder.decode(desktop.state.files.get('memora-archive.json')),archive,'Audio removal modified transcripts');
- const writes=desktop.state.jsonWrites;await refreshSource();eq(desktop.state.jsonWrites,writes,'Unchanged refresh rewrote JSON');eq(calls.length,before);
+ const writes=desktop.state.jsonWrites;await refreshSource();eq(desktop.state.jsonWrites,writes,'Unchanged refresh rewrote JSON');eq(calls.length,before);assert(document.getElementById('recordingListSaveStatus').textContent.startsWith('Already up to date: Audio / memora-audio-source.json'),'Unchanged scan falsely reported a write');
  desktop.state.files.set('extra.wav',changed);await refreshSource();manifest=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json')));assert(manifest.recordings.find(item=>item.audioRelativePath==='extra.wav').recordingId!==extraId,'Removed fallback ID was silently restored');
  desktop.state.files.delete('extra.wav');await refreshSource();
 });
@@ -228,6 +236,15 @@ await test('Post-inference write failure retains text; retry saves without anoth
  const count=calls.length;assert(document.getElementById('transcriptionOutput').textContent.includes('Synthetic completed text.'),'Completed text lost');
  click('retryTranscriptSaveButton');await waitFor(()=>document.getElementById('retryTranscriptSaveButton').hidden);eq(calls.length,count);assert(second.state.aborts>0,'Failed writer did not abort');
 });
+await test('Failed desktop write reports the actual target and error through cancellation',async()=>{
+ const failed=directory('Blocked audio'),id=crypto.randomUUID();await seedAudio(failed.root);
+ const original=JSON.stringify({schemaVersion:1,audioSourceId:id,recordings:[]});failed.state.files.set('memora-audio-source.json',new TextEncoder().encode(original));failed.state.failSourceWriteOnce=true;
+ selections.push(failed.root);click('sourceButton');await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='The audio recording list could not be saved');
+ assert(document.querySelector('dialog[open] p').textContent.includes('Blocked audio / memora-audio-source.json — Error: Injected audio-list write failure'),'Dialog dropped file/error details');
+ assert(document.getElementById('audioInventoryStatus').textContent.includes('Save failed:'),'Failed write still displayed a saving status');await choose('Cancel');await waitFor(()=>!document.getElementById('sourceButton').disabled);
+ assert(document.getElementById('audioInventoryStatus').textContent.includes('Save failed: Blocked audio / memora-audio-source.json — Error: Injected audio-list write failure'),'Failure was disguised as ordinary cancellation');eq(decoder.decode(failed.state.files.get('memora-audio-source.json')),original,'Failed write changed the source JSON');
+ const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore(),record=await store.get(id);if(record)await store.remove(id,record.revision);
+});
 let shared=[],cancelShare=true;
 await test('File-input prepares separate pending source/archive JSON and blocks transcript sharing',async()=>{
  const file=new File([await originalAudio.arrayBuffer()],'memo.wav');const sourceJson=new File([desktop.state.files.get('memora-audio-source.json')],'memora-audio-source.json');
@@ -236,6 +253,7 @@ await test('File-input prepares separate pending source/archive JSON and blocks 
  observer.observe(document.querySelector('.source-section'),{attributes:true,subtree:true,attributeFilter:['disabled','hidden']});
  selections.push({kind:'file-input',name:'Audio',files:[file,new File([await originalAudio.arrayBuffer()],'new.wav'),sourceJson]});click('sourceButton');await waitFor(()=>document.getElementById('iphoneTranscriptionDestinationOptions').style.display === 'flex' && document.querySelector('#recordings .recording-checkbox') && !document.getElementById('transcribeButton').disabled);
  observer.disconnect();assert(!prematureSave,'Save button was visible while source reading was active');
+ assert(document.getElementById('recordingListSaveStatus').textContent.startsWith('Save required: Audio / memora-audio-source.json'),'Prepared export was not distinguished from a saved file');
  assert(!document.getElementById('saveRecordingListButton').hidden,'Updated audio list was not offered at source selection');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Compiled audio list did not highlight its save action before transcription');
  click('transcribeButton');await choose('Create transcript file list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
@@ -293,6 +311,7 @@ await test('File-input missing JSON is resolved before showing a new source and 
  // Discard the already-shared batch retained for optional repeat sharing.
  selections.push({kind:'file-input',name:'Phone source',files:[file]});click('sourceButton');await choose('Discard pending transcripts');
  await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='Audio recording list was not found in the selected files');
+ assert(![...document.querySelectorAll('dialog[open] button')].some(button=>button.textContent.includes('Restore')),'iPhone omission exposed unrelated saved copies');
  eq(calls.length,before);assert(document.getElementById('transcribeButton').disabled,'Transcription enabled during source resolution');
  await choose('Create audio recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
  assert(document.getElementById('sourceButton').textContent.includes('Phone source'),'New source was not committed');eq(calls.length,before);assert(!document.querySelector('dialog[open]'),'Source resolution deferred');

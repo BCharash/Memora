@@ -4,7 +4,7 @@ import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
 import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
 import {discoverAudioSource} from './audioSourcePersistence.js';
 import {checkAudioSourceAbort} from './audioFingerprint.js';
-import {listTextFiles,shareFile} from './storage.js';
+import {listTextFiles,shareFile,AUDIO_SOURCE_FILENAME} from './storage.js';
 // Inspect only the explicitly selected transcript destination. Embedded IDs
 // corroborate associations; folder names and filenames cannot establish identity.
 export async function associatedSourceEvidence(destination,files){
@@ -41,7 +41,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             checkAudioSourceAbort(signal);
             const discovery=await discoverAudioSource(selectedSource);
             const evidence=discovery.validation?.status==='valid'?{ids:[],labels:new Map()}:await associatedSourceEvidence(selectedSource,files);
-            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels,{signal});
+            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels,{signal,audioFiles:files});
             const observedPaths=[],verifiedPaths=[];let skipped=0;
             for(let index=0;index<files.length;index++){
                 checkAudioSourceAbort(signal);
@@ -57,11 +57,11 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             }
             checkAudioSourceAbort(signal);
             const counts=await session.reconcileAvailability({observedPaths,verifiedPaths,complete:selectedSource.kind==='directory'&&skipped===0});
-            onProgress('Saving audio recording list…');
-            const result=await ui.persist({notify:false,onCommit:()=>onProgress('Writing audio recording list…')});
+            onProgress('Preparing audio recording list…');
+            const result=await ui.persist({notify:false,onCommit:()=>onProgress('Saving audio recording list…')});
             pendingInventoryList=result.status==='export-pending'?result.file:null;
             for(const path of verifiedPaths)session.releaseRecordingSnapshot(path);
-            inventorySummary={...counts,checked:verifiedPaths.length,skipped,coverage:selectedSource.kind==='directory'&&skipped===0?'folder':'selection',pendingSave:!!pendingInventoryList};
+            inventorySummary={...counts,checked:verifiedPaths.length,skipped,coverage:selectedSource.kind==='directory'&&skipped===0?'folder':'selection',pendingSave:!!pendingInventoryList,saveOutcome:result.status,sourceVerified:result.sourceVerified,sourceFolder:selectedSource.name||'Selected folder',listFilename:AUDIO_SOURCE_FILENAME};
             preparedSource=selectedSource;
             return session;
         },

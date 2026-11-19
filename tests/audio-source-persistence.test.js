@@ -18,7 +18,7 @@ function memoryStore(){const records=new Map();let puts=0,failAt=0;
 }
 function directory(initial={}){const files=new Map(Object.entries(initial).map(([key,value])=>[key,typeof value==='string'?enc.encode(value):value]));
  const state={files,writes:0,aborts:0,failWrite:false,failClose:false,corruptRead:false,denied:false,beforeClose:null};
- const root={kind:'directory',name:'Audio',async isSameEntry(other){return other===root;},async getFileHandle(name,{create=false}={}){
+ const root={kind:'directory',name:'Audio',async isSameEntry(other){return other===root;},async *entries(){for(const name of files.keys())yield [name,await root.getFileHandle(name)];},async getFileHandle(name,{create=false}={}){
   if(state.denied)throw new DOMException('Denied','NotAllowedError');
   if(!files.has(name)&&!create)throw new DOMException('Missing','NotFoundError');
   if(!files.has(name))files.set(name,new Uint8Array());
@@ -196,23 +196,43 @@ await test('Missing list offers explicit restore; unrelated source gets create c
  const restored=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq((await stage(restored.session)).recordingId,first.recordingId);await restored.session.persist();
  eq((await openAudioSourceSession({source:directory().root,recoveryStore:store})).code,'create-source-list');
 });
+await test('Restore is hidden for an existing list, all-embedded audio, or a missing list with no recoverable current fallback IDs',async()=>{
+ const {session,source,state,store}=await make();await stage(session);await session.persist();
+ eq((await openAudioSourceSession({source,recoveryStore:store})).status,'ready');eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore'})).code,'restore-not-available');
+ state.files.delete(AUDIO_SOURCE_FILENAME);state.files.set('memo.wav',new Uint8Array(await f.wav([f.wavChunk('imID',f.payload(f.ID))]).arrayBuffer()));
+ const embedded=await openAudioSourceSession({source,recoveryStore:store});eq(embedded.code,'create-source-list');assert(!embedded.canRestore,'Embedded audio exposed irrelevant fallback recovery');
+ state.files.delete('memo.wav');state.files.set('new.wav',audio());const newOnly=await openAudioSourceSession({source,recoveryStore:store});assert(!newOnly.canRestore,'Saved copy had no useful ID for new files');
+ state.files.delete('new.wav');assert(!(await openAudioSourceSession({source,recoveryStore:store})).canRestore,'Empty source offered Restore');
+});
+await test('A same-name unrelated directory and a present invalid JSON never offer Restore',async()=>{
+ const {session,source,state,store}=await make();await stage(session);await session.persist();
+ const unrelated=directory({'memo.wav':audio()});assert(!(await openAudioSourceSession({source:unrelated.root,recoveryStore:store})).canRestore,'Folder-name matching exposed unrelated recovery');
+ state.files.set(AUDIO_SOURCE_FILENAME,enc.encode('{broken'));const invalid=await openAudioSourceSession({source,recoveryStore:store});eq(invalid.code,'unreadable-source-list');assert(!invalid.canRestore,'Unreadable present JSON was called missing');
+ eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore'})).code,'restore-not-available');
+});
+await test('A valid current list is authoritative over older recoveries attached to the same directory',async()=>{
+ const {session,source,state,store}=await make();await stage(session);await session.persist();
+ state.files.set(AUDIO_SOURCE_FILENAME,enc.encode(JSON.stringify({schemaVersion:1,audioSourceId:OTHER,recordings:[]})));
+ const opened=await openAudioSourceSession({source,recoveryStore:store});eq(opened.status,'ready');eq(opened.session.sourceId,OTHER);
+ eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore'})).code,'restore-not-available');
+});
 await test('Deleted list with two same-folder recoveries offers dated recording summaries without changing data',async()=>{
  const {session,source,state,store}=await make();await stage(session);await session.persist();
- const first=(await store.list())[0],other=JSON.parse(first.manifestText);other.audioSourceId=OTHER;other.recordings[0].audioRelativePath='other.wav';
+ const first=(await store.list())[0],other=JSON.parse(first.manifestText);other.audioSourceId=OTHER;other.recordings[0].recordingId=OTHER;
  await store.put({...first,audioSourceId:OTHER,revision:'other-revision',manifestText:JSON.stringify(other),updatedAt:'2026-11-18T10:00:00Z'},null);
  state.files.delete(AUDIO_SOURCE_FILENAME);const puts=store.puts;
  const missing=await openAudioSourceSession({source,recoveryStore:store});eq(missing.code,'restore-available');assert(missing.canRestore,'Restore missing');
  const result=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq(result.code,'recovery-association-conflict');eq(result.candidates.length,2);
- eq(result.candidates[0].recordingCount,1);eq(result.candidates[0].recordingExamples,['memo.wav']);eq(result.candidates[1].recordingExamples,['other.wav']);eq(result.candidates[1].updatedAt,'2026-11-18T10:00:00Z');eq(store.puts,puts);assert(!state.files.has(AUDIO_SOURCE_FILENAME),'Prompt wrote a replacement');
+ eq(result.candidates[0].recordingCount,1);eq(result.candidates[0].recordingExamples,['memo.wav']);eq(result.candidates[1].recordingExamples,['memo.wav']);eq(result.candidates[1].updatedAt,'2026-11-18T10:00:00Z');eq(store.puts,puts);assert(!state.files.has(AUDIO_SOURCE_FILENAME),'Prompt wrote a replacement');
  const restored=await openAudioSourceSession({source,recoveryStore:store,selectedRecoverySourceId:session.sourceId,action:'restore'});eq(restored.session.sourceId,session.sourceId);eq(restored.session.getManifest().recordings[0].recordingId,session.getManifest().recordings[0].recordingId);
 });
-await test('Missing file-input JSON offers saved copies only through explicit restore and source choice',async()=>{
+await test('File-input omission hides Restore even with saved copies, matching names or an established source ID',async()=>{
  const {session,source,store}=await make({input:true});await stage(session);await session.persist();
  store.records.set('invalid',{...(await store.list())[0],audioSourceId:'invalid'});
- const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'restore-available');assert(prompt.canRestore,'Saved copies unavailable');
- const choose=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq(choose.code,'recovery-association-conflict');eq(choose.candidates.length,1);
- const restored=await openAudioSourceSession({source,recoveryStore:store,action:'restore',selectedRecoverySourceId:session.sourceId});eq(restored.status,'ready');eq(restored.session.getManifest().recordings[0].recordingId,session.getManifest().recordings[0].recordingId);
- const created=await openAudioSourceSession({source,recoveryStore:store,action:'create'});eq(created.status,'ready');assert(created.session.sourceId!==session.sourceId,'Create silently reused a saved association');
+ const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'select-existing-or-create');assert(!prompt.canRestore,'Unassociated copies exposed');
+ const identified=await openAudioSourceSession({source,recoveryStore:store,establishedAudioSourceIds:[session.sourceId]});assert(!identified.canRestore,'Omission mistaken for confirmed absence');
+ eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore',selectedRecoverySourceId:session.sourceId})).code,'restore-not-available');
+ const created=await openAudioSourceSession({source,recoveryStore:store,action:'create'});eq(created.status,'ready');assert(created.session.sourceId!==session.sourceId,'Create reused an unrelated saved source');
 });
 await test('Source revalidation catches JSON deletion or external edits before inference',async()=>{
  const {session,state}=await make();await stage(session);await session.persist();await session.revalidateSource();
@@ -225,13 +245,12 @@ await test('Recovery cannot silently relabel a conflicting established source as
  const conflict=await openAudioSourceSession({source,recoveryStore:store,action:'restore',establishedAudioSourceIds:[OTHER]});eq(conflict.code,'source-id-conflict');
  const restored=await openAudioSourceSession({source,recoveryStore:store,action:'restore',establishedAudioSourceIds:[OTHER],selectedAudioSourceId:session.sourceId});eq(restored.session.sourceId,session.sourceId);
 });
-await test('Interrupted pending write resumes established IDs after reload',async()=>{
+await test('A present interrupted-write shell hides Restore; browsing the pending copy preserves IDs',async()=>{
  const {session,source,state,store}=await make();const first=await stage(session);state.failWrite=true;await rejects(()=>session.persist());state.failWrite=false;
- // New file handle was created but write failed: empty file requires explicit replacement.
- const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'unreadable-source-list');
- eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore'})).code,'confirm-replacement');
- const resumed=await openAudioSourceSession({source,recoveryStore:store,action:'restore',replacementConfirmed:true});
- eq((await stage(resumed.session)).recordingId,first.recordingId);await resumed.session.persist();
+ const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'unreadable-source-list');assert(!prompt.canRestore,'Present unreadable JSON exposed Restore');
+ eq((await openAudioSourceSession({source,recoveryStore:store,action:'restore'})).code,'restore-not-available');
+ const selectedFile=session.exportPending();eq((await openAudioSourceSession({source,recoveryStore:store,selectedFile})).code,'confirm-replacement');
+ const resumed=await openAudioSourceSession({source,recoveryStore:store,selectedFile,replacementConfirmed:true});eq(resumed.status,'ready');eq((await stage(resumed.session)).recordingId,first.recordingId);await resumed.session.persist();
 });
 await test('Invalid JSON needs separate replacement confirmation; cancel leaves bytes intact',async()=>{
  const {root,state}=directory({[AUDIO_SOURCE_FILENAME]:'{bad'}), store=memoryStore();
