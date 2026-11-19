@@ -7,8 +7,9 @@ import { transcriptHeader } from './transcriptMetadata.js';
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const atRoot = (source, file) => !file.webkitRelativePath || file.webkitRelativePath === `${source.name}/${file.name}`;
 
-// A single inventory/read pass, independent of the embedding runtime. File-input
-// selections are conservatively partial: omission cannot authorize deletion.
+// A single inventory/read pass, independent of the embedding runtime. A
+// successful folder picker provides complete coverage even without write access.
+// Explicit file selections without that coverage remain partial.
 export async function readTranscriptFolder(source, { signal, onProgress } = {}) {
     const files = [], records = [], issues = [];
     let archiveFile = null;
@@ -59,7 +60,7 @@ export async function readTranscriptFolder(source, { signal, onProgress } = {}) 
     }
     check();
     return { source, files: records.map(record => record.file), records, manifest, originalText,
-        issues, complete: source.kind === 'directory' && !issues.length };
+        issues, complete: (source.kind === 'directory' || source.selectionScope === 'folder') && !issues.length };
 }
 
 const pathKey = path => path.normalize('NFC').toLowerCase();

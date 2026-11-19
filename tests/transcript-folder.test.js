@@ -1,6 +1,7 @@
 import { readTranscriptFolder, reconcileTranscriptRecords, createTranscriptFolderSession } from '../js/transcriptFolder.js';
 import { readTranscriptFiles, readTranscriptSourceText, parseTranscriptFile } from '../js/combine.js';
 import { parseTranscriptArchive } from '../js/transcriptArchive.js';
+import { selectFolder } from '../js/storage.js';
 const ARCHIVE='9599e552-b194-4511-8865-b37a07413a38',ID='4cd30ed1-dad7-4f9b-876c-0ba7f9d53ed9',OTHER='12345678-1234-4234-8234-123456789abc';
 const JSON_NAME='memora-archive.json',encode=value=>new TextEncoder().encode(value);
 const body=({id=ID,archive=ARCHIVE,model='tiny',operation='transcribe',text='Current body'}={})=>`memo.wav\n\nWhisper model: ${model}\nOperation: ${operation}\nArchive UUID: ${archive}\nRecording ID: ${id}\n\n--------------------------------------------------\n\n${text}\n`;
@@ -17,6 +18,14 @@ function directory(values){
 const lines=[],failed=[];const assert=(value,message='Assertion failed')=>{if(!value)throw Error(message);};const eq=(left,right)=>assert(JSON.stringify(left)===JSON.stringify(right),`${JSON.stringify(left)} != ${JSON.stringify(right)}`);
 async function rejects(action){try{await action();}catch{return;}throw Error('Expected rejection');}
 async function test(name,action){try{await action();lines.push('PASS '+name);}catch(error){failed.push(name);lines.push('FAIL '+name+': '+error.stack);}}
+await test('The production folder picker marks folder coverage independently of read-only file-input access',async()=>{
+ const input=document.getElementById('folderInput'),picker=Object.getOwnPropertyDescriptor(window,'showDirectoryPicker'),files=Object.getOwnPropertyDescriptor(input,'files'),click=input.click;
+ try{
+  Object.defineProperty(window,'showDirectoryPicker',{configurable:true,value:undefined});Object.defineProperty(input,'files',{configurable:true,value:[file('a.txt',body(),'Phone/a.txt')]});input.click=()=>input.dispatchEvent(new Event('change'));
+  let selected=await selectFolder();eq(selected.kind,'file-input');eq(selected.selectionScope,'folder');eq(selected.name,'Phone');
+  input.webkitdirectory=false;selected=await selectFolder();eq(selected.selectionScope,'selection');
+ }finally{input.webkitdirectory=true;input.click=click;if(files)Object.defineProperty(input,'files',files);else delete input.files;if(picker)Object.defineProperty(window,'showDirectoryPicker',picker);else delete window.showDirectoryPicker;}
+});
 await test('One inventory and one text read per transcript serve reconciliation, sorting and source text',async()=>{
  const root=directory({'a.txt':body(),'b.txt':body({model:'base'}),[JSON_NAME]:JSON.stringify(manifest())});const snapshot=await readTranscriptFolder(root.source);
  eq(root.state.enumerations,1);eq(root.state.reads,2);const again=await readTranscriptFiles(snapshot.files);eq(again[0].transcript,snapshot.records[0].transcript);await readTranscriptSourceText(snapshot.files[0]);eq(root.state.reads,2);assert(!snapshot.issues.length&&snapshot.complete);
@@ -48,6 +57,18 @@ await test('Empty complete folders remove immediate references, while a missing 
 await test('File-input selection retains unobserved references and emits a pending file only on changes',async()=>{
  const source={kind:'file-input',name:'Phone transcripts',files:[file('new.txt',body()),file(JSON_NAME,JSON.stringify(manifest()))]};const snapshot=await readTranscriptFolder(source);assert(!snapshot.complete);const session=createTranscriptFolderSession(snapshot);eq(session.status,'save-required');const candidate=parseTranscriptArchive(await session.file.text());eq(candidate.recordings[0].transcripts.length,2);await rejects(()=>session.save());session.acknowledgeShared(new File(['different'],JSON_NAME));eq(session.status,'save-required');session.acknowledgeShared(session.file);eq(session.status,'shared');
  source.files=[file('a.txt',body()),file(JSON_NAME,JSON.stringify(manifest()))];eq(createTranscriptFolderSession(await readTranscriptFolder(source)).status,'unchanged');
+});
+await test('Whole-folder file-input reconciles additions and removals like desktop without gaining write access',async()=>{
+ const baseline=JSON.stringify(manifest([{relativePath:'gone.txt',model:'tiny',operation:'transcribe'},{relativePath:'nested/keep.txt',model:'base',operation:'transcribe'}]));
+ const source={kind:'file-input',selectionScope:'folder',name:'Phone',files:[file('new.txt',body(),'Phone/new.txt'),file(JSON_NAME,baseline,'Phone/'+JSON_NAME)]};
+ const snapshot=await readTranscriptFolder(source);assert(snapshot.complete);const session=createTranscriptFolderSession(snapshot);eq(session.status,'save-required');eq(parseTranscriptArchive(await session.file.text()).recordings[0].transcripts.map(ref=>ref.relativePath),['nested/keep.txt','new.txt']);await rejects(()=>session.save());
+ const desktop=directory({'new.txt':body(),[JSON_NAME]:baseline});const native=createTranscriptFolderSession(await readTranscriptFolder(desktop.source));eq(await native.file.text(),await session.file.text());
+});
+await test('An empty whole-folder transcript inventory removes stale immediate references',async()=>{
+ const source={kind:'file-input',selectionScope:'folder',name:'Phone',files:[file(JSON_NAME,JSON.stringify(manifest()))]};const snapshot=await readTranscriptFolder(source);assert(snapshot.complete);const session=createTranscriptFolderSession(snapshot);eq(parseTranscriptArchive(await session.file.text()).recordings,[]);
+});
+await test('Whole-folder read failures and cancellation still cannot authorize missing-reference removal',async()=>{
+ const broken=file('unreadable.txt',body());broken.text=async()=>{throw Error('Provider failed');};const source={kind:'file-input',selectionScope:'folder',name:'Phone',files:[broken,file(JSON_NAME,JSON.stringify(manifest()))]};const snapshot=await readTranscriptFolder(source);assert(!snapshot.complete);eq(createTranscriptFolderSession(snapshot).status,'blocked');const controller=new AbortController();controller.abort();await rejects(()=>readTranscriptFolder(source,{signal:controller.signal}));
 });
 await test('Nested file-input files are outside root scope and do not affect the root manifest',async()=>{
  const source={kind:'file-input',name:'Phone',files:[file('a.txt',body(),'Phone/a.txt'),file('foreign.txt',body({archive:OTHER}),'Phone/nested/foreign.txt'),file(JSON_NAME,'invalid','Phone/nested/'+JSON_NAME)]};const snapshot=await readTranscriptFolder(source);eq(snapshot.files.length,1);eq(snapshot.manifest,null);eq(createTranscriptFolderSession(snapshot).status,'save-required');

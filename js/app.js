@@ -292,7 +292,7 @@ function renderCombineTranscriptList(error = null) {
     const folder=`“${session.source.name}”`;
     const messages={
         empty:'No transcript file list is needed for this empty folder.',
-        unchanged:session.source.kind==='file-input'?'Transcript file list is up to date for the selected files.':'Transcript file list is up to date.',
+        unchanged:session.source.kind==='file-input'&&session.source.selectionScope!=='folder'?'Transcript file list is up to date for the selected files.':'Transcript file list is up to date.',
         saved:`Transcript file list saved and verified in ${folder}.`,
         shared:`Transcript file list shared for ${folder}. Memora cannot verify the saved location.`,
         'save-required':`Save memora-archive.json in ${folder}, alongside the transcripts. Replace the existing file of the same name if prompted.`,

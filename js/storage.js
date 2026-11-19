@@ -50,6 +50,8 @@ export async function selectFolder() {
 
         return {
             kind: "file-input",
+            // Folder coverage and write access are separate capabilities.
+            selectionScope: input.webkitdirectory ? "folder" : "selection",
             name:
                 files[0]?.webkitRelativePath?.split("/")[0] ||
                 "Selected Folder",
