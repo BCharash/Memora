@@ -149,9 +149,69 @@
 
             <section class="panel">
 
+                <h2>Transcription</h2>
+                <div class="transcription-controls">
+
+                    <div class="transcription-control">
+                        <label for="modelSelect">
+                            Model
+                        </label>
+
+                        <select id="modelSelect" disabled>
+                            <option value="">Checking qualified models…</option>
+                        </select>
+                        <span id="modelEligibilityNote" class="settings-note" role="status"></span>
+                        <div id="modelReviewNotice" class="settings-note" role="status" hidden></div>
+
+                    </div>
+
+                    <div class="transcription-control">
+                        <label for="languageSelect">
+                            Language
+                        </label>
+
+                        <select id="languageSelect">
+                            <option value="">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="sa">Sanskrit</option>
+                        </select>
+
+                    </div>
+
+                    <div class="transcription-control">
+                        <label for="operationSelect">
+                            Operation
+                        </label>
+
+                        <select id="operationSelect">
+                            <option value="transcribe" selected>
+                                Transcribe
+                            </option>
+                            <option value="translate">
+                                Translate to English
+                            </option>
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <label for="paragraphingCheckbox">
+                    <input
+                        id="paragraphingCheckbox"
+                        type="checkbox"
+                        checked
+                    >
+                    Create paragraphs
+                </label>
+
                 <div id="transcriptionDestinationSection" class="destination-section">
 
-                    <h2>Destination</h2>
+                    <h3>Destination:</h3>
 
                     <div
                         id="desktopTranscriptionDestinationOptions"
@@ -200,7 +260,7 @@
                             type="button"
                             disabled
                         >
-                            Save 0 Transcripts to Files
+                            Save 0 Transcriptions to Files
                         </button>
 
                         <div
@@ -216,64 +276,17 @@
                 </div>
 
 
-                <h2>Transcription</h2>
                 <button id="retryTranscriptSaveButton" type="button" hidden>Retry pending transcript save</button>
                 <p id="pendingTranscriptSaveStatus" class="settings-note" role="status"></p>
 
-                <div class="transcription-controls">
-
-                    <label for="modelSelect">
-                        Model
-                    </label>
-
-                    <select id="modelSelect" disabled>
-                        <option value="">Checking qualified models…</option>
-                    </select>
-                    <span id="modelEligibilityNote" class="settings-note" role="status"></span>
-                    <div id="modelReviewNotice" class="settings-note" role="status" hidden></div>
-
-                    <label for="languageSelect">
-                        Language
-                    </label>
-
-                    <select id="languageSelect">
-                        <option value="">Auto-detect</option>
-                        <option value="en">English</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="sa">Sanskrit</option>
-                    </select>
-
-                    <label for="operationSelect">
-                        Operation
-                    </label>
-
-                    <select id="operationSelect">
-                        <option value="transcribe" selected>
-                            Transcribe
-                        </option>
-                        <option value="translate">
-                            Translate to English
-                        </option>
-                    </select>
-
-                    <label for="paragraphingCheckbox">
-                        <input
-                            id="paragraphingCheckbox"
-                            type="checkbox"
-                        >
-                        Create paragraphs
-                    </label>
-
-                    <div class="transcribe-action">
-                        <button id="transcribeButton" type="button" disabled>
-                            Transcribe Selected
-                        </button>
-                    </div>
-
+                <div class="transcribe-action">
+                    <button id="transcribeButton" type="button" disabled>
+                        Transcribe Selected
+                    </button>
                 </div>
+
+
+                <h2 class="transcripts-heading">Transcripts</h2>
 
                 <div
                     id="transcriptionStatus"
@@ -338,9 +351,25 @@
                 </div>
 
 
-                <div id="combineDestinationSection" class="destination-section">
+                <h2 class="combine-output-heading">Output</h2>
 
-                    <h2>Output</h2>
+                <div class="combine-title">
+
+                    <label for="combineTitleInput">
+                        Combined document title
+                    </label>
+
+                    <input
+                        id="combineTitleInput"
+                        type="text"
+                        value="Memora — Combined Transcription"
+                        aria-label="Combined document title"
+                    >
+
+                </div>
+
+
+                <div id="combineDestinationSection" class="destination-section">
 
                     <div class="destination-options">
 
@@ -370,39 +399,12 @@
                 </div>
 
 
-                <div class="combine-title">
-
-                    <label for="combineTitleInput">
-                        Combined document title
-                    </label>
-
-                    <input
-                        id="combineTitleInput"
-                        type="text"
-                        value="Memora — Combined Transcription"
-                        aria-label="Combined document title"
-                    >
-
-                </div>
-
-
-                <label for="combineParagraphingCheckbox">
-                    <input
-                        id="combineParagraphingCheckbox"
-                        type="checkbox"
-                    >
-                    Create paragraphs
-                </label>
-
-
                 <div
                     id="iphoneCombineDestinationOptions"
                     class="destination-section"
                     hidden
                     style="display:none;"
                 >
-
-                    <h2>Output</h2>
 
                     <label for="iphoneCombineFormatSelect">
                         Format

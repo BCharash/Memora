@@ -473,9 +473,10 @@ button:disabled {
     margin-bottom: 0;
 }
 
+/* Align labels and selectors independently of the model notes below them. */
 .transcription-controls {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 12px;
     flex-wrap: wrap;
 }
@@ -488,7 +489,25 @@ button:disabled {
 }
 
 .transcribe-action {
-    flex-basis: 100%;
+    margin-top: 26px;
+}
+
+.transcription-controls {
+    margin-bottom: 18px;
+}
+
+.panel h2.transcripts-heading,
+.panel h2.combine-output-heading {
+    margin-top: 26px;
+}
+
+.destination-section h3 {
+    margin: 0 0 14px;
+    font-size: 16px;
+}
+
+.combine-output-heading + .combine-title {
+    margin-top: 0;
 }
 
 .transcription-control label {
@@ -498,6 +517,7 @@ button:disabled {
 }
 
 .transcription-control select {
+    max-width: 100%;
     min-width: 150px;
     padding: 10px 12px;
     border: 1px solid var(--border);

@@ -193,17 +193,11 @@ const combineStatus =
 const combineTitleInput =
     document.getElementById("combineTitleInput");
 
-const combineParagraphingCheckbox =
-    document.getElementById("combineParagraphingCheckbox");
-
-// Paragraphing defaults: enabled for new transcriptions, disabled for Combine.
+// Paragraphing is enabled by default for new transcriptions.
 // Existing transcripts that already contain blank-line paragraph breaks are
 // left untouched by paragraphing.js.
 if (paragraphingCheckbox) {
     paragraphingCheckbox.checked = true;
-}
-if (combineParagraphingCheckbox) {
-    combineParagraphingCheckbox.checked = false;
 }
 
 let sourceHandle = null;
@@ -1522,18 +1516,6 @@ if (combineTitleInput) {
 }
 
 
-if (combineParagraphingCheckbox) {
-    combineParagraphingCheckbox.addEventListener(
-        "change",
-        () => {
-            if (textSourceHandle?.kind === "file-input") {
-                combineShareExportUI.reset();
-            }
-        }
-    );
-}
-
-
 initCombineUI({
     getCombineModule,
     onSelectionChanged: combineShareExportUI.reset,
@@ -1646,41 +1628,8 @@ async function combineSelectedFiles(
         combineStatus.textContent =
             `Preparing ${selectedRecords.length} transcript${selectedRecords.length === 1 ? "" : "s"}…`;
 
-        let outputRecords =
-            selectedRecords;
-
-        if (combineParagraphingCheckbox?.checked) {
-
-            const paragraphing =
-                await getParagraphingModule();
-
-            outputRecords = [];
-
-            for (let i = 0; i < selectedRecords.length; i++) {
-
-                const record =
-                    selectedRecords[i];
-
-                combineStatus.textContent =
-                    `Creating paragraphs for ${i + 1} of ` +
-                    `${selectedRecords.length}: ` +
-                    `${record.filename}`;
-
-                const paragraphizedTranscript =
-                    await paragraphing.paragraphize(
-                        record.transcript,
-                        message => {
-                            combineStatus.textContent =
-                                message;
-                        }
-                    );
-
-                outputRecords.push({
-                    ...record,
-                    transcript: paragraphizedTranscript
-                });
-            }
-        }
+        // Combine preserves the paragraphs in the selected transcripts.
+        const outputRecords = selectedRecords;
 
         // iPhone: generate exactly one selected format in memory, then
         // hand that file to the iOS share sheet. The same generated file
@@ -2103,7 +2052,7 @@ function updateIPhoneExportButton(forceEnable = false) {
     iphoneExportButton.classList.toggle("has-pending-exports", count > 0);
 
     iphoneExportButton.textContent =
-        `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
+        `Save ${count} Transcription${count === 1 ? "" : "s"} to Files`;
 
     if (forceEnable) {
         iphoneExportButton.disabled = count === 0 || !identityFilesReady();
@@ -2117,7 +2066,7 @@ function resetIPhoneExportState() {
     if (iphoneExportButton) {
         iphoneExportButton.disabled = true;
         iphoneExportButton.classList.remove("has-pending-exports");
-        iphoneExportButton.textContent = "Save 0 Transcripts to Files";
+        iphoneExportButton.textContent = "Save 0 Transcriptions to Files";
     }
 
     if (iphoneExportStatus) {
@@ -2132,7 +2081,7 @@ function setIPhoneExportSavedStatus(count) {
         iphoneExportButton.classList.toggle("has-pending-exports", pendingIPhoneExports.length > count);
         iphoneExportButton.disabled = count === 0 || !identityFilesReady();
         iphoneExportButton.textContent =
-            `Save ${count} Transcript${count === 1 ? "" : "s"} to Files`;
+            `Save ${count} Transcription${count === 1 ? "" : "s"} to Files`;
     }
 
     if (iphoneExportStatus) {
