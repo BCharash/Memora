@@ -1702,3 +1702,19 @@ button:disabled {
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
+
+/* Named local-storage categories stay readable on narrow Settings panels. */
+.settings-storage-category { flex-wrap: wrap; }
+.settings-storage-category .settings-disclosure-title { flex: 1 1 180px; }
+:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+}
+:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item-info {
+    overflow-wrap: anywhere;
+}
+:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item > button {
+    max-width: 124px;
+    white-space: normal;
+}

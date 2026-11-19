@@ -1,6 +1,6 @@
 import {fingerprintAudio} from '../js/audioFingerprint.js';
 import {openAudioSourceSession,discoverAudioSource} from '../js/audioSourcePersistence.js';
-import {createAudioSourceRecoveryStore,matchAudioSourceRecovery} from '../js/audioSourceRecovery.js';
+import {createAudioSourceRecoveryStore,matchAudioSourceRecovery,groupAudioSourceRecovery} from '../js/audioSourceRecovery.js';
 import {createDatabaseManager,DATABASE_VERSION} from '../js/database.js';
 import {AUDIO_SOURCE_FILENAME,shareFile} from '../js/storage.js';
 import {parseAudioSourceManifest,AUDIO_SOURCE_LIMITS} from '../js/audioSourceIdentity.js';
@@ -184,6 +184,15 @@ await test('Returning embedded audio keeps its ID after complete inventory remov
  await session.reconcileAvailability({observedPaths:[],verifiedPaths:[],complete:true});eq(session.getManifest().recordings.length,0);await session.persist();
  eq((await stage(session)).recordingId,f.ID);
 });
+await test('Completed sharing releases only matching pending exports and does not reflag the same audio list',async()=>{
+ const {session,store}=await make({input:true,verifyAudioContents:false});await stage(session);const pending=await session.persist();
+ const archiveA=new File(['archive A'],'memora-archive.json'),archiveB=new File(['archive B'],'memora-archive.json');await session.retainTranscriptArchive(archiveA);
+ eq(await session.acknowledgeShared('source',pending.file),true);eq((await store.get(session.sourceId)).state,'verified');assert(session.getPendingTranscriptArchive(),'Pending transcript list lost during audio acknowledgement');
+ eq(await session.acknowledgeShared('archive',archiveB),false);eq(session.getPendingTranscriptArchive(),'archive A');
+ eq(await session.acknowledgeShared('archive',archiveA),true);eq(session.getPendingTranscriptArchive(),null);eq((await session.persist()).status,'unchanged','Shared audio list was reflagged');
+ await session.retainTranscriptArchive(archiveB);eq((await store.get(session.sourceId)).state,'verified','Pending transcript changed audio-list save state');eq(await session.acknowledgeShared('archive',archiveA),false);eq(session.getPendingTranscriptArchive(),'archive B');
+ store.failNext();await rejects(()=>session.retainTranscriptArchive(archiveA),'QuotaExceededError');const archiveC=new File(['archive C'],'memora-archive.json');await session.retainTranscriptArchive(archiveC);eq((await store.get(session.sourceId)).pendingTranscriptArchive,'archive C','Retry persisted an older pending export');
+});
 await test('Fresh valid folder JSON overrides different phone pending data and stale decision actions',async()=>{
  const {session,source,store}=await make({input:true,verifyAudioContents:false});await stage(session);await session.persist();
  const pendingArchive=JSON.stringify({schemaVersion:1,archiveUuid:OTHER,archiveName:'Pending transcripts',recordings:[]});await session.retainTranscriptArchive(new File([pendingArchive],'memora-archive.json'));
@@ -340,6 +349,20 @@ if(globalThis.indexedDB) await test('Real IndexedDB v5 upgrade preserves four st
  }finally{await req(indexedDB.deleteDatabase(name));}
 });
 else lines.push('SKIP Real IndexedDB requires the isolated browser harness.');
+
+if(globalThis.indexedDB) await test('Latest-copy grouping, verified cleanup, pending preservation and atomic bulk deletion use proven folder identity',async()=>{
+ const root=await navigator.storage.getDirectory(),folderName=`Memora-copy-cleanup-${crypto.randomUUID()}`,otherName=`Memora-copy-other-${crypto.randomUUID()}`;
+ const folder=await root.getDirectoryHandle(folderName,{create:true}),other=await root.getDirectoryHandle(otherName,{create:true}),databaseName=`Memora-copy-cleanup-db-${crypto.randomUUID()}`,manager=createDatabaseManager({name:databaseName}),store=createAudioSourceRecoveryStore({openDatabase:()=>manager.open()});
+ const ids=Array.from({length:5},()=>crypto.randomUUID()),pendingArchive=JSON.stringify({schemaVersion:1,archiveUuid:SOURCE,archiveName:'Pending',recordings:[]});
+ const makeRecord=(index,extra={})=>({audioSourceId:ids[index],revision:`revision-${index}`,state:'verified',manifestText:JSON.stringify({schemaVersion:1,audioSourceId:ids[index],recordings:[]}),baseBytes:null,sourceName:'Same display name',directoryHandle:folder,updatedAt:index===0?'2030-01-01T00:00:00Z':'2020-01-01T00:00:00Z',...extra});
+ try{
+  for(const record of [makeRecord(0),makeRecord(1),makeRecord(2,{pendingTranscriptArchive:pendingArchive}),makeRecord(3,{state:'export-pending'}),makeRecord(4,{directoryHandle:other})])await store.put(record,null);
+  const groups=await groupAudioSourceRecovery(await store.list());eq(groups.length,2,'Names merged unrelated folders');eq(groups.find(group=>group.records.length===4).latest.audioSourceId,ids[0],'Newest copy not selected');
+  eq(await store.pruneSuperseded(ids[0],'revision-0'),1);eq(await store.get(ids[1]),null);assert(await store.get(ids[2]),'Pending transcript export was pruned');assert(await store.get(ids[3]),'Pending audio list was pruned');assert(await store.get(ids[4]),'Unrelated same-name source was pruned');
+  const before=await store.list();await rejects(()=>store.removeMany([{audioSourceId:ids[0],revision:'stale'},{audioSourceId:ids[4],revision:'revision-4'}]),'recovery-conflict');eq((await store.list()).length,before.length,'Bulk deletion partially committed');
+  await store.removeMany([{audioSourceId:ids[0],revision:'revision-0'},{audioSourceId:ids[4],revision:'revision-4'}]);eq((await store.list()).length,2);
+ }finally{await root.removeEntry(folderName,{recursive:true});await root.removeEntry(otherName,{recursive:true});await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase(databaseName);request.onsuccess=resolve;request.onerror=()=>reject(request.error);});}
+});
 
 if(globalThis.indexedDB) await test('Native directory writes, stored handle matching, and transcript cleanup preserve recovery',async()=>{
  const {testRecoveryDatabaseName}=await import('./source-database-adapter.js');

@@ -540,3 +540,9 @@ export async function clearAllCachedModels() {
         }
     }
 }
+
+// Unused legacy store only; current embeddings and model definitions are separate.
+export async function clearUnusedSemanticMetadata(){
+    const database=await openReadWriteStore('semanticMetadata');
+    try{await new Promise((resolve,reject)=>{const tx=database.transaction('semanticMetadata','readwrite');tx.objectStore('semanticMetadata').clear();tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error);});}finally{database.close();}
+}

@@ -12,6 +12,7 @@ import { createWhisperAttemptJournal, visibleWhisperAttempts } from "./whisperAt
 import {
     checkAllModels,
     getModelRegistry,
+    initializeModelRegistry,
     rebuildModelRegistry
 } from "./modelManager.js";
 import { getRuntimeInfo, runtimeIdentity, isIOS, getRuntimeCapabilities } from "./runtime.js";
@@ -51,6 +52,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     });
 
     let currentReport = null;
+    let sourceRecoveryGroups=null;
     let modelAvailability = null;
     let latestDomDiagnostics = null;
     let selfTestController = null;
@@ -110,6 +112,9 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const semantic = report.indexedDB.semanticEntries;
         const models = report.modelCache;
         const transcripts = report.indexedDB.transcripts;
+        const registryStore=report.indexedDB.otherStores.find(item=>item.name==='modelRegistry')||{bytes:0,count:0};
+        const recoveryStore=report.indexedDB.otherStores.find(item=>item.name==='audioSourceRecovery')||{bytes:0,count:0};
+        const legacyMetadata=report.indexedDB.otherStores.find(item=>item.name==='semanticMetadata');
 
         storage.innerHTML = `
             ${row("Browser storage used", formatBytes(report.browser.usage))}
@@ -141,17 +146,23 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
 
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
-            <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Other Memora IndexedDB data</span>
-                <span>${formatBytes(report.indexedDB.otherBytes)} · ${report.indexedDB.otherCount.toLocaleString()} entries</span>
-                ${button("View", "toggle-other-indexeddb")}
-            </div>
-            <div id="settingsOtherIndexedDBDetail" class="settings-detail" hidden></div>
-            <div class="settings-disclosure">
-                <span class="settings-disclosure-title">Recording-list recovery</span>
+            <div class="settings-disclosure settings-storage-category">
+                <span class="settings-disclosure-title">Audio Recording List — Saved Local Copies</span>
+                <span id="settingsSourceRecoverySummary">${formatBytes(recoveryStore.bytes)} · ${(sourceRecoveryGroups?.length??recoveryStore.count).toLocaleString()} sources</span>
                 ${button("View", "toggle-source-recovery")}
             </div>
+            <p class="settings-note">Latest browser-local copy for each verified source. These are separate from JSON files saved in your folders.</p>
             <div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure settings-storage-category">
+                <span class="settings-disclosure-title">Model Registry Cache</span>
+                <span>${formatBytes(registryStore.bytes)} · ${registryStore.count.toLocaleString()} entries</span>
+                ${button("View", "toggle-registry-cache")}
+            </div>
+            <p class="settings-note">Stored model definitions used by Settings. Refresh storage information updates built-in definitions from Memora’s canonical configuration. Clearing this cache preserves downloaded models and current test qualification.</p>
+            <div id="settingsRegistryCacheDetail" class="settings-detail" hidden></div>
+            ${legacyMetadata?.count?`<div class="settings-row"><span>Unused Semantic Metadata · ${formatBytes(legacyMetadata.bytes)} · ${legacyMetadata.count} legacy entries</span>${button("Clear", "clear-unused-semantic-metadata")}</div><p class="settings-note">Retained legacy data; current Search does not use this store.</p>`:''}
 
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
@@ -721,40 +732,27 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         }
     }
 
-    async function showOtherIndexedDB() {
-        const detail = document.getElementById("settingsOtherIndexedDBDetail");
-        if (!detail) return;
-
-        detail.hidden = !detail.hidden;
-        const toggle = storage.querySelector('[data-settings-action="toggle-other-indexeddb"]');
-        if (toggle) toggle.textContent = detail.hidden ? "View" : "Hide";
-        if (detail.hidden) return;
-
-        const otherStores = currentReport?.indexedDB?.otherStores || [];
-        const count = currentReport?.indexedDB?.otherCount || 0;
-
-        if (!count) {
-            detail.innerHTML = `<p class="settings-note">No other IndexedDB records are present.</p>`;
-            return;
+    async function showRegistryCache(){
+        const detail=document.getElementById('settingsRegistryCacheDetail'),toggle=storage.querySelector('[data-settings-action="toggle-registry-cache"]');
+        if(!detail)return;
+        if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
+        detail.hidden=false;toggle.textContent='Hide';detail.textContent='Loading Model Registry Cache…';
+        const api=await getStorage(),records=await api.listModelRegistryRecords();detail.replaceChildren();
+        const note=document.createElement('p');note.className='settings-note';note.textContent='Viewing does not create cache entries. Deleted built-in definitions return on the next Refresh storage information. Historical customizations are removed only when you delete them.';detail.append(note);
+        const selected=new Set(),actions=document.createElement('div');actions.className='action-row';
+        const removeSelected=document.createElement('button'),clear=document.createElement('button');removeSelected.textContent='Delete Selected';removeSelected.disabled=true;clear.textContent='Clear Cache';clear.disabled=!records.length;
+        async function remove(ids){
+            if(!ids.length||!confirm(`Delete ${ids.length} Model Registry Cache entries? Downloaded models and current test qualification are preserved. Built-in definitions return on Refresh storage information.`))return;
+            await api.deleteModelRegistryRecords(ids);await refresh({initializeRegistry:false});await showRegistryCache();
         }
-
-        const descriptions = {
-            semanticMetadata: "Semantic search metadata and index bookkeeping.",
-            modelRegistry: "Whisper model definitions and validation records."
-        };
-
-        detail.innerHTML = `
-            <p class="settings-note">${count.toLocaleString()} records across ${otherStores.length} other IndexedDB ${otherStores.length === 1 ? "store" : "stores"}. No data has been changed.</p>
-            ${otherStores.map(store => `
-                <div class="settings-row">
-                    <span class="settings-label">
-                        <span class="settings-item-name">${escapeHtml(store.name)}</span>
-                        <span class="settings-note">${escapeHtml(descriptions[store.name] || "Other stored Memora data; purpose not classified here.")}</span>
-                    </span>
-                    <span class="settings-value">${formatBytes(store.bytes)} · ${store.count.toLocaleString()} entries</span>
-                </div>
-            `).join("")}
-        `;
+        removeSelected.onclick=()=>remove([...selected]).catch(error=>{status.textContent=error.message;});clear.onclick=()=>remove(records.map(item=>item.id)).catch(error=>{status.textContent=error.message;});actions.append(removeSelected,clear);detail.append(actions);
+        if(!records.length){const empty=document.createElement('p');empty.textContent='No cached model definitions. Refresh storage information recreates the built-in entries.';detail.append(empty);}
+        for(const record of records){
+            const row=document.createElement('div');row.className='settings-item';const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label',`Select ${record.label||record.id}`);
+            check.onchange=()=>{check.checked?selected.add(record.id):selected.delete(record.id);removeSelected.disabled=!selected.size;};
+            const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.label||record.id;const text=document.createElement('div');text.className='settings-note';text.textContent=`${record.family||'Custom'} · ${record.platform||'Unspecified device'} · ${record.id}`;info.append(name,text);
+            const removeButton=document.createElement('button');removeButton.textContent='Delete';removeButton.onclick=()=>remove([record.id]).catch(error=>{status.textContent=error.message;});row.append(check,info,removeButton);detail.append(row);
+        }
     }
 
     async function showOtherModels() {
@@ -885,7 +883,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         registryContainer.innerHTML = `<strong>Model Registry</strong><p>Loading registry…</p>`;
 
         try {
-            const registry = await getModelRegistry();
+            const registry = await getModelRegistry({initialize:false});
             if (!registryContainer.isConnected || token !== registryRenderToken) return;
             const families = ["tiny", "base", "small", "medium", "large"];
             const currentTarget = getCurrentRegistryTarget();
@@ -1035,31 +1033,39 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         detail._items = items;
     }
 
-    async function showSourceRecovery() {
-        const detail = document.getElementById("settingsSourceRecoveryDetail");
-        const toggle = storage.querySelector('[data-settings-action="toggle-source-recovery"]');
-        if (!detail) return;
-        if (!detail.hidden) { detail.hidden = true; toggle.textContent = "View"; return; }
-        detail.hidden = false; toggle.textContent = "Hide"; detail.textContent = "Loading recording-list recovery…";
-        const { createAudioSourceRecoveryStore } = await import("./audioSourceRecovery.js");
-        const store = createAudioSourceRecoveryStore();
-        const records = await store.list(); detail.replaceChildren();
-        const note = document.createElement("p"); note.className = "settings-note";
-        note.textContent = "Browser-local copies have no automatic expiry. Removing a copy does not delete files saved beside your audio or transcripts. Copies can also be lost if browser storage is cleared or evicted."; detail.append(note);
-        if (!records.length) { const empty = document.createElement("p"); empty.textContent = "No saved recording-list copies."; detail.append(empty); }
-        for (const record of records) {
-            const row = document.createElement("div"), label = document.createElement("p"), remove = document.createElement("button");
-            const active = getActiveAudioSourceId()?.toLowerCase() === String(record.audioSourceId).toLowerCase();
-            label.textContent = `${record.sourceName || "Audio source"} · ${record.state || "unknown state"}${active ? " · in use; select another source before removal" : ""}`;
-            remove.type = "button"; remove.textContent = "Remove saved copy"; remove.disabled = active;
-            remove.addEventListener("click", async () => {
-                if (getActiveAudioSourceId()?.toLowerCase() === String(record.audioSourceId).toLowerCase()) return;
-                if (!confirm(`Remove the browser's saved recording list for “${record.sourceName || "Audio source"}”? Save any needed pending JSON/transcripts first. This does not delete files from your folders.`)) return;
-                remove.disabled = true;
-                try { await store.remove(record.audioSourceId, record.revision); row.remove(); }
-                catch (error) { label.textContent = error.message; remove.disabled = false; }
-            });
-            row.append(label,remove); detail.append(row);
+    async function showSourceRecovery(){
+        const detail=document.getElementById('settingsSourceRecoveryDetail'),toggle=storage.querySelector('[data-settings-action="toggle-source-recovery"]');if(!detail)return;
+        if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
+        detail.hidden=false;toggle.textContent='Hide';detail.textContent='Loading saved Audio Recording Lists…';
+        const {createAudioSourceRecoveryStore,groupAudioSourceRecovery}=await import('./audioSourceRecovery.js'),store=createAudioSourceRecoveryStore();
+        const signature=groups=>(groups||[]).flatMap(group=>group.records.map(record=>`${record.audioSourceId}:${record.revision}`)).sort().join('|');
+        const groups=await groupAudioSourceRecovery(await store.list());
+        if(signature(groups)!==signature(sourceRecoveryGroups)){
+            const report=await (await getStorageManager()).getStorageReport(),item=report.indexedDB.otherStores.find(store=>store.name==='audioSourceRecovery');
+            const summary=document.getElementById('settingsSourceRecoverySummary');if(summary)summary.textContent=`${formatBytes(item?.bytes||0)} · ${groups.length.toLocaleString()} sources`;
+        }
+        sourceRecoveryGroups=groups;detail.replaceChildren();
+        const active=group=>group.records.some(record=>String(record.audioSourceId).toLowerCase()===getActiveAudioSourceId()?.toLowerCase());
+        const note=document.createElement('p');note.className='settings-note';note.textContent='One latest copy per verified source is shown. Distinct source identities are not combined by name. Pending transcript-list exports are retained. Deleting local copies does not delete audio, transcripts or JSON files in your folders. Copies currently in use are protected.';detail.append(note);
+        const selected=new Set(),actions=document.createElement('div');actions.className='action-row';
+        const removeSelected=document.createElement('button'),removeAll=document.createElement('button');removeSelected.textContent='Delete Selected';removeSelected.disabled=true;removeAll.textContent='Delete All Inactive Copies';removeAll.disabled=!groups.some(group=>!active(group));actions.append(removeSelected,removeAll);detail.append(actions);
+        async function remove(targets){
+            if(!targets.length)return;
+            if(targets.some(active))throw Error('A selected Audio Recording List is now in use. Its saved copy was kept.');
+            const records=targets.flatMap(group=>group.records),pending=records.some(record=>record.state!=='verified'||record.pendingTranscriptArchive);
+            if(!confirm(`Delete saved Audio Recording Lists for ${targets.length} sources?${pending?' Some copies may contain unsaved audio/transcript list data. Save any needed pending lists first.':''} Audio, transcripts and JSON files in your folders are preserved.`))return;
+            if(targets.some(active))throw Error('A selected source is now in use. No copies were removed.');
+            await store.removeMany(records);await refresh({initializeRegistry:false});await showSourceRecovery();
+        }
+        const run=targets=>remove(targets).catch(error=>{status.textContent=error.message;});removeSelected.onclick=()=>run([...selected]);removeAll.onclick=()=>run(groups.filter(group=>!active(group)));
+        if(!groups.length){const empty=document.createElement('p');empty.textContent='No saved Audio Recording Lists.';detail.append(empty);}
+        for(const group of groups){
+            const record=group.latest,row=document.createElement('div');row.className='settings-item';
+            const check=document.createElement('input');check.type='checkbox';check.disabled=active(group);check.setAttribute('aria-label',`Select saved list for ${record.sourceName||'Audio source'}`);check.onchange=()=>{check.checked?selected.add(group):selected.delete(group);removeSelected.disabled=!selected.size;};
+            const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.sourceName||'Audio source';
+            const text=document.createElement('p');text.className='settings-note';const time=Date.parse(record.updatedAt);const pending=group.records.filter(item=>item.pendingTranscriptArchive).length;
+            text.textContent=`${Number.isFinite(time)?new Date(time).toLocaleString():'Update time unavailable'} · ${group.recordingCount??'Unknown'} recordings · ${record.state==='verified'?'Saved local copy':'List save awaiting confirmation'}${pending?` · ${pending} retained transcript-list exports`:''}${group.invalid?' · Recovery data needs inspection':''}${active(group)?' · In use; protected from deletion':''}`;info.append(name,text);
+            const removeButton=document.createElement('button');removeButton.textContent='Delete Saved Copy';removeButton.disabled=active(group);removeButton.onclick=()=>run([group]);row.append(check,info,removeButton);detail.append(row);
         }
     }
 
@@ -1075,7 +1081,11 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-source-recovery") return await showSourceRecovery();
-            if (action === "toggle-other-indexeddb") return await showOtherIndexedDB();
+            if(action==='toggle-registry-cache')return await showRegistryCache();
+            if(action==='clear-unused-semantic-metadata'){
+                if(!confirm('Clear unused legacy semantic metadata? Current embeddings and transcript files are preserved.'))return;
+                const manager=await getStorageManager();await manager.clearUnusedSemanticMetadata();await refresh({initializeRegistry:false});return;
+            }
             if (action === "toggle-dom-diagnostics") {
                 const detail = document.getElementById("settingsDomDiagnosticsDetail");
                 if (!detail) return;
@@ -1134,7 +1144,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "rebuild-model-registry") {
                 if (!confirm("Reset stored model definitions to Memora's built-in defaults? Historical registry validation/customizations will be removed. Current eligibility, saved test reports and downloaded models will be preserved. This does not refresh test results or repair the database schema.")) return;
                 await rebuildModelRegistry();
-                await checkModels();
+                await refresh({initializeRegistry:false});await showWhisperModels();
                 return;
             }
             const manager = await getStorageManager();
@@ -1215,7 +1225,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         await navigator.share({files});
     }
 
-    async function refresh() {
+    async function refresh({initializeRegistry=true}={}) {
         if (!status) return;
         if (selfTestController) {
             status.textContent = "A Whisper self-test is running. Finish or cancel it before refreshing storage information.";
@@ -1226,6 +1236,10 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         status.innerHTML = `<span class="transcription-spinner" aria-hidden="true"></span><span>Reading Memora storage information…</span>`;
 
         try {
+            let registryWarning=null;
+            if(initializeRegistry){try{await initializeModelRegistry();}catch(error){registryWarning=error;}}
+            const {createAudioSourceRecoveryStore,groupAudioSourceRecovery}=await import('./audioSourceRecovery.js');
+            sourceRecoveryGroups=await groupAudioSourceRecovery(await createAudioSourceRecoveryStore().list());
             const manager = await getStorageManager();
             const report = await manager.getStorageReport();
             if (selfTestController) return;
@@ -1241,14 +1255,15 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 summary.textContent = `${formatBytes(whisperModels.reduce((sum, item) => sum + (item.bytes || 0), 0))} · ${whisperModels.length} models`;
             }
 
-            status.textContent = `Updated ${new Intl.DateTimeFormat("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(new Date())}.`;
+            status.textContent = `Updated ${new Intl.DateTimeFormat("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(new Date())}.`+
+                (registryWarning?` Model Registry Cache update failed: ${registryWarning.message}. Storage deletion controls remain available.`:'');
         } catch (error) {
             console.error("Settings storage error:", error);
             status.textContent = `Unable to read Memora storage information: ${error?.message || String(error)}`;
         }
     }
 
-    refreshButton?.addEventListener("click", refresh);
+    refreshButton?.addEventListener("click",()=>refresh());
     function showProductionReviews() {
         showReviewsOnRender = true;
         const section = document.getElementById("settingsWhisperEligibilityReviewsSection");

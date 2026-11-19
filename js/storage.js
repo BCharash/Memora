@@ -422,6 +422,16 @@ export async function saveModelRegistryRecords(records) {
     }
 }
 
+export async function deleteModelRegistryRecords(ids) {
+    if(!ids.length)return;
+    const database=await openTranscriptDatabase();
+    try{await new Promise((resolve,reject)=>{
+        const tx=database.transaction(MODEL_REGISTRY_STORE_NAME,'readwrite');
+        for(const id of ids)tx.objectStore(MODEL_REGISTRY_STORE_NAME).delete(id);
+        tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error||Error('Unable to clear model registry cache.'));
+    });}finally{database.close();}
+}
+
 export async function clearModelRegistry() {
     const database = await openTranscriptDatabase();
     try {

@@ -174,9 +174,15 @@ function mergeRegistryWithBaseline(existing) {
     const byId = new Map(normalized.map(record => [record.id, record]));
 
     for (const baselineRecord of MODEL_REGISTRY_BASELINE) {
-        if (!byId.has(baselineRecord.id)) {
-            byId.set(baselineRecord.id, structuredClone(baselineRecord));
+        const previous=byId.get(baselineRecord.id);
+        const merged={...previous,...structuredClone(baselineRecord)};
+        if(previous){
+            merged.status=previous.status??merged.status;
+            merged.validation=previous.validation??merged.validation;
+            merged.updatedAt=previous.updatedAt??merged.updatedAt;
+            merged.configuration={...previous.configuration,...merged.configuration};
         }
+        byId.set(baselineRecord.id,merged);
     }
 
     return Array.from(byId.values());
@@ -187,17 +193,7 @@ export async function initializeModelRegistry() {
 
     if (existing.length) {
         const migrated = mergeRegistryWithBaseline(existing);
-        const needsSave =
-            migrated.length !== existing.length ||
-            migrated.some((record, index) => {
-                const old = existing[index];
-                return (
-                    !old ||
-                    old.schemaVersion !== MODEL_REGISTRY_SCHEMA_VERSION ||
-                    old.runtime === "iphone-worker" ||
-                    !old.platform
-                );
-            });
+        const needsSave=JSON.stringify(migrated)!==JSON.stringify(existing);
 
         if (needsSave) {
             await saveModelRegistryRecords(migrated);
@@ -211,8 +207,8 @@ export async function initializeModelRegistry() {
     return baseline;
 }
 
-export async function getModelRegistry() {
-    return initializeModelRegistry();
+export async function getModelRegistry({initialize=true}={}) {
+    return initialize?initializeModelRegistry():mergeRegistryWithBaseline(await listModelRegistryRecords());
 }
 
 export async function rebuildModelRegistry() {

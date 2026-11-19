@@ -306,16 +306,38 @@ await test('Archive save pulse reuses the existing animation and respects reduce
  const reduced=[...link.sheet.cssRules].find(rule=>rule.conditionText==='(prefers-reduced-motion: reduce)');
  assert(reduced&&[...reduced.cssRules].some(rule=>rule.selectorText?.includes('.has-pending-archive-save')&&rule.style.animationName==='none'),'Reduced motion override missing');
 });
-await test('Settings removes only explicitly confirmed inactive recovery copies',async()=>{
+await test('One Settings refresh initializes registry counts; cache clearing and viewing do not silently recreate entries',async()=>{
+ click('settingsButton');await waitFor(()=>document.querySelector('[data-settings-action="toggle-registry-cache"]'));
+ assert(!document.querySelector('[data-settings-action="toggle-other-indexeddb"]'),'Generic Other section remains');assert(!document.getElementById('settingsStorage').textContent.includes('semanticMetadata'),'Unused zero store shown');
+ const storageApi=await import('./transcription-identity-fixtures.js');let records=await storageApi.listModelRegistryRecords();assert(records.length>0,'Refresh did not initialize the cache before reporting');
+ const registryRow=document.querySelector('[data-settings-action="toggle-registry-cache"]').parentElement;assert(registryRow.textContent.includes(records.length+' entries'),'Registry count needs a second refresh');
+ document.querySelector('[data-settings-action="toggle-registry-cache"]').click();await waitFor(()=>document.getElementById('settingsRegistryCacheDetail').textContent.includes('Clear Cache'));
+ const cacheDetail=document.getElementById('settingsRegistryCacheDetail');cacheDetail.style.width='240px';assert(cacheDetail.scrollWidth<=cacheDetail.clientWidth+1,'Registry cache rows overflow narrow Settings');cacheDetail.style.width='';
+ const originalConfirm=window.confirm;try{
+  window.confirm=()=>false;[...document.querySelectorAll('#settingsRegistryCacheDetail button')].find(button=>button.textContent==='Clear Cache').click();eq((await storageApi.listModelRegistryRecords()).length,records.length);
+  window.confirm=()=>true;[...document.querySelectorAll('#settingsRegistryCacheDetail button')].find(button=>button.textContent==='Clear Cache').click();await waitFor(()=>document.getElementById('settingsRegistryCacheDetail').textContent.includes('No cached model definitions'));
+  eq((await storageApi.listModelRegistryRecords()).length,0);document.querySelector('[data-settings-action="toggle-whisper-models"]').click();await waitFor(()=>document.getElementById('settingsModelRegistryContainer')?.textContent.includes('known configurations'));eq((await storageApi.listModelRegistryRecords()).length,0,'View Models recreated hidden cache data');
+  click('settingsRefreshButton');await waitFor(()=>document.querySelector('[data-settings-action="toggle-registry-cache"]')?.parentElement.textContent.includes(records.length+' entries'));eq((await storageApi.listModelRegistryRecords()).length,records.length);
+  document.querySelector('[data-settings-action="toggle-registry-cache"]').click();await waitFor(()=>document.querySelectorAll('#settingsRegistryCacheDetail input[type=checkbox]').length===records.length);
+  document.querySelector('#settingsRegistryCacheDetail input[type=checkbox]').click();[...document.querySelectorAll('#settingsRegistryCacheDetail button')].find(button=>button.textContent==='Delete Selected').click();await waitFor(()=>document.querySelectorAll('#settingsRegistryCacheDetail input[type=checkbox]').length===records.length-1);eq((await storageApi.listModelRegistryRecords()).length,records.length-1);
+  [...document.querySelectorAll('#settingsRegistryCacheDetail button')].find(button=>button.textContent==='Delete').click();await waitFor(()=>document.querySelectorAll('#settingsRegistryCacheDetail input[type=checkbox]').length===records.length-2);eq((await storageApi.listModelRegistryRecords()).length,records.length-2);
+  click('settingsRefreshButton');await waitFor(()=>document.querySelector('[data-settings-action="toggle-registry-cache"]')?.parentElement.textContent.includes(records.length+' entries'));
+ }finally{window.confirm=originalConfirm;}
+});
+await test('Saved audio lists support individual, selected and bulk deletion while protecting the active source',async()=>{
  const {createAudioSourceRecoveryStore}=await import('./transcription-recovery-fixtures.js');const store=createAudioSourceRecoveryStore();
- await store.put({audioSourceId:ARCHIVE,revision:'removal-fixture',state:'verified',sourceName:'Inactive test source',baseBytes:null,manifestText:JSON.stringify({schemaVersion:1,audioSourceId:ARCHIVE,recordings:[]})},null);
- click('settingsButton');await waitFor(()=>document.querySelector('[data-settings-action="toggle-source-recovery"]'));
- document.querySelector('[data-settings-action="toggle-source-recovery"]').click();
- await waitFor(()=>document.getElementById('settingsSourceRecoveryDetail').textContent.includes('Inactive test source'));
- const rows=[...document.querySelectorAll('#settingsSourceRecoveryDetail button')];
- assert(rows.some(button=>button.disabled),'Active source removal was offered');const remove=rows.find(button=>!button.disabled);assert(remove,'Inactive source action missing');
+ const names=['Inactive test source','Selected inactive source','Bulk inactive source'];
+ for(const [index,name]of names.entries()){const id=index===0?ARCHIVE:crypto.randomUUID();await store.put({audioSourceId:id,revision:'removal-'+index,state:'verified',sourceName:name,baseBytes:null,manifestText:JSON.stringify({schemaVersion:1,audioSourceId:id,recordings:[]})},null);}
+ if(document.getElementById('settingsPanel')?.hidden)click('settingsButton');await waitFor(()=>document.querySelector('[data-settings-action="toggle-source-recovery"]'));
+ document.querySelector('[data-settings-action="toggle-source-recovery"]').click();await waitFor(()=>document.getElementById('settingsSourceRecoveryDetail').textContent.includes(names[0]));
+ const detail=()=>document.getElementById('settingsSourceRecoveryDetail'),rows=()=>[...detail().querySelectorAll('.settings-item')];assert(rows().some(row=>row.textContent.includes('In use')&&row.querySelector('button').disabled),'Active source was deletable');
  const originalConfirm=window.confirm;
- try{window.confirm=()=>false;remove.click();eq((await store.list()).length,2);window.confirm=()=>true;remove.click();await waitFor(()=>!document.getElementById('settingsSourceRecoveryDetail').textContent.includes('Inactive test source'));eq((await store.list()).length,1);}finally{window.confirm=originalConfirm;}
+ try{
+  window.confirm=()=>false;rows().find(row=>row.textContent.includes(names[0])).querySelector('button').click();eq((await store.list()).length,4);
+  window.confirm=()=>true;rows().find(row=>row.textContent.includes(names[0])).querySelector('button').click();await waitFor(()=>!detail().textContent.includes(names[0])&&detail().textContent.includes(names[1]));eq((await store.list()).length,3);
+  rows().find(row=>row.textContent.includes(names[1])).querySelector('input').click();[...detail().querySelectorAll('button')].find(button=>button.textContent==='Delete Selected').click();await waitFor(()=>!detail().textContent.includes(names[1])&&detail().textContent.includes(names[2]));eq((await store.list()).length,2);
+  [...detail().querySelectorAll('button')].find(button=>button.textContent==='Delete All Inactive Copies').click();await waitFor(()=>!detail().textContent.includes(names[2])&&detail().textContent.includes('In use'));eq((await store.list()).length,1);
+ }finally{window.confirm=originalConfirm;}
 });
 await test('File-input missing JSON is resolved before showing a new source and before transcription',async()=>{
  const file=new File([await originalAudio.arrayBuffer()],'memo.wav');const before=calls.length;

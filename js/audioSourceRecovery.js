@@ -6,7 +6,7 @@ const idKey = id => {
     if (typeof id !== 'string' || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) throw new TypeError('An Audio Source UUID is required.');
     return id.toLowerCase();
 };
-function checkRecord(record) {
+function recoveryManifest(record) {
     const parsed = parseAudioSourceManifest(record.manifestText);
     if (parsed.status !== 'valid' || idKey(parsed.manifest.audioSourceId) !== idKey(record.audioSourceId) ||
         typeof record.revision !== 'string' || !record.revision || record.revision.length>128 ||
@@ -14,8 +14,9 @@ function checkRecord(record) {
         !['pending','verified','export-pending'].includes(record.state)) {
         throw new Error('The saved recording-list recovery data is invalid.');
     }
-    return record;
+    return parsed.manifest;
 }
+function checkRecord(record){recoveryManifest(record);return record;}
 export function createAudioSourceRecoveryStore({ openDatabase = openMemoraDatabase } = {}) {
     async function transact(mode, work) {
         const database = await openDatabase();
@@ -33,8 +34,31 @@ export function createAudioSourceRecoveryStore({ openDatabase = openMemoraDataba
         const record = await transact('readonly',(store,set) => { const request=store.get(idKey(id)); request.onsuccess=()=>set(request.result || null); });
         return record ? checkRecord(record) : null;
     };
+    const removeMany=async(records,{guard=null}={})=>{
+        if(!records.length)return true;
+        const expected=new Map(records.map(record=>[idKey(record.audioSourceId),record.revision]));
+        if(guard)expected.set(idKey(guard.audioSourceId),guard.revision);
+        return transact('readwrite',(store,set,fail)=>{
+            let remaining=expected.size;
+            for(const [key,revision]of expected){const request=store.get(key);request.onsuccess=()=>{
+                if((request.result?.revision||null)!==revision)return fail(Object.assign(Error('A saved audio recording list changed. Refresh before deleting.'),{code:'recovery-conflict'}));
+                if(--remaining===0){for(const record of records)store.delete(idKey(record.audioSourceId));set(true);}
+            };}
+        });
+    };
+    const pruneSuperseded=async(id,revision)=>{
+        const current=await get(id);
+        if(!current||current.revision!==revision||current.state!=='verified'||typeof current.directoryHandle?.isSameEntry!=='function')return 0;
+        const obsolete=[];
+        for(const record of await transact('readonly',(store,set)=>{const request=store.getAll();request.onsuccess=()=>set(request.result);})){try{
+            checkRecord(record);
+            if(idKey(record.audioSourceId)===idKey(id)||record.state!=='verified'||record.pendingTranscriptArchive||!record.directoryHandle)continue;
+            if(await current.directoryHandle.isSameEntry(record.directoryHandle))obsolete.push(record);
+        }catch{/* Uncertain or invalid data is retained for explicit inspection/removal. */}}
+        await removeMany(obsolete,{guard:current});return obsolete.length;
+    };
     return Object.freeze({
-        get,
+        get,removeMany,pruneSuperseded,
         // No expiry. Explicit removal is revision-checked, including across tabs.
         put: async (record, expectedRevision = null) => {
             checkRecord(record); const key=idKey(record.audioSourceId);
@@ -72,4 +96,23 @@ export async function matchAudioSourceRecovery(records, { source = null, establi
         } catch { /* Invalid recovery data is not offered as a restorable list. */ }
     }
     return matches;
+}
+
+// One visible latest copy per proven source; names alone never merge sources.
+export async function groupAudioSourceRecovery(records){
+    const groups=[];
+    for(const record of records){
+        let count=null,invalid=false;try{count=recoveryManifest(record).recordings.length;}catch{invalid=true;}
+        let group=null;
+        if(!invalid)for(const candidate of groups){
+            if(candidate.invalid)continue;
+            if(String(candidate.latest.audioSourceId).toLowerCase()===String(record.audioSourceId).toLowerCase()){group=candidate;break;}
+            const handle=candidate.latest.directoryHandle;
+            if(typeof handle?.isSameEntry==='function'&&record.directoryHandle){try{if(await handle.isSameEntry(record.directoryHandle)){group=candidate;break;}}catch{/* No proven association. */}}
+        }
+        if(!group){group={latest:record,records:[],recordingCount:count,invalid};groups.push(group);}
+        group.records.push(record);
+        if((Date.parse(record.updatedAt)||0)>(Date.parse(group.latest.updatedAt)||0)){group.latest=record;group.recordingCount=count;}
+    }
+    return groups.sort((a,b)=>(Date.parse(b.latest.updatedAt)||0)-(Date.parse(a.latest.updatedAt)||0));
 }

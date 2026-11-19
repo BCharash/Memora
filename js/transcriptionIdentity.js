@@ -35,6 +35,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
     return {
         reset(){ui.reset();archive=null;destination=null;source=null;preparedSource=null;onPendingArchive?.(null);},
         getSession:()=>ui.getSession(),
+        acknowledgeShared:(kind,file)=>ui.getSession()?.acknowledgeShared(kind,file),
         getInventorySummary:()=>inventorySummary,
         async activateSource(){if(pendingInventoryList)await ui.publishPendingList(pendingInventoryList);},
         async prepareSource(selectedSource,files,{signal,onProgress=()=>{}}={}){

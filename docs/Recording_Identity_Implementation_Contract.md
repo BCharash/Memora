@@ -34,6 +34,18 @@ The four existing transcription archive JSON files remain unchanged by source-li
 
 Transcript destination must never own fallback audio identity. Do not generate new source or recording IDs merely because a destination lacks an archive manifest. New-transcript archive integration remains subject to its existing contract; do not silently rewrite existing manifests to repair a source-ID change.
 
+## Local-copy Settings, retention and deletion — 19 November 2026
+
+Candidate `2026-11-19.15` presents audio recovery data once as **Audio Recording List — Saved Local Copies**, separate from **Model Registry Cache**. The generic Other IndexedDB category is removed. Empty reserved semantic metadata is hidden without dropping its schema store; nonempty legacy data remains surfaced for explicit clearing.
+
+The recovery store still has one current row per Audio Source UUID. UI grouping additionally combines rows only when directory handles prove the same folder, showing the latest row plus retained-pending-work indicators. Same names never prove association; distinct unresolved source identities remain separate. Verified native source read/write completion can prune older verified rows for that same folder, with a guard on the winning revision. Pending audio lists and pending transcript-list exports are never automatically pruned. Cleanup is attempted once per source session and cannot turn a verified save into a reported failure.
+
+Individual, selected and all-inactive deletion has explicit confirmation. Active groups are protected both before and after confirmation. Multi-row deletion verifies every expected revision and commits atomically; a stale selection aborts the whole deletion. Browser-local removal does not remove audio, transcripts or JSON files in folders.
+
+Successful sharing acknowledges exact payloads only. An acknowledged audio list is not reflagged merely by another persistence call. A matching shared transcript-list payload is removed from pending recovery, while a newer different pending export is retained. Failed recovery retries bind to current pending export data as well as manifest/state/base bytes.
+
+Storage refresh initializes/reconciles Model Registry Cache from canonical configuration before counting it; View is read-only. Clear/delete actions refresh counts without immediately recreating cache data. Canonical definition fields are synchronized while unrelated extensions and historical validation/status are retained. Current model qualification and downloaded models are separate and are not deleted by cache controls. Registry-cache initialization failure still leaves storage inspection/deletion available. Real iPhone visual and share acceptance remains pending; synthetic coverage is recorded in CURRENT_STATUS.
+
 ## Authoritative saved lists and bounded inventory work — 19 November 2026
 
 Candidate `2026-11-19.14` supersedes earlier requirements to resume a differing browser-local pending audio list when a valid saved audio JSON is selected. The selected valid JSON owns source/recording identity; stale pending audio data never forces a Resume choice or replacement of that file. Pending transcript-archive exports remain retained separately. If a valid folder JSON appears while an old Create/Replace/Resume decision is outstanding, the decision is cleared and that valid list is accepted. The obsolete audio pending-list dialog is removed. Invalid/unreadable documents still require explicit resolution; neither recovery storage nor databases are reset.

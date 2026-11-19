@@ -63,6 +63,14 @@ try {
         const persisted = (await storage.listModelRegistryRecords()).find(x => x.id === saved.id);
         assert(JSON.stringify(persisted) === JSON.stringify(saved), "persisted record not reset");
     });
+    await test("Registry refresh synchronizes canonical fields while retaining historical metadata; readonly views do not refill deletions",async()=>{
+        const before=await getModelRegistry(),baseline=before.find(record=>record.id==='tiny-webgpu-default');
+        await storage.saveModelRegistryRecords([{...baseline,label:'Stale label',repository:'outdated/repository',validation:{status:'passed',detail:'historical only'},customEvidence:{keep:true}}]);
+        const refreshed=(await getModelRegistry()).find(record=>record.id===baseline.id);
+        assert(refreshed.repository===baseline.repository&&refreshed.label===baseline.label,'canonical fields not synchronized');assert(refreshed.validation.detail==='historical only'&&refreshed.customEvidence.keep,'historical metadata removed');
+        const count=(await storage.listModelRegistryRecords()).length;await storage.deleteModelRegistryRecords([baseline.id]);await getModelRegistry({initialize:false});assert((await storage.listModelRegistryRecords()).length===count-1,'readonly view recreated deleted data');
+        await getModelRegistry();assert((await storage.listModelRegistryRecords()).length===count,'explicit initialization did not rebuild baseline');
+    });
     await test("Semantic removal and write failure release connections", async () => {
         assert(await semantic.removeSemanticEntriesForTranscript("old-source", "old-hash") === 1, "target removal");
         assert((await semantic.getSemanticStoreStats()).entryCount === 0, "stats after removal");
@@ -89,6 +97,12 @@ try {
         assert(reused[0][0] === 0.25, "reuses stored embedding without worker");
         await manager.clearSemanticRepresentation({ modelId: "minilm", representationType: "chunk", chunkSize: 3, chunkOverlap: 1 });
         assert((await semantic.getSemanticStoreStats()).entryCount === 0, "representation clearing");
+    });
+    await test("Registry initialization failure leaves storage inspection and deletion accessible",async()=>{
+        await storage.clearModelRegistry();document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
+        const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='modelRegistry')throw new DOMException('Injected registry quota failure','QuotaExceededError');return original.apply(this,args);};
+        try{const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();assert(document.getElementById('settingsStorageStatus').textContent.includes('Model Registry Cache update failed'),'registry error hidden');assert(document.querySelector('[data-settings-action="toggle-registry-cache"]'),'cache controls hidden by failed initialization');assert(document.querySelector('[data-settings-action="toggle-source-recovery"]'),'saved-list controls hidden by failed initialization');}
+        finally{IDBObjectStore.prototype.put=original;}
     });
     await test("Settings runtime stays visible when storage reporting fails", async () => {
         document.getElementById("fixture").innerHTML = '<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';

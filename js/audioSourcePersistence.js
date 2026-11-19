@@ -157,7 +157,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     let revision=stored?.revision||null, baseline=selectedRootBytes===undefined?discovery.bytes:selectedRootBytes;
     let current=manifest, staged=null, pendingRecord=null, writtenBytes=null;
     let recoveryExtras=stored?.pendingTranscriptArchive ? {pendingTranscriptArchive:stored.pendingTranscriptArchive} : {};
-    let durableRecord=stored;
+    let durableRecord=stored,sharedListText=null;
     const entriesByPath=new Map(),entriesById=new Map(),inputFilesByPath=new Map();
     function indexEntries(){
         entriesByPath.clear();entriesById.clear();
@@ -198,12 +198,19 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         if(durableRecord?.state===state && durableRecord.manifestText===text &&
             (durableRecord.pendingTranscriptArchive||null)===(recoveryExtras.pendingTranscriptArchive||null) && sameBytes(durableRecord.baseBytes,baseline))return;
         // Keep revision/UUIDs in session on failure; retry does not regenerate IDs.
-        if (!pendingRecord || pendingRecord.manifestText!==text || pendingRecord.state!==state) pendingRecord={
+        if (!pendingRecord || pendingRecord.manifestText!==text || pendingRecord.state!==state ||
+            (pendingRecord.pendingTranscriptArchive||null)!==(recoveryExtras.pendingTranscriptArchive||null) || !sameBytes(pendingRecord.baseBytes,baseline)) pendingRecord={
             ...recoveryExtras, audioSourceId:key, revision:randomUUID(), state, manifestText:text, baseBytes:baseline,
             directoryHandle:source.kind==='directory'?source:stored?.directoryHandle||null, sourceName:source.name||'Audio folder', updatedAt:new Date().toISOString()
         };
         await recoveryStore.put(pendingRecord,revision); revision=pendingRecord.revision;durableRecord=pendingRecord;
         pendingRecord=null;
+    }
+    let cleanupAttempted=false;
+    async function pruneVerified(){
+        if(source.kind!=='directory'||cleanupAttempted)return;
+        cleanupAttempted=true;
+        try{await recoveryStore.pruneSuperseded?.(key,revision);}catch(error){recoveryError=error;}
     }
     // A supplied valid list is already a saved copy. Export it again only when
     // its contents change; restored/pending copies still need explicit sharing.
@@ -224,7 +231,20 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         retainTranscriptArchive: file=>exclusive(async()=> {
             const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes);
             recoveryExtras={pendingTranscriptArchive:decoder.decode(bytes)};
-            await saveRecovery(source.kind==='directory'?'verified':'export-pending',serialize(staged||current));
+            const text=serialize(staged||current),saved=source.kind==='directory'||text===suppliedSavedText||text===sharedListText;
+            await saveRecovery(saved?'verified':'export-pending',text);
+        }),
+        acknowledgeShared: (kind,file)=>exclusive(async()=>{
+            const bytes=await readAudioSourceBytes(file,AUDIO_SOURCE_LIMITS.jsonBytes),text=decoder.decode(bytes);
+            if(kind==='source'){
+                if(text!==serialize(staged||current))return false;
+                sharedListText=text;
+            }else{
+                if(text!==recoveryExtras.pendingTranscriptArchive)return false;
+                recoveryExtras={};
+            }
+            const saved=source.kind==='directory'||sharedListText===serialize(staged||current)||suppliedSavedText===serialize(staged||current);
+            await saveRecovery(saved?'verified':'export-pending',serialize(staged||current));return true;
         }),
         reconcileAvailability:options=>exclusive(async()=> {
             checkAudioSourceAbort(signal);
@@ -305,7 +325,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 if (writtenBytes && sameBytes(disk,writtenBytes)) baseline=disk;
                 if (!sameBytes(disk,baseline)) throw fail('source-changed','This recording list changed after it was opened. Reload it before saving.');
             }
-            if(source.kind==='file-input' && text===suppliedSavedText){
+            if(source.kind==='file-input' && (text===suppliedSavedText||text===sharedListText)){
                 await saveRecovery('verified',text);current=staged||current;staged=null;
                 return {status:'unchanged',sourceVerified:false,transcriptDeliveryAllowed:true};
             }
@@ -314,7 +334,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 if(parsedDisk.status==='valid' && serialize(parsedDisk.manifest)===text){
                     await revalidateAudio();checkAudioSourceAbort(signal);
                     if(!sameBytes(await currentSource(),baseline))throw fail('source-changed','This recording list changed before validation. Select the source again.');
-                    await saveRecovery('verified',text);current=staged||current;staged=null;
+                    await saveRecovery('verified',text);current=staged||current;staged=null;await pruneVerified();
                     return {status:'unchanged',sourceVerified:true,transcriptDeliveryAllowed:true};
                 }
             }
@@ -343,7 +363,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             // No success on write/close alone: actual readback must agree exactly.
             if (!sameBytes(await currentSource(),bytes)) throw fail('readback-failed','Memora could not verify the saved recording list. Keep the pending copy and try again.');
             baseline=bytes; current=staged||current; staged=null;
-            await saveRecovery('verified',text);
+            await saveRecovery('verified',text);await pruneVerified();
             return {status:'verified',sourceVerified:true,transcriptDeliveryAllowed:true};
         },signal)),
         // Sharing must be a separate user gesture using storage.shareFile(file).

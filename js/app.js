@@ -238,8 +238,10 @@ for (const [button, kind] of [[saveRecordingListButton, "source"], [saveTranscri
         const file = kind === "source" ? pendingRecordingList : pendingTranscriptArchive;
         if (!file) return;
         button.disabled = true;
+        const sharingWorkflow=identityWorkflow;
         try {
             await shareIdentityFile(file);
+            try{await sharingWorkflow.acknowledgeShared(kind,file);}catch(error){console.warn("Shared list recovery acknowledgement retained for retry:",error);}
             if (kind === "source" && file === pendingRecordingList) recordingListShared = true;
             if (kind === "archive" && file === pendingTranscriptArchive) transcriptArchiveShared = true;
             if (file === (kind === "source" ? pendingRecordingList : pendingTranscriptArchive)) {
