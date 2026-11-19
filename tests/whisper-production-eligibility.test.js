@@ -1,9 +1,19 @@
+import { createWhisperEligibilityStore } from '../js/whisperEligibility.js';
+import { createWhisperEvidenceBridge } from '../js/whisperEligibilityEvidence.js';
 import { createWhisperProductionGate } from "../js/whisperProductionEligibility.js";
 const lines=[],assert=(v,m)=>{if(!v)throw new Error(m);};
 const test=async(label,fn)=>{await fn();lines.push(`PASS ${label}`);};
 const states=new Map();let failing=false;
 const gate=os=>createWhisperProductionGate({environment:{operatingSystem:os},contextFor:async d=>({id:d.id}),bridge:{productionEvidenceRevision:1,sync:async()=>{if(failing)throw new Error("storage unavailable");},get:c=>({status:states.get(c.id)||"unverified",reason:"fixture"})}});
 try{
+ await test("The actual production selector reuses a saved Large pass after a Chrome update and still excludes a later failure",async()=>{
+  const values=new Map(),storage={get length(){return values.size;},key:i=>[...values.keys()][i],getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};
+  const before={configurationId:'large-webgpu-fp16-q4',configurationFingerprint:'same-large',executionWorker:'desktop-worker',protocol:'wer-v1',fixtureDigest:'fixture',browser:'Chrome/156.0.0.0',environment:{operatingSystem:'macos',deviceType:'desktop'},capabilities:{workers:true,webgpu:true},recipe:{language:'omitted'}};
+  const store=createWhisperEligibilityStore({storage});await store.record(before,{id:'saved-large-pass',startedAt:'2026-11-01T00:00:00Z',configuration:{id:before.configurationId},status:'passed',phase:'validation',result:{results:[{status:'passed',transcriptionStatus:'passed',accuracyStatus:'passed',validation:{status:'passed'},wer:0}]}});
+  const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>[]}}),production=createWhisperProductionGate({bridge,environment:{operatingSystem:'macos'},contextFor:async definition=>({...before,configurationId:definition.id,configurationFingerprint:definition.id===before.configurationId?'same-large':'other',browser:'Chrome/157.0.0.0'})});
+  assert((await production.list()).some(definition=>definition.id===before.configurationId),'Large missing after browser update');assert((await production.requireEligible('large')).id===before.configurationId,'old pass not executable');
+  await store.record(before,{id:'later-large-failure',startedAt:'2026-11-02T00:00:00Z',configuration:{id:before.configurationId},status:'failed',phase:'inference',result:{results:[{status:'failed',failedPhase:'inference'}]}});assert(!(await production.list()).some(definition=>definition.id===before.configurationId),'later failure ignored');
+ });
  await test("No evidence yields empty production choices; all nonqualified states are refused",async()=>{
   const mac=gate("macos");assert((await mac.list()).length===0,"empty");
   for(const state of ["unverified","needs-validation","suspended","blocked"]){states.set("tiny-webgpu-default",state);let denied=false;try{await mac.requireEligible("tiny");}catch{denied=true;}assert(denied,state);}
@@ -38,3 +48,5 @@ try{
  document.body.dataset.result="passed";lines.push("ALL TESTS PASSED");
 }catch(error){document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}
 document.getElementById("results").textContent=lines.join("\n");
+
+if(location.search.includes("report=1"))await fetch("/_identity-test-result",{method:"POST",body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result==="passed"?[]:["suite failed"],output:document.getElementById("results").textContent})});

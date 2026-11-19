@@ -1,6 +1,6 @@
 import { presentWhisperAttempt, renderWhisperAttemptContext } from "./whisperAttemptReport.js";
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
-import { eligibilityKey } from "./whisperEligibility.js";
+import { qualificationKey } from "./whisperEligibility.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
 import { isIOS, runtimeIdentity } from "./runtime.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
@@ -170,7 +170,7 @@ export async function renderWhisperExecutionHistory(container, { journal = creat
 async function currentReviewContexts(rows) {
     const ids = new Set(rows.map(row => row.configurationId));
     const definitions = getWhisperConfigurationDefinitions().filter(definition => ids.has(definition.id) && definition.operatingSystems.includes(runtimeIdentity.operatingSystem));
-    return new Set(await Promise.all(definitions.map(async definition => eligibilityKey(await getWhisperEligibilityContext(definition)))));
+    return new Set(await Promise.all(definitions.map(async definition => qualificationKey(await getWhisperEligibilityContext(definition)))));
 }
 const noticeVersions = new WeakMap();
 const reviewVersions = new WeakMap();

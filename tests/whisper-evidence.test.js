@@ -1,3 +1,4 @@
+import { eligibilityKey } from '../js/whisperEligibility.js';
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext, digestWhisperFixture, WHISPER_FIXTURE_DIGEST } from "../js/whisperEligibilityEvidence.js";
 import { getWhisperConfigurationDefinitions, fingerprintWhisperConfiguration } from "../js/whisperConfigurations.js";
 import { createWhisperEligibilityStore } from "../js/whisperEligibility.js";
@@ -23,6 +24,12 @@ try {
         const storage=memory(), journal={recover:async()=>[pass]},bridge=createWhisperEvidenceBridge({storage,journal});
         await bridge.sync();await bridge.sync();assert(bridge.get(context).status==="eligible","qualified");
         assert(createWhisperEligibilityStore({storage}).get(context).latestAttempt.id==="pass","durable");
+    });
+    await test("A resolved legacy interruption review does not reactivate after a browser version change",async()=>{
+        const storage=memory(),old={...context,browser:'Chrome/156.0'},updated={...context,browser:'Chrome/157.0'};const store=createWhisperEligibilityStore({storage});await store.record(old,{...pass,eligibilityContext:old});
+        const reviewKey='memora.whisper-eligibility-review.v1.'+encodeURIComponent(JSON.stringify([context.configurationId,context.environment.operatingSystem,context.environment.deviceType]));
+        storage.setItem(reviewKey,JSON.stringify({status:'suspended',startedAt:'2025-01-01T00:00:00Z',resolvedBy:{attemptId:pass.id,contextKey:eligibilityKey(old)}}));
+        const bridge=createWhisperEvidenceBridge({storage,journal:{recover:async()=>[]}});assert(bridge.get(updated).status==='eligible','resolved review reactivated');
     });
     await test("Recovered interruption suspends; live records are ignored",async()=>{
         const storage=memory(), interrupted={...pass,id:"interrupted",status:"interrupted",phase:"load"};
@@ -109,3 +116,5 @@ try {
     document.body.dataset.result="passed";lines.push("ALL TESTS PASSED");
 }catch(error){document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}
 document.getElementById("results").textContent=lines.join("\n");
+
+if(location.search.includes("report=1"))await fetch("/_identity-test-result",{method:"POST",body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result==="passed"?[]:["suite failed"],output:document.getElementById("results").textContent})});

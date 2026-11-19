@@ -1,4 +1,4 @@
-import { createWhisperEligibilityStore, reduceWhisperEligibility, eligibilityKey } from "../js/whisperEligibility.js";
+import { createWhisperEligibilityStore, reduceWhisperEligibility, eligibilityKey, qualificationKey } from "../js/whisperEligibility.js";
 import { createWhisperAttemptJournal } from "../js/whisperAttempts.js";
 const lines = [], assert = (v,m) => { if (!v) throw new Error(m); };
 const test = async (label, fn) => { await fn(); lines.push(`PASS ${label}`); };
@@ -46,12 +46,32 @@ try {
         assert(reduceWhisperEligibility(failed, attempt("interrupted")).status === "blocked", "confirmed failure retained");
         assert(reduceWhisperEligibility(failed, attempt("passed"), { deliberateRetest: true }).status === "eligible", "deliberate pass restores confirmed failure");
     });
-    await test("Configuration/browser/protocol/fixture/recipe/capability changes require validation", async () => {
+    await test("Configuration/browser-family/protocol/fixture/recipe/capability changes require validation", async () => {
         const store=createWhisperEligibilityStore({storage:memory()}); await store.record(context,attempt("passed"));
         for (const [key,value] of Object.entries({ configurationFingerprint:"changed", browser:"updated", executionWorker:"new-worker", protocol:"v2", fixtureDigest:"new-fixture", recipe:{language:"en"}, capabilities:{workers:true,webgpu:true},environment:{operatingSystem:"ios",deviceType:"tablet"} })) {
             assert(store.get({...context,[key]:value}).status === "needs-validation", key);
         }
         assert(eligibilityKey(context) === eligibilityKey(Object.fromEntries(Object.entries(context).reverse())), "stable keys");
+    });
+    await test("Browser version changes reuse old stored passes without altering report context or storage",async()=>{
+        const storage=memory(),old={...context,browser:'Mozilla/5.0 Chrome/156.0.0.0 Safari/537.36'},updated={...context,browser:'Mozilla/5.0 Chrome/157.0.0.0 Safari/538.0'};
+        const saved={...reduceWhisperEligibility(null,attempt('passed')),context:old};const key=eligibilityKey(old),raw=JSON.stringify(saved);storage.setItem(key,raw);
+        const store=createWhisperEligibilityStore({storage});assert(store.get(updated).status==='eligible','old pass lost');assert(storage.getItem(key)===raw&&storage.length===1,'reading migrated or removed raw evidence');assert(qualificationKey(old)===qualificationKey(updated),'version in qualification identity');assert(eligibilityKey(old)!==eligibilityKey(updated),'raw report context lost');
+        for(const [field,value]of Object.entries({configurationFingerprint:'changed',executionWorker:'changed',fixtureDigest:'changed',protocol:'changed',recipe:{language:'en'},capabilities:{workers:true,webgpu:true},environment:{operatingSystem:'macos',deviceType:'desktop'}}))assert(store.get({...updated,[field]:value}).status==='needs-validation',field+' no longer checked');
+    });
+    await test("Chrome, Edge, Firefox and Safari keep version continuity without sharing across browser families",()=>{
+        const pairs=[['Chrome/156.0.0.0 Safari/537.36','Chrome/157.0.0.0 Safari/538.0'],['Chrome/156 Safari/537 Edg/156.0','Chrome/157 Safari/538 Edg/157.0'],['Firefox/156.0','Firefox/157.0'],['Version/26.0 Safari/605.1.15','Version/26.1 Safari/606.2']];
+        const keys=pairs.map(([before,after])=>{const first=qualificationKey({...context,browser:before});assert(first===qualificationKey({...context,browser:after}),'version changed identity');return first;});assert(new Set(keys).size===4,'browser families merged');assert(qualificationKey({...context,browser:'unknown 1'})!==qualificationKey({...context,browser:'unknown 2'}),'unknown identities merged');
+    });
+    await test("Existing version-specific decisions combine chronologically; newer failures beat passes and neutral outcomes",async()=>{
+        const storage=memory(),old={...context,browser:'Chrome/156.0'},updated={...context,browser:'Chrome/157.0'},future={...context,browser:'Chrome/158.0'};
+        const passed=attempt('passed'),failure=attempt('failed'),neutral=attempt('cancelled');
+        for(const [ctx,a]of [[old,passed],[updated,failure],[future,neutral]])storage.setItem(eligibilityKey(ctx),JSON.stringify({...reduceWhisperEligibility(null,a),context:ctx}));
+        const store=createWhisperEligibilityStore({storage});assert(store.get(future).status==='blocked','newer failure escaped');assert(store.get(future).latestAttempt.id===neutral.id,'latest neutral attempt lost');assert(store.get(future).lastSuccess.id===passed.id,'prior pass lost');
+        await store.record(old,passed,{deliberateRetest:true});assert(store.get(future).status==='blocked','replayed older pass cleared hold');await store.record(future,attempt('passed'),{deliberateRetest:true});assert(store.get(old).status==='eligible','later manual pass did not restore across versions');
+    });
+    await test("An interruption remains suspended across browser versions and never becomes a qualifying pass",async()=>{
+        const store=createWhisperEligibilityStore({storage:memory()}),old={...context,browser:'Chrome/156.0'};await store.record(old,attempt('interrupted'));assert(store.get({...old,browser:'Chrome/157.0'}).status==='suspended','interrupted load qualified');
     });
     await test("Concurrent updates retain newer decision; storage failure and mismatched evidence are explicit", async () => {
         const storage=memory(),store=createWhisperEligibilityStore({storage}); const old=attempt("passed"), newer=attempt("interrupted");
@@ -64,3 +84,5 @@ try {
     document.body.dataset.result="passed"; lines.push("ALL TESTS PASSED");
 } catch(error) {document.body.dataset.result="failed";lines.push(`FAIL ${error.stack}`);}
 document.getElementById("results").textContent=lines.join("\n");
+
+if(location.search.includes("report=1"))await fetch("/_identity-test-result",{method:"POST",body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result==="passed"?[]:["suite failed"],output:document.getElementById("results").textContent})});

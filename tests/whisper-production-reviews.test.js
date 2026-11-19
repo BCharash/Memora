@@ -1,7 +1,8 @@
 import { createWhisperAttemptJournal } from "../js/whisperAttempts.js";
 import { renderWhisperAttemptContext } from "../js/whisperAttemptReport.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "../js/whisperEligibilityEvidence.js";
-import { createWhisperEligibilityStore } from "../js/whisperEligibility.js";
+import { createWhisperProductionEvidence } from "../js/whisperProductionEvidence.js";
+import { createWhisperEligibilityStore, eligibilityKey } from "../js/whisperEligibility.js";
 import { createWhisperExecutionJournal } from "../js/whisperExecutions.js";
 import { getWhisperConfigurationDefinitions } from "../js/whisperConfigurations.js";
 import { createWhisperWorkerErrorMessage, whisperErrorFromWorkerMessage, annotateWhisperFailure } from "../js/whisperFailures.js";
@@ -35,6 +36,14 @@ async function failed(f, kind) {
     return error.executionId;
 }
 try {
+    await test("Legacy production holds survive browser updates and newer reference passes resolve them across stored key formats",async()=>{
+        const storage=memory(),old={...context,browser:'Chrome/156.0'},updated={...context,browser:'Chrome/157.0'};
+        const store=createWhisperEligibilityStore({storage});await store.record(old,pass('old-pass',1));
+        const legacyKey='memora.whisper-production-evidence.v1.incident.legacy-browser';storage.setItem(legacyKey,JSON.stringify({schemaVersion:1,kind:'incident',id:'legacy-browser',contextKey:eligibilityKey(old),context:old,configurationId:context.configurationId,effect:'blocked',state:'retest-required',evidenceAt:date(2),reason:'Confirmed earlier failure',events:[]}));
+        const reviews=createWhisperProductionEvidence({storage,journal:{recover:async()=>[],list:()=>[]}});assert(reviews.apply(updated,store.get(updated)).status==='blocked','browser update bypassed hold');
+        assert(reviews.apply({...updated,browser:'Firefox/157.0'},{status:'eligible'}).status==='eligible','hold crossed browser families');
+        await reviews.recordReference(updated,pass('new-reference',3));await reviews.sync();assert(reviews.apply(updated,store.get(updated)).status==='eligible','new reference did not resolve old-key incident');assert(JSON.parse(storage.getItem(legacyKey)).state==='reference-passed','resolution not persisted');
+    });
     await test("Confirmed runtime failure mandates retest, cannot be kept, and reference pass restores", async () => {
         const f = await fixture(); const id = await failed(f, "runtime"); await f.bridge.sync();
         assert(f.bridge.get(context).status === "blocked", "runtime withheld immediately");
@@ -109,7 +118,7 @@ try {
         const id = `old-loss-${++serial}`;
         f.storage.setItem("memora.whisper-execution.v1." + id, JSON.stringify({ schemaVersion: 1, origin: "production", id, ...f.metadata(), startedAt: date(2), updatedAt: date(2), phase: "inference", status: "running", modelOutcome: "running" }));
         await f.bridge.sync(); assert(f.bridge.get(context).status === "eligible", "old checkpoint time, not recovery time, orders event");
-        const changed = { ...context, browser: context.browser + " changed" }; assert(f.bridge.get(changed).status === "needs-validation", "review cannot qualify changed browser context");
+        const changed = { ...context, browser: "Mozilla/5.0 Firefox/157.0" }; assert(f.bridge.get(changed).status === "needs-validation", "review cannot qualify another browser family");
     });
     await test("Live owners and unprocessed incidents survive recovery, clear and retention", async () => {
         const f = await fixture();
@@ -255,3 +264,5 @@ try {
     document.body.dataset.result = "passed"; lines.push("ALL TESTS PASSED");
 } catch (error) { document.body.dataset.result = "failed"; lines.push(`FAIL ${error.stack}`); }
 finally { document.getElementById("results").textContent = lines.join("\n"); }
+
+if(location.search.includes("report=1"))await fetch("/_identity-test-result",{method:"POST",body:JSON.stringify({passed:lines.filter(line=>line.startsWith("PASS ")).length,failed:document.body.dataset.result==="passed"?[]:["suite failed"],output:document.getElementById("results").textContent})});

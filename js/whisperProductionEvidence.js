@@ -1,5 +1,5 @@
 import { createWhisperAttemptJournal, snapshotWhisperTestHistory } from "./whisperAttempts.js";
-import { eligibilityKey } from "./whisperEligibility.js";
+import { qualificationKey, normalizeWhisperEligibilityKey } from "./whisperEligibility.js";
 import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 import { classifyWhisperProductionExecution } from "./whisperFailures.js";
 
@@ -13,7 +13,7 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
         return Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(key => key?.startsWith(PREFIX)).map(key => {
             const value = JSON.parse(storage.getItem(key));
             if (value?.schemaVersion !== 1 || !["reference", "incident", "stability"].includes(value.kind)) throw new Error("Invalid production review evidence; records were retained.");
-            return value;
+            return { ...value, contextKey: normalizeWhisperEligibilityKey(value.contextKey) };
         });
     }
     function save(key, value) {
@@ -24,7 +24,7 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
         if (!locks?.request) throw new Error("Production eligibility reviews require safe storage ownership.");
         return locks.request(PREFIX + "writer", action);
     }
-    const keyFor = context => eligibilityKey(context);
+    const keyFor = context => qualificationKey(context);
     const recent = (records, record) => records.filter(item => record.pageId && item.id !== record.id && item.pageId === record.pageId && time(item.startedAt) <= time(record.evidenceAt || record.finishedAt || record.startedAt)).slice(0, 5)
         .map(item => ({ id: item.id, configurationId: item.configuration?.id || item.requestedModel, startedAt: item.startedAt, finishedAt: item.finishedAt || null, modelCompletedAt: item.modelCompletedAt || null, status: item.status, modelOutcome: item.modelOutcome }));
     function recentTests(record) {
@@ -36,7 +36,7 @@ export function createWhisperProductionEvidence({ storage = globalThis.localStor
         } catch { return { status: "unavailable", records: [] }; }
     }
     function list() { return rows().filter(row => row.kind !== "reference").sort((a, b) => b.evidenceAt.localeCompare(a.evidenceAt) || b.id.localeCompare(a.id)); }
-    function certificate(contextKey) { return rows().find(row => row.kind === "reference" && row.contextKey === contextKey); }
+    function certificate(contextKey) { return rows().filter(row => row.kind === "reference" && row.contextKey === contextKey).sort((a,b) => time(b.startedAt) - time(a.startedAt))[0]; }
     function isActive(row) { return row.kind === "incident" && !["kept", "reference-passed"].includes(row.state); }
     function newerReference(row, reference) { return reference && time(reference.startedAt) > time(row.evidenceAt); }
     async function recordReference(context, attempt) {

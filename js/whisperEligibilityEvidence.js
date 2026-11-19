@@ -1,7 +1,7 @@
 import { createWhisperProductionEvidence } from "./whisperProductionEvidence.js";
 import { fingerprintWhisperConfiguration } from "./whisperConfigurations.js";
 import { WHISPER_VALIDATION_PROTOCOL } from "./whisperValidation.js";
-import { createWhisperEligibilityStore, eligibilityKey } from "./whisperEligibility.js";
+import { createWhisperEligibilityStore, eligibilityKey, qualificationKey, normalizeWhisperEligibilityKey } from "./whisperEligibility.js";
 import { createWhisperAttemptJournal } from "./whisperAttempts.js";
 import { runtimeIdentity, getRuntimeCapabilities, isIOS } from "./runtime.js";
 
@@ -84,7 +84,7 @@ export function createWhisperEvidenceBridge({ storage = globalThis.localStorage,
         const review = storage.getItem(reviewKey(context.configurationId, context.environment));
         if (!review) return exact;
         const legacy = JSON.parse(review);
-        if (legacy.resolvedBy?.contextKey === eligibilityKey(context)) return { ...exact, legacyReview: legacy };
+        if (normalizeWhisperEligibilityKey(legacy.resolvedBy?.contextKey) === qualificationKey(context)) return { ...exact, legacyReview: legacy };
         // Old generic blocks did not distinguish interruptions. Treat as a hold,
         // unless a confirmed failure was recorded; never claim incompatibility.
         const legacyStatus = legacy.confirmedFailure || legacy.adverseStatus === "failed" ? "blocked" : "suspended";
