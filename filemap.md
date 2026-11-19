@@ -50,6 +50,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 | [manifest.json](manifest.json) | Web-app installation metadata and icons. It is not a model registry or cache manager. |
 | `icons/` and `favicon.ico` | App/tab icons. |
 | `data/whisper-test/` | The fixed test recording and expected transcript used to measure accuracy. Changing these changes test identity. |
+| [test.html](test.html) | Standalone parent-folder selection/access probe with nested-file report sharing; no production imports, models or Memora storage. |
 | [webgpu-test.html](webgpu-test.html) | Standalone WebGPU probe with inline JavaScript. Does not run Whisper or qualify models. Not part of normal startup. |
 | [tests/](tests/README.md) | Isolated developer checks and their HTML runners. |
 | [docs/](docs/README.md) | Current handoff, plans and feature documentation. |

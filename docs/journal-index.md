@@ -17,7 +17,7 @@ Volume 4 keeps its existing filename for link/bookmark compatibility; despite en
 
 - **Section 60:** runtime/database ownership; canonical model definitions; self-test/production workers, reports, eligibility and reviews; saved observations and summary context.
 - **Section 61:** completed archive migration; embedded recording identity; source-list design, validation, persistence/recovery and production/header integration.
-- **Section 62:** compact successful-test summary; Transcribe/Combine controls; Settings cache management; audio/transcript JSON reconciliation and naming; browser-version continuity; simpler metadata/counter decisions; source-scoped audio guidance; documentation review.
+- **Section 62:** compact successful-test summary; Transcribe/Combine controls; Settings cache management; audio/transcript JSON reconciliation and naming; browser-version continuity; simpler metadata/counter decisions; source-scoped audio guidance; documentation review; parent-folder access test and resume handoff.
 
 The later entries explicitly supersede earlier proposals where necessary. In particular, detailed Whisper TXT metadata/backfill and an extra transcription timestamp were dropped. Counter priority remains agreed but unimplemented; whole-folder iPhone audio removal parity is implemented. Shared full-folder Transcribe/Search reconciliation, portable imports/workspace and parent/recursive ownership remain future work.
 

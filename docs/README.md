@@ -30,6 +30,7 @@ Transcribe's full-folder transcript reconciliation and Search's shared scan/two-
 
 | Document | Role |
 |---|---|
+| [Parent audio-folder selection handoff](Parent_Audio_Folder_Selection_Handoff.md) | Agreed workflow, Mac/iPhone test evidence, 15-file discrepancy and next checkpoint; production not implemented. |
 | [Documentation review](Documentation_Review_2026-11-19.md) | Scope, document inventory, corrections and validation limits. |
 | [Journal index and five volumes](journal-index.md) | Whole/split navigation and synchronization rules. |
 | [Current status and resume instructions](CURRENT_STATUS.md) | Consolidated current behavior, tests, gaps, decisions and chronological build notes. |

@@ -1,5 +1,9 @@
 # File workflow inventory
 
+## Parent-folder access test — later checkpoint, 19 November 2026
+
+[Standalone test and resume handoff](Parent_Audio_Folder_Selection_Handoff.md): both devices supplied nested transcript files and parent audio in one selection, and playback succeeded. Production Combine/Search parent selection is not implemented. The agreed target chooses one transcript subfolder, retaining separate transcript and embedding JSONs and precise iPhone save guidance. A 15-file difference in transcription-original remains unexplained; do not treat the test as proof of complete/synchronized inventories.
+
 ## Current workflow addendum — 19 November 2026
 
 Reviewed against candidate **2026-11-19.25**. This is the current overview; earlier dated inventory/acceptance below is retained for audit history.

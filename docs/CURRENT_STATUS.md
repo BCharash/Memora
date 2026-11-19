@@ -4,6 +4,10 @@
 
 Source reviewed at committed **47ca641** (`Update html.js`); the application still displays **2026-11-19.25**, database schema **6**. The user committed the .24 audio-coverage and .25 shared-audio changes together in **33e69dc**; the later HTML-reader revision is a separate commit without a new build label. Record both commit and displayed build when distinguishing these revisions. This comprehensive review changes documentation only. Older “no commit” notes retain their original agent-turn meaning and are not current Git status. Historical checkpoint statements below are superseded by this overview where decisions changed.
 
+### Later folder-access test and resume point — 19 November 2026
+
+See [parent audio-folder selection handoff](Parent_Audio_Folder_Selection_Handoff.md). The user tested root test.html on MacBook and iPhone: one parent selection supplied audio, nested transcripts and all three archive JSONs, with explicit file reads and playback succeeding. Test 2 and report sharing are committed through **42af3fe**; production remains .25/schema 6. Parent-folder discovery/selection in Combine/Search is **agreed but not implemented**. Each chosen transcript subfolder keeps separate transcript/embedding JSONs; multiple folders require a choice, not implicit merging. Preserve direct transcript-folder access. The original-folder 91-versus-106 discrepancy is 15 distinct phone-only filenames, not duplicate paths; cause remains unconfirmed and requires no deletion/reset. The earlier repeated Audio Recording List save did not recur after reload/new Mac list; no production fix was made. The user requested a documentation checkpoint before continuing later.
+
 ### Implemented on 18–19 November
 
 | Area | Current behavior |
