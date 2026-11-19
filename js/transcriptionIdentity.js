@@ -10,24 +10,40 @@ export async function associatedSourceEvidence(destination,files){
     if(destination?.kind!=='directory')return {ids:[],labels};
     const ids=new Set();
     for(const file of files){const result=await readEmbeddedRecordingIdentity(file);if(result.status==='valid')ids.add(result.recordingId.toLowerCase());}
-    if(!ids.size)return {ids:[],labels};
+    const established=new Set(),summaries=new Map();
     for(const file of await listTextFiles(destination)){
         if(file.size>0){
             let identity;try{identity=readTranscriptIdentity(await file.slice(0,65536).text());}catch{continue;}
-            if(identity.recordingId&&identity.audioSourceId&&ids.has(identity.recordingId.toLowerCase()))labels.set(identity.audioSourceId.toLowerCase(),`Transcript source: ${destination.name} / ${file.name}`);
+            if(identity.recordingId&&identity.audioSourceId){
+                const sourceId=identity.audioSourceId.toLowerCase();
+                const summary=summaries.get(sourceId)||{count:0,examples:[]};
+                summary.count++;if(summary.examples.length<3)summary.examples.push(file.name);summaries.set(sourceId,summary);
+                // A transcript can describe a recovery choice without proving that
+                // the selected audio belongs to it. Only embedded IDs establish that.
+                if(ids.has(identity.recordingId.toLowerCase()))established.add(sourceId);
+            }
         }
     }
-    return {ids:[...labels.keys()],labels};
+    for(const [id,summary] of summaries)labels.set(id,`Referenced by ${summary.count} transcript(s) in ${destination.name}: ${summary.examples.join(', ')}`);
+    return {ids:[...established],labels};
 }
 export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPendingArchive,onStatus}={}){
     const ui=createRecordingIdentityUI({ask,onPendingList,onStatus,shareFile});
-    let archive=null,destination=null,source=null;
+    let archive=null,destination=null,source=null,preparedSource=null;
     return {
-        reset(){ui.reset();archive=null;destination=null;source=null;onPendingArchive?.(null);},
+        reset(){ui.reset();archive=null;destination=null;source=null;preparedSource=null;onPendingArchive?.(null);},
         getSession:()=>ui.getSession(),
-        async begin(selectedSource,selectedDestination,files){
-            const evidence=await associatedSourceEvidence(selectedDestination,files);
+        async prepareSource(selectedSource,files){
+            const evidence=await associatedSourceEvidence(selectedSource,files);
             const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels);
+            if(selectedSource.kind==='directory' && session.needsInitialSave)await ui.persist();
+            preparedSource=selectedSource;
+            return session;
+        },
+        async begin(selectedSource,selectedDestination,files){
+            if(preparedSource!==selectedSource)throw Error('Select the audio source folder and resolve its audio recording list first.');
+            await ui.revalidateSource();
+            const session=ui.getSession();
             if(archive&&source===selectedSource&&destination===selectedDestination)return;
             let selectedFile=null;
             if(selectedSource.kind==='file-input'){

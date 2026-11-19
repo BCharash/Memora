@@ -1696,3 +1696,9 @@ button:disabled {
     #settingsWhisperSummary th, #settingsWhisperSummary td { padding: 7px 4px; }
 }
 #settingsWhisperSummary caption { text-align: left; margin-bottom: 8px; }
+
+/* Keep recovery-list dates and recording examples readable in each choice. */
+.identity-dialog-actions button {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}

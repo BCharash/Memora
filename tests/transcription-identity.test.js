@@ -1,4 +1,4 @@
-import {directory,selections,calls,seedAudio} from './transcription-identity-fixtures.js';
+import {directory,selections,calls,seedAudio,pauseNextTranscription} from './transcription-identity-fixtures.js';
 import {readTranscriptIdentity,replaceTranscriptBody,recordingIdentityLines} from '../js/transcriptMetadata.js';
 import {parseTranscriptArchive,appendTranscriptReference,openTranscriptArchive} from '../js/transcriptArchive.js';
 import {parseTranscriptFile,combineTranscriptRecords,selectHighestModelRecords} from '../js/combine.js';
@@ -56,6 +56,22 @@ await test('Identity prompts preserve cancellation without persistence or infere
  await ui.prepareSource({kind:'file-input'});await rejects(()=>ui.prepareRecording(new File(['x'],'memo.wav')));eq(stages,1);eq(writes,0);
 });
 
+await test('Unchanged audio JSON preserves its completed share; changed JSON and reset require a new share',async()=>{
+ let content='first list',notifications=0,shared=false;
+ const ui=createRecordingIdentityUI({onPendingList:file=>{notifications++;shared=false;},openSession:async()=>({status:'ready',session:{persist:async()=>({status:'export-pending',file:new File([content],'memora-audio-source.json')})}})});
+ await ui.prepareSource({kind:'file-input'});await ui.persist();eq(notifications,1);
+ shared=true;await ui.persist();assert(shared,'Unchanged persistence invalidated completed sharing');eq(notifications,1);
+ content='list with another recording';await ui.persist();eq(notifications,2);assert(!shared,'Changed list reused old share acknowledgement');
+ ui.reset();await ui.prepareSource({kind:'file-input'});await ui.persist();eq(notifications,4);
+});
+await test('Same-name recovery choices show dates and recordings and allow selecting the original JSON',async()=>{
+ let calls=0,shown=null;const original=new File(['original'],'memora-audio-source.json');
+ const candidates=[{audioSourceId:SOURCE,sourceName:'Audio',updatedAt:'2026-11-18T10:00:00Z',recordingCount:1,recordingExamples:['earlier.wav']},{audioSourceId:ARCHIVE,sourceName:'Audio',updatedAt:'2026-11-19T11:00:00Z',recordingCount:2,recordingExamples:['later.wav','extra.wav']}];
+ const ui=createRecordingIdentityUI({ask:async dialog=>{shown=dialog;return {action:'select',value:original};},openSession:async options=>{if(!calls++)return {status:'decision-required',code:'recovery-association-conflict',candidates};eq(options.selectedFile,original);eq(options.selectedRecoverySourceId,null);return {status:'ready',session:{}};}});
+ await ui.prepareSource({kind:'directory'});assert(shown.choices.some(item=>item.action==='select'),'Original-list selection unavailable');
+ assert(shown.choices[1].label.includes('earlier.wav')&&shown.choices[2].label.includes('extra.wav'),'Recording examples missing');assert(shown.choices[1].label.includes('Last saved:')&&shown.choices[2].label.includes('2 recording(s)'),'Recovery detail missing');assert(shown.message.includes('Nothing is merged or deleted'),'Cancel guidance missing');
+});
+
 await test('Apple dates/duration remain unchanged; iMuse identity does not imply an Apple date',async()=>{
  const movie=f.box('mvhd',f.join([f.number(0),f.number(3800000000),f.number(3800000000),f.number(1000),f.number(2000)]));
  const apple=f.mp4([f.box('moov',f.join([movie,f.box('udta',f.box('meta',f.join([f.number(0),f.box('ilst',f.appleItem())])))]))]);
@@ -70,6 +86,11 @@ await test('Selected destination evidence reuses established source IDs by embed
  const selected=directory(),output=directory('transcription');const file=await seedAudio(selected.root,'memo.wav',ID);
  output.state.files.set('migrated.txt',new TextEncoder().encode(header()));
  const evidence=await associatedSourceEvidence(output.root,[file]);eq(evidence.ids,[SOURCE]);assert(evidence.labels.get(SOURCE).includes('migrated.txt'),'Evidence label missing');
+});
+await test('Existing transcript names describe recovery choices without establishing unembedded audio identity',async()=>{
+ const selected=directory(),output=directory('transcription');const file=await seedAudio(selected.root,'memo.wav');
+ output.state.files.set('previous-tiny.txt',new TextEncoder().encode(header()));
+ const evidence=await associatedSourceEvidence(output.root,[file]);eq(evidence.ids,[]);assert(evidence.labels.get(SOURCE).includes('previous-tiny.txt'),'Existing transcript reference missing');
 });
 await test('Unreadable source-list replacement requires separate confirmation and cancel preserves bytes',async()=>{
  const {root,state}=directory();state.files.set('memora-audio-source.json',new TextEncoder().encode('{damaged'));
@@ -135,15 +156,30 @@ await test('Production page boots with isolated database and synthetic model sel
 const desktop=directory('Audio'),second=directory('Other output');let firstID=null,firstArchive=null,originalAudio=null;
 const click=id=>document.getElementById(id).click();
 async function choose(label){await waitFor(()=>[...document.querySelectorAll('dialog[open] button')].some(button=>button.textContent===label));[...document.querySelectorAll('dialog[open] button')].find(button=>button.textContent===label).click();}
+await test('Cancelling missing-list resolution at source selection starts no inference and keeps current source UI',async()=>{
+ const attempted=directory('Cancelled source');await seedAudio(attempted.root);const previous=document.getElementById('sourceButton').textContent;
+ selections.push(attempted.root);click('sourceButton');await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='Audio recording list is missing');
+ eq(calls.length,0);assert(!attempted.state.files.has('memora-audio-source.json'),'Prompt created JSON');
+ await choose('Cancel');await waitFor(()=>!document.getElementById('sourceButton').disabled);eq(document.getElementById('sourceButton').textContent,previous);
+});
 await test('Desktop normal flow persists source and archive IDs before verified TXT delivery',async()=>{
- originalAudio=await seedAudio(desktop.root);selections.push(desktop.root);click('sourceButton');await waitFor(()=>document.querySelectorAll('#recordings input[type=checkbox]').length>0);
- click('sourceDestinationButton');click('transcribeButton');await choose('Create audio recording list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
+ originalAudio=await seedAudio(desktop.root);selections.push(desktop.root);click('sourceButton');await choose('Create audio recording list');await waitFor(()=>document.querySelectorAll('#recordings input[type=checkbox]').length>0);
+ assert(desktop.state.files.has('memora-audio-source.json'),'Desktop list was not created during source selection');eq(calls.length,0);
+ click('sourceDestinationButton');click('transcribeButton');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  const filename=[...desktop.state.files.keys()].find(name=>name.endsWith('.txt'));assert(filename,'No transcript written');
  const identity=readTranscriptIdentity(decoder.decode(desktop.state.files.get(filename)));firstID=identity.recordingId;firstArchive=identity.archiveUuid;
  const source=JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))),archive=JSON.parse(decoder.decode(desktop.state.files.get('memora-archive.json')));
  eq(source.recordings[0].recordingId,firstID);eq(archive.archiveUuid,firstArchive);eq(archive.recordings[0].transcripts[0].relativePath,filename);
  eq(calls[0].operation,'transcribe');eq(calls[0].language,'en');assert(calls[0].embedded.status==='absent','Inspected snapshot missing');
  eq(Array.from(new Uint8Array(await originalAudio.arrayBuffer())),Array.from(desktop.state.files.get('memo.wav')),'Audio changed');
+});
+await test('Deleted desktop JSON is resolved and restored at source selection before transcription',async()=>{
+ desktop.state.files.delete('memora-audio-source.json');const before=calls.length;
+ selections.push(desktop.root);click('sourceButton');await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='Audio recording list is missing');
+ const choices=[...document.querySelectorAll('dialog[open] button')].map(button=>button.textContent);
+ assert(choices.includes('Select audio recording list')&&choices.includes('Restore saved recording list')&&choices.includes('Create audio recording list'),'Missing-list choices incomplete');
+ await choose('Restore saved recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
+ eq(calls.length,before);eq(JSON.parse(decoder.decode(desktop.state.files.get('memora-audio-source.json'))).recordings[0].recordingId,firstID);
 });
 await test('Different output archive reuses source Recording ID and creates separate Archive UUID',async()=>{
  selections.push(second.root);click('destinationButton');await waitFor(()=>document.getElementById('destinationButton').textContent.includes('Other output'));
@@ -174,6 +210,18 @@ await test('Share cancellation preserves pending files; completed JSON actions u
  click('iphoneExportButton');await waitFor(()=>shared.length===3);eq(shared[0][0].name,'memora-audio-source.json');eq(shared[1][0].name,'memora-archive.json');assert(shared[2][0].name.endsWith('.txt'),'Transcript transport changed');
  eq(readTranscriptIdentity(await shared[2][0].text()).recordingId,firstID);assert(document.getElementById('iphoneExportStatus').textContent.includes('cannot verify'),'False saved-location claim');
 });
+await test('Completed audio-list sharing survives repeated persistence during and after inference',async()=>{
+ const release=pauseNextTranscription(),before=calls.length;
+ try{
+  click('transcribeButton');await choose('Discard pending transcripts');await waitFor(()=>calls.length===before+1);
+  assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Unchanged pre-inference persistence reset audio-list sharing');
+ }finally{release();}
+ await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
+ assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Completed transcript reset audio-list sharing');
+ click('saveTranscriptArchiveButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);
+ click('iphoneExportButton');await waitFor(()=>shared.length===5);
+ eq(shared[3][0].name,'memora-archive.json');assert(shared[4][0].name.endsWith('.txt'),'Transcript required redundant audio JSON save');
+});
 await test('Archive save pulse reuses the existing animation and respects reduced motion',async()=>{
  const link=document.createElement('link');link.rel='stylesheet';link.href='../css/style.css';
  await new Promise((resolve,reject)=>{link.onload=resolve;link.onerror=reject;document.head.append(link);});
@@ -197,6 +245,15 @@ await test('Settings removes only explicitly confirmed inactive recovery copies'
  assert(rows.some(button=>button.disabled),'Active source removal was offered');const remove=rows.find(button=>!button.disabled);assert(remove,'Inactive source action missing');
  const originalConfirm=window.confirm;
  try{window.confirm=()=>false;remove.click();eq((await store.list()).length,2);window.confirm=()=>true;remove.click();await waitFor(()=>!document.getElementById('settingsSourceRecoveryDetail').textContent.includes('Inactive test source'));eq((await store.list()).length,1);}finally{window.confirm=originalConfirm;}
+});
+await test('File-input missing JSON is resolved before showing a new source and before transcription',async()=>{
+ const file=new File([await originalAudio.arrayBuffer()],'memo.wav');const before=calls.length;
+ // Discard the already-shared batch retained for optional repeat sharing.
+ selections.push({kind:'file-input',name:'Phone source',files:[file]});click('sourceButton');await choose('Discard pending transcripts');
+ await waitFor(()=>document.querySelector('dialog[open] h2')?.textContent==='Audio recording list was not found in the selected files');
+ eq(calls.length,before);assert(document.getElementById('transcribeButton').disabled,'Transcription enabled during source resolution');
+ await choose('Create audio recording list');await waitFor(()=>!document.getElementById('sourceButton').disabled);
+ assert(document.getElementById('sourceButton').textContent.includes('Phone source'),'New source was not committed');eq(calls.length,before);assert(!document.querySelector('dialog[open]'),'Source resolution deferred');
 });
 // Temporary browser profile contains only synthetic runtime logs; remove only the
 // explicit identity fixture database here, never any user database.

@@ -73,12 +73,30 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         const exact=matches.filter(item=>item.audioSourceId.toLowerCase()===association.audioSourceId.toLowerCase());
         if (exact.length) matches=exact;
     }
+    // File-input access has no persistent directory handle. Offer saved copies
+    // for explicit comparison, but never associate one by folder name alone.
+    let unassociatedRecoveries=[];
+    if(source.kind==='file-input' && !valid && discovery.status==='not-included' && !matches.length){
+        unassociatedRecoveries=await matchAudioSourceRecovery(records,{establishedAudioSourceIds:records.map(item=>item?.audioSourceId).filter(id=>typeof id==='string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))});
+        if(action==='restore')matches=unassociatedRecoveries;
+    }
     if (selectedRecoverySourceId!==null) {
         const chosen=matches.filter(item=>item.audioSourceId.toLowerCase()===String(selectedRecoverySourceId).toLowerCase());
         if (chosen.length!==1) return {status:'blocked',code:'invalid-recovery-choice'};
         matches=chosen;
     }
-    if (matches.length>1) return {status:'decision-required',code:'recovery-association-conflict',candidates:matches.map(item=>({audioSourceId:item.audioSourceId,sourceName:item.sourceName}))};
+    // Missing JSON is resolved before offering individual recovery copies.
+    // A saved handle association alone never chooses a replacement list.
+    if (!valid && discovery.status!=='found' && action===null) return {
+        status:'decision-required',code:matches.length||unassociatedRecoveries.length?'restore-available':discovery.status==='absent'?'create-source-list':'select-existing-or-create',
+        discovery,canRestore:matches.length>0||unassociatedRecoveries.length>0
+    };
+    if ((matches.length>1 || unassociatedRecoveries.length && action==='restore' && selectedRecoverySourceId===null) && action!=='create') return {status:'decision-required',code:'recovery-association-conflict',candidates:matches.map(item=>{
+        const manifest=parseAudioSourceManifest(item.manifestText).manifest;
+        return {audioSourceId:item.audioSourceId,sourceName:item.sourceName,updatedAt:item.updatedAt,
+            recordingCount:manifest.recordings.length,
+            recordingExamples:manifest.recordings.slice(0,3).map(record=>record.audioRelativePath)};
+    })};
     let recovery=matches[0]||null, manifest=diskManifest;
     if (action==='restore' || action==='resume') {
         if (!recovery) return {status:'blocked',code:'no-matching-recovery',recoveryError};
@@ -149,6 +167,11 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     }
     const session={
         sourceId:manifest.audioSourceId, discovery, recoveryError,
+        needsInitialSave:action!==null || diskManifest?.audioSourceId!==manifest.audioSourceId,
+        revalidateSource:()=>exclusive(async()=> {
+            if(source.kind==='directory' && !sameBytes(await currentSource(),baseline))
+                throw fail('source-changed','The audio recording list changed after this source was opened. Select the audio source folder again to resolve its recording list before transcribing.');
+        }),
         getManifest:()=>parseAudioSourceManifest(serialize(staged||current)).manifest,
         releaseRecordingSnapshot: path=> {
             if(unresolved.has(path))throw fail('unresolved-recording','Resolve or skip the recording before releasing its snapshot.');

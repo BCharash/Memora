@@ -2,6 +2,8 @@ import * as real from '../js/storage.js?checkpoint3';
 export * from '../js/storage.js?checkpoint3';
 import * as f from './recording-identity-fixtures.js';
 export const calls=[];
+let inferenceGate=null;
+export function pauseNextTranscription(){let release;inferenceGate=new Promise(resolve=>{release=resolve;});return release;}
 export const selections=[];
 export function directory(name='Audio'){
     const files=new Map(),folders=new Map();
@@ -20,6 +22,7 @@ export async function readAudioMetadata(){return {recordingDate:null,fileCreatio
 export async function listQualifiedWhisperProductionModels(){return [{family:'tiny',label:'Tiny (synthetic test)'}];}
 export async function transcribeRecording(file,model,language,operation,status,afterInference,embedded){
     calls.push({file,model,language,operation,embedded});
+    const gate=inferenceGate;inferenceGate=null;if(gate)await gate;
     const record={file,model,metadata:await readAudioMetadata(),transcript:'Synthetic completed text.\n\nSecond paragraph.',timings:{},diagnostics:null};
     if(afterInference)await afterInference(record,{id:'synthetic',checkpoint(){}});return record;
 }

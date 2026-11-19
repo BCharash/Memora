@@ -168,6 +168,30 @@ await test('Missing list offers explicit restore; unrelated source gets create c
  const restored=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq((await stage(restored.session)).recordingId,first.recordingId);await restored.session.persist();
  eq((await openAudioSourceSession({source:directory().root,recoveryStore:store})).code,'create-source-list');
 });
+await test('Deleted list with two same-folder recoveries offers dated recording summaries without changing data',async()=>{
+ const {session,source,state,store}=await make();await stage(session);await session.persist();
+ const first=(await store.list())[0],other=JSON.parse(first.manifestText);other.audioSourceId=OTHER;other.recordings[0].audioRelativePath='other.wav';
+ await store.put({...first,audioSourceId:OTHER,revision:'other-revision',manifestText:JSON.stringify(other),updatedAt:'2026-11-18T10:00:00Z'},null);
+ state.files.delete(AUDIO_SOURCE_FILENAME);const puts=store.puts;
+ const missing=await openAudioSourceSession({source,recoveryStore:store});eq(missing.code,'restore-available');assert(missing.canRestore,'Restore missing');
+ const result=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq(result.code,'recovery-association-conflict');eq(result.candidates.length,2);
+ eq(result.candidates[0].recordingCount,1);eq(result.candidates[0].recordingExamples,['memo.wav']);eq(result.candidates[1].recordingExamples,['other.wav']);eq(result.candidates[1].updatedAt,'2026-11-18T10:00:00Z');eq(store.puts,puts);assert(!state.files.has(AUDIO_SOURCE_FILENAME),'Prompt wrote a replacement');
+ const restored=await openAudioSourceSession({source,recoveryStore:store,selectedRecoverySourceId:session.sourceId,action:'restore'});eq(restored.session.sourceId,session.sourceId);eq(restored.session.getManifest().recordings[0].recordingId,session.getManifest().recordings[0].recordingId);
+});
+await test('Missing file-input JSON offers saved copies only through explicit restore and source choice',async()=>{
+ const {session,source,store}=await make({input:true});await stage(session);await session.persist();
+ store.records.set('invalid',{...(await store.list())[0],audioSourceId:'invalid'});
+ const prompt=await openAudioSourceSession({source,recoveryStore:store});eq(prompt.code,'restore-available');assert(prompt.canRestore,'Saved copies unavailable');
+ const choose=await openAudioSourceSession({source,recoveryStore:store,action:'restore'});eq(choose.code,'recovery-association-conflict');eq(choose.candidates.length,1);
+ const restored=await openAudioSourceSession({source,recoveryStore:store,action:'restore',selectedRecoverySourceId:session.sourceId});eq(restored.status,'ready');eq(restored.session.getManifest().recordings[0].recordingId,session.getManifest().recordings[0].recordingId);
+ const created=await openAudioSourceSession({source,recoveryStore:store,action:'create'});eq(created.status,'ready');assert(created.session.sourceId!==session.sourceId,'Create silently reused a saved association');
+});
+await test('Source revalidation catches JSON deletion or external edits before inference',async()=>{
+ const {session,state}=await make();await stage(session);await session.persist();await session.revalidateSource();
+ const saved=state.files.get(AUDIO_SOURCE_FILENAME);state.files.delete(AUDIO_SOURCE_FILENAME);await rejects(()=>session.revalidateSource(),'source-changed');
+ state.files.set(AUDIO_SOURCE_FILENAME,enc.encode('{}'));await rejects(()=>session.revalidateSource(),'source-changed');
+ state.files.set(AUDIO_SOURCE_FILENAME,saved);await session.revalidateSource();
+});
 await test('Recovery cannot silently relabel a conflicting established source association',async()=>{
  const {session,source,state,store}=await make();await stage(session);await session.persist();state.files.delete(AUDIO_SOURCE_FILENAME);
  const conflict=await openAudioSourceSession({source,recoveryStore:store,action:'restore',establishedAudioSourceIds:[OTHER]});eq(conflict.code,'source-id-conflict');

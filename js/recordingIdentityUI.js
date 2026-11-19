@@ -45,10 +45,11 @@ export function askIdentity({title,message,choices}){
 const cancel={action:'cancel',label:'Cancel'};
 const pick={action:'select',label:'Select audio recording list',run:()=>pickIdentityJson({kind:'audio'})};
 export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},onStatus=()=>{},shareFile,openSession=openAudioSourceSession}={}){
-    let session=null,source=null;
+    let session=null,source=null,lastPendingListText=null;
     return {
-        reset(){session=null;source=null;onPendingList(null);},
+        reset(){session=null;source=null;lastPendingListText=null;onPendingList(null);},
         getSession:()=>session,
+        async revalidateSource(){if(!session)throw Error("Select an audio source first.");await session.revalidateSource?.();},
         async prepareSource(selectedSource,establishedAudioSourceIds=[],sourceLabels=new Map()){
             if(session&&source===selectedSource)return session;
             const options={source:selectedSource,establishedAudioSourceIds};
@@ -60,7 +61,14 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
                     answer=await ask({title:'These source associations do not match',message:'Choose the audio-source association to use. Existing transcripts will not be changed.',choices:[...result.association.candidates.map((id,i)=>({action:id,label:sourceLabels.get(id.toLowerCase())||`${i===0?'Selected recording list':'Established audio source'} (${id.slice(0,8)}…)`})),cancel]});
                     if(answer.action!=='cancel'){options.selectedAudioSourceId=answer.action;continue;}
                 }else if(result.code==='recovery-association-conflict'&&result.candidates?.length){
-                    answer=await ask({title:'Choose a saved audio recording list',message:'More than one saved source association is available for this folder.',choices:[...result.candidates.map(item=>({action:item.audioSourceId,label:`${item.sourceName||'Saved audio source'} (${item.audioSourceId.slice(0,8)}…)`})),cancel]});
+                    answer=await ask({title:'Choose a saved audio recording list',message:'Choose the saved recording list that belongs to this audio folder. Compare the dates and recordings below with your existing transcripts. The date is when Memora last saved its recovery copy, not the recording date. If unsure, select the original memora-audio-source.json from your audio folder, or cancel. Nothing is merged or deleted.',choices:[pick,...result.candidates.map((item,index)=>{
+                        const date=new Date(item.updatedAt);
+                        const saved=item.updatedAt&&!Number.isNaN(date.getTime())?date.toLocaleString():'Unavailable';
+                        const examples=item.recordingExamples?.length?item.recordingExamples.join(', '):'No recordings listed';
+                        const transcript=sourceLabels.get(item.audioSourceId.toLowerCase());
+                        return {action:item.audioSourceId,label:`${item.sourceName||'Audio folder'} — saved list ${index+1}\nLast saved: ${saved}\n${item.recordingCount??0} recording(s): ${examples}${transcript?'\n'+transcript:''}`};
+                    }),cancel]});
+                    if(answer.action==='select'){options.selectedFile=answer.value;options.action=null;options.selectedRecoverySourceId=null;options.replacementConfirmed=false;continue;}
                     if(answer.action!=='cancel'){options.selectedRecoverySourceId=answer.action;options.action='restore';continue;}
                 }else if(result.code==='confirm-replacement'){
                     answer=await ask({title:'Replace the audio recording list?',message:'Replace memora-audio-source.json in your audio folder? This changes the list of original recordings, not the transcript file list. Your audio and existing transcripts will remain unchanged.',choices:[{action:'replace',label:'Replace audio recording list'},cancel]});
@@ -70,10 +78,9 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
                     answer=await ask({title:'Memora cannot use this audio recording list',message:`memora-audio-source.json ${diagnosis}. Select another copy or explicitly create a replacement.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved copy'}]:[]),{action:'replace',label:'Create replacement list'},cancel]});
                 }else if(result.code==='pending-source-list'){
                     answer=await ask({title:'Continue the pending audio recording list?',message:'memora-audio-source.json is waiting to be saved in your audio folder. Continue with its existing Recording IDs.',choices:[{action:'resume',label:'Continue pending list'},cancel]});
-                }else if(result.code==='restore-available'){
-                    answer=await ask({title:'Restore this folder’s audio recording list?',message:'Restore memora-audio-source.json for your audio folder to reuse its Recording IDs. This does not replace the transcript file list.',choices:[{action:'restore',label:'Restore audio recording list'},cancel]});
-                }else if(['create-source-list','select-existing-or-create'].includes(result.code)){
-                    answer=await ask({title:'Choose the audio recording list',message:'Select memora-audio-source.json in your audio folder. This identifies the original recordings. If this is the first time, create an audio recording list. This step does not need the transcript file list (memora-archive.json).',choices:[pick,{action:'create',label:'Create audio recording list'},cancel]});
+                }else if(['restore-available','create-source-list','select-existing-or-create'].includes(result.code)){
+                    const missing=result.discovery?.status==='absent'||result.code==='create-source-list';
+                    answer=await ask({title:missing?'Audio recording list is missing':'Audio recording list was not found in the selected files',message:`${missing?'Memora could not find memora-audio-source.json in this audio folder.':'The selected folder files do not include memora-audio-source.json.'} Browse for an existing list${result.canRestore?', restore a saved copy to preserve its Recording IDs,':''} or create a new list. Creating a new list can assign different Recording IDs to audio without embedded IDs. Your audio and existing transcripts will not be changed.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved recording list'}]:[]),{action:'create',label:'Create audio recording list'},cancel]});
                 }else throw Error(result.discovery?.error?.message||`Memora could not open this recording list (${result.code}). Check source access and try again.`);
                 if(!answer||answer.action==='cancel')throw new DOMException('Recording-list selection cancelled.','AbortError');
                 if(answer.action==='select'){options.selectedFile=answer.value;options.action=null;options.replacementConfirmed=false;}
@@ -108,7 +115,16 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
         },
         async persist(){
             for(;;){
-                try{const result=await session.persist();if(result.status==='export-pending')onPendingList(result.file);return result;}
+                try{
+                    const result=await session.persist();
+                    if(result.status==='export-pending'){
+                        // Preparing a transcript persists the list again. A new File
+                        // with unchanged contents must not invalidate a completed share.
+                        const text=await result.file.text();
+                        if(text!==lastPendingListText){onPendingList(result.file);lastPendingListText=text;}
+                    }
+                    return result;
+                }
                 catch(error){
                     const answer=await ask({title:'The audio recording list could not be saved',message:error.message,choices:[{action:'retry',label:'Retry'},{action:'export',label:'Save audio recording list',run:()=>shareFile(session.exportPending())},cancel]});
                     if(answer.action==='cancel')throw new DOMException('Recording-list save cancelled.','AbortError');

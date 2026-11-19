@@ -210,7 +210,7 @@ const pendingTranscriptSaves = [];
 const saveRecordingListButton = document.getElementById("saveRecordingListButton");
 const saveTranscriptArchiveButton = document.getElementById("saveTranscriptArchiveButton");
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
-const identityWorkflow = createTranscriptionIdentity({
+function createIdentityWorkflow() { return createTranscriptionIdentity({
     onStatus: message => setTranscriptionBusy(message),
     onPendingList: file => {
         pendingRecordingList = file; recordingListShared = false;
@@ -224,7 +224,8 @@ const identityWorkflow = createTranscriptionIdentity({
         document.getElementById("transcriptArchiveSaveStatus").textContent = file ? "Transcript file list: save memora-archive.json in your transcription folder before sharing transcripts." : "";
         updateIPhoneExportButton(true);
     }
-});
+}); }
+let identityWorkflow = createIdentityWorkflow();
 window.addEventListener("beforeunload", event => {
     if (pendingTranscriptSaves.length || pendingIPhoneExports.length && !identityFilesReady()) {
         event.preventDefault(); event.returnValue = "";
@@ -583,17 +584,23 @@ if (iphoneCombineDestinationOptions) {
 }
 
 sourceButton.addEventListener("click", async () => {
+    if (transcriptionBatchActive || sourceSelectionActive) return;
 
     try {
 
         const storage =
             await getStorageModule();
 
-        if (transcriptionBatchActive || !(await confirmPendingDiscard())) return;
-        const selectedSource = await storage.selectFolder();
+        if (!(await confirmPendingDiscard())) return;
         sourceSelectionActive = true; sourceButton.disabled = true; transcribeButton.disabled = true;
-        sourceHandle = selectedSource;
+        const selectedSource = await storage.selectFolder();
+        const files = await storage.listAudioFiles(selectedSource);
+        // Resolve the new source before replacing the current source and its UI.
+        const selectedIdentityWorkflow = createIdentityWorkflow();
+        await selectedIdentityWorkflow.prepareSource(selectedSource, files);
         identityWorkflow.reset();
+        identityWorkflow = selectedIdentityWorkflow;
+        sourceHandle = selectedSource;
 
         destinationHandle = null;
 
@@ -601,11 +608,6 @@ sourceButton.addEventListener("click", async () => {
         updateDestinationVisibility(sourceHandle.kind === "file-input");
 
         setActiveDestinationButton(null);
-
-        const files =
-            await storage.listAudioFiles(
-                sourceHandle
-            );
 
         if (files.length === 0) {
 
@@ -649,7 +651,7 @@ sourceButton.addEventListener("click", async () => {
             );
 
             alert(
-                "Unable to read the source folder."
+                error.message || "Unable to read the source folder."
             );
         }
     } finally {
