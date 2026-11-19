@@ -36,6 +36,13 @@ await test('Editing a working record cannot change another consumer of its immut
 await test('An active or pending transcription can defer list updates while keeping parsed transcripts available',async()=>{
  const root=directory({'a.txt':body()});const snapshot=await readTranscriptFolder(root.source),session=createTranscriptFolderSession(snapshot,{updatesAllowed:false});eq(snapshot.records.length,1);eq(session.status,'blocked');assert(!session.file);eq(root.state.writes,0);assert(session.error.message.includes('Finish transcription'));
 });
+await test('Legacy large model headers and filenames retain their label without becoming large-v3',async()=>{
+ const root=directory({'legacy - large.txt':body({model:'large'})});const snapshot=await readTranscriptFolder(root.source);eq(snapshot.records[0].whisperModel,'large');const session=createTranscriptFolderSession(snapshot);await session.save();eq(parseTranscriptArchive(root.text(JSON_NAME)).recordings[0].transcripts[0].model,'large');eq(createTranscriptFolderSession(await readTranscriptFolder(root.source)).status,'unchanged');
+ eq(record('legacy - large.txt',{model:''}).whisperModel,'large');eq(record('legacy - large-2.txt',{model:''}).whisperModel,'large');eq(record('modern.txt',{model:'large-v3'}).whisperModel,'large-v3');
+});
+await test('Missing-field messages identify the field rather than blaming all identity metadata',async()=>{
+ try{reconcileTranscriptRecords(manifest(),[{...record('a.txt'),whisperModel:null}]);throw Error('Expected failure');}catch(error){assert(error.message.includes('missing recognized Whisper model'));assert(!error.message.includes('missing Recording ID'));}
+});
 await test('Complete scan adds, removes and updates references, retaining extension fields and nested references',async()=>{
  const original=manifest([{relativePath:'gone.txt',model:'tiny',operation:'transcribe'},{relativePath:'a.txt',model:'tiny',operation:'transcribe',extension:'keep'},{relativePath:'nested/kept.txt',model:'base',operation:'transcribe'}]);
  const result=reconcileTranscriptRecords(original,[record('a.txt',{model:'base'}),record('new.txt',{operation:'translate'})],{complete:true});assert(result.changed);eq(result.manifest.custom,original.custom);eq(result.manifest.recordings[0].customEntry,'keep');const refs=result.manifest.recordings[0].transcripts;assert(!refs.some(ref=>ref.relativePath==='gone.txt'));eq(refs.find(ref=>ref.relativePath==='a.txt'),{relativePath:'a.txt',model:'base',operation:'transcribe',extension:'keep'});assert(refs.some(ref=>ref.relativePath==='nested/kept.txt'));eq(original.recordings[0].transcripts.length,3);

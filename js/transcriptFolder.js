@@ -79,8 +79,13 @@ export function reconcileTranscriptRecords(manifest, records, { complete = false
     const refs = new Map(candidate.recordings.flatMap(entry => entry.transcripts.map(ref => [pathKey(ref.relativePath), { entry, ref }])));
     const observed = new Set();
     for (const record of [...records].sort((a, b) => a.filename.localeCompare(b.filename))) {
-        if (!record.recordingId || !record.archiveUuid || !record.whisperModel)
-            throw Error(`${record.filename}: recording, archive or model identity is missing. The transcript file list was left unchanged.`);
+        const missing = [
+            !record.recordingId && 'Recording ID',
+            !record.archiveUuid && 'Archive UUID',
+            !record.whisperModel && 'recognized Whisper model'
+        ].filter(Boolean);
+        if (missing.length)
+            throw Error(`${record.filename}: missing ${missing.join(', ')}. The transcript file list was left unchanged.`);
         if (record.archiveUuid.toLowerCase() !== archiveUuid.toLowerCase())
             throw Error(`${record.filename}: Archive UUID differs from the transcript file list. No identities were changed.`);
         const key = pathKey(record.filename);

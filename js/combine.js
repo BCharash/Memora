@@ -13,6 +13,8 @@ const MODEL_RANK = {
     base: 2,
     small: 3,
     medium: 4,
+    // Legacy archives use "large" without establishing a model generation.
+    large: 5,
     "large-v3": 5
 };
 
@@ -123,7 +125,7 @@ function extractModelFromFilename(filename) {
 
     const match =
         String(filename).match(
-            / - (tiny|base|small|medium|large-v3)(?:-\d+)?\.txt$/i
+            / - (tiny|base|small|medium|large-v3|large)(?:-\d+)?\.txt$/i
         );
 
     return match
