@@ -17,6 +17,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
     let archive=null,destination=null,source=null,preparedSource=null,pendingInventoryList=null,inventorySummary=null;
     return {
         reset(){ui.reset();archive=null;destination=null;source=null;preparedSource=null;onPendingArchive?.(null);},
+        invalidateDestination(){archive=null;destination=null;source=null;onPendingArchive?.(null);},
         getSession:()=>ui.getSession(),
         acknowledgeShared:(kind,file)=>ui.getSession()?.acknowledgeShared(kind,file),
         getInventorySummary:()=>inventorySummary,

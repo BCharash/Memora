@@ -1,5 +1,22 @@
 # Memora — current status and resume instructions
 
+## Destination reconciliation and combined iPhone delivery — 20 November 2026
+
+Build **2026-11-20.7**, schema **6**, restores the top **Transcript Destination** selector on both desktop and iPhone. The lower desktop shortcuts remain convenient and use the same read/reconciliation path. Browse displays the selected folder's name. Selecting/reselecting a destination rereads its transcript list and immediate transcripts; native changed lists save with the existing verification/locking safeguards, unchanged lists do not rewrite. A uniquely supplied transcription child remains the default. Combine can reuse its already-read folder session rather than reading each TXT again. Corrupt/conflicting destinations block Transcribe without hiding readable Combine files.
+
+New native transcript references are added only after the TXT write/readback succeeds; a failed TXT write does not publish a dangling list reference. Completed TXT remains available for retry if the later list save fails.
+
+On iPhone, **Save N Transcriptions and File List to Files** shares all pending batch TXT files plus the updated memora-transcript-archive.json together, using a files-only share payload. The standalone transcript-list action is hidden for that batch. Archive/folder guidance is visible before the share sheet and remains on the page; no title/text attachment is added. Cancellation retains the batch for retry. The Audio Recording List remains a separate save because it belongs in the audio parent. Sharing cannot enforce or verify where Files writes the bundle.
+
+After sharing, a working in-memory destination snapshot retains that bundle for subsequent batches. It is marked partial, not verified disk coverage, so it cannot authorize deletion of unseen files. A fresh folder selection replaces it with supplied Files observations. New phone batches reread the chosen snapshot rather than carrying discarded unsaved references forward. iPhone cannot reread provider changes through native handles; reselect the folder for fresh disk snapshots.
+
+The user reports the hosted MacBook Chrome picker disappearing while browsing, before selecting a folder. Source selection calls the native picker once per click and performs no automatic reopen/reload loop. Cause is unconfirmed; no picker workaround was silently introduced. A similar Chrome 157 cancellation report is documented for Windows, with Mac reproduction explicitly unestablished: [Chromium issue 582407452](https://issues.chromium.org/issues/582407452). This is a troubleshooting lead, not a confirmed Mac diagnosis. Prior reports of unchanged iPhone JSON requiring saves also remain distinct from the now-replaced separate transcript-list delivery gate.
+
+Verification for .7: **176 groups passed** (7 shared-folder, 59 actual-page integration, 19 production identity, 10 playback, 29 transcript-folder, 47 persistence and 5 metadata groups). Synthetic archives, isolated browser storage and a stub Search backend; no real model or user archive was used.
+
+Device acceptance: refresh to .7; choose/rechoose a destination using top and lower controls; confirm the displayed folder name and safe JSON reconciliation. On iPhone transcribe multiple recordings, save the batch and JSON together to the named folder, inspect filenames/content, cancel/retry, then run another batch and confirm previous references remain. Actual Files placement and cloud sync are unverified by synthetic harnesses. No user-archive mutation, commit or deployment.
+
+
 ## Transcribe destination controls — 20 November 2026
 
 Build **2026-11-20.6** removes the duplicate destination row at the top of Transcribe. The lower **Transcript Destination** area shows the current shared folder in the same output box style as Combine/Search. Desktop Use Source / Use transcription / Browse actions set the shared transcript selection; Browse opens the folder picker directly. iPhone still inherits the supplied transcription child (or the shared choice from another tab), displays the destination below, and saves through Files without writable folder access.

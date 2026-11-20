@@ -178,7 +178,7 @@ await test('Production page boots with isolated database and synthetic model sel
  await import('../js/app.js');await waitFor(()=>document.getElementById('modelSelect').value==='tiny');
  assert(!document.getElementById('refreshAudioSourceButton'),'Obsolete refresh control remains');
  assert(!document.getElementById('cancelAudioInventoryButton'),'Obsolete Cancel Scan control remains');
- assert(!document.querySelector('#transcriptionPanel .source-section [data-transcript-folder]'),'Duplicate top destination remains');assert(document.querySelector('#transcriptionDestinationSection [data-transcript-folder]'),'Lower destination display missing');
+ assert(document.querySelector('#transcriptionPanel .source-section [data-select-transcript=transcribe]'),'Top destination selector missing');assert(document.querySelector('#transcriptionDestinationSection [data-transcript-folder]'),'Lower destination display missing');
  eq(document.getElementById('saveRecordingListButton').textContent,'Save Audio Recording List');
  assert(document.getElementById('saveRecordingListButton').closest('.source-section'),'Audio list save is not beside the source controls');
  document.getElementById('paragraphingCheckbox').checked=false;
@@ -244,7 +244,8 @@ await test('Different output archive reuses source Recording ID and creates sepa
  eq(identity.recordingId,firstID);assert(identity.archiveUuid!==firstArchive,'Different archives conflated');
 });
 await test('Post-inference write failure retains text; retry saves without another model call',async()=>{
- second.state.failTranscriptOnce=true;click('transcribeButton');await waitFor(()=>!document.getElementById('retryTranscriptSaveButton').hidden);
+ const beforeList=JSON.parse(decoder.decode(second.state.files.get('memora-transcript-archive.json')));
+ second.state.failTranscriptOnce=true;click('transcribeButton');await waitFor(()=>!document.getElementById('retryTranscriptSaveButton').hidden);eq(JSON.parse(decoder.decode(second.state.files.get('memora-transcript-archive.json'))),beforeList,'Failed TXT write published an archive reference');
  const count=calls.length;assert(document.getElementById('transcriptionOutput').textContent.includes('Synthetic completed text.'),'Completed text lost');
  click('retryTranscriptSaveButton');await waitFor(()=>document.getElementById('retryTranscriptSaveButton').hidden);eq(calls.length,count);assert(second.state.aborts>0,'Failed writer did not abort');
 });
@@ -270,18 +271,19 @@ await test('File-input prepares separate pending source/archive JSON and blocks 
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Compiled audio list did not highlight its save action before transcription');
  click('transcribeButton');await choose('Create transcript file list');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  assert(document.getElementById('transcriptArchiveSaveStatus').textContent.includes('memora-transcript-archive.json')&&document.getElementById('transcriptArchiveSaveStatus').textContent.includes('archive “Audio”'),'Transcribe save guidance omitted archive name');
- assert(!document.getElementById('saveRecordingListButton').hidden&&!document.getElementById('saveTranscriptArchiveButton').hidden,'JSON actions missing');assert(document.getElementById('iphoneExportButton').disabled,'Transcript shared before JSON actions');
- assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save')&&document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Pending save pulse missing');
+ assert(!document.getElementById('saveRecordingListButton').hidden&&document.getElementById('saveTranscriptArchiveButton').hidden,'Transcript list must travel with the batch');assert(document.getElementById('iphoneExportButton').disabled,'Transcript shared before JSON actions');
+ assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save')&&document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'),'Pending save pulse missing');
  Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{eq(Object.keys(data),['files'],'File exports must not include guidance as share title/text');if(cancelShare)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
 });
-await test('Share cancellation preserves pending files; completed JSON actions unlock transcript sharing',async()=>{
- click('saveRecordingListButton');await new Promise(resolve=>setTimeout(resolve,30));assert(document.getElementById('iphoneExportButton').disabled,'Cancelled share authorized delivery');assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Cancel removed pending pulse');
+await test('One iPhone share includes all transcripts and their JSON; cancellation retains the exact batch',async()=>{
+ click('saveRecordingListButton');await new Promise(resolve=>setTimeout(resolve,30));assert(document.getElementById('iphoneExportButton').disabled,'Cancelled audio share authorized delivery');
  cancelShare=false;click('saveRecordingListButton');await waitFor(()=>document.getElementById('recordingListSaveStatus').textContent.includes('Audio recording list shared.'));
- assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Completed audio share still pulses');assert(document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Unshared transcript list stopped pulsing');
- assert(document.getElementById('iphoneExportButton').disabled,'Archive action bypassed');click('saveTranscriptArchiveButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);
- assert(!document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Completed transcript list share still pulses');
- click('iphoneExportButton');await waitFor(()=>shared.length===3);eq(shared[0][0].name,'memora-audio-source.json');eq(shared[1][0].name,'memora-transcript-archive.json');assert(shared[2][0].name.endsWith('.txt'),'Transcript transport changed');
- eq(readTranscriptIdentity(await shared[2][0].text()).recordingId,firstID);assert(document.getElementById('iphoneExportStatus').textContent.includes('cannot verify'),'False saved-location claim');
+ assert(!document.getElementById('iphoneExportButton').disabled,'Separate transcript JSON save was still required');assert(document.getElementById('saveTranscriptArchiveButton').hidden);
+ cancelShare=true;click('iphoneExportButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);eq(shared.length,1);assert(document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));
+ cancelShare=false;click('iphoneExportButton');await waitFor(()=>shared.length===2&&!document.getElementById('iphoneExportButton').disabled);
+ eq(shared[0][0].name,'memora-audio-source.json');const batch=shared[1],txt=batch.filter(file=>file.name.endsWith('.txt')),lists=batch.filter(file=>file.name==='memora-transcript-archive.json');assert(txt.length>0&&lists.length===1&&batch.length===txt.length+1);
+ const list=JSON.parse(await lists[0].text());for(const file of txt){const identity=readTranscriptIdentity(await file.text());assert(list.recordings.some(entry=>entry.recordingId===identity.recordingId&&entry.transcripts.some(ref=>ref.relativePath===file.name)));}
+ assert(document.getElementById('iphoneExportStatus').textContent.includes('cannot verify'),'False saved-location claim');
 });
 await test('Completed audio-list sharing survives repeated persistence during and after inference',async()=>{
  const release=pauseNextTranscription(),before=calls.length;
@@ -291,9 +293,8 @@ await test('Completed audio-list sharing survives repeated persistence during an
  }finally{release();}
  await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  assert(!document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Completed transcript reset audio-list sharing');
- click('saveTranscriptArchiveButton');await waitFor(()=>!document.getElementById('iphoneExportButton').disabled);
- click('iphoneExportButton');await waitFor(()=>shared.length===5);
- eq(shared[3][0].name,'memora-transcript-archive.json');assert(shared[4][0].name.endsWith('.txt'),'Transcript required redundant audio JSON save');
+ click('iphoneExportButton');await waitFor(()=>shared.length===3&&!document.getElementById('iphoneExportButton').disabled);
+ assert(shared[2].some(file=>file.name==='memora-transcript-archive.json')&&shared[2].some(file=>file.name.endsWith('.txt')),'Combined transcript delivery missing');assert(!shared[2].some(file=>file.name==='memora-audio-source.json'),'Transcript required redundant audio JSON save');
 });
 await test('Archive save pulse reuses the existing animation and respects reduced motion',async()=>{
  const link=document.createElement('link');link.rel='stylesheet';link.href='../css/style.css';
@@ -467,6 +468,13 @@ await test('Keeping unsaved Combine edits prevents a shared folder change and le
  click('textSourceButton');await choose('Keep editing');await waitFor(()=>!document.getElementById('textSourceButton').disabled);assert(sharedFolders.snapshot().transcript.source===selected&&editor.value===before+' unsaved change');
  [...editor.parentElement.querySelectorAll('button')].find(button=>button.textContent==='Cancel').click();
 });
+await test('Top and lower desktop destination controls reread external JSON changes and display the chosen folder',async()=>{
+ click('transcriptionTab');const file=await(await child.getFileHandle('memora-transcript-archive.json')).getFile(),list=JSON.parse(await file.text());list.recordings[0].transcripts.push({relativePath:'removed.txt',model:'tiny',operation:'transcribe'});await putText(child,'memora-transcript-archive.json',JSON.stringify(list));
+ await new Promise(resolve=>{const button=document.getElementById('sourceButton');let started=false;const observer=new MutationObserver(records=>{if(records.some(record=>record.oldValue===null))started=true;if(started&&!button.disabled){observer.disconnect();resolve();}});observer.observe(button,{attributes:true,attributeOldValue:true,attributeFilter:['disabled']});click('transcriptionDestinationButton');});
+ const updated=JSON.parse(await(await(await child.getFileHandle('memora-transcript-archive.json')).getFile()).text());assert(!updated.recordings.some(entry=>entry.transcripts.some(ref=>ref.relativePath==='removed.txt')));
+ selections.push(alternate);click('destinationButton');await waitFor(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().transcript.source===alternate);assert(document.getElementById('destinationButton').textContent.includes('alternate'));
+ document.querySelector('[data-select-transcript=transcribe]').click();await choose('Shared parent / transcription');await waitFor(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().transcript.source===child);click('combineTab');await waitFor(()=>document.querySelector('#transcripts .recording-checkbox')&&!document.getElementById('textSourceButton').disabled);
+});
 await test('Search adopts the shared default and transcript overrides propagate without replacing audio',async()=>{
  click('searchTab');await waitFor(()=>!document.getElementById('searchSourceButton').disabled&&document.getElementById('searchIndexStatus').textContent.includes('Search ready'));eq(sharedSearchBuilds.at(-1),['current.txt']);
  click('searchSourceButton');await choose('Shared parent / alternate');await waitFor(()=>!document.getElementById('searchSourceButton').disabled&&sharedFolders.snapshot().transcript.source===alternate);eq(sharedSearchBuilds.at(-1),['alternate.txt']);assert(sharedFolders.snapshot().audio===sharedRoot.root);assert([...document.querySelectorAll('[data-transcript-folder]')].every(node=>node.textContent==='Shared parent / alternate'));
@@ -489,6 +497,12 @@ await test('iPhone parent access rebases one child only and saves that child lis
  let plays=0,pickers=0;const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=async()=>{plays++;};try{[...document.querySelectorAll('#transcripts button')].find(button=>button.textContent==='Show transcript').click();const control=document.querySelector('#transcripts .search-result-audio-control');control.querySelector('input').click=()=>{pickers++;};control.querySelector('.search-audio-play').click();await waitFor(()=>plays===1);eq(pickers,0);}finally{HTMLMediaElement.prototype.play=play;}
 });
 
+await test('iPhone destination batch shares TXT and JSON together and retains prior shared references for the next batch',async()=>{
+ click('transcriptionTab');click('transcribeButton');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.'&&!document.getElementById('iphoneExportButton').disabled);const before=shared.length;click('iphoneExportButton');await waitFor(()=>shared.length===before+1&&!document.getElementById('iphoneExportButton').disabled);
+ const first=shared.at(-1),firstText=first.find(file=>file.name.endsWith('.txt')),target=sharedFolders.snapshot().transcript.source;assert(firstText&&first.some(file=>file.name==='memora-transcript-archive.json'));assert(target.files.some(file=>file.name===firstText.name)&&target.selectionScope==='selection');
+ const beforeCalls=calls.length;click('transcribeButton');await choose('Discard pending transcripts');await waitFor(()=>calls.length>beforeCalls&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');click('iphoneExportButton');await waitFor(()=>shared.length===before+2&&!document.getElementById('iphoneExportButton').disabled);
+ const second=shared.at(-1),list=JSON.parse(await second.find(file=>file.name==='memora-transcript-archive.json').text());assert(list.recordings.some(entry=>entry.transcripts.some(ref=>ref.relativePath===firstText.name)));for(const file of second.filter(file=>file.name.endsWith('.txt')))assert(list.recordings.some(entry=>entry.transcripts.some(ref=>ref.relativePath===file.name)));
+});
 await test('Phone Transcribe reads the selected child JSON without a second picker and retains its Archive UUID',async()=>{
  const wrap=(name,data)=>{const file=new File([data],name.split('/').at(-1));Object.defineProperty(file,'webkitRelativePath',{value:name});return file;};
  const audio=wrap('Phone/memo.wav',f.wav([f.wavChunk('imID',f.payload(ID))]));

@@ -192,3 +192,8 @@ Open `tests/source-selection-performance.html` for five synthetic groups: resolv
 ### Production shared folder access
 
 Open `tests/shared-folder-production.html` for native child discovery without content reads, phone rebasing/depth boundaries, shared defaults/overrides/reset, ID-first audio lookup, native picker routing and phone cancellation/reselection cleanup. `tests/transcription-identity.html` additionally exercises actual page controls: shared native/iPhone sources, lazy Search activation, renamed-audio playback without a picker, direct overrides, pending edits, child-scoped JSON exports and Transcribe's supplied/missing/corrupt child-list behavior. Its Search module is replaced by `shared-production-search-fixtures.js`, so these checks never run an embedding model. Real iPhone Files/share/playback acceptance remains separate.
+
+
+### Destination reconciliation and iPhone batch delivery (.7)
+
+The actual-page transcription harness verifies destination rereading from both top and lower desktop controls, removal of stale references, chosen-folder labels, unchanged-list handling, files-only multi-TXT-plus-JSON sharing, cancellation/retry, previous shared references in later phone batches, and native TXT-before-reference publication. Search/model execution remains stubbed and all storage is isolated. Device acceptance must check actual Files multi-file naming/replacement and folder placement; the Mac native picker disappearing mid-browse is not reproduced by the synthetic harness.
