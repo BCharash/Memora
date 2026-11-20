@@ -1,6 +1,10 @@
 # Memora file map
 
-Updated **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, schema **6**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Audio whole-folder iPhone removal parity is implemented in .24. Shared Transcribe/Search full reconciliation and filename-counter priority remain incomplete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
+Updated **20 November 2026** against source **ce1583b**, displayed build **2026-11-20.7**, schema **6**. [Current project status](docs/CURRENT_STATUS.md) distinguishes implemented shared folder/destination/bundle behavior from the next documentation-only plan. Historical module/checkpoint notes below keep their dates.
+
+## Next implementation ownership: Enable Transcription and save guidance
+
+Not implemented: keep selectors initially visible, guard untouched returns from Combine/Search behind **Enable Transcription**, and exclude Settings from that primary-tab state. app.js owns the tab/setup state, deferred Transcribe list preparation, per-batch save attempt/result and accurate destination/status rendering; transcriptionUI.js owns the new-list checkbox default; sharedFolderSelection.js retains granted shared access. storage.js and transcriptionIdentity.js retain identity/delivery ownership. The next change must not trigger transcription work merely from Combine/Search selection or weaken write/partial-coverage safeguards. See the [full next-task contract](docs/CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance), including warning text, prominent correct iPhone folder labels and audio-before-transcript status order.
 
 ## Production recording identity foundation — 20 November 2026
 
@@ -8,7 +12,7 @@ Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reprod
 
 ## The short answer about the number of files
 
-There are **54 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **33 top-level test/fixture JavaScript files under `tests/`** and **5 more in its isolated lab subtree** (38 total). Test files are separate from the normal application.
+There are **57 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **44 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (49 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 

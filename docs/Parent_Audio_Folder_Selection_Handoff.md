@@ -1,5 +1,12 @@
 # Parent audio-folder selection — handoff, 19 November 2026
 
+## Planned for 21 November: Enable Transcription
+
+Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.
+
+The same planned pass distinguishes never-saved batches from share-return verification prompts, fixes stale iPhone destination guidance with one prominent current-batch location, and presents one concise Audio Recording List status before the Transcript File List status. Preserve canceled/failed-save retries, files-only transcript-plus-JSON sharing, independent audio-parent JSON saves and identity/write safeguards. See the [current implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) for the full state rules, wording, checkpoints and device acceptance. Current code/build remains **2026-11-20.7**, schema **6**; no new tests or device results are established by this plan.
+
+
 ## Destination reconciliation and combined iPhone delivery — 20 November 2026
 
 Build **2026-11-20.7**, schema **6**, restores the top **Transcript Destination** selector on both desktop and iPhone. The lower desktop shortcuts remain convenient and use the same read/reconciliation path. Browse displays the selected folder's name. Selecting/reselecting a destination rereads its transcript list and immediate transcripts; native changed lists save with the existing verification/locking safeguards, unchanged lists do not rewrite. A uniquely supplied transcription child remains the default. Combine can reuse its already-read folder session rather than reading each TXT again. Corrupt/conflicting destinations block Transcribe without hiding readable Combine files.

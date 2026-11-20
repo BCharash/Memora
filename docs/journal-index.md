@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **19 November 2026**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Reviewed and synchronized **20 November 2026**, journal version **28**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -17,9 +17,9 @@ Volume 4 keeps its existing filename for link/bookmark compatibility; despite en
 
 - **Section 60:** runtime/database ownership; canonical model definitions; self-test/production workers, reports, eligibility and reviews; saved observations and summary context.
 - **Section 61:** completed archive migration; embedded recording identity; source-list design, validation, persistence/recovery and production/header integration.
-- **Section 62:** compact successful-test summary; Transcribe/Combine controls; Settings cache management; audio/transcript JSON reconciliation and naming; browser-version continuity; simpler metadata/counter decisions; source-scoped audio guidance; documentation review; parent-folder access test and resume handoff; 20 November recording-identity/rebuild checkpoints.
+- **Section 62:** compact successful-test summary; Transcribe/Combine controls; Settings cache management; audio/transcript JSON reconciliation and naming; browser-version continuity; simpler metadata/counter decisions; source-scoped audio guidance; documentation review; parent-folder access test and resume handoff; 20 November recording-identity/rebuild checkpoints; shared parent access and bundled iPhone saves; revised Enable Transcription and save/status guidance plan for 21 November.
 
-The later entries explicitly supersede earlier proposals where necessary. In particular, detailed Whisper TXT metadata/backfill and an extra transcription timestamp were dropped. Counter priority remains agreed but unimplemented; whole-folder iPhone audio removal parity is implemented. Shared full-folder Transcribe/Search reconciliation, portable imports/workspace and parent/recursive ownership remain future work.
+The later entries explicitly supersede earlier proposals where necessary. In particular, detailed Whisper TXT metadata/backfill and an extra transcription timestamp were dropped. Counter priority remains agreed but unimplemented; whole-folder iPhone audio removal parity is implemented. Transcribe destination reconciliation and shared parent access are implemented through .7. Search shared-scan reconciliation, portable imports/workspace and broader recursive ownership remain future work. Section 62.22 records the planned Enable Transcription session gate and save/status cleanup; no application behavior changed in that entry.
 
 ## Keeping both representations synchronized
 

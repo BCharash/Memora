@@ -1,5 +1,10 @@
 # Recording identity implementation contract
 
+## Planned UI/session follow-up — 20 November 2026
+
+The [next implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) records **Enable Transcription** for untouched returns from Combine/Search, with selectors initially visible and Settings excluded. Shared audio/transcript access must not itself enable or prepare Transcribe's recording controls. That future pass also corrects per-batch save-warning state and destination guidance and simplifies audio-before-transcript list statuses. It preserves identity/schema rules, separate parent/child JSON ownership, files-only iPhone bundles, partial-coverage safeguards and pending-work recovery. Documentation only; implementation planned for 21 November. Current build remains .7, schema 6.
+
+
 ## Production identity foundation update — 20 November 2026
 
 Candidate **2026-11-20.3** supersedes the old source-UUID binding rules for TXT. Recording ID is the audio association; Archive UUID remains transcript-archive identity. Historical Audio Source ID is ignored and not written. Catalogue UUIDs remain internal in audio JSON/recovery/locks, so existing schema 6 and pending-save machinery remain intact. New/rebuilt enrollment uses embedded IDs or the [fixed sampled fallback](Recording_Identity_Prefix_Contract.md); known legacy IDs are preserved. Complete source coverage permits safe relocation, while duplicates/read failures and invalid lists retain explicit safeguards. Pending exports and legacy recovery are retained. Exact text vectors may bridge obsolete Search header hashes without inference. [Current status](CURRENT_STATUS.md) is authoritative for the 219-group verification and remaining device/UI checkpoints; older checkpoint instructions below are historical.

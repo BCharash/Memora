@@ -1,5 +1,10 @@
 # Audio library hierarchy — agreed behavior and delivery plan
 
+## Planned UI/session follow-up — 20 November 2026
+
+The [next implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) records **Enable Transcription** for untouched returns from Combine/Search, with selectors initially visible and Settings excluded. Shared audio/transcript access must not itself enable or prepare Transcribe's recording controls. That future pass also corrects per-batch save-warning state and destination guidance and simplifies audio-before-transcript list statuses. It preserves identity/schema rules, separate parent/child JSON ownership, files-only iPhone bundles, partial-coverage safeguards and pending-work recovery. Documentation only; implementation planned for 21 November. Current build remains .7, schema 6.
+
+
 ## Implemented roots and remaining hierarchy work — 19 November 2026
 
 Current source reviewed at 47ca641, displayed build **2026-11-19.25**. Audio source opening inventories immediate audio independently of transcription selection and reconciles the Audio Recording List before transcription on desktop and iPhone. Successful complete native or explicitly marked whole-folder iPhone scans remove absent immediate audio as of .24. Explicit/unmarked partial selections and scans with skipped recordings retain unseen entries; failed/cancelled reads cannot publish removal candidates. Valid selected JSON takes precedence over stale pending recovery; unchanged lists are not re-saved. Existing audio IDs are reused without content hashing; new files use bounded embedded metadata inspection. Source reselection replaces Refresh Source; explicit iPhone saving remains.

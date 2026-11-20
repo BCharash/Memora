@@ -483,3 +483,67 @@ The user reports the hosted MacBook Chrome picker disappearing while browsing, b
 Device acceptance: refresh to .7; choose/rechoose a destination using top and lower controls; confirm the displayed folder name and safe JSON reconciliation. On iPhone transcribe multiple recordings, save the batch and JSON together to the named folder, inspect filenames/content, cancel/retry, then run another batch and confirm previous references remain. Actual Files placement and cloud sync are unverified by synthetic harnesses. No user-archive mutation, commit or deployment.
 
 Verification for .7: **176 groups passed** (7 shared-folder, 59 actual-page integration, 19 production identity, 10 playback, 29 transcript-folder, 47 persistence and 5 metadata groups). Synthetic archives, isolated browser storage and a stub Search backend; no real model or user archive was used.
+
+
+### 62.22 Planned session enablement, save warnings and location/status cleanup — 20 November 2026
+
+**Decision recorded 20 November 2026; planned implementation 21 November 2026. Documentation only.** Current application remains **2026-11-20.7**, schema **6**, source **ce1583b**. No feature in this section is implemented by this documentation update. This revised plan supersedes the earlier suggestion to hide transcription setup immediately on opening. The exact button label is **Enable Transcription**, not Set Up Transcription or Select Source.
+
+### First visit, tab navigation and Settings
+
+Transcribe remains the default opening tab, with both Audio Source and Transcript Destination selectors visible. Track session-local Transcribe activity separately from shared folder access and from which panel happens to be visible. The current tab controller already keeps the active primary tab separate from Settings, so the requested distinction is feasible; the fallback of hiding setup from the outset is not needed unless implementation/device evidence shows a limitation.
+
+| Session event | Planned Transcribe behavior |
+|---|---|
+| App opens on Transcribe | Both folder selectors visible; no automatic transcription. |
+| Open, use and close Settings while Transcribe is the active primary tab | Keep the initial visible state; Settings neither counts as leaving Transcribe nor as doing transcription work. |
+| Leave untouched Transcribe for Combine or Search | Mark transcription setup as guarded for the next visit. |
+| Return after that untouched departure | Show Enable Transcription; hide the transcription selectors, recording list and Transcribe action. |
+| Press Enable Transcription | Replace the button with setup and recording controls, using any folders already selected elsewhere; do not open another picker or begin inference automatically. |
+| Work directly with Transcribe's own controls before leaving | Keep setup enabled for the rest of the app session. |
+| Reload/reopen the app | Reset to the initial visible-selector state; do not persist this enablement in IndexedDB/localStorage. |
+
+Direct user interaction with Transcribe's own setup/recording controls expresses transcription intent. Merely visiting, scrolling, receiving background shared-folder/model updates, or using Settings does not. Interactions originating in Combine/Search must not be mistaken for Transcribe activity even if they reuse a shared helper. Switching to Combine/Search from Settings still counts as a primary-tab departure from untouched Transcribe. Opening/closing Settings alone never adds an Enable Transcription gate.
+
+Keep shared audio access available for Combine/Search playback and shared transcript access for their normal work. Defer Transcribe-only recording-list rendering, display-metadata preparation and checkbox selection until the user expresses transcription intent or presses Enable Transcription. This does not remove inventory/identity validation required by the requesting Combine/Search workflow. Reuse granted handles/File snapshots; do not introduce another picker or a model run merely to enable the UI. No recordings are checked by default when a new Transcribe list is prepared; Select All remains available. Do not change Combine/Search/Settings selection defaults as part of this task.
+
+### Pending-save warning must reflect this batch's save attempt
+
+The current warning always says Keep pending transcripts? and There are transcripts waiting to be saved, even after the user has used Save. Track the current batch's delivery state independently of the pulsing button and independently of filesystem verification.
+
+- Before Save has been used: **There are transcripts waiting to be saved…** Keep the pending-save highlight and the existing explicit keep/discard protection.
+- After the normal Save/share return: **Please verify that your transcripts were saved…** Include the transcript file list and the intended destination where useful. Do not describe the batch as definitely unsaved, and do not claim that Memora verified its location.
+- Known cancellation or failure must remain clearly pending, retain the exact files for retry and show the actual cancellation/error outcome. A click alone is not proof that Files saved anything.
+- Reset attempt/result state for every newly generated batch. A previous batch's Save click must not change the warning for a new unsaved batch. Reopening Settings, model-list refreshes and display rerenders must not reset a successful share return to the never-attempted state or restart its pending pulse.
+
+Retain completed text and safe retry behavior, including failures after inference. Keep/discard decisions concern the in-memory pending copy; they must not delete user files. iPhone share completion remains different from verified placement.
+
+### One accurate, prominent destination for iPhone delivery
+
+The user reports the small text above Save N Transcriptions and File List to Files naming an old destination instead of the folders currently selected in Transcribe. Treat this as a reported stale-guidance defect, not evidence that a particular JSON or file was actually saved in that old folder.
+
+Bind a single destination context to each generated batch, derived from the selected Transcribe audio/archive and transcript-folder selection. It must agree with the current selection when the batch is created. Use that same context for pre-save instructions, post-share text, pending-save warnings and retries. Do not let an older pending-archive label, historical header provenance or a stale cached status override it. Pending-work guards must prevent a folder change from silently relabeling an existing batch; after an explicit discard/new selection, clear the obsolete context. For a separately selected transcript folder, show the known label without inventing an unverified parent path.
+
+Immediately above the iPhone save action, use a clearly readable body-size or larger location line, for example **Save in: 2018 / transcription**, followed by the short instruction **Choose this folder in Save to Files.** The exact archive/folder varies with the selected batch. Remove surrounding repeated instructions and technical explanation; do not put the destination only in small settings-note text. Keep the files-only share payload, so guidance cannot become another text.txt attachment. Save all batch transcripts and memora-transcript-archive.json together. The Audio Recording List stays separate in the audio parent. Files still controls the actual save destination; Memora cannot force it or verify placement from the share sheet alone.
+
+### Status order and shorter wording
+
+Below the source/destination controls, present the **Audio Recording List first**, then the **Transcript File List**. Consolidate the two current audio JSON messages into one status block. Use one current state per list and optional short counts, rather than concatenating stale inventory, save and destination messages.
+
+Examples of intended wording:
+
+- **Audio Recording List: Up to date.** Optional next phrase: **121 recordings.**
+- **Audio Recording List: Save required.** Keep Save Audio Recording List available and highlighted when appropriate.
+- **Transcript File List: Up to date.**
+- **Transcript File List: Updated; save with transcripts.**
+
+During a read, preserve the spinner, elapsed time and useful progress/counts. Remove routine success boilerplate such as Audio directly in this folder was checked; subfolders are not included and No new save was needed. Real read errors, skipped/unresolved files, partial coverage or identity conflicts still need concise actionable feedback; simplification must not hide those conditions or weaken reconciliation/write safeguards. Apply the same audio-then-transcript ordering to mirrored/shared status displays where they appear in Combine/Search. Keep the prominent iPhone destination near the save action rather than burying it among the JSON status sentences.
+
+### Implementation checkpoints and acceptance
+
+1. Add the session-only activity/gate state around primary-tab navigation; preserve the separate Settings route and shared folder state. Defer Transcribe-only list work and initialize its recording checkboxes unchecked.
+2. Track save attempt/result per batch. Bind all delivery messages to one immutable batch destination context; preserve cancellation/failure/retry and explicit pending-work decisions.
+3. Consolidate and reorder list status rendering. Show the correct destination prominently beside the combined iPhone save action; retain files-only sharing and separate audio-parent JSON ownership.
+4. Test on disposable/synthetic folders first, then MacBook and iPhone: initial visible selectors; Settings-only visits; untouched departures to each primary tab; Enable Transcription reuse; no automatic inference or checked recordings; ordinary Transcribe work remaining enabled; model refresh not counting as intent; folder changes while guarded; never-saved versus share-return warnings; canceled/failed save; a second new batch; retries after destination changes; prominent correct locations for two same-named transcription folders in different yearly archives and a separately selected folder; audio-first/transcript-second status; unchanged JSON no-op behavior and meaningful error feedback.
+
+This is tomorrow's implementation plan, not permission to change application code today, not a new build, and not new test/device acceptance. The .7 implementation previously passed 176 targeted groups; those tests have not yet been extended or rerun for these proposed behaviors. The user reports test.html loaded successfully; this alone does not establish whether its picker stayed open while browsing. The production MacBook picker-closing report remains unconfirmed and separate from this UI/message plan. Broader multi-archive/import, Search shared-scan reconciliation and other deferred architecture work stay separate.

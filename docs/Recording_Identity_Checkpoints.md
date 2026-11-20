@@ -1,5 +1,12 @@
 # Recording identity and rebuildable audio lists
 
+## Planned for 21 November: Enable Transcription
+
+Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.
+
+The same planned pass distinguishes never-saved batches from share-return verification prompts, fixes stale iPhone destination guidance with one prominent current-batch location, and presents one concise Audio Recording List status before the Transcript File List status. Preserve canceled/failed-save retries, files-only transcript-plus-JSON sharing, independent audio-parent JSON saves and identity/write safeguards. See the [current implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) for the full state rules, wording, checkpoints and device acceptance. Current code/build remains **2026-11-20.7**, schema **6**; no new tests or device results are established by this plan.
+
+
 ## Shared folder access in production — 20 November 2026
 
 Build **2026-11-20.5**, schema **6**, integrates the tested shared Audio Source and Transcript Destination/Source rows. Select the parent audio folder in any workspace; one page-session selection supplies all three views. A unique immediate **transcription** subfolder becomes the shared default. The transcript chooser offers immediate child folders or a separate folder; changing the audio root clears the previous override. No default means **None Selected**, not an arbitrary backup folder. Direct transcript selection without audio still works; it cannot grant access to an unselected parent. Selecting another transcript folder retains existing audio access.

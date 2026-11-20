@@ -1,5 +1,10 @@
 # Recording identity — checkpoint and iMuse handoff
 
+## Planned UI/session follow-up — 20 November 2026
+
+The [next implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) records **Enable Transcription** for untouched returns from Combine/Search, with selectors initially visible and Settings excluded. Shared audio/transcript access must not itself enable or prepare Transcribe's recording controls. That future pass also corrects per-batch save-warning state and destination guidance and simplifies audio-before-transcript list statuses. It preserves identity/schema rules, separate parent/child JSON ownership, files-only iPhone bundles, partial-coverage safeguards and pending-work recovery. Documentation only; implementation planned for 21 November. Current build remains .7, schema 6.
+
+
 ## Current handoff — 19 November 2026
 
 Reviewed source **47ca641**, displayed build **2026-11-19.25**, schema **6**. Read [current status](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) before using the historical migration/checkpoint instructions below.

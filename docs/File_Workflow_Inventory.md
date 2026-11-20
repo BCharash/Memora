@@ -1,5 +1,12 @@
 # File workflow inventory
 
+## Planned for 21 November: Enable Transcription
+
+Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.
+
+The same planned pass distinguishes never-saved batches from share-return verification prompts, fixes stale iPhone destination guidance with one prominent current-batch location, and presents one concise Audio Recording List status before the Transcript File List status. Preserve canceled/failed-save retries, files-only transcript-plus-JSON sharing, independent audio-parent JSON saves and identity/write safeguards. See the [current implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) for the full state rules, wording, checkpoints and device acceptance. Current code/build remains **2026-11-20.7**, schema **6**; no new tests or device results are established by this plan.
+
+
 ## Destination reconciliation and combined iPhone delivery — 20 November 2026
 
 Build **2026-11-20.7**, schema **6**, restores the top **Transcript Destination** selector on both desktop and iPhone. The lower desktop shortcuts remain convenient and use the same read/reconciliation path. Browse displays the selected folder's name. Selecting/reselecting a destination rereads its transcript list and immediate transcripts; native changed lists save with the existing verification/locking safeguards, unchanged lists do not rewrite. A uniquely supplied transcription child remains the default. Combine can reuse its already-read folder session rather than reading each TXT again. Corrupt/conflicting destinations block Transcribe without hiding readable Combine files.
@@ -38,11 +45,11 @@ Candidate 2026-11-20.3 uses reproducible new/rebuilt Recording IDs and retires T
 
 ## Parent-folder access test — later checkpoint, 19 November 2026
 
-[Standalone test and resume handoff](Parent_Audio_Folder_Selection_Handoff.md): both devices supplied nested transcript files and parent audio in one selection, and playback succeeded. Production Combine/Search parent selection is not implemented. The agreed target chooses one transcript subfolder, retaining separate transcript and embedding JSONs and precise iPhone save guidance. A 15-file difference in transcription-original remains unexplained; do not treat the test as proof of complete/synchronized inventories.
+[Standalone test and resume handoff](Parent_Audio_Folder_Selection_Handoff.md): both devices supplied nested transcript files and parent audio in one selection, and playback succeeded. At this historical test checkpoint, production Combine/Search parent selection was not yet implemented; the later .5/.7 addenda above supersede that boundary. The agreed target chooses one transcript subfolder, retaining separate transcript and embedding JSONs and precise iPhone save guidance. A 15-file difference in transcription-original remains unexplained; do not treat the test as proof of complete/synchronized inventories.
 
 ## Current workflow addendum — 19 November 2026
 
-Reviewed against candidate **2026-11-19.25**. This is the current overview; earlier dated inventory/acceptance below is retained for audit history.
+Reviewed against candidate **2026-11-19.25**. This 19 November overview is retained for audit history; later addenda and the next implementation plan above govern the current boundary.
 
 | Workflow | Reading/reconciliation | Writable directory | File-input/iPhone |
 |---|---|---|---|

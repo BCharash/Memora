@@ -1,5 +1,12 @@
 # Memora — Phase 1 Contract Review Package
 
+## Planned for 21 November: Enable Transcription
+
+Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.
+
+The same planned pass distinguishes never-saved batches from share-return verification prompts, fixes stale iPhone destination guidance with one prominent current-batch location, and presents one concise Audio Recording List status before the Transcript File List status. Preserve canceled/failed-save retries, files-only transcript-plus-JSON sharing, independent audio-parent JSON saves and identity/write safeguards. See the [current implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) for the full state rules, wording, checkpoints and device acceptance. Current code/build remains **2026-11-20.7**, schema **6**; no new tests or device results are established by this plan.
+
+
 ## Current boundary and later selection decision — 19 November 2026
 
 Reviewed at **47ca641**, displayed build **2026-11-19.25**, the source implements root transcript reconciliation/Edit/Combine source reading and save guidance, not the full workspace/import contracts below. Canonical transcript list: memora-transcript-archive.json. Paragraph controls are removed from Combine; DOCX/HTML output-metadata selectors remain deferred.

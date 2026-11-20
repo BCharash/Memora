@@ -1,14 +1,18 @@
 # Memora documentation
 
-Reviewed **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, database schema **6**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
+Reviewed **20 November 2026** against source **ce1583b**, displayed build **2026-11-20.7**, database schema **6**. Start with [Current status and resume instructions](CURRENT_STATUS.md). Its opening section records the revised plan for 21 November; dated checkpoint notes remain historical evidence.
 
-## Production identity foundation — 20 November 2026
+## Next implementation: Enable Transcription and save guidance
 
-Candidate **2026-11-20.3** implements reproducible recording enrollment/rebuilding, retires transcript Audio Source ID binding and preserves pending/legacy save protections. **219 focused groups passed; MacBook/iPhone acceptance remains pending.** See [current status](CURRENT_STATUS.md) and the [identity contract](Recording_Identity_Prefix_Contract.md). Shared folder rows and cache retirement remain separate production steps. Historical reviewed-source/build statements below retain their checkpoint dates.
+**Planned, not implemented.** Initial Transcribe selectors remain visible. Leaving untouched Transcribe for Combine/Search guards the return behind **Enable Transcription**; Settings does not count as leaving or transcription activity. Reuse shared folder selections, defer Transcribe-only recording-list preparation and leave its recordings unchecked. Also revise never-saved versus post-share warning text, fix stale iPhone destination guidance with a prominent current-batch location, and consolidate audio-first/transcript-second list statuses. The earlier hide-on-first-opening proposal is superseded. See the [full plan and acceptance checklist](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance).
 
-## Latest identity plan — 20 November 2026
+## Current implementation and evidence
 
-[Recording identity and checkpoints](Recording_Identity_Checkpoints.md): reproducible recording IDs, rebuildable audio lists, retirement of transcript Audio Source ID dependency and saved-copy recovery, then optional header cleanup and a later UI redesign. This is the current direction; implementation is pending. Existing source-matching rules in dated documents describe historical/current code, not the target contract.
+Build .7 includes reproducible recording identities, shared parent audio/transcript folder access, destination-time transcript reconciliation, native TXT verification before publishing references, and combined files-only iPhone transcript-plus-JSON sharing. The Audio Recording List remains separately saved in its parent. Shared folder reads currently also prepare Transcribe; separating that work is part of the next planned pass. The previous implementation run passed **176 targeted groups**; no tests have run for the new plan because no code changed. Combine playback was user-confirmed on MacBook and iPhone. The user says test.html loaded; production picker cancellation while browsing remains unconfirmed. Share completion does not verify actual Files placement.
+
+## Identity and deferred architecture
+
+The [recording identity checkpoints](Recording_Identity_Checkpoints.md) preserve the staged history and current contracts: embedded IDs or the reproducible sampled fallback identify recordings; obsolete TXT source UUIDs do not establish audio access. Shared parent-folder access is implemented; saved-copy/cache retirement, broader recursive/multi-archive ownership and workspace/import work remain separate. Consult current status rather than treating a dated pending implementation note as today's boundary.
 
 ## What changed on 18–19 November
 
@@ -28,11 +32,11 @@ Candidate **2026-11-20.3** implements reproducible recording enrollment/rebuildi
 | memora-transcript-archive.json | Transcript File List in the transcript folder. |
 | search-embeddings.json | Separate derived Search archive. |
 
-The user will rebuild the four old memora-archive.json lists through **Edit/Combine before Transcribe**; preserve identities from TXT headers. Desktop saves automatically; iPhone explicitly saves into the named archive's transcription folder. The rename does not require deleting audio lists or embeddings.
+Canonical lists now use memora-transcript-archive.json. Preserve Recording IDs and Archive UUIDs when reconciling/rebuilding. Desktop verifies native writes; iPhone shares transcript TXT files and their updated list together into the named transcript folder, while the audio list stays in its parent. This does not require deleting audio lists or embeddings.
 
 The detailed Whisper metadata/backfill-tool proposal and extra transcription timestamp have been dropped. Keep existing model-family metadata. The agreed family-then-filename-counter priority rule is **not yet implemented**, and iPhone Files naming does not yet guarantee the desktop `-N` pattern. Audio whole-folder coverage parity is fixed in .24: successful complete native and iPhone folder reads remove missing immediate entries; partial/skipped/error/cancelled reads retain safeguards. iPhone still explicitly saves changed JSON; audio files are not deleted. See the exact [resume boundary](CURRENT_STATUS.md#resume-boundary--remaining-work).
 
-Transcribe's full-folder transcript reconciliation and Search's shared scan/two-JSON saving remain future stages. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
+Transcribe reconciles the destination at selection and adds native references after successful TXT writes; Search's shared scan/two-JSON reconciliation remains a future stage. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
 
 ## Documentation map
 

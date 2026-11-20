@@ -1,5 +1,12 @@
 # Memora — Archives, Dynamic Transcript Selection, Edit & Combine
 
+## Planned for 21 November: Enable Transcription
+
+Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.
+
+The same planned pass distinguishes never-saved batches from share-return verification prompts, fixes stale iPhone destination guidance with one prominent current-batch location, and presents one concise Audio Recording List status before the Transcript File List status. Preserve canceled/failed-save retries, files-only transcript-plus-JSON sharing, independent audio-parent JSON saves and identity/write safeguards. See the [current implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) for the full state rules, wording, checkpoints and device acceptance. Current code/build remains **2026-11-20.7**, schema **6**; no new tests or device results are established by this plan.
+
+
 ## Implementation and selection addendum — 19 November 2026
 
 Reviewed at **47ca641**, displayed build **2026-11-19.25**; this review changes no application code. Root transcript read/reconciliation is connected to Edit/Combine: one inventory/text parse per snapshot, safe immediate-reference maintenance, native verified saves and explicit iPhone new-name JSON sharing. Complete iPhone folder input can prune missing immediate references; errors/partial selections cannot. The paragraph selector is removed; Output has document title plus desktop format buttons or iPhone format/save controls. Document-output metadata selectors remain deferred.
