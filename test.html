@@ -11,7 +11,7 @@
 <body>
 <h1>Folder Selection Test</h1>
 <p>Choose an <strong>audio archive folder</strong>, such as <strong>2018</strong>, containing audio and one or more transcript subfolders. This checks whether the browser supplies files from those subfolders in the same selection.</p>
-<p class="note">Standalone test 2 · No Memora storage, models or file writes. Nothing is uploaded. Listing uses filenames and sizes only; file contents are read only when you choose a check below.</p>
+<p class="note">Standalone test 3 · No Memora storage, models or file writes. Nothing is uploaded. Listing uses filenames and sizes only; discovery reads bounded TXT headers in immediate subfolders; audio is read only when you request a link or playback.</p>
 <button id="choose" type="button">Select Audio Archive Folder</button>
 <input id="folder" type="file" webkitdirectory multiple>
 <p id="status" role="status" aria-live="polite">No folder selected.</p>
@@ -22,6 +22,16 @@
 <p class="note">Compare these counts with the folder you selected. Missing subfolders cannot be distinguished from empty subfolders or files omitted by Files. This test never treats an omitted file as deleted.</p>
 <table><thead><tr><th>Folder relative to archive</th><th>Audio</th><th>TXT</th><th>JSON</th><th>Other</th></tr></thead><tbody id="folders"></tbody></table>
 <h2>Recognized archive lists</h2><div id="lists"></div>
+</section>
+<section>
+<h2>Open transcripts and find their audio</h2>
+<p class="note">This reads headers in immediate transcript subfolders. Choose one folder, then a transcript. Linking uses the parent Audio Recording List and transcript IDs when available; legacy matches are labeled. Nothing is saved. A preview shows up to 64 KB; transcript text is excluded from the shared report.</p>
+<label for="transcriptFolder">Transcript subfolder</label><select id="transcriptFolder" disabled></select>
+<label for="linkedTranscript">Transcript</label><select id="linkedTranscript" disabled></select>
+<button id="resolveAudio" type="button" disabled>Find Linked Audio</button>
+<pre id="linkStatus" role="status">Select an archive folder first.</pre>
+<audio id="linkedPlayer" controls preload="none"></audio>
+<details><summary>Transcript preview (first 64 KB)</summary><pre id="transcriptPreview"></pre></details>
 </section>
 <section>
 <h2>Check a transcript or JSON</h2>
@@ -69,8 +79,8 @@ $('folder').addEventListener('change',()=>{
  $('folders').replaceChildren();for(const [name,counts]of [...groups].sort(([a],[b])=>a.localeCompare(b))){const tr=document.createElement('tr');for(const value of [name,counts.audio,counts.txt,counts.json,counts.other]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('folders').append(tr);}
  const known=files.filter(f=>KNOWN.has(f.name));$('lists').replaceChildren();if(!known.length)$('lists').textContent='No recognized archive JSON filenames were supplied.';else for(const file of known){const p=document.createElement('p');p.textContent=pathOf(file);$('lists').append(p);}
  documents=files.filter(f=>['txt','json'].includes(kindOf(f))).sort((a,b)=>pathOf(a).localeCompare(pathOf(b)));audioFiles=files.filter(f=>kindOf(f)==='audio');options($('documentFile'),documents);options($('audioFile'),audioFiles);$('read').disabled=!documents.length;$('loadAudio').disabled=!audioFiles.length;
- baseReport=['Memora folder-selection test 2',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
- $('paths').textContent=files.map(pathOf).sort().join('\n');updateReport();$('results').hidden=false;
+ baseReport=['Memora folder-selection test 3',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
+ $('paths').textContent=files.map(pathOf).sort().join('\n');updateReport();$('results').hidden=false;window.dispatchEvent(new CustomEvent('archive-test-selection',{detail:files}));
 });
 $('read').onclick=async()=>{
  const file=documents[Number($('documentFile').value)],token=generation;if(!file)return;$('read').disabled=true;$('readResult').textContent='Reading…';
@@ -90,7 +100,9 @@ $('share').onclick=async()=>{
 };
 $('download').onclick=()=>{const url=URL.createObjectURL(reportFile()),link=document.createElement('a');link.href=url;link.download='memora-folder-selection-report.txt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);$('copyStatus').textContent='Report download requested. Check Files or your browser downloads.';};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('report').value);$('copyStatus').textContent='Copied.';}catch{$('report').focus();$('report').select();$('copyStatus').textContent='Select and copy the report manually.';}};
+window.addEventListener('archive-test-check',event=>{checks.push(String(event.detail));updateReport();});
 window.addEventListener('pagehide',releaseAudio);
 </script>
+<script type="module" src="tests/parent-folder-test-ui.js"></script>
 </body>
 </html>

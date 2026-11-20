@@ -1,5 +1,13 @@
 # Parent audio-folder selection — handoff, 19 November 2026
 
+## Follow-up test — 20 November 2026
+
+The user authorized extending the standalone test, not production integration. **test.html now says Standalone test 3.** A new read-only js/archiveFolderAccess.js adapter discovers recognizable TXT in immediate subfolders (or folders with a transcript-list filename), caches bounded header reads, and resolves selected transcripts through the parent Audio Recording List plus IDs. tests/parent-folder-test-ui.js supplies folder/transcript choices, a bounded preview, link results and a player. These modules are not imported by production startup.
+
+Select a parent, choose one transcript subfolder when several are found, select a transcript, tap **Find Linked Audio**, then Play. Full verification requires matching transcript Audio Source ID, list Recording ID and embedded audio ID. List-only/legacy links are explicitly labeled; mismatched source/embedded IDs, invalid lists, absent ID entries, missing audio and ambiguous supplied paths block linking. Legacy fallback uses a safe exact archive-relative filename rather than searching unrelated subfolders. Mixed Archive UUIDs block the selected folder in this test. No list creation/reconciliation, saves, embeddings or models are involved. Shared reports include link outcomes, not preview text.
+
+Disposable Chrome checks passed for discovery, ID-based resolution, missing audio/list, invalid list, wrong source/recording/embedded IDs, legacy labeling, duplicate/missing paths, preview access, folder choice, player loading and report privacy. Synthetic identity fixtures are not playable-audio acceptance. Actual test-3 MacBook/iPhone association and playback acceptance remain pending. The earlier test-1/2 evidence below is preserved; it does not establish these new resolver results on-device. Application build/schema remain unchanged.
+
 ## Resume here
 
 The user requested documentation so this work can continue later. **Production Combine/Search parent-folder selection is not implemented.** The completed work is a standalone access test and user testing on MacBook Chrome and iPhone Safari. No further production implementation is authorized by this handoff alone.
