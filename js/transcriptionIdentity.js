@@ -1,3 +1,4 @@
+import {readTranscriptFolder,createTranscriptFolderSession} from './transcriptFolder.js';
 import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordingIdentityUI.js';
 import {openTranscriptArchive, TRANSCRIPT_ARCHIVE_FILENAME, transcriptArchiveNameForRecords, describeTranscriptArchiveDestination} from './transcriptArchive.js';
 import {recordingIdentityLines} from './transcriptMetadata.js';
@@ -55,7 +56,12 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             const session=ui.getSession();
             if(archive&&source===selectedSource&&destination===selectedDestination)return;
             let selectedFile=null;
-            if(selectedSource.kind==='file-input'){
+            if(selectedSource.kind==='file-input'&&selectedDestination?.kind==='file-input'){
+                const snapshot=await readTranscriptFolder(selectedDestination);
+                const prepared=createTranscriptFolderSession(snapshot);
+                if(prepared.status==='blocked')throw prepared.error;
+                selectedFile=prepared.file||selectedDestination.files.find(file=>file.name===TRANSCRIPT_ARCHIVE_FILENAME)||null;
+            }else if(selectedSource.kind==='file-input'){
                 const pending=session.getPendingTranscriptArchive();
                 const location=describeTranscriptArchiveDestination({archiveName:selectedSource.name,folderName:selectedDestination?.name||'transcription'});
                 const answer=await ask({title:'Choose the transcript file list',message:`Select ${TRANSCRIPT_ARCHIVE_FILENAME} in ${location}. This lists the transcript files in the archive. This step does not need the audio recording list (memora-audio-source.json).`,choices:[

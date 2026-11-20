@@ -1,3 +1,4 @@
+import {sharedFolders,discoverTranscriptFolders} from './sharedFolderSelection.js';
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 import { TRANSCRIPT_ARCHIVE_FILENAME, describeTranscriptArchiveDestination } from "./transcriptArchive.js";
 import { readTranscriptFolder, createTranscriptFolderSession } from "./transcriptFolder.js";
@@ -20,7 +21,7 @@ import {
     initCombineUI
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
-import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit } from "./searchUI.js";
+import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit, openSearchSource, resetSharedSearchSource, isSearchSourceBusy, hasPendingSearchIndexUpdate } from "./searchUI.js";
 import { initCombineShareExportUI } from "./combineShareExport.js";
 import { initSettingsUI } from "./settings.js";
 
@@ -85,15 +86,16 @@ const modelSelect = document.getElementById("modelSelect");
 let transcriptionBatchActive = false;
 let sourceSelectionActive = false;
 let sourceSelectionRequested = false;
+let sharedFolderOperation = false;
 let modelRefreshVersion = 0;
 async function refreshQualifiedWhisperModels() {
     const version = ++modelRefreshVersion;
-    if (!modelSelect || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
+    if (!modelSelect || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested || sharedFolderOperation) return;
     const note = document.getElementById("modelEligibilityNote");
     const previous = modelSelect.value;
     try {
         const definitions = await listQualifiedWhisperProductionModels();
-        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested || sharedFolderOperation) return;
         modelSelect.replaceChildren();
         for (const definition of definitions) {
             const option = document.createElement("option");
@@ -115,7 +117,7 @@ async function refreshQualifiedWhisperModels() {
         const reviewNotice = document.getElementById("modelReviewNotice");
         if (reviewNotice) renderWhisperReviewNotice(reviewNotice);
     } catch (error) {
-        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested || sharedFolderOperation) return;
         modelSelect.replaceChildren();
         modelSelect.disabled = transcribeButton.disabled = true;
         if (note) note.textContent = `Model eligibility unavailable: ${error.message}`;
@@ -636,10 +638,120 @@ if (iphoneCombineDestinationOptions) {
 }
 
 const audioInventoryStatus=document.getElementById("audioInventoryStatus");
+let loadedSharedCombine=null,loadedSharedSearch=null;
+function updateSharedFolderControls(){
+    const busy=transcriptionBatchActive||sourceSelectionRequested||sharedFolderOperation||isSearchSourceBusy();
+    document.querySelectorAll('[data-select-audio],[data-select-transcript],#sourceButton,#textSourceButton,#searchSourceButton').forEach(button=>button.disabled=busy);
+}
+function applySharedTranscriptSelection(){
+    const state=sharedFolders.snapshot();
+    destinationHandle=state.transcript?.source||null;
+    document.querySelectorAll('[data-audio-folder]').forEach(node=>node.textContent=sharedFolders.audioLabel());
+    document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
+    const hasDefault=state.folders.some(folder=>folder.name.toLowerCase()==='transcription');
+    transcriptionDestinationButton.textContent=hasDefault?'Use "transcription" Folder':'Create "transcription" Folder';
+}
+function clearSharedCombineRows(){
+    const container=document.getElementById('transcripts');
+    container.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
+    container.innerHTML='<p class="empty-message">No transcript source opened.</p>';
+}
+function resetSharedConsumers(){
+    loadedSharedCombine=loadedSharedSearch=null;
+    textSourceHandle=null;combineFolderSession=null;combineDestinationHandle=null;
+    renderCombineTranscriptList();
+    clearSharedCombineRows();
+    resetSharedSearchSource();
+}
+async function confirmSharedFolderChange({audio=false}={}){
+    if(transcriptionBatchActive||pendingTranscriptSaves.length||saveCombineTranscriptListButton.disabled||document.querySelector('.search-transcript-save-button:disabled,.combine-transcript-editor-actions button:disabled'))return false;
+    const dirty=[...document.querySelectorAll('.combine-transcript-editor-input,.search-transcript-editor')].some(editor=>editor.value!==editor.defaultValue && !editor.parentElement.hidden);
+    if(dirty){
+        const answer=await askIdentity({title:'Unsaved transcript edits',message:'Keep editing, or discard the unsaved edits before changing folders.',choices:[{action:'keep',label:'Keep editing'},{action:'discard',label:'Discard edits'}]});
+        if(answer.action!=='discard')return false;
+    }
+    if(hasPendingSearchIndexUpdate()){
+        const answer=await askIdentity({title:'Unsaved Search Index',message:'Keep the current folders to save the Search Index, or discard its pending update before changing folders.',choices:[{action:'keep',label:'Keep current folders'},{action:'discard',label:'Discard index update'}]});
+        if(answer.action!=='discard')return false;
+    }
+    if(!audio && pendingTranscriptArchive && !transcriptArchiveShared){
+        const answer=await askIdentity({title:'Unsaved transcript file list',message:'Save the pending transcript file list before changing transcript folders, or discard the pending copy.',choices:[{action:'keep',label:'Keep current folder'},{action:'discard',label:'Discard pending update'}]});
+        if(answer.action!=='discard')return false;
+    }
+    return await retainPendingCombineList() && await confirmPendingDiscard({includeLists:audio});
+}
+async function chooseSharedTranscript(view){
+    if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;
+    sharedFolderOperation=true;updateSharedFolderControls();
+    try{
+        if(!await confirmSharedFolderChange())return;
+        const state=sharedFolders.snapshot();
+        let selected=null;
+        if(state.folders.length){
+            const answer=await askIdentity({title:view==='transcribe'?'Select Transcript Destination':'Select Transcript Source',message:`Choose a folder in ${state.audio.name}, or browse for another folder.`,choices:[
+                ...state.folders.map((folder,index)=>({action:String(index),label:`${state.audio.name} / ${folder.name}`})),
+                {action:'browse',label:'Browse for Another Folder',run:async()=>await (await getStorageModule()).selectFolder()},
+                {action:'cancel',label:'Cancel'}]});
+            if(answer.action==='cancel')return;
+            selected=answer.action==='browse'?{source:answer.value,label:`${answer.value.name} (Selected Separately)`}:{...state.folders[Number(answer.action)],label:`${state.audio.name} / ${state.folders[Number(answer.action)].name}`};
+        }else{
+            const source=await (await getStorageModule()).selectFolder();selected={source,label:`${source.name} (Selected Separately)`};
+        }
+        // A failed read does not replace the previous shared selection.
+        if(view==='combine')await openCombineSource(selected.source);
+        else await readTranscriptFolder(selected.source);
+        if(sharedFolders.snapshot().transcript?.source!==selected.source){
+            pendingTranscriptArchive=null;pendingTranscriptArchiveLocation=null;transcriptArchiveShared=false;
+            saveTranscriptArchiveButton.hidden=true;saveTranscriptArchiveButton.classList.remove('has-pending-archive-save');
+            document.getElementById('transcriptArchiveSaveStatus').textContent='';
+        }
+        sharedFolders.setTranscript(selected.source,selected.label);
+        applySharedTranscriptSelection();
+        if(view!=='combine'){
+            textSourceHandle=null;combineFolderSession=null;combineDestinationHandle=null;renderCombineTranscriptList();
+            clearSharedCombineRows();
+        }
+        loadedSharedCombine=view==='combine'?selected.source:null;
+        loadedSharedSearch=null;
+        resetSharedSearchSource();
+        if(view==='search'){await openSearchSource(selected.source);loadedSharedSearch=selected.source;}
+    }catch(error){if(error.name!=='AbortError'){
+        if(view==='combine')combineStatus.textContent=`Unable to read the text source folder. ${error.message}`;
+        else alert(error.message);
+    }}finally{sharedFolderOperation=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}
+}
+async function ensureSharedTranscriptForActiveView(){
+    if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;
+    const source=sharedFolders.snapshot().transcript?.source;if(!source)return;
+    const view=!document.getElementById('combinePanel').hidden?'combine':!document.getElementById('searchPanel').hidden?'search':null;
+    if(!view||view==='combine'&&loadedSharedCombine===source||view==='search'&&loadedSharedSearch===source)return;
+    const panel=document.getElementById(view==='combine'?'combinePanel':'searchPanel');
+    if([...panel.querySelectorAll('textarea')].some(editor=>editor.value!==editor.defaultValue&&!editor.parentElement.hidden))return;
+    sharedFolderOperation=true;updateSharedFolderControls();
+    try{
+        if(view==='combine'){await openCombineSource(source);loadedSharedCombine=source;}
+        else{await openSearchSource(source);loadedSharedSearch=source;}
+    }catch(error){if(view==='combine')combineStatus.textContent=`Unable to read the transcript source. ${error.message}`;else alert(error.message);}
+    finally{sharedFolderOperation=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}
+}
+document.addEventListener('memora-search-busy',updateSharedFolderControls);
+document.querySelectorAll('[data-select-audio]').forEach(button=>button.addEventListener('click',()=>loadAudioSource()));
+document.querySelectorAll('[data-select-transcript]').forEach(button=>button.addEventListener('click',()=>chooseSharedTranscript(button.dataset.selectTranscript)));
+// Mirror source preparation into the active workspace, including the Files wait.
+for(const panel of [document.getElementById('combinePanel'),document.getElementById('searchPanel')]){
+    const mirror=document.createElement('div');mirror.className='shared-folder-note';
+    const activity=document.getElementById('audioSourceActivity').cloneNode(true);activity.removeAttribute('id');activity.querySelector('[id]')?.removeAttribute('id');
+    const status=document.createElement('p');status.className='settings-note';status.setAttribute('role','status');
+    const save=document.createElement('button');save.type='button';save.textContent='Save Audio Recording List';save.hidden=true;save.addEventListener('click',()=>saveRecordingListButton.click());
+    mirror.append(activity,status,save);panel.querySelector('.source-section,.search-source-section').append(mirror);
+    const observer=new MutationObserver(()=>{activity.hidden=document.getElementById('audioSourceActivity').hidden;activity.lastElementChild.textContent=document.getElementById('audioSourceElapsed').textContent;status.textContent=[audioInventoryStatus.textContent,document.getElementById('recordingListSaveStatus').textContent].filter(Boolean).join(' ');save.hidden=saveRecordingListButton.hidden;save.disabled=saveRecordingListButton.disabled;save.classList.toggle('has-pending-archive-save',saveRecordingListButton.classList.contains('has-pending-archive-save'));});
+    for(const target of [document.getElementById('audioSourceActivity'),audioInventoryStatus,saveRecordingListButton,document.getElementById('recordingListSaveStatus')])observer.observe(target,{subtree:true,childList:true,attributes:true,characterData:true});
+}
+
 sourceButton.addEventListener("click",()=>loadAudioSource());
 async function loadAudioSource() {
-    if(transcriptionBatchActive||sourceSelectionActive||sourceSelectionRequested)return;
-    sourceSelectionRequested=true;sourceButton.disabled=true;transcribeButton.disabled=true;saveRecordingListButton.hidden=true;
+    if(transcriptionBatchActive||sourceSelectionActive||sourceSelectionRequested||sharedFolderOperation||isSearchSourceBusy())return;
+    sourceSelectionRequested=true;updateSharedFolderControls();sourceButton.disabled=true;transcribeButton.disabled=true;saveRecordingListButton.hidden=true;
     const activity=document.getElementById('audioSourceActivity'),elapsed=document.getElementById('audioSourceElapsed'),started=performance.now();
     activity.hidden=false;sourceButton.closest('.source-section').setAttribute('aria-busy','true');elapsed.textContent='Elapsed: 0s';
     audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
@@ -647,7 +759,7 @@ async function loadAudioSource() {
     let selectedSource=null;
     try {
         const storage=await getStorageModule();
-        if(!(await confirmPendingDiscard({includeLists:true})))return;
+        if(!await confirmSharedFolderChange({audio:true}))return;
         sourceSelectionActive=true;sourceButton.disabled=true;transcribeButton.disabled=true;
         saveRecordingListButton.hidden=true;
         audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
@@ -658,13 +770,17 @@ async function loadAudioSource() {
         await selectedIdentityWorkflow.prepareSource(selectedSource,files,{onProgress:message=>{audioInventoryStatus.textContent=message;}});
         // Commit the source and its pending JSON only after a successful scan.
         identityWorkflow.reset();identityWorkflow=selectedIdentityWorkflow;
+        audioInventoryStatus.textContent='Finding transcript folders…';
+        const children=await discoverTranscriptFolders(selectedSource);
         sourceHandle=selectedSource;
         destinationHandle=null;
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
         setActiveDestinationButton(null);
-        sourceButton.textContent=`Source: ${sourceHandle.name}`;
-        if(sourceHandle.kind!=='file-input')await updateTranscriptionFolderButton();
+        sourceButton.textContent='Select Source Folder';
+        sharedFolders.setAudio(sourceHandle,children,files,selectedIdentityWorkflow.getSession().getManifest());
+        applySharedTranscriptSelection();
+        resetSharedConsumers();
         if(!files.length)showEmptyMessage();
         else await displayFiles(files,file=>readAudioMetadata(file,selectedIdentityWorkflow.getSession().getRecordingMetadataIdentity(file)),formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
         const summary=identityWorkflow.getInventorySummary();
@@ -692,7 +808,9 @@ async function loadAudioSource() {
         sourceSelectionRequested=false;sourceSelectionActive=false;sourceButton.disabled=false;
         saveRecordingListButton.hidden=!pendingRecordingList;
         if(!transcriptionBatchActive)await refreshQualifiedWhisperModels();
+        updateSharedFolderControls();
     }
+    await ensureSharedTranscriptForActiveView();
 }
 
 
@@ -702,7 +820,7 @@ if (iphoneExportButton) {
 }
 
 
-sourceDestinationButton.addEventListener("click", () => {
+sourceDestinationButton.addEventListener("click", async () => {
 
     if (!sourceHandle) {
         alert("Please select a source folder first.");
@@ -714,7 +832,8 @@ sourceDestinationButton.addEventListener("click", () => {
         return;
     }
 
-    destinationHandle = sourceHandle;
+    if(!await confirmSharedFolderChange())return;
+    sharedFolders.setTranscript(sourceHandle,sharedFolders.audioLabel());applySharedTranscriptSelection();loadedSharedCombine=loadedSharedSearch=null;
 
     setActiveDestinationButton(
         sourceDestinationButton
@@ -734,6 +853,7 @@ transcriptionDestinationButton.addEventListener("click", async () => {
         return;
     }
 
+    if(!await confirmSharedFolderChange())return;
     try {
 
         const storage =
@@ -746,9 +866,8 @@ transcriptionDestinationButton.addEventListener("click", async () => {
                 true
             );
 
-        transcriptionDestinationButton.textContent =
-            'Use "transcription" Folder';
-
+        sharedFolders.setTranscript(destinationHandle,`${sourceHandle.name} / transcription`);applySharedTranscriptSelection();loadedSharedCombine=loadedSharedSearch=null;
+        transcriptionDestinationButton.textContent = 'Use "transcription" Folder';
 
     } catch (error) {
 
@@ -764,38 +883,7 @@ transcriptionDestinationButton.addEventListener("click", async () => {
 });
 
 
-destinationButton.addEventListener("click", async () => {
-
-    try {
-
-        const storage =
-            await getStorageModule();
-
-        destinationHandle =
-            await storage.selectFolder();
-
-        destinationButton.textContent =
-            `Use "${destinationHandle.name}"`;
-
-        setActiveDestinationButton(
-            destinationButton
-        );
-
-    } catch (error) {
-
-        if (error.name !== "AbortError") {
-
-            console.error(
-                "Destination error:",
-                error
-            );
-
-            alert(
-                "Unable to select the destination folder."
-            );
-        }
-    }
-});
+destinationButton.addEventListener('click',()=>chooseSharedTranscript('transcribe'));
 
 
 // --------------------------------------------------
@@ -896,6 +984,7 @@ transcribeButton.addEventListener(
             return;
         }
 
+        if(sharedFolderOperation||sourceSelectionRequested||isSearchSourceBusy())return;
         if (pendingTranscriptSaves.length) {
             alert("Retry the pending transcript save before starting another transcription."); return;
         }
@@ -910,6 +999,7 @@ transcribeButton.addEventListener(
         try {
 
             transcriptionBatchActive = true;
+            updateSharedFolderControls();
             for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = true;
             transcribeButton.disabled = true;
 
@@ -929,7 +1019,7 @@ transcribeButton.addEventListener(
                     ? null
                     : destinationHandle;
 
-            await identityWorkflow.begin(sourceHandle, transcriptionFolder, filesToTranscribe);
+            await identityWorkflow.begin(sourceHandle, destinationHandle, filesToTranscribe);
 
             for (
                 let i = 0;
@@ -1048,7 +1138,9 @@ transcribeButton.addEventListener(
         } finally {
 
             transcriptionBatchActive = false;
+            updateSharedFolderControls();
             for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = false;
+            loadedSharedCombine=loadedSharedSearch=null;
             await refreshQualifiedWhisperModels();
         }
     }
@@ -1179,11 +1271,13 @@ if (
     combineTab.addEventListener("click", event => {
         if (settingsOpen) closeSettings("combine-tab", event.isTrusted);
         activateTab(combineTab);
+        ensureSharedTranscriptForActiveView();
     });
 
     searchTab.addEventListener("click", event => {
         if (settingsOpen) closeSettings("search-tab", event.isTrusted);
         activateTab(searchTab);
+        ensureSharedTranscriptForActiveView();
     });
 
     window.addEventListener("memora-whisper-review-requested", () => {
@@ -1357,6 +1451,7 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     combineStatus.textContent =
         `${files.length} transcript${files.length === 1 ? "" : "s"} selected from Search.`;
 
+    loadedSharedCombine=searchSourceHandle;
     combineTab.click();
 }
 
@@ -1365,79 +1460,48 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
 initSearchUI({
     getStorageModule,
     getSearchModule,
-    onUseSelectionInCombine: useSearchSelectionInCombine
+    onUseSelectionInCombine: useSearchSelectionInCombine,
+    onSelectTranscriptSource: ()=>chooseSharedTranscript('search')
 });
 
-if (textSourceButton) {
+async function openCombineSource(selectedSource) {
+    combineStatus.textContent='Reading transcript files…';
+    const snapshot=await readTranscriptFolder(selectedSource,{onProgress:({completed,total})=>{
+        combineStatus.textContent=`Reading transcript files: ${completed} of ${total}…`;
+    }});
+    const session=createTranscriptFolderSession(snapshot,{updatesAllowed:!transcriptionBatchActive&&!pendingTranscriptSaves.length});
+    let saveError=null;
+    if(session.status==='save-required'&&selectedSource.kind==='directory'){
+        try{await session.save();}catch(error){saveError=error;}
+    }
+    textSourceHandle=selectedSource;
+    combineFolderSession=session;
+    renderCombineTranscriptList(saveError);
+    updateDestinationVisibility(textSourceHandle.kind === 'file-input');
+    const files=snapshot.files;
 
-    textSourceButton.addEventListener(
-        "click",
-        async () => {
+    if (combineTitleInput) {
+        combineTitleInput.value =
+            DEFAULT_COMBINE_TITLE;
+    }
 
-            textSourceButton.disabled=true;
-            saveCombineTranscriptListButton.disabled=true;
-            try {
+    combineDestinationHandle = null;
+    setActiveCombineDestinationButton(null);
+    if(textSourceHandle.kind==='directory')await updateCombineFolderButton();
 
-                const storage =
-                    await getStorageModule();
-
-                if(!await retainPendingCombineList())return;
-                const selectedSource=await storage.selectFolder();
-                combineStatus.textContent='Reading transcript files…';
-                const snapshot=await readTranscriptFolder(selectedSource,{onProgress:({completed,total})=>{
-                    combineStatus.textContent=`Reading transcript files: ${completed} of ${total}…`;
-                }});
-                const session=createTranscriptFolderSession(snapshot,{updatesAllowed:!transcriptionBatchActive&&!pendingTranscriptSaves.length});
-                let saveError=null;
-                if(session.status==='save-required'&&selectedSource.kind==='directory'){
-                    try{await session.save();}catch(error){saveError=error;}
-                }
-                textSourceHandle=selectedSource;
-                combineFolderSession=session;
-                renderCombineTranscriptList(saveError);
-                updateDestinationVisibility(textSourceHandle.kind === 'file-input');
-                const files=snapshot.files;
-
-                if (combineTitleInput) {
-                    combineTitleInput.value =
-                        DEFAULT_COMBINE_TITLE;
-                }
-
-                combineDestinationHandle = null;
-                setActiveCombineDestinationButton(null);
-                if(textSourceHandle.kind==='directory')await updateCombineFolderButton();
-
-                await displayTranscriptFiles(
-                    files
-                );
-
-                textSourceButton.textContent =
-                    `Text Source: ${textSourceHandle.name}`;
-
-                combineStatus.textContent =
-                    files.length === 0
-                        ? "No transcript files found."
-                        : `${files.length} transcript file${files.length === 1 ? "" : "s"} found.`;
-
-            } catch (error) {
-
-                if (error.name !== "AbortError") {
-
-                    console.error(
-                        "Text source error:",
-                        error
-                    );
-
-                    combineStatus.textContent =
-                        `Unable to read the text source folder. ${error.message}`;
-                }
-            } finally {
-                textSourceButton.disabled=false;
-                saveCombineTranscriptListButton.disabled=false;
-            }
-        }
+    await displayTranscriptFiles(
+        files
     );
+
+    textSourceButton.textContent = 'Select Transcript Source';
+
+    combineStatus.textContent =
+        files.length === 0
+            ? "No transcript files found."
+            : `${files.length} transcript file${files.length === 1 ? "" : "s"} found.`;
+
 }
+if(textSourceButton)textSourceButton.addEventListener('click',()=>chooseSharedTranscript('combine'));
 
 
 if (combineSourceDestinationButton) {
@@ -1593,6 +1657,7 @@ initCombineUI({
 
         // A saved edit invalidates the active Search index. The next Search
         // session must select its source again and read current file contents.
+        loadedSharedSearch=null;
         invalidateSearchAfterTranscriptEdit();
         return updatedFile;
     }
@@ -2152,9 +2217,12 @@ async function exportIPhoneTranscripts() {
         return;
     }
 
+    const location=describeTranscriptArchiveDestination({archiveName:sourceHandle?.name,folderName:destinationHandle?.name||'transcription'});
     const shareData = {
-        files: pendingIPhoneExports
+        files: pendingIPhoneExports,
+        title: `Save transcripts in ${location}`
     };
+    if(iphoneExportStatus)iphoneExportStatus.textContent=`Choose Save to Files, then ${location}. Memora cannot verify the saved location.`;
 
     if (navigator.canShare && !navigator.canShare({
         files: pendingIPhoneExports

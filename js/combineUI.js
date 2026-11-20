@@ -20,6 +20,7 @@ export async function displayTranscriptFiles(files) {
     selectedTranscriptFiles = files;
     onSelectionChanged();
 
+    transcripts.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
     transcripts.innerHTML = "";
 
     if (transcriptCollapseBottom) {
@@ -432,6 +433,7 @@ export async function displayTranscriptFiles(files) {
                     transcriptToggle.setAttribute("aria-expanded", "true");
                     editToggle.hidden = false;
                     editor.value = String(record.transcript || "");
+                    editor.defaultValue = editor.value;
                 });
 
                 saveEdit.addEventListener("click", async () => {
@@ -568,6 +570,7 @@ export async function displayTranscriptFiles(files) {
                     ensureAudioControl();
                     audioContainer.hidden = false;
                     editor.value = String(record.transcript || "");
+                    editor.defaultValue = editor.value;
                     editPanel.hidden = false;
                     transcriptContent.hidden = true;
                     transcriptToggle.textContent = "Show transcript";
@@ -590,6 +593,7 @@ export async function displayTranscriptFiles(files) {
                     editToggle.hidden = transcriptContent.hidden;
                     audioContainer.hidden = transcriptContent.hidden;
                     editor.value = String(record.transcript || "");
+                    editor.defaultValue = editor.value;
                 }
             });
 

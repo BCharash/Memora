@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 24
+**Version:** 25
 **Status:** Living document; current through section 62 (20 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4584,3 +4584,14 @@ The user reported a silent wait exceeding a minute when selecting Dreams/2018 on
 Recording-details display reuses the prepared audio list's resolved identity instead of scanning up to the first MiB of every M4A again. Apple recording-date behavior is preserved; other identities do not acquire an Apple date. MP4 header reads still supply duration and file creation date. Two bounded readers overlap provider latency while retaining deterministic row order and isolating per-file metadata failures. The inventory and pre-inference identity checks remain in place. No new full-file reads or archive/schema changes are introduced.
 
 120 groups passed (5 focused, 49 app integration, 19 production identity and 47 persistence). Focused browser verification covers delayed picker cancellation, ordinary completion, a virtual 400 MiB MP4 with bounded metadata reads, 121-row concurrency and metadata failure isolation, together with production identity and persistence regression suites. Real iPhone/iCloud timing remains unmeasured: the browser cannot accelerate provider downloads or animate behind the native Files sheet. User archives were not modified. Build 2026-11-20.4; schema 6.
+
+
+### 62.19 Shared Audio Source and transcript folder access — 2026-11-20.5
+
+The user authorized integrating the tested architecture after confirming that direct transcript selection cannot grant parent audio access. Production now shares Audio Source and Transcript Destination/Source across the three workspaces, defaults to an immediate transcription child, and preserves audio access when the user chooses another transcript folder. A new audio root resets the previous override. Direct transcript-only use remains supported; no arbitrary parent access is inferred from metadata. Folder choices and labels are separate from whether a browser has writable handles.
+
+Native child handles avoid recursive content loading. iPhone child selections reuse supplied snapshots rebased to that child's root and exclude grandchildren. Each selected child retains separate JSON ownership. Combine/Search load only on activation; selecting audio in Transcribe does not eagerly build an index. Playback looks up the Recording ID in the selected parent's prepared inventory and verifies the actual file with the existing embedded/sample checks. Parent-scoped manual caches prevent borrowing from a different selected root. Transcribe can consume a supplied child JSON or reconstruct a missing list from established transcript identities, while corrupt/conflicting lists block.
+
+Pending edits/exports/list/index changes require an explicit keep/discard decision before switching folders. Cancelled/failed reads preserve the prior selection. Activity and audio-list saving are accessible in all three workspaces. iPhone saving remains explicit/unverified, empty omitted folders cannot be discovered, and newly saved files require reselection. This step does not implement multi-archive aggregation or merge transcript/embedding JSON reconciliation into one Search pass. See [current status](CURRENT_STATUS.md) and [handoff](Parent_Audio_Folder_Selection_Handoff.md) for acceptance and limits. Build 2026-11-20.5; schema 6; no user-file mutation or deployment.
+
+Verification for .5: 7 shared-folder access, 57 actual-page integration (stubbed Search backend), 19 production identity, 10 playback, 29 transcript-folder, 47 persistence and 5 metadata groups passed (174 total). Device Files/playback/save behavior remains user acceptance work.

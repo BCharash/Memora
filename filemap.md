@@ -173,6 +173,7 @@ These modules are now connected to normal transcription. Standalone harnesses ke
 | [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
 | [transcriptArchive.js](js/transcriptArchive.js) | Canonical memora-transcript-archive.json name, bounded validation, archive/folder labels, reference appends and locked/verified writes. | App, transcription identity, shared transcript reader |
 | [transcriptFolder.js](js/transcriptFolder.js) | One root inventory/read; safe reconciliation; complete-folder coverage; independent pending/native JSON session and rebuild identity. | Edit/Combine through app.js; shared Transcribe/Search integration is pending |
+| [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session audio/transcript selection, immediate child handles or rebased phone snapshots, default/reset rules and ID-first parent audio lookup. | App folder rows and shared Combine/Search playback |
 | [transcriptionIdentity.js](js/transcriptionIdentity.js) | Coordinates source evidence, identity, archive selection, persistence gates and snapshot release. | App |
 
 

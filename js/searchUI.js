@@ -1,3 +1,4 @@
+import {sharedFolders} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
@@ -31,6 +32,10 @@ let searchIndexBuildToken = 0;
 let searchIndexReady = false;
 let combineSelectionHandler = null;
 let currentSearchIndex = null;
+let sourceSelectionHandler = null;
+let searchBusy = false;
+export const isSearchSourceBusy = () => searchBusy;
+export const hasPendingSearchIndexUpdate = () => !!currentSearchIndex?.archiveNeedsUpdate;
 let searchQueryToken = 0;
 
 function getLexicalFuzzyPercent() {
@@ -67,6 +72,7 @@ try {
 updateLexicalFuzzyValue();
 
 function setSearchBusy(busy) {
+    searchBusy=busy;
 
     if (searchSourceButton) {
         searchSourceButton.disabled = busy;
@@ -80,6 +86,7 @@ function setSearchBusy(busy) {
     if (searchButton) {
         searchButton.disabled = busy || !searchIndexReady;
     }
+    document.dispatchEvent(new CustomEvent("memora-search-busy",{detail:busy}));
 }
 
 
@@ -166,7 +173,7 @@ async function getSearchSourceFiles(handle) {
 
     return handle.kind === "file-input"
         ? handle.files.filter(
-            file => /\.txt$/i.test(file.name)
+            file => /\.txt$/i.test(file.name) && (!file.webkitRelativePath || file.webkitRelativePath===`${handle.name}/${file.name}`)
         )
         : await storage.listTextFiles(handle);
 }
@@ -802,6 +809,8 @@ const searchAudioRoots = new Map();
 const audioScopeTokens = new WeakMap();
 let nextAudioScope = 0;
 function audioSourceScope(record, handle) {
+    const sharedRoot=sharedFolders.snapshot().audio;
+    if(sharedRoot){if(!audioScopeTokens.has(sharedRoot))audioScopeTokens.set(sharedRoot,++nextAudioScope);return `shared-source-${audioScopeTokens.get(sharedRoot)}`;}
     if(record.archiveUuid)return JSON.stringify(['archive',record.archiveUuid.toLowerCase()]);
     const owner=handle||record;
     if(!audioScopeTokens.has(owner))audioScopeTokens.set(owner,++nextAudioScope);
@@ -869,6 +878,8 @@ async function findAudioInDirectory(directoryHandle, filename, depth = 0) {
 }
 
 async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHandleOverride = null, record = {}) {
+    const sharedRoot=sharedFolders.snapshot().audio;
+    if(sharedRoot){const matched=sharedFolders.resolveAudio(record);if(matched)return matched;}
     const handle = sourceHandleOverride || searchSourceHandle;
     const scope=audioSourceScope(record,handle);
     const cache=searchAudioFileCache.get(scope);
@@ -885,14 +896,19 @@ async function resolveSearchAudioFile(relativePath, recordingFilename, sourceHan
         }
     }
 
+    if(sharedRoot){
+        // Only explicit manual choices from this exact parent scope may fall
+        // back beyond the selected root; never a previous archive's cache.
+        if(!searchAudioRoots.has(scope))return null;
+    }
     if (!handle) return null;
 
-    if (handle.kind === "file-input") {
+    if (!sharedRoot && handle.kind === "file-input") {
         const wanted = new Set(candidates.map(value => value.split(/[\\/]/).pop().toLocaleLowerCase()));
         return handle.files.find(file => wanted.has(file.name.toLocaleLowerCase())) || null;
     }
 
-    const roots = [...new Set([searchAudioRoots.get(scope), handle].filter(Boolean))];
+    const roots = [...new Set([searchAudioRoots.get(scope),sharedRoot?null:handle].filter(Boolean))];
     for (const root of roots) {
         for (const candidate of candidates) {
             try {
@@ -1469,6 +1485,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             editButton.style.fontWeight = "";
             status.textContent = "";
             textarea.value = String(record.transcript || "");
+            textarea.defaultValue = textarea.value;
         });
 
         saveButton.addEventListener("click", async () => {
@@ -1552,6 +1569,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             toggleExpanded: transcriptToggle.getAttribute("aria-expanded") || "false"
         };
         textarea.value = String(record.transcript || "");
+        textarea.defaultValue = textarea.value;
         markedTextRanges = findMarkedTextRanges(textarea.value);
         updateMatchNavigationButtons();
         editorPanel.hidden = false;
@@ -2603,93 +2621,44 @@ export function invalidateSearchAfterTranscriptEdit() {
 }
 
 
+export function resetSharedSearchSource(){
+    invalidateSearchAfterTranscriptEdit();
+    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Source';
+    setSearchIndexStatus('Select a transcript source to prepare Search.');
+}
+export async function openSearchSource(handle){
+    const files=await getSearchSourceFiles(handle);
+    searchSourceHandle=handle;
+    searchIndexReady=false;
+    setSearchBusy(true);
+    setSearchIndexStatus('Preparing the semantic index…',true);
+    if(searchQueryInput)searchQueryInput.value='';
+    updateClearSearchButton();
+    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Source';
+    if(!files.length){
+        setSearchIndexStatus('No transcript files found in the selected folder.');
+        if(searchResults)searchResults.innerHTML='<p class="empty-message">No transcript files found.</p>';
+        setSearchBusy(false);return;
+    }
+    try{await buildSearchIndexForSource(files);}finally{setSearchBusy(false);}
+}
+
 export function initSearchUI({
     getStorageModule: loadStorageModule,
     getSearchModule: loadSearchModule,
-    onUseSelectionInCombine
+    onUseSelectionInCombine,
+    onSelectTranscriptSource
 }) {
     getStorageModule = loadStorageModule;
     getSearchModule = loadSearchModule;
     combineSelectionHandler = onUseSelectionInCombine;
 
-    if (searchSourceButton) {
-
-        searchSourceButton.addEventListener(
-            "click",
-            async () => {
-
-                try {
-
-                    const storage =
-                        await getStorageModule();
-
-                    const handle =
-                        await storage.selectFolder();
-
-                    const files =
-                        await getSearchSourceFiles(handle);
-
-                    searchSourceHandle = handle;
-
-                    searchIndexReady = false;
-                    setSearchBusy(true);
-                    setSearchIndexStatus(
-                        "Preparing the semantic index…",
-                        true
-                    );
-
-                    if (searchQueryInput) {
-                        searchQueryInput.value = "";
-                    }
-                    updateClearSearchButton();
-
-                    if (searchButton) {
-                        searchButton.disabled = true;
-                    }
-
-                    searchSourceButton.textContent =
-                        `Search Source: ${handle.name}`;
-
-                    if (files.length === 0) {
-
-                        setSearchIndexStatus(
-                            "No transcript files found in the selected folder."
-                        );
-
-                        if (searchResults) {
-                            searchResults.innerHTML = `
-                                <p class="empty-message">
-                                    No transcript files found.
-                                </p>
-                            `;
-                        }
-
-                        setSearchBusy(false);
-                        return;
-                    }
-
-                    await buildSearchIndexForSource(files);
-
-                } catch (error) {
-
-                    if (error.name !== "AbortError") {
-
-                        console.error(
-                            "Search source error:",
-                            error
-                        );
-
-                        searchIndexReady = false;
-                        setSearchBusy(false);
-
-                        setSearchIndexStatus(
-                            "Unable to read the search source folder."
-                        );
-                    }
-                }
-            }
-        );
-    }
+    sourceSelectionHandler=onSelectTranscriptSource;
+    if(searchSourceButton)searchSourceButton.addEventListener('click',async()=>{
+        if(sourceSelectionHandler){await sourceSelectionHandler();return;}
+        try{const storage=await getStorageModule();await openSearchSource(await storage.selectFolder());}
+        catch(error){if(error.name!=='AbortError')setSearchIndexStatus(`Unable to read the search source folder. ${error.message}`);}
+    });
 
 
     if (searchIndexUpdateButton) {
@@ -2707,6 +2676,7 @@ export function initSearchUI({
                 );
 
                 try {
+                    setSearchBusy(true);
                     await updateSearchIndexArchive();
                 } catch (error) {
                     console.error(
@@ -2719,6 +2689,8 @@ export function initSearchUI({
                         error.message ||
                         "Unable to update the Search Index."
                     );
+                } finally {
+                    setSearchBusy(false);
                 }
             }
         );

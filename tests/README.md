@@ -187,3 +187,8 @@ A separate temporary-profile production Settings check used synthetic Tiny/Base/
 ### Audio source loading feedback and bounded metadata reads
 
 Open `tests/source-selection-performance.html` for five synthetic groups: resolved Apple/non-Apple MP4 metadata, stale UUID suppression, bounded two-reader rendering of 121 recordings, and per-file failure isolation. The 400 MiB fixture is virtual and rejects large reads; this is not an iCloud speed benchmark. `tests/transcription-identity.html` also checks immediate activity during a delayed picker and cleanup after cancellation/completion.
+
+
+### Production shared folder access
+
+Open `tests/shared-folder-production.html` for native child discovery without content reads, phone rebasing/depth boundaries, shared defaults/overrides/reset, ID-first audio lookup, native picker routing and phone cancellation/reselection cleanup. `tests/transcription-identity.html` additionally exercises actual page controls: shared native/iPhone sources, lazy Search activation, renamed-audio playback without a picker, direct overrides, pending edits, child-scoped JSON exports and Transcribe's supplied/missing/corrupt child-list behavior. Its Search module is replaced by `shared-production-search-fixtures.js`, so these checks never run an embedding model. Real iPhone Files/share/playback acceptance remains separate.

@@ -1,5 +1,20 @@
 # File workflow inventory
 
+## Shared folder access in production — 20 November 2026
+
+Build **2026-11-20.5**, schema **6**, integrates the tested shared Audio Source and Transcript Destination/Source rows. Select the parent audio folder in any workspace; one page-session selection supplies all three views. A unique immediate **transcription** subfolder becomes the shared default. The transcript chooser offers immediate child folders or a separate folder; changing the audio root clears the previous override. No default means **None Selected**, not an arbitrary backup folder. Direct transcript selection without audio still works; it cannot grant access to an unselected parent. Selecting another transcript folder retains existing audio access.
+
+Combine and Search open the shared transcript choice when visited. Selecting audio in Transcribe does not start Search indexing. A granted parent resolves playback through the prepared Recording ID inventory, including renamed audio, followed by the existing actual embedded/sample identity check. Manual playback caches are scoped to that exact parent selection. Missing IDs do not silently borrow another parent's audio. Each child owns its own transcript and embedding JSON; no folders or indexes are merged.
+
+Native browsers use directory handles, avoiding the upload-style input. iPhone reuses supplied File snapshots and rebases only the chosen child's immediate files; grandchildren such as combined exports remain excluded. This grants read access, not writing or upward navigation. Transcribe reuses a supplied child transcript JSON, or reconstructs a missing list from established TXT identities; corrupt/conflicting metadata blocks rather than inventing a replacement. Files sharing remains explicit with destination guidance and no claim of verified placement. An iPhone selection cannot reveal empty folders omitted by Files, and newly saved files require a fresh folder selection to enter that snapshot.
+
+Source activity/save controls are available from Combine and Search. Folder changes protect unsaved edits, transcript/list exports and Search Index updates; cancellation retains selections. Actual device picker/share/playback and cloud behavior still need user acceptance. Synthetic tests use isolated storage and stub Search indexing; they do not demonstrate real model execution. No user-archive edits, commit or deployment were performed.
+
+Verification: **174 groups passed** — 7 shared-folder access, 57 page integration, 19 production identity, 10 playback, 29 transcript-folder, 47 persistence and 5 metadata/performance groups. These use synthetic data and isolated browser storage.
+
+Acceptance: refresh to build .5; select a parent from Combine without first using Transcribe; verify the default transcript folder and Play without another audio picker; switch transcript children and confirm audio access remains; visit Search and verify only the chosen child's transcripts; change the audio parent and confirm the old transcript choice clears; cancel a selection with pending work; on iPhone save JSON to the displayed archive / child destination. Retest on both MacBook and iPhone.
+
+
 ## Production identity foundation — 20 November 2026
 
 Candidate 2026-11-20.3 uses reproducible new/rebuilt Recording IDs and retires TXT Audio Source ID dependency. A complete source can rebuild a missing audio catalogue without repairing transcript links; invalid/partial/read-failed selections and pending/legacy recovery keep their safeguards. Native saves remain verified; iPhone list sharing remains explicit. Search/playback source association changes do not imply parent-folder UI integration: production still uses its existing folder controls until the next step. [Current verification and acceptance](CURRENT_STATUS.md).

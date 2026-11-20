@@ -27,24 +27,12 @@ export async function selectFolder() {
         }
 
         const files = await new Promise((resolve, reject) => {
-
-            input.addEventListener(
-                "change",
-                () => resolve(Array.from(input.files || [])),
-                { once: true }
-            );
-
-            input.addEventListener(
-                "cancel",
-                () => reject(
-                    new DOMException(
-                        "The folder selection was cancelled.",
-                        "AbortError"
-                    )
-                ),
-                { once: true }
-            );
-
+            const cleanup=()=>{input.removeEventListener('change',changed);input.removeEventListener('cancel',cancelled);};
+            const cancelled=()=>{cleanup();reject(new DOMException('The folder selection was cancelled.','AbortError'));};
+            const changed=()=>{const selected=Array.from(input.files||[]);cleanup();if(selected.length)resolve(selected);else reject(new DOMException('No folder files were supplied.','AbortError'));};
+            input.addEventListener('change',changed);
+            input.addEventListener('cancel',cancelled);
+            input.value=''; // Reselecting the same folder must produce a new snapshot.
             input.click();
         });
 
