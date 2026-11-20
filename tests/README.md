@@ -1,5 +1,9 @@
 # Memora test guide
 
+## Parent-folder reconstruction checkpoint 2 — 20 November 2026
+
+[archive-folder-access.html](archive-folder-access.html): **20 synthetic adapter/UI groups passed**, plus the 22 identity-helper groups rerun successfully. Includes missing-list/no-JSON reconstruction, source UUID independence, list disagreement, recording ID ambiguity/failure, scope/legacy paths, sampled rename/rebuild, cancellation, real test-page controls and report privacy. No user files, databases, models or writes; synthetic audio verifies player loading only. Root [test.html](../test.html) test 4 is the user device-acceptance page, with a default missing-list simulation and no JSON replacement.
+
 ## Reproducible recording identity checkpoint 1 — 20 November 2026
 
 [reproducible-recording-identity.html](reproducible-recording-identity.html): **22 synthetic Chrome groups passed** for the isolated helper, including an independent Python hash vector, embedded priority, prefix bounds, rebuild/rename/size behavior, metadata failures, cancellation/cache, ambiguity and unchanged production UUID-validator compatibility. No user archives, IndexedDB, models or writes. Large-file reads are synthetic; real device/iCloud behavior is the next checkpoint. [Exact contract](../docs/Recording_Identity_Prefix_Contract.md).

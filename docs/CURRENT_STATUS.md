@@ -1,5 +1,9 @@
 # Memora — current status and resume instructions
 
+## Recording identity checkpoint 2 test ready — 20 November 2026
+
+**test.html test 4** is ready for MacBook/iPhone acceptance: build a temporary parent-audio inventory, simulate missing JSON without touching it, choose one transcript subfolder and link/play by Recording ID. Historical Audio Source ID fields are ignored by the test; production remains unchanged. A synthetic absent-ID demo checks rebuild/rename reproducibility. Read-only comparison, blocked/ambiguous diagnostics and report sharing are included. Twenty adapter/UI groups and 22 identity-helper groups passed; actual device playback/download behavior remains to be tested. See [device steps and limits](Parent_Audio_Folder_Selection_Handoff.md). Checkpoint 3, source-field removal in production and cache retirement remain pending. Build stays 2026-11-20.2/schema 6.
+
 ## Recording identity checkpoint 1 — 20 November 2026
 
 The isolated [reproducible identity helper/contract](Recording_Identity_Prefix_Contract.md) is implemented: embedded IDs first; absent IDs use framed file-size/first-256000-byte SHA-256 and a deterministic UUIDv8 with full digest evidence. All **22 synthetic browser groups passed**. Unsupported/invalid/conflicting metadata is blocked, repeated exact immutable snapshots reuse a memory cache, and multiple candidate locations stay ambiguous. Existing UUID validators accept the fallback IDs without changes. No production imports, persistence, build/schema change or archive modification. Checkpoint 2 (parent-folder test and MacBook/iPhone proof) is next; it has not started. Older plan statements describing checkpoint 1 as pending are superseded by this entry.

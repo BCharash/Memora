@@ -11,7 +11,7 @@
 <body>
 <h1>Folder Selection Test</h1>
 <p>Choose an <strong>audio archive folder</strong>, such as <strong>2018</strong>, containing audio and one or more transcript subfolders. This checks whether the browser supplies files from those subfolders in the same selection.</p>
-<p class="note">Standalone test 3 · No Memora storage, models or file writes. Nothing is uploaded. Listing uses filenames and sizes only; discovery reads bounded TXT headers in immediate subfolders; audio is read only when you request a link or playback.</p>
+<p class="note">Standalone test 4 · No Memora storage, models or file writes. Nothing is uploaded. Listing uses filenames and sizes only; discovery reads bounded TXT headers in immediate subfolders; recording metadata is read when you build the temporary list; playback loads audio only on request.</p>
 <button id="choose" type="button">Select Audio Archive Folder</button>
 <input id="folder" type="file" webkitdirectory multiple>
 <p id="status" role="status" aria-live="polite">No folder selected.</p>
@@ -24,8 +24,14 @@
 <h2>Recognized archive lists</h2><div id="lists"></div>
 </section>
 <section>
+<h2>Build a temporary recording list</h2>
+<p>This creates a list in browser memory from audio directly in the selected parent. It never replaces or deletes your JSON. With simulation checked, the existing JSON is not read by this operation.</p>
+<label><input id="ignoreAudioList" type="checkbox" checked> Pretend the Audio Recording List is missing</label>
+<button id="buildInventory" type="button" disabled>Build Temporary Recording List</button>
+<pre id="inventoryStatus" role="status">Select an archive folder first.</pre>
+<details><summary>Temporary list preview</summary><pre id="inventoryPreview"></pre></details>
 <h2>Open transcripts and find their audio</h2>
-<p class="note">This reads headers in immediate transcript subfolders. Choose one folder, then a transcript. Linking uses the parent Audio Recording List and transcript IDs when available; legacy matches are labeled. Nothing is saved. A preview shows up to 64 KB; transcript text is excluded from the shared report.</p>
+<p class="note">This reads headers in immediate transcript subfolders. Choose one folder, then a transcript. Build the temporary list, then link by Recording ID. Audio Source ID is ignored, including conflicting historical values; legacy filename matches are labeled. Nothing is saved. A preview shows up to 64 KB; transcript text is excluded from the shared report.</p>
 <label for="transcriptFolder">Transcript subfolder</label><select id="transcriptFolder" disabled></select>
 <label for="linkedTranscript">Transcript</label><select id="linkedTranscript" disabled></select>
 <button id="resolveAudio" type="button" disabled>Find Linked Audio</button>
@@ -34,6 +40,9 @@
 <details><summary>Transcript preview (first 64 KB)</summary><pre id="transcriptPreview"></pre></details>
 </section>
 <section>
+<h2>Check fallback IDs without touching your audio</h2>
+<p class="note">This generates small synthetic unidentified WAV files in memory. It checks that rebuilding and renaming reproduce the same fallback ID, while changing sampled audio produces a different one.</p>
+<button id="fallbackDemo" type="button">Run Synthetic Fallback Check</button><pre id="fallbackResult">Not run.</pre>
 <h2>Check a transcript or JSON</h2>
 <p class="note">Choose a supplied file and read up to its first 64 KB. This verifies access without loading the whole archive.</p>
 <label for="documentFile">Transcript or JSON file</label><select id="documentFile"></select>
@@ -62,7 +71,7 @@ let files=[],documents=[],audioFiles=[],baseReport=[],checks=[],objectURL=null,l
 const pathOf=file=>file.webkitRelativePath||file.name;
 const kindOf=file=>AUDIO.test(file.name)?'audio':/\.txt$/i.test(file.name)?'txt':/\.json$/i.test(file.name)?'json':'other';
 function updateReport(){ $('report').value=[...baseReport,'',...checks].join('\n'); }
-function fullReport(){return $('report').value+'\n\nAll supplied file paths ('+files.length+'):\n'+files.map(pathOf).sort().join('\n')+'\n';}
+function fullReport(){return $('report').value+'\n\nAll supplied file paths ('+files.length+'):\n'+files.map(pathOf).sort().join('\n')+'\n\nTemporary recording inventory preview:\n'+$('inventoryPreview').textContent+'\n';}
 function reportFile(){return new File([fullReport()],'memora-folder-selection-report.txt',{type:'text/plain'});}
 function releaseAudio(){ $('player').pause();$('player').removeAttribute('src');$('player').load();if(objectURL)URL.revokeObjectURL(objectURL);objectURL=null;loadedAudioPath=null; }
 function options(select,items){select.replaceChildren();items.forEach((file,i)=>{const option=document.createElement('option');option.value=i;option.textContent=pathOf(file);select.append(option);});select.disabled=!items.length;}
@@ -79,7 +88,7 @@ $('folder').addEventListener('change',()=>{
  $('folders').replaceChildren();for(const [name,counts]of [...groups].sort(([a],[b])=>a.localeCompare(b))){const tr=document.createElement('tr');for(const value of [name,counts.audio,counts.txt,counts.json,counts.other]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('folders').append(tr);}
  const known=files.filter(f=>KNOWN.has(f.name));$('lists').replaceChildren();if(!known.length)$('lists').textContent='No recognized archive JSON filenames were supplied.';else for(const file of known){const p=document.createElement('p');p.textContent=pathOf(file);$('lists').append(p);}
  documents=files.filter(f=>['txt','json'].includes(kindOf(f))).sort((a,b)=>pathOf(a).localeCompare(pathOf(b)));audioFiles=files.filter(f=>kindOf(f)==='audio');options($('documentFile'),documents);options($('audioFile'),audioFiles);$('read').disabled=!documents.length;$('loadAudio').disabled=!audioFiles.length;
- baseReport=['Memora folder-selection test 3',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
+ baseReport=['Memora folder-selection test 4',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
  $('paths').textContent=files.map(pathOf).sort().join('\n');updateReport();$('results').hidden=false;window.dispatchEvent(new CustomEvent('archive-test-selection',{detail:files}));
 });
 $('read').onclick=async()=>{

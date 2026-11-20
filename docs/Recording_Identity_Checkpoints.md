@@ -4,6 +4,10 @@ Agreed direction and delivery checkpoints, **20 November 2026**. This plan repla
 
 Current checkout: **68dddb5**, application build **2026-11-20.2**. Settings/Search changes in that build are independent of this identity plan. Parent-selection test 3 exists, but still checks Audio Source ID and does not implement sampled fallback IDs. Production integration remains pending. See the [parent-folder handoff](Parent_Audio_Folder_Selection_Handoff.md) for earlier device evidence and limits.
 
+## Checkpoint 2 ready for user device acceptance — 20 November 2026
+
+The [parent-folder handoff](Parent_Audio_Folder_Selection_Handoff.md) describes **test.html test 4**. It reconstructs an inventory in browser memory, simulates a missing list without reading the original, links by Recording ID while ignoring historical source UUIDs, and includes a synthetic fallback check plus report sharing. Twenty new synthetic adapter/UI checks and all 22 checkpoint-1 checks passed. Device acceptance remains pending; production integration has not begun. Current test-3 statements below are historical and superseded for the standalone test only.
+
 ## Checkpoint 1 completed in isolation — 20 November 2026
 
 The [prefix identity contract](Recording_Identity_Prefix_Contract.md) freezes the 256000-byte sample, framed SHA-256 and deterministic UUIDv8 representation, retaining the full digest/method separately. The read-only helper and [synthetic browser tests](../tests/reproducible-recording-identity.html) are implemented; **22 groups passed**, including existing UUID-validator compatibility and blocked malformed/conflicting/unsupported IDs. No production caller/build/schema or user archive changed. The next checkpoint is test.html device proof; current test 3 is unchanged and still checks source UUIDs. Earlier pending representation language below records the staged plan and is resolved by this contract.

@@ -1,7 +1,7 @@
 // Read-only parent-selection adapter. Not connected to production UI or storage.
 import {parseTranscriptFile} from './combine.js';
 import {parseAudioSourceManifest, AUDIO_SOURCE_LIMITS} from './audioSourceIdentity.js';
-import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
+import {createReproducibleRecordingIdentityResolver,groupRecordingIdentityCandidates} from './reproducibleRecordingIdentity.js';
 const AUDIO=/\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
 const key=path=>path.normalize('NFC').toLowerCase();
 const same=(a,b)=>!!a&&!!b&&a.toLowerCase()===b.toLowerCase();
@@ -18,9 +18,14 @@ export function createArchiveFolderAccess(files){
     }
     if(roots.size!==1)fail('Select exactly one archive root.');
     const rootName=[...roots][0];
+    const identityResolver=createReproducibleRecordingIdentityResolver();
+    const abort=signal=>{if(signal?.aborted)throw new DOMException('Inventory cancelled.','AbortError');};
     const readHeader=entry=>{
         if(!headers.has(entry.path))headers.set(entry.path,(async()=>{
-            try{return {record:parseTranscriptFile(entry.file,await entry.file.slice(0,65536).text()),error:null};}
+            try{const text=await entry.file.slice(0,65536).text();const at=text.search(/^--------------------------------------------------[\t ]*(?:\r?\n|$)/m);
+                // Obsolete source UUIDs do not participate in this test's identity parsing.
+                const cleaned=at<0?text:text.slice(0,at).split(/\r?\n/).filter(line=>!line.startsWith('Audio Source ID:')).join('\n')+'\n'+text.slice(at);
+                return {record:parseTranscriptFile(entry.file,cleaned),error:null};}
             catch(error){return {record:null,error:error.message};}
         })());return headers.get(entry.path);
     };
@@ -57,30 +62,50 @@ export function createArchiveFolderAccess(files){
             return folders;
         },
         async preview(transcript){return (await transcript.file.slice(0,65536).text());},
-        async resolve(transcript){
-            const record=transcript.record;if(!record)fail('The transcript header could not be read.');
-            const list=await sourceList();let candidate=null,viaList=false;
-            if(record.audioSourceId&&list&&!same(record.audioSourceId,list.audioSourceId))fail('Audio Source ID mismatch: this transcript belongs to another audio source.');
-            if(record.audioSourceId&&!list)fail('Audio Recording List missing: the transcript source cannot be verified.');
-            if(list&&record.recordingId){
-                const matches=list.recordings.filter(item=>same(item.recordingId,record.recordingId));
-                if(matches.length!==1)fail('Recording ID is not present in this Audio Recording List. Filename fallback was not used.');
-                const entry=matches[0];candidate=entries.get(key(entry.audioRelativePath));viaList=true;
-                if(!candidate)fail(`Audio missing from selection: ${entry.audioRelativePath}`);
-            }else{
-                const reference=record.audioRelativePath||record.recordingFilename;
-                if(!safe(reference)||reference.split('/').some(p=>p==='..'))fail('Legacy audio reference is missing or unsafe.');
-                // Relative references are exact; plain names refer only to root audio.
-                candidate=entries.get(key(reference));
-                if(!candidate)fail(`Legacy audio not found at archive-relative path: ${reference}`);
+        async buildInventory({ignoreList=false,onProgress=()=>{},signal}={}){
+            const audio=[...entries.values()].filter(entry=>!entry.path.includes('/')&&AUDIO.test(entry.file.name));
+            const candidates=[];
+            for(let i=0;i<audio.length;i++){
+                abort(signal);onProgress(`Reading recording identity ${i+1} of ${audio.length}: ${audio[i].file.name}`);
+                const identity=await identityResolver.resolve(audio[i].file,{signal});
+                candidates.push({...audio[i],...identity});
+                if(i%16===0)await new Promise(resolve=>setTimeout(resolve,0));
             }
-            if(!AUDIO.test(candidate.file.name))fail('The audio reference does not point to a supported audio filename.');
-            const embedded=await readEmbeddedRecordingIdentity(candidate.file);
-            if(['invalid','conflicting'].includes(embedded.status)||embedded.issues?.some(i=>i.code==='read-failed'))fail('Audio identity cannot be used safely: '+(embedded.issues?.[0]?.message||embedded.status));
-            if(record.recordingId&&embedded.status==='valid'&&!same(record.recordingId,embedded.recordingId))fail('Embedded Recording ID mismatch. Playback blocked.');
-            const verified=viaList&&!!record.audioSourceId&&embedded.status==='valid'&&same(record.recordingId,embedded.recordingId);
-            const message=verified?'Verified: Audio Source ID, list Recording ID and embedded Recording ID match.':viaList?'Linked through Audio Recording List; full embedded/source verification is unavailable.':'Legacy filename match; archive identity is not fully verified.';
-            return {...candidate,verified,message,embeddedStatus:embedded.status};
+            abort(signal);const index=groupRecordingIdentityCandidates(candidates);
+            let comparison={status:ignoreList?'ignored':'absent'};
+            if(!ignoreList){
+                try{const list=await sourceList();if(list){
+                    const byPath=new Map(candidates.filter(c=>c.status==='ready').map(c=>[key(c.path),c]));const listedPaths=new Set(list.recordings.map(item=>key(item.audioRelativePath)));
+                    let matched=0;const conflicts=[],missing=[];
+                    for(const item of list.recordings){const found=byPath.get(key(item.audioRelativePath));if(!found)missing.push(item.audioRelativePath);else if(same(found.recordingId,item.recordingId))matched++;else conflicts.push(item.audioRelativePath);}
+                    comparison={status:'compared',matched,conflicts,missing,unlisted:candidates.filter(c=>c.status==='ready'&&!listedPaths.has(key(c.path))).map(c=>c.path)};
+                }}catch(error){comparison={status:'invalid',message:error.message};}
+            }
+            abort(signal);
+            return {rootName,mode:ignoreList?'simulate-missing':'read-only-comparison',candidates,...index,comparison,
+                recordings:candidates.filter(c=>c.status==='ready').map(c=>({audioRelativePath:c.path,recordingId:c.recordingId,method:c.method,...(c.fingerprint?{sampledIdentity:c.fingerprint}:{})}))};
+        },
+        async resolve(transcript,{inventory}={}){
+            const record=transcript.record;if(!record)fail('The transcript header could not be read.');
+            const current=inventory||await this.buildInventory();let candidate=null,verified=false;
+            if(record.recordingId){
+                const matches=current.groups.filter(group=>same(group.recordingId,record.recordingId));
+                if(!matches.length)fail('Recording ID not found among readable parent audio. No filename fallback was used. Check missing or blocked recordings in the inventory.');
+                const group=matches[0];
+                if(group.status==='ambiguous')fail('Ambiguous Recording ID. Available copies: '+group.candidates.map(c=>c.path).join(', '));
+                candidate=group.candidates[0];verified=true;
+            }else{
+                // Legacy filename is only a location hint. Resolve ../ within the
+                // selected root, never above it; plain filename points at root audio.
+                let reference=record.audioRelativePath||record.recordingFilename;
+                if(!reference||/[\\:\x00-\x1f]/.test(reference)||reference.startsWith('/'))fail('Legacy audio reference is missing or unsafe.');
+                if(record.audioRelativePath){const parts=transcript.path.split('/').slice(0,-1);for(const part of reference.split('/')){if(part==='..'){if(!parts.length)fail('Legacy reference escapes selected root.');parts.pop();}else if(part!=='.'&&part)parts.push(part);}reference=parts.join('/');}
+                candidate=current.candidates.find(c=>key(c.path)===key(reference));
+                if(!candidate||candidate.status!=='ready')fail('Legacy audio reference is missing or its identity is blocked.');
+                const group=current.groups.find(g=>same(g.recordingId,candidate.recordingId));if(group?.status==='ambiguous')fail('Ambiguous legacy audio copies: '+group.candidates.map(c=>c.path).join(', '));
+            }
+            const message=verified?(candidate.method==='embedded'?'Verified: transcript Recording ID matches embedded audio Recording ID.':'Matched: transcript Recording ID matches reproducible sampled fingerprint; not a full-content verification.'):'Legacy filename match only; transcript has no Recording ID. Audio was inspected but transcript identity is unverified.';
+            return {...candidate,verified,message};
         }
     };
 }
