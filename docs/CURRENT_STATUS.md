@@ -1,5 +1,11 @@
 # Memora — current status and resume instructions
 
+## Shared folder architecture test — 20 November 2026
+
+Root **test.html test 5** tests shared Audio Source and Transcript Destination/Source rows across Transcribe, Edit/Combine and Search. It defaults to transcription, supports shared overrides/separate folder browsing and clears transcript state when the audio root changes. Desktop uses native directory picking; iPhone uses the supported fallback. Optional Save Test File creates one new disposable sample only on explicit request, with native readback or unverified iPhone Files guidance. Fifteen new synthetic groups plus the prior 42 passed (57 total), including 320px containment. Production/build/schema are unchanged; real test-5 device acceptance is pending. [Handoff and exact steps](Parent_Audio_Folder_Selection_Handoff.md).
+
+Test-4 reports from MacBook/iPhone confirmed identical 107-entry embedded-ID inventories, verified linked playback and matching synthetic fallback IDs. Optional JSON comparison was not reported. User-authorized legacy header cleanup is complete for the four archives with ZIP backups; Dreams originals/current folders showed no loss or body differences. Dayananda Alaksmi was restored, but 15 other audio recordings remain without transcripts in the supplied ZIPs. Production still writes Audio Source ID pending checkpoint 3. No production integration was authorized by this standalone architecture test.
+
 ## Recording identity checkpoint 2 test ready — 20 November 2026
 
 **test.html test 4** is ready for MacBook/iPhone acceptance: build a temporary parent-audio inventory, simulate missing JSON without touching it, choose one transcript subfolder and link/play by Recording ID. Historical Audio Source ID fields are ignored by the test; production remains unchanged. A synthetic absent-ID demo checks rebuild/rename reproducibility. Read-only comparison, blocked/ambiguous diagnostics and report sharing are included. Twenty adapter/UI groups and 22 identity-helper groups passed; actual device playback/download behavior remains to be tested. See [device steps and limits](Parent_Audio_Folder_Selection_Handoff.md). Checkpoint 3, source-field removal in production and cache retirement remain pending. Build stays 2026-11-20.2/schema 6.

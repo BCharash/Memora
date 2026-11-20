@@ -61,6 +61,23 @@ export function createArchiveFolderAccess(files){
             }
             return folders;
         },
+        async openTranscriptSelection(files,name,{relativeFolder=null}={}){
+            const group={name,transcripts:[],issues:[],hasTranscriptList:false};const seen=new Set();
+            for(const file of files){
+                const parts=file.webkitRelativePath?.split('/');
+                if(parts?.length!==(relativeFolder?3:2)||relativeFolder&&parts[1]!==relativeFolder)continue;
+                const k=key(file.name);if(seen.has(k))fail('Ambiguous transcript filename: '+file.name);seen.add(k);
+                if(['memora-transcript-archive.json','memora-archive.json'].includes(file.name))group.hasTranscriptList=true;
+                if(!/\.txt$/i.test(file.name))continue;
+                const entry={file,path:`${name}/${file.name}`};
+                let result;try{const text=await file.slice(0,65536).text();const at=text.search(/^--------------------------------------------------[\t ]*(?:\r?\n|$)/m);const cleaned=at<0?text:text.slice(0,at).split(/\r?\n/).filter(line=>!line.startsWith('Audio Source ID:')).join('\n')+'\n'+text.slice(at);result={record:parseTranscriptFile(file,cleaned),error:null};}catch(error){result={record:null,error:error.message};}
+                if(result.record)group.transcripts.push({...entry,...result});else group.issues.push({path:entry.path,error:result.error});
+            }
+            group.transcripts.sort((a,b)=>a.file.name.localeCompare(b.file.name));
+            const ids=new Set(group.transcripts.map(t=>t.record.archiveUuid?.toLowerCase()).filter(Boolean));
+            if(ids.size>1)group.issues.push({path:name,error:'Mixed Archive UUIDs: this folder is not a single verified transcript archive.'});
+            return group;
+        },
         async preview(transcript){return (await transcript.file.slice(0,65536).text());},
         async buildInventory({ignoreList=false,onProgress=()=>{},signal}={}){
             const audio=[...entries.values()].filter(entry=>!entry.path.includes('/')&&AUDIO.test(entry.file.name));

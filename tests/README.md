@@ -1,5 +1,9 @@
 # Memora test guide
 
+## Shared folder architecture — 20 November 2026
+
+[shared-folder-selection.html](shared-folder-selection.html): **15 synthetic groups passed**, plus 20 parent-folder and 22 identity groups rerun (57 total). Shared defaults/overrides/reset, native directory picking without the upload input, fallback and separately selected transcript linking, empty native folders, cancellation, mock sample-save verification/refusal and 320px containment are covered. Root [test.html](../test.html) is now test 5. Its explicit Save Test File can create a disposable sample on a user-selected device; automated checks use synthetic handles/sharing only. No real user archives or Memora databases were written by these harnesses. Test-5 real-device acceptance remains pending.
+
 ## Parent-folder reconstruction checkpoint 2 — 20 November 2026
 
 [archive-folder-access.html](archive-folder-access.html): **20 synthetic adapter/UI groups passed**, plus the 22 identity-helper groups rerun successfully. Includes missing-list/no-JSON reconstruction, source UUID independence, list disagreement, recording ID ambiguity/failure, scope/legacy paths, sampled rename/rebuild, cancellation, real test-page controls and report privacy. No user files, databases, models or writes; synthetic audio verifies player loading only. Root [test.html](../test.html) test 4 is the user device-acceptance page, with a default missing-list simulation and no JSON replacement.

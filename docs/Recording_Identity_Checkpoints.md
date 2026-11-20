@@ -4,6 +4,12 @@ Agreed direction and delivery checkpoints, **20 November 2026**. This plan repla
 
 Current checkout: **68dddb5**, application build **2026-11-20.2**. Settings/Search changes in that build are independent of this identity plan. Parent-selection test 3 exists, but still checks Audio Source ID and does not implement sampled fallback IDs. Production integration remains pending. See the [parent-folder handoff](Parent_Audio_Folder_Selection_Handoff.md) for earlier device evidence and limits.
 
+## Latest acceptance and architecture test — 20 November 2026
+
+The core checkpoint-2 device proof succeeded on MacBook and iPhone for the Dayananda archive: both rebuilt identical 107-record inventories without the JSON, linked/played the selected transcript and reproduced the synthetic fallback IDs. Optional comparison mode remains unreported. The user then requested the extra **shared-folder layout/destination test**, now test.html test 5; 57 synthetic checks passed, with new device acceptance pending. See [handoff](Parent_Audio_Folder_Selection_Handoff.md). This remains outside production.
+
+The user separately authorized and completed header cleanup in all four archives with ZIP backups and byte-preservation verification; Dreams original/current transcript inventories and bodies matched exactly. That user-data cleanup is complete, while production writer/source-ID dependency retirement and recovery/cache changes remain future work. The current reader accepts absent source IDs, but production still adds them to new transcripts. The test-5 folder architecture is a requested prototype before checkpoint 3, not authorization for a general production UI redesign.
+
 ## Checkpoint 2 ready for user device acceptance — 20 November 2026
 
 The [parent-folder handoff](Parent_Audio_Folder_Selection_Handoff.md) describes **test.html test 4**. It reconstructs an inventory in browser memory, simulates a missing list without reading the original, links by Recording ID while ignoring historical source UUIDs, and includes a synthetic fallback check plus report sharing. Twenty new synthetic adapter/UI checks and all 22 checkpoint-1 checks passed. Device acceptance remains pending; production integration has not begun. Current test-3 statements below are historical and superseded for the standalone test only.

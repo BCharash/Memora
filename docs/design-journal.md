@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 21
+**Version:** 22
 **Status:** Living document; current through section 62 (20 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4557,3 +4557,12 @@ All 22 synthetic browser groups passed, including an independent Python test vec
 The user authorized the next standalone test after clarifying that reconstructing in memory means treating the JSON as missing without changing it. Root test.html is now test 4: build a temporary immediate-parent audio inventory using embedded IDs or the checkpoint-1 sampled fallback; choose one transcript subfolder; link by Recording ID; play; and share results. Historical Audio Source ID header fields no longer affect the test. An optional read-only comparison inspects the actual JSON; default simulation never reads it. Temporary inventory previews are report evidence, not production replacement JSONs. A generated WAV demo tests fallback rebuild/rename without touching user audio.
 
 Twenty synthetic adapter/UI groups passed and the 22 helper groups passed again. They cover missing/no-list operation, source independence, list disagreement, missing/wrong/duplicate IDs, scope/legacy paths, fallback determinism, blocked metadata, cancellation and actual page/report controls. Device acceptance and real playback/iCloud timing remain pending. No production UI/parser/storage wiring, build/schema or user-file change. See [handoff](Parent_Audio_Folder_Selection_Handoff.md) for the exact device steps. Checkpoint 3 is not started.
+
+
+### 62.16 Shared source and transcript folder architecture test — 20 November 2026
+
+The user supplied test-4 MacBook/iPhone reports: both reconstructed identical 107-record embedded-ID inventories with zero blocked/ambiguous recordings, verified the selected transcript link and played it, and reproduced the same synthetic fallback IDs. Existing-JSON comparison was not reported. Separate audits verified the complete audio ZIP and found Alaksmi absent from the updated transcripts plus 15 audio recordings absent from both supplied transcript ZIPs. Alaksmi was restored; user-authorized source-header cleanup then removed only Audio Source ID lines from 95 Dayananda and 318 Dreams TXT files with verified ZIP backups. Dreams original/current inventories and bodies matched exactly. Production still writes the obsolete field pending integration.
+
+Before production, the user proposed shared folder rows and authorized another test. Root test.html is now test 5: Audio Source / Select Source Folder across three views; Transcript Destination for Transcribe, Transcript Source for Edit/Combine/Search; None Selected empty values; default transcription subfolder; shared explicit override; reset on changing audio root. Desktop uses native directory picking, iPhone its supported input fallback. Separate transcript folders can be read/linked while retaining selected parent audio. Test views do not perform actual transcription/editing/indexing.
+
+Save Test File is an explicitly requested, uniquely named disposable sample. Native access checks permission/refuses an existing name/verifies readback; iPhone offers destination guidance without claiming placement. No automatic folder-selection writes occur. Fifteen synthetic groups plus the prior 42 passed, including native routing, fallback/separate folder linking, shared/reset state, sample saves/cancellation and 320px containment. Actual test-5 device acceptance is pending. Production build/schema remain unchanged. See [handoff](Parent_Audio_Folder_Selection_Handoff.md). The prototype does not authorize checkpoint 3 or the later broader UI redesign.

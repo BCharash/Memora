@@ -7,11 +7,12 @@ function log(message){window.dispatchEvent(new CustomEvent('archive-test-check',
 function release(){const player=$('linkedPlayer');player.pause();player.removeAttribute('src');player.load();if(url)URL.revokeObjectURL(url);url=null;loadedPath=null;}
 function fill(select,items,label){select.replaceChildren();items.forEach((item,i)=>{const option=document.createElement('option');option.value=i;option.textContent=label(item);select.append(option);});select.disabled=!items.length;}
 function showFolder(){
- token++;release();chosen=folders[Number($('transcriptFolder').value)]||null;
+ token++;release();chosen=$('transcriptFolder').selectedIndex<0?null:folders[Number($('transcriptFolder').value)]||null;
  fill($('linkedTranscript'),chosen?.transcripts||[],entry=>entry.file.name);
  $('resolveAudio').disabled=!inventory||!chosen?.transcripts.length;$('transcriptPreview').textContent='Select a transcript, then tap Find Linked Audio.';
  $('linkStatus').textContent=chosen?`${chosen.transcripts.length} recognizable transcript(s). ${chosen.hasTranscriptList?'Transcript list supplied.':'No transcript list supplied; headers used for discovery.'}`:'No eligible immediate transcript subfolders found.';
  if(chosen?.issues.length)$('linkStatus').textContent+='\n'+chosen.issues.map(i=>`${i.path}: ${i.error}`).join('\n');
+ if(chosen)window.dispatchEvent(new CustomEvent('archive-test-folder-chosen',{detail:chosen.name}));
  if(chosen)log(`Transcript folder chosen: ${chosen.name}; ${chosen.transcripts.length} recognizable transcripts; ${chosen.issues.length} issue(s).`);
 }
 window.addEventListener('archive-test-selection',async event=>{
@@ -20,7 +21,8 @@ window.addEventListener('archive-test-selection',async event=>{
  try{
   const next=createArchiveFolderAccess(event.detail);const result=await next.discover(message=>{if(request===token)$('linkStatus').textContent=message;});
   if(request!==token)return;adapter=next;$('buildInventory').disabled=false;folders=result;fill($('transcriptFolder'),folders,g=>`${g.name} (${g.transcripts.length} transcripts)`);
-  if(folders.length===1)showFolder();else if(folders.length){$('transcriptFolder').selectedIndex=-1;$('linkStatus').textContent='Choose one transcript subfolder. Its contents remain separate from the other folders.';}else showFolder();
+  if(folders.length){$('transcriptFolder').selectedIndex=-1;$('linkStatus').textContent='Choose one transcript subfolder. Its contents remain separate from the other folders.';}else showFolder();
+  window.dispatchEvent(new CustomEvent('archive-test-discovery'));
   log(`Discovery: ${folders.map(f=>`${f.name}: ${f.transcripts.length}`).join('; ')||'no eligible immediate folders'}.`);
  }catch(error){if(request===token){$('linkStatus').textContent=error.message;log(`Discovery failed: ${error.message}`);}}
 });
@@ -74,3 +76,19 @@ $('fallbackDemo').onclick=async()=>{
  }catch(error){$('fallbackResult').textContent=error.message;log(`Synthetic fallback check failed: ${error.message}`);}
  finally{$('fallbackDemo').disabled=false;}
 };
+
+window.addEventListener('folder-test-transcript-choice',async event=>{
+ if(!adapter)return;
+ const descriptor=event.detail,current=adapter,request=++token;buildController?.abort();buildController=null;
+ $('buildInventory').disabled=false;$('ignoreAudioList').disabled=false;
+ release();chosen=null;$('transcriptFolder').selectedIndex=-1;$('linkedTranscript').replaceChildren();$('linkedTranscript').disabled=true;$('resolveAudio').disabled=true;$('transcriptPreview').textContent='';
+ try{
+  let index=descriptor.external?-1:folders.findIndex(g=>g.name===descriptor.name);
+  if(index<0){
+   const group=await current.openTranscriptSelection(descriptor.files,descriptor.external?`${descriptor.name} (Selected Separately)`:descriptor.name,{relativeFolder:descriptor.external?null:descriptor.name});
+   if(request!==token)return;
+   folders.push(group);index=folders.length-1;fill($('transcriptFolder'),folders,g=>`${g.name} (${g.transcripts.length} transcripts)`);
+  }
+  $('transcriptFolder').value=String(index);showFolder();
+ }catch(error){if(request===token){$('linkStatus').textContent=error.message;log(`Transcript folder read failed: ${error.message}`);}}
+});

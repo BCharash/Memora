@@ -6,13 +6,35 @@
 <title>Memora — Folder Selection Test</title>
 <style>
 :root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:#10182a;color:#f1f4fa}*{box-sizing:border-box}body{max-width:850px;margin:auto;padding:20px}h1{font-size:1.65rem}h2{font-size:1.2rem}p{color:#cbd5e6}button,select,textarea{font:inherit;max-width:100%;border:1px solid #8297bb;border-radius:8px;padding:10px;background:#202f48;color:#fff}button{cursor:pointer;margin:4px 8px 4px 0}button:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ffcd66;outline-offset:3px}section{margin:22px 0;padding-top:12px;border-top:1px solid #63718a}table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;vertical-align:top;padding:8px 5px;border-bottom:1px solid #44526b;overflow-wrap:anywhere}th:first-child{width:50%}select,textarea{display:block;width:100%;margin:8px 0}textarea{height:260px;font:13px/1.5 ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#202f48;padding:12px;border-radius:8px}audio{width:100%;margin-top:10px}#status{font-weight:650;color:#ffdd93}.note{font-size:.9rem}summary{cursor:pointer}input[type=file]{display:none}
+.folder-row{display:grid;grid-template-columns:155px minmax(0,1fr) auto;align-items:center;gap:10px;margin:14px 0}.folder-box{display:block;border:1px solid #8297bb;border-radius:8px;min-width:0;padding:10px;overflow-wrap:anywhere;background:#202f48}#testTabs{display:flex;flex-wrap:wrap;gap:4px}#testTabs [aria-selected=true]{outline:2px solid #ffcd66}#transcriptChooser{padding:12px;background:#202f48;border-radius:8px}#saveTestArea[hidden]{display:none}@media(max-width:650px){.folder-row{grid-template-columns:1fr}.folder-row button{justify-self:start}.folder-row strong{margin-top:4px}}
 </style>
 </head>
 <body>
 <h1>Folder Selection Test</h1>
-<p>Choose an <strong>audio archive folder</strong>, such as <strong>2018</strong>, containing audio and one or more transcript subfolders. This checks whether the browser supplies files from those subfolders in the same selection.</p>
-<p class="note">Standalone test 4 · No Memora storage, models or file writes. Nothing is uploaded. Listing uses filenames and sizes only; discovery reads bounded TXT headers in immediate subfolders; recording metadata is read when you build the temporary list; playback loads audio only on request.</p>
-<button id="choose" type="button">Select Audio Archive Folder</button>
+<p>Choose an <strong>audio archive folder</strong>, such as <strong>2018</strong>, containing audio and one or more transcript subfolders. Test shared folder selections across Transcribe, Edit/Combine and Search, then verify transcript/audio links below.</p>
+<p class="note">Standalone test 5 · No Memora storage or models. Only the explicit Save Test File action writes a new sample file. Nothing is uploaded. Listing uses filenames and sizes only; discovery reads bounded TXT headers in immediate subfolders; recording metadata is read when you build the temporary list; playback loads audio only on request.</p>
+<nav id="testTabs" role="tablist" aria-label="Memora Test Views">
+<button id="tabTranscribe" type="button" role="tab" aria-selected="true" aria-controls="folderPanel" data-view="transcribe">Transcribe</button>
+<button id="tabCombine" type="button" role="tab" aria-selected="false" aria-controls="folderPanel" data-view="combine">Edit/Combine</button>
+<button id="tabSearch" type="button" role="tab" aria-selected="false" aria-controls="folderPanel" data-view="search">Search</button>
+</nav>
+<section id="folderPanel" role="tabpanel" aria-labelledby="tabTranscribe">
+<div class="folder-row"><strong id="audioRole">Audio Source</strong><output aria-labelledby="audioRole" id="sharedAudioName" class="folder-box">None Selected</output><button id="choose" type="button" disabled>Select Source Folder</button></div>
+<div class="folder-row"><strong id="transcriptRole">Transcript Destination</strong><output aria-labelledby="transcriptRole" id="sharedTranscriptName" class="folder-box">None Selected</output><button id="selectTranscript" type="button" disabled>Select Transcript Destination</button></div>
+<p class="note">These are test views only: no transcription, editing or Search indexing is performed.</p>
+<p id="sharedHint" role="status">Select an Audio Source Folder. Selections are shared across all three test views.</p>
+<div id="transcriptChooser" hidden>
+<label for="subfolderChoice">Choose a Subfolder</label><select id="subfolderChoice"></select>
+<button id="useSubfolder" type="button">Use Selected Folder</button><button id="browseTranscript" type="button">Browse Another Folder</button><button id="cancelTranscript" type="button">Cancel</button>
+</div>
+<section id="saveTestArea">
+<h2>Transcript Destination Save Test</h2>
+<p class="note">This saves one new, uniquely named text file containing test instructions, not a transcription. It never replaces an existing file. On iPhone choose Save to Files and the folder named below; Memora cannot verify that location.</p>
+<p id="saveGuidance">Choose a Transcript Destination first.</p>
+<button id="saveTestFile" type="button" disabled>Save Test File</button><p id="saveTestStatus" role="status"></p>
+</section>
+</section>
+<input id="transcriptFolderInput" type="file" webkitdirectory multiple>
 <input id="folder" type="file" webkitdirectory multiple>
 <p id="status" role="status" aria-live="polite">No folder selected.</p>
 <div id="results" hidden>
@@ -71,26 +93,27 @@ let files=[],documents=[],audioFiles=[],baseReport=[],checks=[],objectURL=null,l
 const pathOf=file=>file.webkitRelativePath||file.name;
 const kindOf=file=>AUDIO.test(file.name)?'audio':/\.txt$/i.test(file.name)?'txt':/\.json$/i.test(file.name)?'json':'other';
 function updateReport(){ $('report').value=[...baseReport,'',...checks].join('\n'); }
-function fullReport(){return $('report').value+'\n\nAll supplied file paths ('+files.length+'):\n'+files.map(pathOf).sort().join('\n')+'\n\nTemporary recording inventory preview:\n'+$('inventoryPreview').textContent+'\n';}
+function fullReport(){return $('report').value+'\n\nAll supplied file paths ('+files.length+'):\n'+files.map(pathOf).sort().join('\n')+'\n\nShared Folder Selection:\n'+$('sharedAudioName').textContent+'\n'+$('transcriptRole').textContent+': '+$('sharedTranscriptName').textContent+'\n\nTemporary recording inventory preview:\n'+$('inventoryPreview').textContent+'\n';}
 function reportFile(){return new File([fullReport()],'memora-folder-selection-report.txt',{type:'text/plain'});}
 function releaseAudio(){ $('player').pause();$('player').removeAttribute('src');$('player').load();if(objectURL)URL.revokeObjectURL(objectURL);objectURL=null;loadedAudioPath=null; }
 function options(select,items){select.replaceChildren();items.forEach((file,i)=>{const option=document.createElement('option');option.value=i;option.textContent=pathOf(file);select.append(option);});select.disabled=!items.length;}
-$('choose').onclick=()=>{ $('folder').value='';$('folder').click(); };
 $('folder').addEventListener('cancel',()=>{ $('status').textContent=files.length?'Folder selection cancelled. Previous results retained.':'Folder selection cancelled.'; });
-$('folder').addEventListener('change',()=>{
- const selected=Array.from($('folder').files||[]);if(!selected.length){$('status').textContent='No files supplied. Previous results retained.';return;}
+function acceptSelectedFiles(selected,rootOverride=null){
+ if(!selected.length&&!rootOverride){$('status').textContent='No files supplied. Previous results retained.';return;}
  generation++;releaseAudio();files=selected;checks=[];$('copyStatus').textContent='';$('readResult').textContent='No file checked.';$('audioStatus').textContent='No audio loaded.';
  const groups=new Map(),totals={audio:0,txt:0,json:0,other:0};let noPaths=0,nested=0,bytes=0;
  for(const file of files){const path=pathOf(file),parts=path.split('/');if(!file.webkitRelativePath)noPaths++;const relative=file.webkitRelativePath?parts.slice(1,-1).join('/')||'(archive root)':'(path unavailable)';if(parts.length>2&&file.webkitRelativePath)nested++;const row=groups.get(relative)||{audio:0,txt:0,json:0,other:0};const kind=kindOf(file);row[kind]++;totals[kind]++;bytes+=file.size;groups.set(relative,row);}
- const roots=[...new Set(files.filter(f=>f.webkitRelativePath).map(f=>f.webkitRelativePath.split('/')[0]))];
+ const roots=[...new Set(files.filter(f=>f.webkitRelativePath).map(f=>f.webkitRelativePath.split('/')[0]))];if(!roots.length&&rootOverride)roots.push(rootOverride);
  $('summary').textContent=`${files.length} files: ${totals.audio} audio, ${totals.txt} TXT, ${totals.json} JSON, ${totals.other} other. ${nested} files have subfolder paths.`;
  $('status').textContent=noPaths?`${noPaths} file(s) lack relative paths. Folder relationships cannot be fully verified.`:nested?'Nested files were supplied. Check that all expected transcript folders appear below.':'No nested files were supplied. Check whether the chosen archive contains transcript subfolders.';
  $('folders').replaceChildren();for(const [name,counts]of [...groups].sort(([a],[b])=>a.localeCompare(b))){const tr=document.createElement('tr');for(const value of [name,counts.audio,counts.txt,counts.json,counts.other]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('folders').append(tr);}
  const known=files.filter(f=>KNOWN.has(f.name));$('lists').replaceChildren();if(!known.length)$('lists').textContent='No recognized archive JSON filenames were supplied.';else for(const file of known){const p=document.createElement('p');p.textContent=pathOf(file);$('lists').append(p);}
  documents=files.filter(f=>['txt','json'].includes(kindOf(f))).sort((a,b)=>pathOf(a).localeCompare(pathOf(b)));audioFiles=files.filter(f=>kindOf(f)==='audio');options($('documentFile'),documents);options($('audioFile'),audioFiles);$('read').disabled=!documents.length;$('loadAudio').disabled=!audioFiles.length;
- baseReport=['Memora folder-selection test 4',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
+ baseReport=['Memora folder-selection test 5',new Date().toISOString(),`Browser: ${navigator.userAgent}`,`Directory input supported: ${'webkitdirectory' in $('folder')}`,`Selected root(s): ${roots.join(', ')||'unknown'}`,`Files: ${files.length}; audio ${totals.audio}; TXT ${totals.txt}; JSON ${totals.json}; other ${totals.other}`,`Nested files: ${nested}; files without relative paths: ${noPaths}`,`Total supplied sizes: ${bytes} bytes (contents not read)`, 'Folder counts:',...[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,c])=>`${name}: audio ${c.audio}, TXT ${c.txt}, JSON ${c.json}, other ${c.other}`),'Recognized archive lists:',...known.map(pathOf),'Selection completeness: not proven; compare against expected folders/files.'];
  $('paths').textContent=files.map(pathOf).sort().join('\n');updateReport();$('results').hidden=false;window.dispatchEvent(new CustomEvent('archive-test-selection',{detail:files}));
-});
+}
+$('folder').addEventListener('change',()=>acceptSelectedFiles(Array.from($('folder').files||[])));
+window.addEventListener('folder-test-native-picked',event=>acceptSelectedFiles(event.detail.files,event.detail.rootName));
 $('read').onclick=async()=>{
  const file=documents[Number($('documentFile').value)],token=generation;if(!file)return;$('read').disabled=true;$('readResult').textContent='Reading…';
  try{const limit=65536,text=await file.slice(0,limit).text();if(token!==generation)return;let result=`Readable: ${pathOf(file)}\nFile size: ${file.size} bytes. Read ${Math.min(file.size,limit)} bytes.`;
@@ -113,5 +136,6 @@ window.addEventListener('archive-test-check',event=>{checks.push(String(event.de
 window.addEventListener('pagehide',releaseAudio);
 </script>
 <script type="module" src="tests/parent-folder-test-ui.js"></script>
+<script type="module" src="tests/shared-folder-test-ui.js"></script>
 </body>
 </html>
