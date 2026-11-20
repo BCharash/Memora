@@ -1,5 +1,9 @@
 # Memora test guide
 
+## Reproducible recording identity checkpoint 1 — 20 November 2026
+
+[reproducible-recording-identity.html](reproducible-recording-identity.html): **22 synthetic Chrome groups passed** for the isolated helper, including an independent Python hash vector, embedded priority, prefix bounds, rebuild/rename/size behavior, metadata failures, cancellation/cache, ambiguity and unchanged production UUID-validator compatibility. No user archives, IndexedDB, models or writes. Large-file reads are synthetic; real device/iCloud behavior is the next checkpoint. [Exact contract](../docs/Recording_Identity_Prefix_Contract.md).
+
 ## Current recorded verification — 19 November 2026
 
 Reviewed source **47ca641**, displayed build **2026-11-19.25**, schema **6**. The audio whole-folder correction has now been tested as described below; earlier .23 documentation consolidation itself did not rerun tests. The counts below are previously recorded runs, not a sum of independent model/device validations.

@@ -1,5 +1,13 @@
 # Memora — current status and resume instructions
 
+## Recording identity checkpoint 1 — 20 November 2026
+
+The isolated [reproducible identity helper/contract](Recording_Identity_Prefix_Contract.md) is implemented: embedded IDs first; absent IDs use framed file-size/first-256000-byte SHA-256 and a deterministic UUIDv8 with full digest evidence. All **22 synthetic browser groups passed**. Unsupported/invalid/conflicting metadata is blocked, repeated exact immutable snapshots reuse a memory cache, and multiple candidate locations stay ambiguous. Existing UUID validators accept the fallback IDs without changes. No production imports, persistence, build/schema change or archive modification. Checkpoint 2 (parent-folder test and MacBook/iPhone proof) is next; it has not started. Older plan statements describing checkpoint 1 as pending are superseded by this entry.
+
+## Recording identity direction and checkpoints — 20 November 2026
+
+The [recording identity checkpoint plan](Recording_Identity_Checkpoints.md) is the latest agreed direction and supersedes the earlier requirement that TXT Audio Source IDs match the current audio list. Embedded Recording IDs come first; rare absent-ID audio will use a versioned file-size/first-250-KiB fingerprint (exact representation to settle before implementation). Audio lists become rebuildable; Archive UUID stays independent. Stop writing/depending on Audio Source ID, then retire saved audio-list recovery copies while retaining pending exports and desktop handles. These changes are **planned, not implemented**; current test 3 still checks the source UUID. Four user audio lists were repaired with backups, and 409 transcript/audio ID matches were audited. Production build remains 2026-11-20.2. Next proposed work: isolated identity contract, then device proof, production integration, cache retirement, optional header cleanup, and the separately requested later UI redesign. This turn documents checkpoints only.
+
 ## Search update action — 20 November 2026
 
 Build **2026-11-20.2** hides Update Search Index when no update is available, including initial/reset state and after a successful save. Existing archiveNeedsUpdate state reveals it for pending changes; failed saving reveals it for retry. Static verification confirmed the initial hidden state and centralized visibility/disabled transitions; live Search/Files acceptance remains pending. Search reset also retains the requested Select Source Folder wording.

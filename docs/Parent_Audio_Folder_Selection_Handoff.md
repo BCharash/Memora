@@ -1,5 +1,9 @@
 # Parent audio-folder selection — handoff, 19 November 2026
 
+## Superseding identity direction — 20 November 2026
+
+Use the [recording identity checkpoint plan](Recording_Identity_Checkpoints.md) before continuing. Later audits and four repaired audio lists established that recording IDs match while generated source UUIDs can diverge. The agreed target no longer requires those UUIDs for matching; embedded IDs or a reproducible sampled fallback make the audio list rebuildable. Earlier test-3 source checks below describe current code, not the new target. Production integration/cache retirement/header cleanup remain staged future work. The user reports repaired linking worked; that does not establish the new identity design on-device.
+
 ## Follow-up test — 20 November 2026
 
 The user authorized extending the standalone test, not production integration. **test.html now says Standalone test 3.** A new read-only js/archiveFolderAccess.js adapter discovers recognizable TXT in immediate subfolders (or folders with a transcript-list filename), caches bounded header reads, and resolves selected transcripts through the parent Audio Recording List plus IDs. tests/parent-folder-test-ui.js supplies folder/transcript choices, a bounded preview, link results and a player. These modules are not imported by production startup.
