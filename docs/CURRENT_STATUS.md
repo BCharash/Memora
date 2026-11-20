@@ -1,5 +1,15 @@
 # Memora — current status and resume instructions
 
+## Search update action — 20 November 2026
+
+Build **2026-11-20.2** hides Update Search Index when no update is available, including initial/reset state and after a successful save. Existing archiveNeedsUpdate state reveals it for pending changes; failed saving reveals it for retry. Static verification confirmed the initial hidden state and centralized visibility/disabled transitions; live Search/Files acceptance remains pending. Search reset also retains the requested Select Source Folder wording.
+
+## Settings selection update — 20 November 2026
+
+Build **2026-11-20.1** replaces Settings storage/history Select All buttons with labeled checkboxes matching the existing selection styling. Select-all controls show the native partial-selection line; Transcription and Edit/Combine now also maintain that state (Search already did). Protected rows remain excluded. Cached Transcripts uses the same row selection for Delete Selected and **Save Selected Transcripts**, with both disabled when nothing is selected. Saving filters cached records by selected filenames and retains existing destination/collision behavior.
+
+Edit/Combine now says **Document Source** / **Select Source Folder**. Search says **Search Source** / **Select Source Folder**, following the requested wording. Isolated Chrome Settings (12 groups) and storage integration (10 groups), plus transcription identity/integration (49 groups), passed; the storage checks include partial state and selected-save enablement. Actual Files/share export and phone visual acceptance remain user checks. No commit or deployment.
+
 ## Consolidated handoff — 19 November 2026
 
 Source reviewed at committed **47ca641** (`Update html.js`); the application still displays **2026-11-19.25**, database schema **6**. The user committed the .24 audio-coverage and .25 shared-audio changes together in **33e69dc**; the later HTML-reader revision is a separate commit without a new build label. Record both commit and displayed build when distinguishing these revisions. This comprehensive review changes documentation only. Older “no commit” notes retain their original agent-turn meaning and are not current Git status. Historical checkpoint statements below are superseded by this overview where decisions changed.

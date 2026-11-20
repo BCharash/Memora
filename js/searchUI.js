@@ -171,6 +171,14 @@ async function getSearchSourceFiles(handle) {
 }
 
 
+// Keep the save action visible only while an index update is available.
+function setSearchIndexUpdateAvailable(available) {
+    if (!searchIndexUpdateButton) return;
+    searchIndexUpdateButton.hidden = !available;
+    searchIndexUpdateButton.disabled = !available;
+}
+
+
 async function buildSearchIndexForSource(files) {
 
     const token = ++searchIndexBuildToken;
@@ -179,7 +187,7 @@ async function buildSearchIndexForSource(files) {
     setSearchBusy(true);
 
     if (searchIndexUpdateButton) {
-        searchIndexUpdateButton.disabled = true;
+        setSearchIndexUpdateAvailable(false);
     }
 
     if (searchQueryStatus) {
@@ -285,8 +293,7 @@ async function buildSearchIndexForSource(files) {
         }
 
         if (searchIndexUpdateButton) {
-            searchIndexUpdateButton.disabled =
-                !index.archiveNeedsUpdate;
+            setSearchIndexUpdateAvailable(index.archiveNeedsUpdate);
         }
 
         setSearchBusy(false);
@@ -307,7 +314,7 @@ async function buildSearchIndexForSource(files) {
         setSearchBusy(false);
 
         if (searchIndexUpdateButton) {
-            searchIndexUpdateButton.disabled = true;
+            setSearchIndexUpdateAvailable(false);
         }
 
         if (searchIndexStatus) {
@@ -364,7 +371,7 @@ async function updateSearchIndexArchive() {
     currentSearchIndex.archiveNeedsUpdate = false;
 
     if (searchIndexUpdateButton) {
-        searchIndexUpdateButton.disabled = true;
+        setSearchIndexUpdateAvailable(false);
     }
 
     setSearchIndexStatus(
@@ -1140,7 +1147,7 @@ async function reindexEditedTranscript(updatedFile, oldRecord) {
     const previousReady = searchIndexReady;
     searchIndexReady = false;
     if (searchButton) searchButton.disabled = true;
-    if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+    if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
     setSearchIndexStatus("Reindexing the edited transcript and reusing unchanged embeddings…", true);
 
     try {
@@ -1164,14 +1171,14 @@ async function reindexEditedTranscript(updatedFile, oldRecord) {
         }
 
         if (searchIndexUpdateButton) {
-            searchIndexUpdateButton.disabled = !replacementIndex.archiveNeedsUpdate;
+            setSearchIndexUpdateAvailable(replacementIndex.archiveNeedsUpdate);
         }
         setSearchIndexStatus("Transcript updated and reindexed. Search Index has unsaved changes.");
     } catch (error) {
         currentSearchIndex = previousIndex;
         searchIndexReady = false; // Prevent new queries from silently using stale index data.
         if (searchButton) searchButton.disabled = true;
-        if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+        if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
         setSearchIndexStatus(`Transcript file saved, but reindexing failed: ${error.message || String(error)}. Rebuild the Search Index before searching again.`);
         throw error;
     } finally {
@@ -2569,10 +2576,10 @@ export function invalidateSearchAfterTranscriptEdit() {
 
     if (searchQueryInput) searchQueryInput.value = "";
     if (searchSourceButton) {
-        searchSourceButton.textContent = "Select Transcript Folder";
+        searchSourceButton.textContent = "Select Source Folder";
         searchSourceButton.disabled = false;
     }
-    if (searchIndexUpdateButton) searchIndexUpdateButton.disabled = true;
+    if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
     if (searchResults) {
         searchResults.querySelectorAll("audio[data-object-url]").forEach(audio => {
             try { URL.revokeObjectURL(audio.dataset.objectUrl); } catch (_) {}
@@ -2688,7 +2695,7 @@ export function initSearchUI({
                     return;
                 }
 
-                searchIndexUpdateButton.disabled = true;
+                setSearchIndexUpdateAvailable(false);
                 setSearchIndexStatus(
                     "Updating the Search Index…",
                     true
@@ -2702,7 +2709,7 @@ export function initSearchUI({
                         error
                     );
 
-                    searchIndexUpdateButton.disabled = false;
+                    setSearchIndexUpdateAvailable(true);
                     setSearchIndexStatus(
                         error.message ||
                         "Unable to update the Search Index."

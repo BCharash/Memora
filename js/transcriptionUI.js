@@ -515,6 +515,7 @@ export async function displayFiles(
             recordingListItems
         );
 
+        selectAllCheckbox.indeterminate = recordingCheckboxes.some(item => item.checked) && !recordingCheckboxes.every(item => item.checked);
         selectAllCheckbox.checked =
             recordingCheckboxes.length > 0 &&
             recordingCheckboxes.every(
@@ -524,6 +525,7 @@ export async function displayFiles(
 
         selectAllCheckbox.onchange =
             () => {
+                selectAllCheckbox.indeterminate = false;
 
                 recordingCheckboxes.forEach(
                     checkbox => {
@@ -539,6 +541,7 @@ export async function displayFiles(
                 checkbox.onchange =
                     () => {
 
+                        selectAllCheckbox.indeterminate = recordingCheckboxes.some(item => item.checked) && !recordingCheckboxes.every(item => item.checked);
                         selectAllCheckbox.checked =
                             recordingCheckboxes.every(
                                 item =>

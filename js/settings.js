@@ -341,14 +341,24 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const firstRow=detail.querySelector('.settings-item');
         if(!detail.querySelector('.settings-item input[type="checkbox"]'))return;
         const actions=document.createElement('div');actions.className='action-row settings-selection-actions';
-        const all=document.createElement('button'),remove=document.createElement('button');
-        all.textContent='Select All';remove.textContent='Delete Selected';
+        const all=document.createElement('input'),remove=document.createElement('button');
+        all.type='checkbox';
+        const label=document.createElement('label');label.className='selection-action';label.append(all,document.createTextNode('Select all'));
+        remove.textContent='Delete Selected';
         let busy=false;
         const available=()=>[...detail.querySelectorAll('.settings-item input[type="checkbox"]')].filter(check=>!check.disabled);
-        function update(){const checks=available();all.disabled=busy||!checks.length;all.textContent=checks.length&&checks.every(check=>check.checked)?'Deselect All':'Select All';remove.disabled=busy||!checks.some(check=>check.checked);}
-        all.onclick=()=>{const checked=!available().every(check=>check.checked);for(const check of available()){check.checked=checked;check.dispatchEvent(new Event('change',{bubbles:true}));}update();};
+        function update(){
+            const checks=available(),count=checks.filter(check=>check.checked).length;
+            all.disabled=busy||!checks.length;
+            all.checked=checks.length>0&&count===checks.length;
+            all.indeterminate=count>0&&count<checks.length;
+            remove.disabled=busy||!count;
+            const save=detail.querySelector('[data-settings-action="save-transcripts"]');
+            if(save)save.disabled=busy||!count;
+        }
+        all.onchange=()=>{const checked=all.checked;for(const check of available()){check.checked=checked;check.dispatchEvent(new Event('change',{bubbles:true}));}update();};
         remove.onclick=async()=>{if(busy)return;const checks=available().filter(check=>check.checked);if(!checks.length)return;busy=true;update();try{await onDelete(checks);}catch(error){status.textContent=error.message;}finally{busy=false;update();}};
-        detail.onchange=update;actions.append(all,remove);detail.insertBefore(actions,firstRow);update();
+        detail.onchange=update;actions.append(label,remove);detail.insertBefore(actions,firstRow);update();
     }
 
     function selectableRows(detail, onDelete){
@@ -1037,7 +1047,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 <div class="settings-item-info"><div class="settings-item-name">${item.filename}</div><div class="settings-item-detail">${formatBytes(item.bytes)}${item.model ? ` · ${item.model}` : ""}</div></div>
             </div>
         `).join("") : `<p class="settings-note">No cached transcripts.</p>`;
-        if (items.length) detail.insertAdjacentHTML("beforeend", `<div class="action-row" style="margin-top:10px;">${button("Save Cached Transcripts", "save-transcripts")}</div>`);
+        if (items.length) detail.insertAdjacentHTML("beforeend", `<div class="action-row" style="margin-top:10px;">${button("Save Selected Transcripts", "save-transcripts")}</div>`);
         detail._items = items;
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].filename);await refresh();await showTranscripts();});
     }
@@ -1168,12 +1178,16 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     }
 
     async function saveCachedTranscripts(manager) {
+        const detail = document.getElementById("settingsTranscriptsDetail");
+        const selected = new Set([...detail.querySelectorAll('.settings-item input[type="checkbox"]:checked')]
+            .map(check => detail._items[Number(check.dataset.index)].filename));
+        if (!selected.size) return;
         const storageModule = await getStorage();
         let folder = null;
         if (window.showDirectoryPicker) {
             folder = await storageModule.selectFolder();
         }
-        const records = await manager.readCachedTranscripts();
+        const records = (await manager.readCachedTranscripts()).filter(record => selected.has(record.filename));
         if (!records.length) return;
         if (folder) {
             if (folder.kind !== "file-input") {

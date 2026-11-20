@@ -623,6 +623,7 @@ export async function displayTranscriptFiles(files) {
             transcriptListItems
         );
 
+        selectAllCheckbox.indeterminate = checkboxes.some(item => item.checked) && !checkboxes.every(item => item.checked);
         selectAllCheckbox.checked =
             checkboxes.length > 0 &&
             checkboxes.every(checkbox => checkbox.checked);
@@ -631,6 +632,7 @@ export async function displayTranscriptFiles(files) {
 
         selectAllCheckbox.onchange =
             () => {
+                selectAllCheckbox.indeterminate = false;
 
                 checkboxes.forEach(
                     checkbox => {
@@ -648,6 +650,7 @@ export async function displayTranscriptFiles(files) {
                 checkbox.onchange =
                     () => {
 
+                        selectAllCheckbox.indeterminate = checkboxes.some(item => item.checked) && !checkboxes.every(item => item.checked);
                         selectAllCheckbox.checked =
                             checkboxes.every(
                                 item =>
