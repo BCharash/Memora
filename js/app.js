@@ -84,15 +84,16 @@ const fileInput = document.getElementById("fileInput");
 const modelSelect = document.getElementById("modelSelect");
 let transcriptionBatchActive = false;
 let sourceSelectionActive = false;
+let sourceSelectionRequested = false;
 let modelRefreshVersion = 0;
 async function refreshQualifiedWhisperModels() {
     const version = ++modelRefreshVersion;
-    if (!modelSelect || transcriptionBatchActive || sourceSelectionActive) return;
+    if (!modelSelect || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
     const note = document.getElementById("modelEligibilityNote");
     const previous = modelSelect.value;
     try {
         const definitions = await listQualifiedWhisperProductionModels();
-        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
         modelSelect.replaceChildren();
         for (const definition of definitions) {
             const option = document.createElement("option");
@@ -114,7 +115,7 @@ async function refreshQualifiedWhisperModels() {
         const reviewNotice = document.getElementById("modelReviewNotice");
         if (reviewNotice) renderWhisperReviewNotice(reviewNotice);
     } catch (error) {
-        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive) return;
+        if (version !== modelRefreshVersion || transcriptionBatchActive || sourceSelectionActive || sourceSelectionRequested) return;
         modelSelect.replaceChildren();
         modelSelect.disabled = transcribeButton.disabled = true;
         if (note) note.textContent = `Model eligibility unavailable: ${error.message}`;
@@ -637,14 +638,19 @@ if (iphoneCombineDestinationOptions) {
 const audioInventoryStatus=document.getElementById("audioInventoryStatus");
 sourceButton.addEventListener("click",()=>loadAudioSource());
 async function loadAudioSource() {
-    if(transcriptionBatchActive||sourceSelectionActive)return;
+    if(transcriptionBatchActive||sourceSelectionActive||sourceSelectionRequested)return;
+    sourceSelectionRequested=true;sourceButton.disabled=true;transcribeButton.disabled=true;saveRecordingListButton.hidden=true;
+    const activity=document.getElementById('audioSourceActivity'),elapsed=document.getElementById('audioSourceElapsed'),started=performance.now();
+    activity.hidden=false;sourceButton.closest('.source-section').setAttribute('aria-busy','true');elapsed.textContent='Elapsed: 0s';
+    audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
+    const activityTimer=setInterval(()=>{elapsed.textContent=`Elapsed: ${Math.floor((performance.now()-started)/1000)}s`;},1000);
     let selectedSource=null;
     try {
         const storage=await getStorageModule();
         if(!(await confirmPendingDiscard({includeLists:true})))return;
         sourceSelectionActive=true;sourceButton.disabled=true;transcribeButton.disabled=true;
         saveRecordingListButton.hidden=true;
-        audioInventoryStatus.textContent='Select a source folder.';
+        audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
         selectedSource=await storage.selectFolder();
         audioInventoryStatus.textContent='Reading audio recording list…';
         const files=await storage.listAudioFiles(selectedSource);
@@ -660,7 +666,7 @@ async function loadAudioSource() {
         sourceButton.textContent=`Source: ${sourceHandle.name}`;
         if(sourceHandle.kind!=='file-input')await updateTranscriptionFolderButton();
         if(!files.length)showEmptyMessage();
-        else await displayFiles(files,readAudioMetadata,formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
+        else await displayFiles(files,file=>readAudioMetadata(file,selectedIdentityWorkflow.getSession().getRecordingMetadataIdentity(file)),formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
         const summary=identityWorkflow.getInventorySummary();
         audioInventoryStatus.textContent=`${summary.checked} audio recording(s) checked. ${summary.removed} removed from list, ${summary.unverified} unverified, ${summary.skipped} skipped. `+
             (summary.coverage==='folder'?'Audio directly in this folder was checked; subfolders are not included.':'Only the supplied files were checked; unobserved recordings are retained as unverified.')+
@@ -682,7 +688,8 @@ async function loadAudioSource() {
         }else audioInventoryStatus.textContent=error.name==='AbortError'?'Source scan cancelled. The previous source is retained.':`Source scan not saved: ${error.message}`;
         if(error.name!=='AbortError'){console.error('Source folder error:',error);alert(error.message||'Unable to read the source folder.');}
     } finally {
-        sourceSelectionActive=false;sourceButton.disabled=false;
+        clearInterval(activityTimer);activity.hidden=true;sourceButton.closest('.source-section').setAttribute('aria-busy','false');
+        sourceSelectionRequested=false;sourceSelectionActive=false;sourceButton.disabled=false;
         saveRecordingListButton.hidden=!pendingRecordingList;
         if(!transcriptionBatchActive)await refreshQualifiedWhisperModels();
     }
@@ -2350,16 +2357,12 @@ function appendTranscription(
 // Metadata processing module
 // --------------------------------------------------
 
-let metadataModule = null;
+let metadataModulePromise = null;
 
-async function readAudioMetadata(file) {
-
-    if (!metadataModule) {
-        metadataModule =
-            await import("./metadata.js");
-    }
-
-    return metadataModule.readAudioMetadata(file,{metadataOnly:true});
+async function readAudioMetadata(file,embeddedIdentity=null) {
+    metadataModulePromise ||= import('./metadata.js');
+    const metadataModule=await metadataModulePromise;
+    return metadataModule.readAudioMetadata(file,{metadataOnly:true,embeddedIdentity});
 }
 
 

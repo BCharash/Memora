@@ -182,3 +182,8 @@ A separate temporary-profile production Settings check used synthetic Tiny/Base/
 ## History presentation and wordmark follow-up — 2026-11-13.10
 
 46 groups across whisper-attempts, whisper-settings, whisper-production-reviews and whisper-executions pass. Regression checks cover report summary ordering, seconds and model sequence, visible saved notes and removal of the redundant direct button. Synthetic production UI checks cover the first-entry divider, summary-first export, notes surviving clear/reload and 390 px containment. Header checks at 320/359/360/390/430/600/601/768/900/1280 px verify the 10% smaller wordmark, preserved baseline proportions, unchanged section icon sizes and Settings/tab interactions. No real model inference or user data used.
+
+
+### Audio source loading feedback and bounded metadata reads
+
+Open `tests/source-selection-performance.html` for five synthetic groups: resolved Apple/non-Apple MP4 metadata, stale UUID suppression, bounded two-reader rendering of 121 recordings, and per-file failure isolation. The 400 MiB fixture is virtual and rejects large reads; this is not an iCloud speed benchmark. `tests/transcription-identity.html` also checks immediate activity during a delayed picker and cleanup after cancellation/completion.

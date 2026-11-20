@@ -1,0 +1,20 @@
+import {readAudioMetadata} from '../js/metadata.js';
+import {displayFiles} from '../js/transcriptionUI.js';
+import * as f from './recording-identity-fixtures.js';
+const lines=[],failed=[];const assert=(value,message='Assertion failed')=>{if(!value)throw Error(message);};
+async function test(name,work){try{await work();lines.push('PASS '+name);}catch(error){failed.push(name);lines.push('FAIL '+name+': '+error.stack);}document.getElementById('results').textContent=lines.join('\n');}
+const movie=f.box('mvhd',f.join([f.number(0),f.number(3800000000),f.number(3800000000),f.number(1000),f.number(2000)]));
+function largeFile(){
+ const head=f.box('ftyp',f.encode('M4A ')),mdatSize=400*1024*1024,mdat=f.join([f.number(mdatSize),f.encode('mdat')]),moov=f.box('moov',movie),start=head.length+mdatSize;let bytesRead=0;
+ const segments=[[0,head],[head.length,mdat],[start,moov]],size=start+moov.length;
+ return {name:'large.m4a',size,get bytesRead(){return bytesRead;},slice(a,b){assert(b-a<=4096,'Read audio prefix instead of metadata headers');bytesRead+=b-a;const out=new Uint8Array(b-a);for(const [offset,data]of segments){const lo=Math.max(a,offset),hi=Math.min(b,offset+data.length);if(hi>lo)out.set(data.subarray(lo-offset,hi-offset),lo-a);}return new Blob([out]);}};
+}
+await test('Known Apple identity reads only MP4 headers even for a 400 MiB logical file',async()=>{const file=largeFile();const result=await readAudioMetadata(file,{metadataOnly:true,embeddedIdentity:{recordingId:f.ID,identityOrigins:['apple-embedded']}});assert(result.uuid===f.ID&&result.recordingDate&&result.duration===2000&&result.durationTimescale===1000&&file.bytesRead<4096);});
+await test('Known non-Apple identity skips raw UUID scans and preserves file date/duration',async()=>{const file=largeFile();const result=await readAudioMetadata(file,{metadataOnly:true,embeddedIdentity:{recordingId:f.ID,identityOrigins:['imuse-embedded']}});assert(result.uuid===null&&result.recordingDate===null&&result.fileCreationDate&&result.duration===2000&&result.durationTimescale===1000&&file.bytesRead<4096);});
+await test('Known absent identity does not resurrect a stale Apple UUID from old bytes',async()=>{const bytes=f.mp4([f.box('moov',f.join([movie,f.box('udta',f.box('meta',f.join([f.number(0),f.box('ilst',f.appleItem())])))]))]);const file=new File([bytes],'memo.m4a');const result=await readAudioMetadata(file,{embeddedIdentity:{recordingId:null,identityOrigins:[]}});assert(result.uuid===null&&result.recordingDate===null&&result.fileCreationDate);});
+await test('Two bounded detail readers overlap while rendering every file deterministically',async()=>{const files=Array.from({length:121},(_,i)=>new File([''],`recording-${i.toString().padStart(3,'0')}.m4a`));let active=0,max=0,finished=0;const progress=[];
+ await displayFiles(files,async()=>{active++;max=Math.max(max,active);await new Promise(resolve=>setTimeout(resolve,2));active--;finished++;return {recordingDate:new Date('2023-01-01'),duration:2};},()=> 'date',()=> 'duration',message=>progress.push(message));
+ assert(max===2&&finished===121&&document.querySelectorAll('.recording-checkbox').length===121);assert(progress.some(m=>m.includes('121 of 121 completed')));const names=[...document.querySelectorAll('.recording-checkbox')].map(e=>e.dataset.filename);assert(new Set(names).size===121&&names[0]==='recording-000.m4a');
+});
+await test('One failed detail read does not block the remaining file rows',async()=>{let count=0;const original=console.error;console.error=()=>{};try{await displayFiles([new File([''],'a.m4a'),new File([''],'b.m4a')],async file=>{count++;if(file.name==='a.m4a')throw Error('Synthetic failure');return {duration:2};},()=>'',()=>'',()=>{});}finally{console.error=original;}assert(count===2&&document.querySelectorAll('.recording-checkbox').length===2);});
+const result={passed:lines.length-failed.length,failed,output:lines.join('\n')};document.getElementById('results').textContent+=`\n${result.passed}/${lines.length} passed`;if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

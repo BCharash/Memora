@@ -1,5 +1,14 @@
 # Memora — current status and resume instructions
 
+## Audio source loading feedback — 20 November 2026
+
+Build **2026-11-20.4**, schema **6**, adds an immediate activity indicator, elapsed time and phase/progress messages during audio source selection. Recording-details display reuses resolved list identities, avoiding repeated M4A prefix scans, and reads at most two files concurrently. Inventory and pre-inference identity validation remain unchanged. Cancellation/error/completion clear the indicator. Reduced-motion settings disable rotation.
+
+Verification: 5 focused metadata/concurrency groups, 49 app integration groups, 19 production identity groups and 47 persistence groups passed (**120 total**) using synthetic archives and isolated browser storage.
+
+Retest Dreams/2018 on iPhone after refreshing to this build. If slow, note whether it remains at Files preparation or recording details and the displayed count. Native Files/iCloud preparation may still take time; neither actual device speed nor cloud download behavior is established by synthetic browser checks. No user-archive changes or deployment were performed.
+
+
 ## Production identity foundation candidate — 20 November 2026
 
 Build **2026-11-20.3**, schema **6**, implements part 1 of the user's production plan. New transcripts omit Audio Source ID; historical absent/malformed/repeated values are ignored. Recording ID/Voice Memo ID conflicts and Archive UUID validation remain enforced. New/rebuilt audio entries reuse embedded IDs or derive the fixed size/prefix fallback; only fallback headers add **Recording ID method: memora-recording-prefix-v1**, with full sampled evidence retained in the audio list. Routine membership scans reuse known entries, including legacy assigned IDs. Before inference or accepting an explicitly browsed list, actual embedded/sample identity is checked; a mismatching catalogue ID cannot reach inference. No full-file audio hashing is introduced.

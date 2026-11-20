@@ -248,6 +248,11 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             if(source.kind==='directory' && !sameBytes(await currentSource(),baseline))
                 throw fail('source-changed','The audio recording list changed after this source was opened. Select the audio source folder again to resolve its recording list before transcribing.');
         }),
+        getRecordingMetadataIdentity:file=>{
+            const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
+            const entry=entriesByPath.get(audioSourcePathKey(path));
+            return {recordingId:entry?.recordingId||null,identityOrigins:entry&&entry.identityOrigin!=='memora-assigned'?[entry.identityOrigin]:[],source:'audio-recording-list'};
+        },
         getManifest:()=>parseAudioSourceManifest(serialize(staged||current)).manifest,
         releaseRecordingSnapshot: path=> {
             if(unresolved.has(path))throw fail('unresolved-recording','Resolve or skip the recording before releasing its snapshot.');

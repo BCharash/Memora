@@ -14,7 +14,7 @@ export async function readAudioMetadata(file, { embeddedIdentity = null, metadat
         /\.(m4a|mp4)$/i.test(file.name);
 
     if (isMP4Container) {
-        const metadata = await readMP4Metadata(file);
+        const metadata = await readMP4Metadata(file,embeddedIdentity);
         if (embeddedIdentity && !embeddedIdentity.identityOrigins?.includes("apple-embedded")) {
             metadata.uuid = null; metadata.recordingDate = null;
         }
@@ -29,7 +29,7 @@ export async function readAudioMetadata(file, { embeddedIdentity = null, metadat
 // MP4 / M4A metadata
 // --------------------------------------------------
 
-async function readMP4Metadata(file) {
+async function readMP4Metadata(file,embeddedIdentity=null) {
 
     const moovBox =
         await findTopLevelBox(
@@ -62,11 +62,12 @@ async function readMP4Metadata(file) {
                 timescale: null
             };
 
-    const uuid =
-        await findVoiceMemoUUID(
-            file,
-            moovBox
-        );
+    // Source inventory/inference already resolved this identity. Avoid scanning
+    // up to 1 MiB of audio per file merely to rediscover it for list display.
+    const knownApple=embeddedIdentity?.identityOrigins?.includes('apple-embedded');
+    const uuid=embeddedIdentity&&!knownApple?null:
+        knownApple&&typeof embeddedIdentity.recordingId==='string'?embeddedIdentity.recordingId:
+        await findVoiceMemoUUID(file,moovBox);
 
     return {
         recordingDate:

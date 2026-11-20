@@ -265,31 +265,20 @@ export async function displayFiles(
         }
     };
 
-    let detailsRead=0;
-    for (const file of files) {
-        onProgress(`Reading recording details: ${++detailsRead} of ${files.length} — ${file.name}`);
-        if(detailsRead%16===0)await new Promise(resolve=>setTimeout(resolve,0));
-
-        const entry = {
-            file,
-            metadata: null
-        };
-
-        metadataEntries.push(entry);
-
-        try {
-
-            entry.metadata =
-                await readAudioMetadata(file);
-
-        } catch (error) {
-
-            console.error(
-                "Metadata error:",
-                error
-            );
+    // Two readers overlap provider latency without opening an entire archive's
+    // media resources at once. Array order stays stable regardless of completion.
+    for(const file of files)metadataEntries.push({file,metadata:null});
+    let nextDetail=0,detailsRead=0;
+    async function readDetails(){
+        while(nextDetail<metadataEntries.length){
+            const entry=metadataEntries[nextDetail++];
+            onProgress(`Reading recording details: ${detailsRead} of ${files.length} completed — ${entry.file.name}`);
+            try{entry.metadata=await readAudioMetadata(entry.file);}catch(error){console.error('Metadata error:',error);}
+            detailsRead++;onProgress(`Reading recording details: ${detailsRead} of ${files.length} completed — ${entry.file.name}`);
+            if(detailsRead%8===0)await new Promise(resolve=>setTimeout(resolve,0));
         }
     }
+    await Promise.all(Array.from({length:Math.min(2,files.length)},readDetails));
 
     function sortEntries(entries, sortOrder) {
 

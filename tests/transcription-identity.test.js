@@ -194,9 +194,16 @@ async function refreshSource(){
 }
 
 async function choose(label){await waitFor(()=>[...document.querySelectorAll('dialog[open] button')].some(button=>button.textContent===label));[...document.querySelectorAll('dialog[open] button')].find(button=>button.textContent===label).click();}
+await test('Source activity appears before a delayed Files response and clears on cancellation',async()=>{
+ let cancel;const gate=new Promise((resolve,reject)=>{cancel=()=>reject(new DOMException('Picker cancelled','AbortError'));});const previous=document.getElementById('sourceButton').textContent;
+ selections.push(gate);click('sourceButton');
+ assert(!document.getElementById('audioSourceActivity').hidden,'No immediate activity indicator');assert(document.getElementById('sourceButton').disabled,'Picker could be opened twice');assert(document.querySelector('.source-section').getAttribute('aria-busy')==='true');
+ await waitFor(()=>document.getElementById('audioSourceElapsed').textContent!=='Elapsed: 0s');assert(document.getElementById('audioInventoryStatus').textContent.includes('Waiting for folder selection'));
+ cancel();await waitFor(()=>document.getElementById('audioSourceActivity').hidden&&!document.getElementById('sourceButton').disabled);eq(document.getElementById('sourceButton').textContent,previous);eq(document.querySelector('.source-section').getAttribute('aria-busy'),'false');
+});
 await test('Desktop normal flow persists source and archive IDs before verified TXT delivery',async()=>{
  originalAudio=await seedAudio(desktop.root);await refreshSource();await waitFor(()=>document.querySelectorAll('#recordings input[type=checkbox]').length>0);
- assert(desktop.state.files.has('memora-audio-source.json'),'Desktop list was not created during source selection');eq(calls.length,0);
+ assert(desktop.state.files.has('memora-audio-source.json'),'Desktop list was not created during source selection');eq(calls.length,0);assert(document.getElementById('audioSourceActivity').hidden,'Spinner remained after scan completion');
  assert(document.getElementById('recordingListSaveStatus').textContent.includes('Saved and verified: Audio / memora-audio-source.json'),'Desktop save outcome/location missing');
  click('sourceDestinationButton');click('transcribeButton');await waitFor(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
  const filename=[...desktop.state.files.keys()].find(name=>name.endsWith('.txt'));assert(filename,'No transcript written');

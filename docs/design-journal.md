@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 23
+**Version:** 24
 **Status:** Living document; current through section 62 (20 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4575,3 +4575,12 @@ The user approved part 1 of the production plan after the standalone identity/fo
 New TXT headers omit Audio Source ID and historical values no longer affect parsing, recovery evidence or playback cache scope. Archive/Recording ID conflicts remain enforced. Rare fallback headers declare their method; audio JSON retains validated full sampled evidence. Internal catalogue UUIDs/recovery locks remain. Pending exports, verified native writes, iPhone sharing/cancellation and legacy assigned-ID restore are preserved. Missing phone list recovery associates pending work only through an exact embedded-ID set, not names. Search reuses existing model/representation-compatible vectors only for exact text/ordinal matches and unique filenames; changed text and ambiguous archives cannot borrow them.
 
 The final focused run records 19 production identity/Search groups, 48 app integration, 47 persistence, 34 schema/planner, 29 transcript-folder, 22 helper, 10 playback groups and 10 database/semantic-cache groups (219 passing). These are synthetic/disposable harness results, not real inference, cloud sync or device acceptance. Candidate build advances to 2026-11-20.3; schema remains 6. User files, shared folder UI and Settings recovery storage were not changed. Real MacBook/iPhone acceptance precedes the next production step. See [current status](CURRENT_STATUS.md) and [prefix contract](Recording_Identity_Prefix_Contract.md). No agent commit/deployment.
+
+
+### 62.18 Audio source activity and bounded details reads — 2026-11-20.4
+
+The user reported a silent wait exceeding a minute when selecting Dreams/2018 on iPhone. Source selection now shows a spinner, elapsed time and Files/iCloud waiting guidance from the initial click, then recording-details progress. Cancellation, failure and completion clear the activity state; repeated selection and background model refresh cannot enable transcription during the wait. Reduced-motion users receive a static indicator with elapsed time.
+
+Recording-details display reuses the prepared audio list's resolved identity instead of scanning up to the first MiB of every M4A again. Apple recording-date behavior is preserved; other identities do not acquire an Apple date. MP4 header reads still supply duration and file creation date. Two bounded readers overlap provider latency while retaining deterministic row order and isolating per-file metadata failures. The inventory and pre-inference identity checks remain in place. No new full-file reads or archive/schema changes are introduced.
+
+120 groups passed (5 focused, 49 app integration, 19 production identity and 47 persistence). Focused browser verification covers delayed picker cancellation, ordinary completion, a virtual 400 MiB MP4 with bounded metadata reads, 121-row concurrency and metadata failure isolation, together with production identity and persistence regression suites. Real iPhone/iCloud timing remains unmeasured: the browser cannot accelerate provider downloads or animate behind the native Files sheet. User archives were not modified. Build 2026-11-20.4; schema 6.

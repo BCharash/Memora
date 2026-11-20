@@ -1742,3 +1742,10 @@ button:disabled {
     overflow-wrap: anywhere;
 }
 .search-audio-location-note[hidden] { display: none !important; }
+
+/* Source selection may wait on Files/iCloud before any file-list event arrives. */
+.audio-source-activity { display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0;font-size:14px; }
+.audio-source-activity[hidden] { display:none; }
+.audio-source-spinner { display:inline-block;flex:0 0 18px;width:18px;height:18px;border:3px solid var(--border,#71809b);border-top-color:var(--accent,#e3bb64);border-radius:50%;animation:audio-source-spin .8s linear infinite; }
+@keyframes audio-source-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .audio-source-spinner { animation:none; } }
