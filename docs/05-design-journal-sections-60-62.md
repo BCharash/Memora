@@ -457,3 +457,12 @@ Native child handles avoid recursive content loading. iPhone child selections re
 Pending edits/exports/list/index changes require an explicit keep/discard decision before switching folders. Cancelled/failed reads preserve the prior selection. Activity and audio-list saving are accessible in all three workspaces. iPhone saving remains explicit/unverified, empty omitted folders cannot be discovered, and newly saved files require reselection. This step does not implement multi-archive aggregation or merge transcript/embedding JSON reconciliation into one Search pass. See [current status](CURRENT_STATUS.md) and [handoff](Parent_Audio_Folder_Selection_Handoff.md) for acceptance and limits. Build 2026-11-20.5; schema 6; no user-file mutation or deployment.
 
 Verification for .5: 7 shared-folder access, 57 actual-page integration (stubbed Search backend), 19 production identity, 10 playback, 29 transcript-folder, 47 persistence and 5 metadata groups passed (174 total). Device Files/playback/save behavior remains user acceptance work.
+
+
+### 62.20 Transcribe destination placement and device follow-up — 2026-11-20.6
+
+Build **2026-11-20.6** removes the duplicate destination row at the top of Transcribe. The lower **Transcript Destination** area shows the current shared folder in the same output box style as Combine/Search. Desktop Use Source / Use transcription / Browse actions set the shared transcript selection; Browse opens the folder picker directly. iPhone still inherits the supplied transcription child (or the shared choice from another tab), displays the destination below, and saves through Files without writable folder access.
+
+The user confirms Combine audio playback on iPhone and MacBook. They also report repeated saves for apparently unchanged audio/transcript JSON on iPhone. The timing and before/proposed data remain unestablished; this layout change does **not** claim to fix that report or relax content-change checks. A new transcript legitimately changes its list; reopening an unchanged folder should not. Preserve distinguishable before/proposed lists if the issue recurs.
+
+The supplied 99-byte text export contains only the destination guidance, exactly matching the title added to transcript sharing in .5. Build .6 removes that title: Files receives only the named file attachments; guidance stays on the page. The page harness rejects any added share title/text. This establishes the unwanted guidance-file defect, not the cause of repeated JSON save requests.

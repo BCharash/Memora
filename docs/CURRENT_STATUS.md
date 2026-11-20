@@ -1,5 +1,16 @@
 # Memora — current status and resume instructions
 
+## Transcribe destination controls — 20 November 2026
+
+Build **2026-11-20.6** removes the duplicate destination row at the top of Transcribe. The lower **Transcript Destination** area shows the current shared folder in the same output box style as Combine/Search. Desktop Use Source / Use transcription / Browse actions set the shared transcript selection; Browse opens the folder picker directly. iPhone still inherits the supplied transcription child (or the shared choice from another tab), displays the destination below, and saves through Files without writable folder access.
+
+Verification: 57 actual-page and 10 playback groups passed (67 total), including lower destination placement and shared overrides.
+
+The user confirms Combine audio playback on iPhone and MacBook. They also report repeated saves for apparently unchanged audio/transcript JSON on iPhone. The timing and before/proposed data remain unestablished; this layout change does **not** claim to fix that report or relax content-change checks. A new transcript legitimately changes its list; reopening an unchanged folder should not. Preserve distinguishable before/proposed lists if the issue recurs.
+
+
+The supplied 99-byte text export contains only the destination guidance, exactly matching the title added to transcript sharing in .5. Build .6 removes that title: Files receives only the named file attachments; guidance stays on the page. The page harness rejects any added share title/text. This establishes the unwanted guidance-file defect, not the cause of repeated JSON save requests.
+
 ## Shared folder access in production — 20 November 2026
 
 Build **2026-11-20.5**, schema **6**, integrates the tested shared Audio Source and Transcript Destination/Source rows. Select the parent audio folder in any workspace; one page-session selection supplies all three views. A unique immediate **transcription** subfolder becomes the shared default. The transcript chooser offers immediate child folders or a separate folder; changing the audio root clears the previous override. No default means **None Selected**, not an arbitrary backup folder. Direct transcript selection without audio still works; it cannot grant access to an unselected parent. Selecting another transcript folder retains existing audio access.

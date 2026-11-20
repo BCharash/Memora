@@ -178,6 +178,7 @@ await test('Production page boots with isolated database and synthetic model sel
  await import('../js/app.js');await waitFor(()=>document.getElementById('modelSelect').value==='tiny');
  assert(!document.getElementById('refreshAudioSourceButton'),'Obsolete refresh control remains');
  assert(!document.getElementById('cancelAudioInventoryButton'),'Obsolete Cancel Scan control remains');
+ assert(!document.querySelector('#transcriptionPanel .source-section [data-transcript-folder]'),'Duplicate top destination remains');assert(document.querySelector('#transcriptionDestinationSection [data-transcript-folder]'),'Lower destination display missing');
  eq(document.getElementById('saveRecordingListButton').textContent,'Save Audio Recording List');
  assert(document.getElementById('saveRecordingListButton').closest('.source-section'),'Audio list save is not beside the source controls');
  document.getElementById('paragraphingCheckbox').checked=false;
@@ -271,7 +272,7 @@ await test('File-input prepares separate pending source/archive JSON and blocks 
  assert(document.getElementById('transcriptArchiveSaveStatus').textContent.includes('memora-transcript-archive.json')&&document.getElementById('transcriptArchiveSaveStatus').textContent.includes('archive “Audio”'),'Transcribe save guidance omitted archive name');
  assert(!document.getElementById('saveRecordingListButton').hidden&&!document.getElementById('saveTranscriptArchiveButton').hidden,'JSON actions missing');assert(document.getElementById('iphoneExportButton').disabled,'Transcript shared before JSON actions');
  assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save')&&document.getElementById('saveTranscriptArchiveButton').classList.contains('has-pending-archive-save'),'Pending save pulse missing');
- Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{if(cancelShare)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
+ Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{eq(Object.keys(data),['files'],'File exports must not include guidance as share title/text');if(cancelShare)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
 });
 await test('Share cancellation preserves pending files; completed JSON actions unlock transcript sharing',async()=>{
  click('saveRecordingListButton');await new Promise(resolve=>setTimeout(resolve,30));assert(document.getElementById('iphoneExportButton').disabled,'Cancelled share authorized delivery');assert(document.getElementById('saveRecordingListButton').classList.contains('has-pending-archive-save'),'Cancel removed pending pulse');

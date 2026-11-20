@@ -680,14 +680,14 @@ async function confirmSharedFolderChange({audio=false}={}){
     }
     return await retainPendingCombineList() && await confirmPendingDiscard({includeLists:audio});
 }
-async function chooseSharedTranscript(view){
+async function chooseSharedTranscript(view,{browse=false}={}){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;
     sharedFolderOperation=true;updateSharedFolderControls();
     try{
         if(!await confirmSharedFolderChange())return;
         const state=sharedFolders.snapshot();
         let selected=null;
-        if(state.folders.length){
+        if(state.folders.length&&!browse){
             const answer=await askIdentity({title:view==='transcribe'?'Select Transcript Destination':'Select Transcript Source',message:`Choose a folder in ${state.audio.name}, or browse for another folder.`,choices:[
                 ...state.folders.map((folder,index)=>({action:String(index),label:`${state.audio.name} / ${folder.name}`})),
                 {action:'browse',label:'Browse for Another Folder',run:async()=>await (await getStorageModule()).selectFolder()},
@@ -833,7 +833,7 @@ sourceDestinationButton.addEventListener("click", async () => {
     }
 
     if(!await confirmSharedFolderChange())return;
-    sharedFolders.setTranscript(sourceHandle,sharedFolders.audioLabel());applySharedTranscriptSelection();loadedSharedCombine=loadedSharedSearch=null;
+    sharedFolders.setTranscript(sourceHandle,sharedFolders.audioLabel());applySharedTranscriptSelection();resetSharedConsumers();
 
     setActiveDestinationButton(
         sourceDestinationButton
@@ -866,7 +866,7 @@ transcriptionDestinationButton.addEventListener("click", async () => {
                 true
             );
 
-        sharedFolders.setTranscript(destinationHandle,`${sourceHandle.name} / transcription`);applySharedTranscriptSelection();loadedSharedCombine=loadedSharedSearch=null;
+        sharedFolders.setTranscript(destinationHandle,`${sourceHandle.name} / transcription`);applySharedTranscriptSelection();resetSharedConsumers();
         transcriptionDestinationButton.textContent = 'Use "transcription" Folder';
 
     } catch (error) {
@@ -883,7 +883,7 @@ transcriptionDestinationButton.addEventListener("click", async () => {
 });
 
 
-destinationButton.addEventListener('click',()=>chooseSharedTranscript('transcribe'));
+destinationButton.addEventListener('click',()=>chooseSharedTranscript('transcribe',{browse:true}));
 
 
 // --------------------------------------------------
@@ -2218,9 +2218,10 @@ async function exportIPhoneTranscripts() {
     }
 
     const location=describeTranscriptArchiveDestination({archiveName:sourceHandle?.name,folderName:destinationHandle?.name||'transcription'});
+    // Keep guidance on the page. iOS can turn a share title/text into a
+    // separate text file instead of saving only the named attachments.
     const shareData = {
-        files: pendingIPhoneExports,
-        title: `Save transcripts in ${location}`
+        files: pendingIPhoneExports
     };
     if(iphoneExportStatus)iphoneExportStatus.textContent=`Choose Save to Files, then ${location}. Memora cannot verify the saved location.`;
 
