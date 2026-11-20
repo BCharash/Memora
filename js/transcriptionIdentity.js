@@ -1,33 +1,15 @@
 import {createRecordingIdentityUI,askIdentity,pickIdentityJson} from './recordingIdentityUI.js';
 import {openTranscriptArchive, TRANSCRIPT_ARCHIVE_FILENAME, transcriptArchiveNameForRecords, describeTranscriptArchiveDestination} from './transcriptArchive.js';
-import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
-import {readTranscriptIdentity,recordingIdentityLines} from './transcriptMetadata.js';
-import {discoverAudioSource} from './audioSourcePersistence.js';
+import {recordingIdentityLines} from './transcriptMetadata.js';
 import {checkAudioSourceAbort} from './audioFingerprint.js';
-import {listTextFiles,shareFile,AUDIO_SOURCE_FILENAME} from './storage.js';
-// Inspect only the explicitly selected transcript destination. Embedded IDs
-// corroborate associations; folder names and filenames cannot establish identity.
+import {shareFile,AUDIO_SOURCE_FILENAME} from './storage.js';
+// Compatibility entry point: TXT source UUIDs no longer establish catalogue identity.
 export async function associatedSourceEvidence(destination,files){
     const labels=new Map();
     if(destination?.kind!=='directory')return {ids:[],labels};
-    const ids=new Set();
-    for(const file of files){const result=await readEmbeddedRecordingIdentity(file);if(result.status==='valid')ids.add(result.recordingId.toLowerCase());}
-    const established=new Set(),summaries=new Map();
-    for(const file of await listTextFiles(destination)){
-        if(file.size>0){
-            let identity;try{identity=readTranscriptIdentity(await file.slice(0,65536).text());}catch{continue;}
-            if(identity.recordingId&&identity.audioSourceId){
-                const sourceId=identity.audioSourceId.toLowerCase();
-                const summary=summaries.get(sourceId)||{count:0,examples:[]};
-                summary.count++;if(summary.examples.length<3)summary.examples.push(file.name);summaries.set(sourceId,summary);
-                // A transcript can describe a recovery choice without proving that
-                // the selected audio belongs to it. Only embedded IDs establish that.
-                if(ids.has(identity.recordingId.toLowerCase()))established.add(sourceId);
-            }
-        }
-    }
-    for(const [id,summary] of summaries)labels.set(id,`Referenced by ${summary.count} transcript(s) in ${destination.name}: ${summary.examples.join(', ')}`);
-    return {ids:[...established],labels};
+    // Source UUIDs in historical TXT headers are not recording identity.
+    // Recovery continues to use saved handles/lists; never infer a catalogue ID from TXT.
+    return {ids:[],labels};
 }
 export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPendingArchive,onStatus}={}){
     const ui=createRecordingIdentityUI({ask,onPendingList,onStatus,shareFile});
@@ -40,9 +22,7 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
         async activateSource(){if(pendingInventoryList)await ui.publishPendingList(pendingInventoryList);},
         async prepareSource(selectedSource,files,{signal,onProgress=()=>{}}={}){
             checkAudioSourceAbort(signal);
-            const discovery=await discoverAudioSource(selectedSource);
-            const evidence=discovery.validation?.status==='valid'?{ids:[],labels:new Map()}:await associatedSourceEvidence(selectedSource,files);
-            const session=await ui.prepareSource(selectedSource,evidence.ids,evidence.labels,{signal,audioFiles:files});
+            const session=await ui.prepareSource(selectedSource,[],new Map(),{signal,audioFiles:files});
             const observedPaths=[],verifiedPaths=[];let skipped=0;
             for(let index=0;index<files.length;index++){
                 checkAudioSourceAbort(signal);
@@ -89,8 +69,8 @@ export function createTranscriptionIdentity({ask=askIdentity,onPendingList,onPen
             source=selectedSource;destination=selectedDestination;
         },
         async prepare(file){
-            const identity=await ui.prepareRecording(file);if(!identity)return null;
-            const resolved={...identity,embedded:identity.embedded||{identityOrigins:identity.identityOrigin==='memora-assigned'?[]:[identity.identityOrigin],source:'audio-recording-list'},archiveUuid:archive.archiveUuid,audioSourceId:ui.getSession().sourceId,originalAudioFolderName:source.name};
+            const identity=await ui.prepareRecording(file,{verifyIdentity:true});if(!identity)return null;
+            const resolved={...identity,embedded:identity.embedded||{identityOrigins:identity.identityOrigin==='memora-assigned'?[]:[identity.identityOrigin],source:'audio-recording-list'},archiveUuid:archive.archiveUuid,originalAudioFolderName:source.name};
             recordingIdentityLines(resolved);
             await ui.persist();
             return resolved;

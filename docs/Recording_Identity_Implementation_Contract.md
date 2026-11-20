@@ -1,5 +1,9 @@
 # Recording identity implementation contract
 
+## Production identity foundation update — 20 November 2026
+
+Candidate **2026-11-20.3** supersedes the old source-UUID binding rules for TXT. Recording ID is the audio association; Archive UUID remains transcript-archive identity. Historical Audio Source ID is ignored and not written. Catalogue UUIDs remain internal in audio JSON/recovery/locks, so existing schema 6 and pending-save machinery remain intact. New/rebuilt enrollment uses embedded IDs or the [fixed sampled fallback](Recording_Identity_Prefix_Contract.md); known legacy IDs are preserved. Complete source coverage permits safe relocation, while duplicates/read failures and invalid lists retain explicit safeguards. Pending exports and legacy recovery are retained. Exact text vectors may bridge obsolete Search header hashes without inference. [Current status](CURRENT_STATUS.md) is authoritative for the 219-group verification and remaining device/UI checkpoints; older checkpoint instructions below are historical.
+
 ## Current contract addendum — 19 November 2026
 
 Reviewed source **47ca641**, displayed build **2026-11-19.25**; schema **6**. The consolidated [current status](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) governs implementation/acceptance. Earlier dates, source-only pauses, old filenames and “no code yet” statements below retain their historical scope; they do not revoke later authorized/completed root reconciliation.

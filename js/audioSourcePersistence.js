@@ -1,7 +1,9 @@
-// Checkpoint 2B: isolated source identity I/O. No production UI/inference imports.
+// Audio inventory persistence. Production uses reproducible identity; legacy
+// content-verification mode remains available to isolated compatibility tests.
 import { AUDIO_SOURCE_LIMITS, parseAudioSourceManifest, serializeAudioSourceManifest,
     createAudioSourceManifest, resolveAudioSourceId, planRecordingIdentity, planAudioSourceAvailability, audioSourcePathKey } from './audioSourceIdentity.js';
 import { readEmbeddedRecordingIdentity } from './recordingIdentity.js';
+import { createReproducibleRecordingIdentityResolver } from './reproducibleRecordingIdentity.js';
 import { fingerprintAudio, checkAudioSourceAbort } from './audioFingerprint.js';
 import { createAudioSourceRecoveryStore, matchAudioSourceRecovery } from './audioSourceRecovery.js';
 import { AUDIO_SOURCE_FILENAME, readAudioSourceBytes, discoverAudioSourceFile, writeAudioSourceFile, resolveAudioSourceHandle, listAudioFiles } from './storage.js';
@@ -43,7 +45,7 @@ export async function discoverAudioSource(source, { selectedFile=null } = {}) {
 // create | replace (separate confirmation) | restore | resume, or null to open.
 export async function openAudioSourceSession({ source, action=null, replacementConfirmed=false,
     selectedFile=null, establishedAudioSourceIds=[], selectedAudioSourceId=null, selectedRecoverySourceId=null,
-    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal, verifyAudioContents=true, audioFiles=null } = {}) {
+    recoveryStore=createAudioSourceRecoveryStore(), randomUUID=()=>crypto.randomUUID(), signal, verifyAudioContents=true, audioFiles=null, reproducibleIdentity=false } = {}) {
     checkAudioSourceAbort(signal);
     const discovery=await discoverAudioSource(source,{selectedFile});
     let selectedRootBytes;
@@ -69,11 +71,27 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     let records,recoveryError=null;
     try{
         if(valid){const record=await recoveryStore.get(diskManifest.audioSourceId);records=record?[record]:[];}
-        else if(source.kind==='file-input'){const record=association.audioSourceId?await recoveryStore.get(association.audioSourceId):null;records=record?[record]:[];}
+        else if(source.kind==='file-input'){
+            if(reproducibleIdentity&&source.selectionScope==='folder'&&discovery.status==='not-included')records=(await recoveryStore.list()).filter(record=>record.pendingTranscriptArchive);
+            else {const record=association.audioSourceId?await recoveryStore.get(association.audioSourceId):null;records=record?[record]:[];}
+        }
         else records=await recoveryStore.list();
     }catch(error){records=[];recoveryError=error;}
     checkAudioSourceAbort(signal);
     let matches=await matchAudioSourceRecovery(records,{source,establishedAudioSourceIds:association.audioSourceId?[association.audioSourceId]:[]});
+    // A missing phone list must not strand a pending transcript export. Only
+    // an exact set of embedded Recording IDs may associate it; names cannot.
+    if(reproducibleIdentity&&!valid&&source.kind==='file-input'&&source.selectionScope==='folder'&&records.length&&!association.audioSourceId){
+        const pending=records.filter(record=>record.pendingTranscriptArchive&&parseAudioSourceManifest(record.manifestText).status==='valid');
+        if(pending.length){
+            const files=audioFiles??await listAudioFiles(source),ids=new Set();let verified=true;
+            for(const file of files){checkAudioSourceAbort(signal);const identity=await readEmbeddedRecordingIdentity(file);if(identity.status!=='valid'){verified=false;break;}ids.add(identity.recordingId.toLowerCase());}
+            if(verified&&ids.size===files.length&&ids.size){
+                const sourceIds=pending.filter(record=>{const manifest=parseAudioSourceManifest(record.manifestText).manifest;return manifest.recordings.length===ids.size&&manifest.recordings.every(entry=>ids.has(entry.recordingId.toLowerCase()));}).map(record=>record.audioSourceId);
+                matches=await matchAudioSourceRecovery(records,{source,establishedAudioSourceIds:sourceIds});
+            }
+        }
+    }
     // Prefer explicit identity over older handle associations. An explicit new
     // list can coexist with an older recovery record for the same directory.
     if (association.audioSourceId) {
@@ -86,7 +104,7 @@ export async function openAudioSourceSession({ source, action=null, replacementC
     if(discovery.status==='absent' && matches.length && [null,'restore'].includes(action)){
         const files=audioFiles??await listAudioFiles(source);
         const pathsBySource=new Map(matches.map(item=>[item.audioSourceId.toLowerCase(),new Set(
-            parseAudioSourceManifest(item.manifestText).manifest.recordings.filter(entry=>entry.identityOrigin==='memora-assigned').map(entry=>entry.audioRelativePath))]));
+            parseAudioSourceManifest(item.manifestText).manifest.recordings.filter(entry=>entry.identityOrigin==='memora-assigned'&&!entry.sampledIdentity).map(entry=>entry.audioRelativePath))]));
         for(const file of files){
             checkAudioSourceAbort(signal);
             const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
@@ -98,8 +116,9 @@ export async function openAudioSourceSession({ source, action=null, replacementC
             if(embedded.status==='absent')for(const item of possible)restoreIds.add(item.audioSourceId.toLowerCase());
         }
     }
+    if(reproducibleIdentity&&(discovery.status==='absent'||discovery.status==='not-included'&&source.selectionScope==='folder'))for(const record of matches)if(record.pendingTranscriptArchive||record.state!=='verified')restoreIds.add(record.audioSourceId.toLowerCase());
     const restorable=matches.filter(item=>restoreIds.has(item.audioSourceId.toLowerCase()));
-    const canRestore=discovery.status==='absent' && restorable.length>0;
+    const canRestore=(discovery.status==='absent'||reproducibleIdentity&&discovery.status==='not-included'&&source.selectionScope==='folder')&&restorable.length>0;
     if(action==='restore'){
         if(!canRestore)return {status:'blocked',code:'restore-not-available',discovery};
         matches=restorable;
@@ -109,6 +128,11 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         if (chosen.length!==1) return {status:'blocked',code:'invalid-recovery-choice'};
         matches=chosen;
     }
+    // A complete source selection can rebuild its catalogue. Invalid JSON still
+    // requires explicit replacement, and recoverable legacy/pending work stays offered.
+    if(reproducibleIdentity&&action===null&&!valid&&!canRestore&&
+        (discovery.status==='absent'||discovery.status==='not-included'&&source.selectionScope==='folder')&&
+        !matches.some(record=>record.pendingTranscriptArchive||record.state!=='verified'))action='create';
     // Missing JSON is resolved before offering individual recovery copies.
     // A saved handle association alone never chooses a replacement list.
     if (!valid && discovery.status!=='found' && action===null) return {
@@ -168,6 +192,8 @@ export async function openAudioSourceSession({ source, action=null, replacementC
         const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
         inputFilesByPath.set(path,inputFilesByPath.has(path)?null:file);
     }
+    const reproducibleResolver=createReproducibleRecordingIdentityResolver();
+    const observedAudioPaths=audioFiles?new Set(audioFiles.map(file=>file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name)):null;
     const unresolved=new Set();
     const snapshots=new Map(), assignments=new Map();
     let busy=false;
@@ -278,8 +304,42 @@ export async function openAudioSourceSession({ source, action=null, replacementC
                 if(!file)throw fail('audio-selection',`Select one unambiguous copy of “${audioRelativePath}”.`);
             }
             if(!verifyAudioContents && known){
+                let actual=null;
+                // Keep routine membership scans fast, but verify the actual
+                // recording before inference or accepting an explicitly browsed list.
+                if(reproducibleIdentity&&(options.verifyIdentity||selectedFile)){
+                    actual=await reproducibleResolver.resolve(file,{signal});
+                    const legacyAssigned=known.identityOrigin==='memora-assigned'&&!known.sampledIdentity;
+                    const legacyUninspectable=legacyAssigned&&actual.code==='embedded-unsupported'&&actual.issues?.every(issue=>issue.code==='container');
+                    if(actual.status!=='ready'&&!legacyUninspectable)throw fail('audio-identity-unverified',`“${file.name}” could not have its Recording ID verified.`);
+                    if(actual.status==='ready'&&(actual.method==='embedded'||known.sampledIdentity)&&actual.recordingId.toLowerCase()!==known.recordingId.toLowerCase())throw fail('recording-id-mismatch',`“${file.name}” does not match the Recording ID in this audio list. Reopen or rebuild the correct list before transcribing.`);
+                    if(actual.issues?.some(issue=>issue.code==='read-failed'))throw fail('audio-read-failed',`“${file.name}” could not be read.`);
+                }
                 unresolved.delete(audioRelativePath);
-                return {status:'ready',code:'reused',recordingId:known.recordingId,identityOrigin:known.identityOrigin,file,fingerprint:null,embedded:null,requiresPersistence:false};
+                return {status:'ready',code:'reused',recordingId:known.recordingId,identityOrigin:known.identityOrigin,recordingIdentityMethod:known.sampledIdentity?.method||null,file,fingerprint:null,embedded:actual?.method==='embedded'?{status:'valid',recordingId:actual.recordingId,identityOrigins:actual.identityOrigins}:null,requiresPersistence:false};
+            }
+            if(reproducibleIdentity&&!verifyAudioContents){
+                const identity=await reproducibleResolver.resolve(file,{signal});
+                if(identity.status!=='ready'){
+                    if(identity.issues?.some(issue=>issue.code==='read-failed'))throw fail('audio-read-failed',`“${file.name}” could not be read. The audio recording list has not been updated.`);
+                    return {...identity,code:identity.code||'unresolved-identity',candidate:null};
+                }
+                const duplicate=entriesById.get(identity.recordingId.toLowerCase());
+                const canMove=duplicate&&observedAudioPaths&&!observedAudioPaths.has(duplicate.audioRelativePath)&&
+                    (source.kind==='directory'||source.selectionScope==='folder');
+                if(duplicate&&!canMove)return {status:'blocked',code:'duplicate-recording-id',recordingId:null,candidate:null,issues:[{message:`This Recording ID is also used by “${duplicate.audioRelativePath}”. Resolve the duplicate audio copies before rebuilding.`}]};
+                const origin=identity.method==='embedded'?(identity.identityOrigins.includes('imuse-embedded')?'imuse-embedded':'apple-embedded'):'memora-assigned';
+                const entry={...(canMove?duplicate:{}),audioRelativePath,recordingId:identity.recordingId,identityOrigin:origin,...(identity.fingerprint?{sampledIdentity:identity.fingerprint}:{})};
+                if(origin!=='memora-assigned'){
+                    delete entry.sampledIdentity;
+                    if(entry.identityRecovery?.reason){const {reason,...extensions}=entry.identityRecovery;if(Object.keys(extensions).length)entry.identityRecovery=extensions;else delete entry.identityRecovery;}
+                }
+                if(!canMove&&(staged||current).recordings.length>=AUDIO_SOURCE_LIMITS.recordings)return {status:'blocked',code:'recording-count',recordingId:null,candidate:null};
+                if(!staged)staged={...current,recordings:current.recordings.slice()};
+                if(canMove){staged.recordings=staged.recordings.map(item=>item===duplicate?entry:item);entriesByPath.delete(audioSourcePathKey(duplicate.audioRelativePath));}
+                else staged.recordings.push(entry);
+                entriesByPath.set(pathKey,entry);entriesById.set(entry.recordingId.toLowerCase(),entry);unresolved.delete(audioRelativePath);
+                return {status:'ready',code:canMove?'relocated':'reproducible-id',recordingId:entry.recordingId,identityOrigin:origin,recordingIdentityMethod:identity.fingerprint?.method||null,file,fingerprint:null,embedded:identity.method==='embedded'?{status:'valid',recordingId:entry.recordingId,identityOrigins:identity.identityOrigins}:null,requiresPersistence:true};
             }
             // One immutable File snapshot for reader, hash and future inference.
             const embedded=!verifyAudioContents&&known?null:await readEmbeddedRecordingIdentity(file);

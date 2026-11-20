@@ -15,8 +15,10 @@ export function readTranscriptIdentity(text) {
     };
     const recordingId=field('Recording ID'),legacy=field('Voice Memo ID');
     if(recordingId&&legacy&&recordingId.toLowerCase()!==legacy.toLowerCase())throw Error('Recording ID and Voice Memo ID disagree. The transcript was not changed.');
-    const result={recordingId:recordingId||legacy,archiveUuid:field('Archive UUID'),audioSourceId:field('Audio Source ID'),originalAudioFolderName:field('Original Audio Folder'),metadataVersion:field('Metadata version')};
-    for(const key of ['recordingId','archiveUuid','audioSourceId'])if(result[key]&&!isRecordingUuid(result[key]))throw Error(`The transcript contains an invalid ${key}.`);
+    // Historical Audio Source ID is intentionally ignored, including malformed/repeated values.
+    const result={recordingId:recordingId||legacy,archiveUuid:field('Archive UUID'),audioSourceId:null,originalAudioFolderName:field('Original Audio Folder'),metadataVersion:field('Metadata version'),recordingIdentityMethod:field('Recording ID method')};
+    for(const key of ['recordingId','archiveUuid'])if(result[key]&&!isRecordingUuid(result[key]))throw Error(`The transcript contains an invalid ${key}.`);
+    if(result.recordingIdentityMethod&&result.recordingIdentityMethod!=='memora-recording-prefix-v1')throw Error('The recording identity method is unsupported.');
     if(result.metadataVersion&&result.metadataVersion!=='1')throw Error('The transcript metadata version is unsupported.');
     return result;
 }
@@ -27,8 +29,9 @@ export function replaceTranscriptBody(original,body) {
     const space=/^(?:\r?\n)*/.exec(original.slice(bodyOffset))[0];
     return original.slice(0,bodyOffset)+space+String(body);
 }
-export function recordingIdentityLines({recordingId,archiveUuid,audioSourceId,originalAudioFolderName}) {
-    if(![recordingId,archiveUuid,audioSourceId].every(isRecordingUuid))throw Error('Resolve recording, archive and audio-source identity before saving.');
+export function recordingIdentityLines({recordingId,archiveUuid,originalAudioFolderName,recordingIdentityMethod=null}) {
+    if(![recordingId,archiveUuid].every(isRecordingUuid))throw Error('Resolve recording and archive identity before saving.');
     if(typeof originalAudioFolderName!=='string'||/[\r\n\x00-\x1f\x7f]/.test(originalAudioFolderName))throw Error('The audio folder name cannot be represented in a readable transcript header.');
-    return [`Metadata version: 1`,`Archive UUID: ${archiveUuid}`,`Audio Source ID: ${audioSourceId}`,`Original Audio Folder: ${originalAudioFolderName}`,`Recording ID: ${recordingId}`];
+    if(recordingIdentityMethod&&recordingIdentityMethod!=='memora-recording-prefix-v1')throw Error('The recording identity method is unsupported.');
+    return [`Metadata version: 1`,`Archive UUID: ${archiveUuid}`,`Original Audio Folder: ${originalAudioFolderName}`,`Recording ID: ${recordingId}`,...(recordingIdentityMethod?[`Recording ID method: ${recordingIdentityMethod}`]:[])];
 }

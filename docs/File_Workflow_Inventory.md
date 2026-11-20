@@ -1,5 +1,9 @@
 # File workflow inventory
 
+## Production identity foundation — 20 November 2026
+
+Candidate 2026-11-20.3 uses reproducible new/rebuilt Recording IDs and retires TXT Audio Source ID dependency. A complete source can rebuild a missing audio catalogue without repairing transcript links; invalid/partial/read-failed selections and pending/legacy recovery keep their safeguards. Native saves remain verified; iPhone list sharing remains explicit. Search/playback source association changes do not imply parent-folder UI integration: production still uses its existing folder controls until the next step. [Current verification and acceptance](CURRENT_STATUS.md).
+
 ## Parent-folder access test — later checkpoint, 19 November 2026
 
 [Standalone test and resume handoff](Parent_Audio_Folder_Selection_Handoff.md): both devices supplied nested transcript files and parent audio in one selection, and playback succeeded. Production Combine/Search parent selection is not implemented. The agreed target chooses one transcript subfolder, retaining separate transcript and embedding JSONs and precise iPhone save guidance. A 15-file difference in transcription-original remains unexplained; do not treat the test as proof of complete/synchronized inventories.

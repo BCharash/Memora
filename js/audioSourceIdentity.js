@@ -128,6 +128,12 @@ function checkManifest(value) {
         requireValue(!ids.has(id), 'duplicate-recording-id', 'Multiple audio paths have the same Recording ID; explicit review is required.', 'conflicting'); ids.add(id);
         requireValue(ORIGINS.includes(entry.identityOrigin), 'identity-origin', 'A recording entry has an unknown identity origin.');
         if(has(entry,'audioFingerprint'))checkFingerprint(entry.audioFingerprint);
+        if(has(entry,'sampledIdentity')){
+            const sample=entry.sampledIdentity;
+            requireValue(entry.identityOrigin==='memora-assigned'&&object(sample)&&sample.method==='memora-recording-prefix-v1'&&sample.algorithm==='sha256'&&Number.isSafeInteger(sample.byteLength)&&sample.byteLength>=0&&sample.sampleBytes===Math.min(sample.byteLength,256000)&&typeof sample.digest==='string'&&DIGEST.test(sample.digest),'sampled-identity','The sampled recording identity is invalid.');
+            const h=sample.digest.toLowerCase();const uuid=h.slice(0,8)+'-'+h.slice(8,12)+'-8'+h.slice(13,16)+'-'+((parseInt(h[16],16)&3)|8).toString(16)+h.slice(17,20)+'-'+h.slice(20,32);
+            requireValue(sameId(entry.recordingId,uuid),'sampled-identity','The sampled fingerprint and Recording ID disagree.');
+        }
         if (has(entry, 'sourceAvailability')) {
             requireValue(object(entry.sourceAvailability) && ['available','missing','unverified','unresolved'].includes(entry.sourceAvailability.status),
                 'source-availability', 'A recording has an invalid source availability status.');

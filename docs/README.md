@@ -2,6 +2,10 @@
 
 Reviewed **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, database schema **6**. Start with [Current status and resume instructions](CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Its current overview supersedes dated checkpoint notes; it separates implemented behavior, agreed next work and real-device acceptance.
 
+## Production identity foundation — 20 November 2026
+
+Candidate **2026-11-20.3** implements reproducible recording enrollment/rebuilding, retires transcript Audio Source ID binding and preserves pending/legacy save protections. **219 focused groups passed; MacBook/iPhone acceptance remains pending.** See [current status](CURRENT_STATUS.md) and the [identity contract](Recording_Identity_Prefix_Contract.md). Shared folder rows and cache retirement remain separate production steps. Historical reviewed-source/build statements below retain their checkpoint dates.
+
 ## Latest identity plan — 20 November 2026
 
 [Recording identity and checkpoints](Recording_Identity_Checkpoints.md): reproducible recording IDs, rebuildable audio lists, retirement of transcript Audio Source ID dependency and saved-copy recovery, then optional header cleanup and a later UI redesign. This is the current direction; implementation is pending. Existing source-matching rules in dated documents describe historical/current code, not the target contract.

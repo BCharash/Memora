@@ -2,6 +2,10 @@
 
 Updated **19 November 2026** against source **47ca641**, displayed build **2026-11-19.25**, schema **6**. Start with [current project status](docs/CURRENT_STATUS.md#consolidated-handoff--19-november-2026). Settings storage, root audio reconciliation, shared Edit/Combine transcript reconciliation, renamed archive/yearly save guidance and browser-version continuity are implemented. Audio whole-folder iPhone removal parity is implemented in .24. Shared Transcribe/Search full reconciliation and filename-counter priority remain incomplete. The detailed Whisper metadata/backfill proposal was dropped. This file map changes no application behavior.
 
+## Production recording identity foundation — 20 November 2026
+
+Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reproducibleRecordingIdentity.js) to production source enrollment and declared fallback playback. [audioSourcePersistence.js](js/audioSourcePersistence.js) retains save/concurrency/recovery ownership; [transcriptMetadata.js](js/transcriptMetadata.js) retires TXT source-UUID binding. Search and semantic cache hashes ignore that obsolete value and can retain unchanged vectors. New [production identity harness](tests/production-recording-identity.html) plus focused regressions passed; see [current status](docs/CURRENT_STATUS.md) for exact scope and device acceptance. Module/test inventory counts below retain their earlier dated checkpoint; shared folder rows and Settings cache retirement are not part of this foundation change.
+
 ## The short answer about the number of files
 
 There are **54 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **33 top-level test/fixture JavaScript files under `tests/`** and **5 more in its isolated lab subtree** (38 total). Test files are separate from the normal application.

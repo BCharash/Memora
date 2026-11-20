@@ -4,6 +4,10 @@ Agreed direction and delivery checkpoints, **20 November 2026**. This plan repla
 
 Current checkout: **68dddb5**, application build **2026-11-20.2**. Settings/Search changes in that build are independent of this identity plan. Parent-selection test 3 exists, but still checks Audio Source ID and does not implement sampled fallback IDs. Production integration remains pending. See the [parent-folder handoff](Parent_Audio_Folder_Selection_Handoff.md) for earlier device evidence and limits.
 
+## Production plan part 1 implemented — 20 November 2026
+
+The user authorized **part 1 of the production implementation plan**, distinct from the earlier isolated checkpoint 1. Candidate **2026-11-20.3** connects the fixed identity helper to production enrollment, rebuilds missing lists with stable Recording IDs, stops writing/depending on transcript Audio Source ID, and verifies declared fallback IDs during playback. Legacy known IDs, pending exports, explicit invalid-list replacement and write/concurrency safeguards remain. Search reuses unchanged model-compatible text vectors across retired-header hashes without accepting changed text or ambiguous filenames. **219 focused groups passed; real-device acceptance is pending.** See [current status](CURRENT_STATUS.md). No user archives/schema reset/cache deletion/UI redesign occurred. Next: test this identity foundation on MacBook/iPhone, then implement the already prototyped shared folder layout as a separate production step.
+
 ## Latest acceptance and architecture test — 20 November 2026
 
 The core checkpoint-2 device proof succeeded on MacBook and iPhone for the Dayananda archive: both rebuilt identical 107-record inventories without the JSON, linked/played the selected transcript and reproduced the synthetic fallback IDs. Optional comparison mode remains unreported. The user then requested the extra **shared-folder layout/destination test**, now test.html test 5; 57 synthetic checks passed, with new device acceptance pending. See [handoff](Parent_Audio_Folder_Selection_Handoff.md). This remains outside production.

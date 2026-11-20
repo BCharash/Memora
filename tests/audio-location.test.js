@@ -1,4 +1,5 @@
 import * as fixtures from './recording-identity-fixtures.js';
+import {createReproducibleRecordingIdentityResolver} from '../js/reproducibleRecordingIdentity.js';
 const source=await(await fetch('../js/searchUI.js')).text();
 async function controlModule(ios){
  const modified=source.replace('import { isIOS } from "./runtime.js";',`const isIOS=${ios};`).replace(/from (["'])\.\/([^"'\n]+)\1/g,(_,quote,path)=>`from ${JSON.stringify(new URL('../js/'+path,import.meta.url).href)}`);
@@ -50,6 +51,12 @@ try{
   Object.defineProperty(window,'showDirectoryPicker',{configurable:true,value:async()=>{folders++;return chosen;}});
   const transcription={kind:'directory',async getFileHandle(){throw new DOMException('Missing','NotFoundError');},async *entries(){}};
   try{const item=mount(desktop,record('2020',ID,'dddddddd-1111-4111-8111-111111111111'),transcription,'Dreams 2020');item.button.click();await waitFor(()=>!item.player.hidden);assert(folders===1);assert(item.note.textContent.includes('Dreams 2020')&&item.note.textContent.includes('2020'));const again=mount(desktop,record('2020',ID,'dddddddd-1111-4111-8111-111111111111'),transcription);again.button.click();await waitFor(()=>!again.player.hidden);assert(folders===1);}finally{if(descriptor)Object.defineProperty(window,'showDirectoryPicker',descriptor);else delete window.showDirectoryPicker;}
+ });
+ await test('Declared sampled IDs verify actual audio and reject a wrong prefix',async()=>{
+  const file=audio('sample.wav'),identity=await createReproducibleRecordingIdentityResolver().resolve(file),metadata={...record('Sample',identity.recordingId),recordingFilename:'sample.wav',audioRelativePath:'../sample.wav',archiveUuid:crypto.randomUUID(),recordingIdentityMethod:identity.method};const item=mount(ios,metadata);item.button.click();const wrong=new File([fixtures.wav([fixtures.wavChunk('JUNK',new Uint8Array([99]))])],'sample.wav');await item.choose([wrong]);assert(item.player.hidden,'Wrong sampled audio loaded');await item.choose([file]);await waitFor(()=>!item.player.hidden);
+ });
+ await test('Changing only retired Audio Source ID does not invalidate playback cache',async()=>{
+  const archiveUuid=crypto.randomUUID(),metadata={...record('Rebuilt'),archiveUuid},first=mount(ios,metadata);first.button.click();await first.choose([audio('memo.wav',ID)]);await waitFor(()=>!first.player.hidden);const before=pickerOpens,second=mount(ios,{...metadata,audioSourceId:OTHER});second.button.click();await waitFor(()=>!second.player.hidden);assert(pickerOpens===before,'Source UUID alone forced another picker');
  });
 }finally{HTMLMediaElement.prototype.play=play;for(const element of document.querySelectorAll('audio[data-object-url]'))URL.revokeObjectURL(element.dataset.objectUrl);}
 document.getElementById('results').textContent=lines.join('\n')+`\n${lines.length-failed.length}/${lines.length} groups passed`;document.body.dataset.result=failed.length?'failed':'passed';

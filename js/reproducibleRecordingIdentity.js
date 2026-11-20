@@ -1,4 +1,4 @@
-// Checkpoint 1 only: read-only identity rules; no production caller or storage.
+// Shared read-only recording identity rules. No persistence or catalogue IDs.
 import {readEmbeddedRecordingIdentity} from './recordingIdentity.js';
 import {isRecordingUuid} from './transcriptMetadata.js';
 export const RECORDING_SAMPLE_BYTES=250*1024;
@@ -39,7 +39,7 @@ export function createReproducibleRecordingIdentityResolver(){
    const embedded=await readEmbeddedRecordingIdentity(file);aborted(signal);
    let result;
    if(embedded.status==='valid'&&isRecordingUuid(embedded.recordingId)){
-    result=frozen({status:'ready',recordingId:embedded.recordingId,method:'embedded',issues:embedded.issues||[]});
+    result=frozen({status:'ready',recordingId:embedded.recordingId,method:'embedded',identityOrigins:Object.freeze([...embedded.identityOrigins]),issues:embedded.issues||[]});
    }else if(embedded.status==='absent'){
     try{result=await sampleRecordingFingerprint(file,{signal});}
     catch(error){if(error.name==='AbortError')throw error;return blocked('sample-failed',error.message);}

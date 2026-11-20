@@ -8,6 +8,10 @@ The application populates “Memora build …” at the very bottom of the page,
 
 This identifies the loaded build module; it does not certify all cached modules/assets have the same revision. No automatic update, reload, cache clearing, service worker, or deployment workflow is introduced. Report displayed build, URL, and device/browser when describing a problem. Database schema versions and model configuration revisions remain separate identifiers.
 
+## Production identity candidate 20 November 2026
+
+**2026-11-20.3** identifies reproducible production enrollment/rebuilds, retired TXT source-UUID binding, sampled-ID playback and Search vector compatibility. Schema remains 6; no cache reset, deployment or user-file modification. Shared folder UI and cache retirement are later steps. See [current status](CURRENT_STATUS.md) for acceptance boundaries.
+
 ## Reviewed source checkpoint — 19 November 2026
 
 Current build module displays **2026-11-19.25**; committed source **47ca641** also contains a subsequent html.js reader update. The .24 audio-folder fix and .25 shared in-app guidance were committed together in 33e69dc. A footer value therefore does not uniquely identify the later HTML revision; retain both commit and displayed build in the documentation/test record. This review does not alter APP_BUILD or claim deployment. The rule above still applies to future changed releases; documentation-only changes need no new application number.

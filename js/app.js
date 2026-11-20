@@ -985,7 +985,7 @@ transcribeButton.addEventListener(
                             }
 
                             record.metadata = { ...record.metadata, recordingId: identity.recordingId,
-                                archiveUuid: identity.archiveUuid, audioSourceId: identity.audioSourceId,
+                                archiveUuid: identity.archiveUuid, recordingIdentityMethod: identity.recordingIdentityMethod,
                                 originalAudioFolderName: identity.originalAudioFolderName };
                             record.processedTranscript = processedTranscript;
                             execution.checkpoint("save", { timings: record.timings });

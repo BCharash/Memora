@@ -2,6 +2,10 @@
 
 Checkpoint 1, implemented in isolation on **20 November 2026**. Helper: [reproducibleRecordingIdentity.js](../js/reproducibleRecordingIdentity.js). Synthetic browser harness: [reproducible-recording-identity.html](../tests/reproducible-recording-identity.html). There are no production callers, file writes, database operations, models or source-list migration. Application build remains **2026-11-20.2**.
 
+## Production integration addendum — 20 November 2026
+
+Candidate **2026-11-20.3** now calls the helper for new/rebuilt production entries. The fixed digest/UUID algorithm below is unchanged. Audio JSON stores the optional **sampledIdentity** evidence (validated method, size, prefix length, full digest and matching UUID); known existing entries are reused without sampling. New fallback TXT headers alone include **Recording ID method: memora-recording-prefix-v1** so playback need not guess a method from UUID version. Embedded-ID transcripts need no extra method field. Existing legacy randomly assigned IDs are retained/restorable and are not silently converted. Historical references below to no production callers describe the completed isolated checkpoint, superseded by this addendum. Production device acceptance remains pending; [current status](CURRENT_STATUS.md) records tests and scope.
+
 ## Embedded identity takes precedence
 
 The resolver uses the existing bounded container reader. A valid embedded UUID is returned unchanged, including spelling/case, with method `embedded`; it is not hashed. Only a supported container positively reporting `absent` permits fallback. Invalid, conflicting, unsupported or unreadable embedded metadata returns a blocked result with no usable Recording ID. Unsupported formats need an explicit future policy/reader extension; lack of support does not prove an ID is absent.

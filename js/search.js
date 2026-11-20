@@ -79,7 +79,7 @@ async function getTranscriptHash(record) {
         source: {
             recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
-            audioSourceId: record.audioSourceId || null,
+            audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,
             recordingDate: record.recordingDate || null,
@@ -90,15 +90,20 @@ async function getTranscriptHash(record) {
 }
 
 function getArchiveTranscriptMap(archive) {
-    const map = new Map();
+    const map = new Map(),byFilename=new Map();
 
     for (const transcript of archive?.transcripts || []) {
+        byFilename.set(transcript.filename,byFilename.has(transcript.filename)?null:transcript);
         map.set(
             `${transcript.filename}|${transcript.transcriptHash}`,
             transcript
         );
     }
 
+    // Vectors depend on model/representation/ordinal/text, not obsolete source IDs.
+    // Only unique filenames may bridge a historical header-hash change; each
+    // vector is still checked against its exact text and ordinal below.
+    for(const [filename,transcript]of byFilename)if(transcript)map.set(filename,transcript);
     return map;
 }
 
@@ -579,7 +584,7 @@ export async function buildSearchIndex(
             await digestText(JSON.stringify({
                 recordingId: records[index].recordingId || records[index].voiceMemoId || null,
                 archiveUuid: records[index].archiveUuid || null,
-                audioSourceId: records[index].audioSourceId || null,
+                audioSourceId: null,
                 voiceMemoId: records[index].recordingId || records[index].voiceMemoId || null,
                 recordingFilename: records[index].recordingFilename || null,
                 recordingDate: records[index].recordingDate || null,
@@ -678,7 +683,7 @@ export async function buildSearchIndex(
             const item = items[index];
             const transcript = archiveTranscriptMap.get(
                 `${item.record.filename}|${item.record.transcriptHash}`
-            );
+            )||archiveTranscriptMap.get(item.record.filename);
 
             const embedding = getArchiveEmbedding(
                 transcript,

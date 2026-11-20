@@ -88,11 +88,13 @@ try {
         assert((await manager.readCachedTranscripts()).length === 0, "explicit test clearing");
     });
     await test("Semantic persistence and reuse without loading an ML model", async () => {
-        const record = { recordingFilename: "fixture.m4a", transcript: "fixture sentence" };
+        const record = { recordingFilename: "fixture.m4a", transcript: "fixture sentence", audioSourceId: "historical-catalogue" };
         const item = { record, ordinal: 0, text: record.transcript, representationType: "chunk", chunkSize: 3, chunkOverlap: 1 };
         await semantic.persistSemanticEmbeddings({ items: [item], embeddings: [new Float32Array([0.25, 0.5])], sourceRecords: [record] });
+        record.audioSourceId="rebuilt-catalogue";record.recordingIdentityMethod="memora-recording-prefix-v1";
         const stored = await semantic.getStoredSemanticEntries({ sourceRecords: [record], chunkSize: 3, chunkOverlap: 1 });
         assert(stored.length === 1 && new Float32Array(stored[0].embedding)[1] === 0.5, "binary lookup");
+        assert(stored[0].record.recordingIdentityMethod==="memora-recording-prefix-v1", "current identity method survives cache lookup");
         const reused = await semantic.getSemanticEmbeddings({ items: [item], sourceRecords: [record] });
         assert(reused[0][0] === 0.25, "reuses stored embedding without worker");
         await manager.clearSemanticRepresentation({ modelId: "minilm", representationType: "chunk", chunkSize: 3, chunkOverlap: 1 });

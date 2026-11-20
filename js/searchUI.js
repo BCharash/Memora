@@ -1,5 +1,6 @@
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
+import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
 // --------------------------------------------------
 // Search UI
 // --------------------------------------------------
@@ -801,9 +802,7 @@ const searchAudioRoots = new Map();
 const audioScopeTokens = new WeakMap();
 let nextAudioScope = 0;
 function audioSourceScope(record, handle) {
-    if (record.audioSourceId || record.archiveUuid) return JSON.stringify([
-        record.audioSourceId?.toLowerCase() || null, record.archiveUuid?.toLowerCase() || null
-    ]);
+    if(record.archiveUuid)return JSON.stringify(['archive',record.archiveUuid.toLowerCase()]);
     const owner=handle||record;
     if(!audioScopeTokens.has(owner))audioScopeTokens.set(owner,++nextAudioScope);
     return `source-${audioScopeTokens.get(owner)}`;
@@ -817,9 +816,15 @@ export function audioLocationGuidance(record, archiveName = null) {
     return `${prefix}${target} Choose audio files rather than the transcription folder; you can select several recordings at once.`;
 }
 const audioIdentitySnapshots = new WeakMap();
+const playbackIdentityResolver=createReproducibleRecordingIdentityResolver();
 async function verifyPlaybackIdentity(file, record) {
     const expected=record.recordingId||record.voiceMemoId;
     if(!isRecordingUuid(expected))return;
+    if(record.recordingIdentityMethod===RECORDING_SAMPLE_METHOD){
+        const identity=await playbackIdentityResolver.resolve(file);
+        if(identity.status!=='ready'||identity.recordingId.toLowerCase()!==expected.toLowerCase())throw Error(`“${file.name}” does not match this recording's reproducible identity.`);
+        return;
+    }
     if(!audioIdentitySnapshots.has(file))audioIdentitySnapshots.set(file,readEmbeddedRecordingIdentity(file));
     const identity=await audioIdentitySnapshots.get(file);
     if(identity.status==='valid'&&identity.recordingId.toLowerCase()!==expected.toLowerCase())

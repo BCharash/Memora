@@ -57,7 +57,7 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
         async prepareSource(selectedSource,establishedAudioSourceIds=[],sourceLabels=new Map(),{signal,audioFiles=null}={}){
             operationSignal=signal;
             if(session&&source===selectedSource)return session;
-            const options={source:selectedSource,establishedAudioSourceIds,signal,audioFiles,verifyAudioContents:false};
+            const options={source:selectedSource,establishedAudioSourceIds,signal,audioFiles,verifyAudioContents:false,reproducibleIdentity:true};
             for(let attempts=0;attempts<20;attempts++){
                 const result=await openSession(options);
                 if(result.status==='ready'){source=selectedSource;session=result.session;return session;}
@@ -83,7 +83,7 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
                     answer=await askSource({title:'Memora cannot use this audio recording list',message:`memora-audio-source.json ${diagnosis}. Select another copy or explicitly create a replacement.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved copy'}]:[]),{action:'replace',label:'Create replacement list'},cancel]});
                 }else if(['restore-available','create-source-list','select-existing-or-create'].includes(result.code)){
                     const missing=result.discovery?.status==='absent'||result.code==='create-source-list';
-                    answer=await askSource({title:missing?'Audio recording list is missing':'Audio recording list was not found in the selected files',message:`${missing?'Memora could not find memora-audio-source.json in this audio folder.':'The selected folder files do not include memora-audio-source.json.'} Browse for an existing list${result.canRestore?', restore a saved copy to preserve its Recording IDs,':''} or create a new list. Creating a new list will assign new Recording IDs to recordings without embedded IDs. Existing embedded Recording IDs will be reused. Your audio and existing transcripts will not be changed.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved recording list'}]:[]),{action:'create',label:'Create audio recording list'},cancel]});
+                    answer=await askSource({title:missing?'Audio recording list is missing':'Audio recording list was not found in the selected files',message:`${missing?'Memora could not find memora-audio-source.json in this audio folder.':'The selected folder files do not include memora-audio-source.json.'} Browse for an existing list${result.canRestore?', restore a saved copy to preserve its Recording IDs,':''} or create a new list. Rebuilding reuses embedded Recording IDs and derives reproducible IDs for supported audio without one. Existing legacy assigned IDs should be restored from a saved list when available. Your audio and existing transcripts will not be changed.`,choices:[pick,...(result.canRestore?[{action:'restore',label:'Restore saved recording list'}]:[]),{action:'create',label:'Create audio recording list'},cancel]});
                 }else throw Error(result.discovery?.error?.message||`Memora could not open this recording list (${result.code}). Check source access and try again.`);
                 if(!answer||answer.action==='cancel')throw new DOMException('Recording-list selection cancelled.','AbortError');
                 if(answer.action==='select'){options.selectedFile=answer.value;options.action=null;options.replacementConfirmed=false;}
@@ -91,13 +91,13 @@ export function createRecordingIdentityUI({ask=askIdentity,onPendingList=()=>{},
             }
             throw Error('The recording list could not be resolved. Select the audio source again.');
         },
-        async prepareRecording(file,{onProgress}={}){
+        async prepareRecording(file,{onProgress,verifyIdentity=false}={}){
             if(!session)throw Error('Select the recording list first.');
             const path=file.webkitRelativePath?file.webkitRelativePath.slice(file.webkitRelativePath.indexOf('/')+1):file.name;
             let choice=null;
             for(let attempts=0;attempts<10;attempts++){
                 onStatus(`Checking Recording ID: ${file.name}`);
-                const result=await session.stageRecording({audioRelativePath:path,choice,onProgress});
+                const result=await session.stageRecording({audioRelativePath:path,choice,onProgress,verifyIdentity});
                 if(result.status==='ready')return result;
                 if(result.status==='skipped')return null;
                 if(result.code==='stale-choice'){choice=null;continue;}

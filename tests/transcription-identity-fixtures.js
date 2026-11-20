@@ -27,7 +27,7 @@ export async function transcribeRecording(file,model,language,operation,status,a
     if(afterInference)await afterInference(record,{id:'synthetic',checkpoint(){}});return record;
 }
 export async function seedAudio(root,name='memo.wav',id=null){
-    const blob=id?f.wav([f.wavChunk('imID',f.payload(id))]):f.wav();
+    const blob=id?f.wav([f.wavChunk('imID',f.payload(id))]):name==='memo.wav'?f.wav():f.wav([f.wavChunk('JUNK',new TextEncoder().encode(name))]);
     const writer=await (await root.getFileHandle(name,{create:true})).createWritable();await writer.write(new Uint8Array(await blob.arrayBuffer()));await writer.close();
     return (await root.getFileHandle(name)).getFile();
 }

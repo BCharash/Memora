@@ -95,7 +95,7 @@ async function getSourceKey(record) {
     return digestText(JSON.stringify({
         recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
-            audioSourceId: record.audioSourceId || null,
+            audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
         recordingFilename: record.recordingFilename || null,
         recordingDate: record.recordingDate || null,
@@ -108,7 +108,7 @@ async function getTranscriptHash(record) {
         source: {
             recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
-            audioSourceId: record.audioSourceId || null,
+            audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,
             recordingDate: record.recordingDate || null,

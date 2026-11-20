@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 22
+**Version:** 23
 **Status:** Living document; current through section 62 (20 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4566,3 +4566,12 @@ The user supplied test-4 MacBook/iPhone reports: both reconstructed identical 10
 Before production, the user proposed shared folder rows and authorized another test. Root test.html is now test 5: Audio Source / Select Source Folder across three views; Transcript Destination for Transcribe, Transcript Source for Edit/Combine/Search; None Selected empty values; default transcription subfolder; shared explicit override; reset on changing audio root. Desktop uses native directory picking, iPhone its supported input fallback. Separate transcript folders can be read/linked while retaining selected parent audio. Test views do not perform actual transcription/editing/indexing.
 
 Save Test File is an explicitly requested, uniquely named disposable sample. Native access checks permission/refuses an existing name/verifies readback; iPhone offers destination guidance without claiming placement. No automatic folder-selection writes occur. Fifteen synthetic groups plus the prior 42 passed, including native routing, fallback/separate folder linking, shared/reset state, sample saves/cancellation and 320px containment. Actual test-5 device acceptance is pending. Production build/schema remain unchanged. See [handoff](Parent_Audio_Folder_Selection_Handoff.md). The prototype does not authorize checkpoint 3 or the later broader UI redesign.
+
+
+### 62.17 Production recording identity foundation — candidate 2026-11-20.3
+
+The user approved part 1 of the production plan after the standalone identity/folder tests. New or rebuilt audio enrollment now reuses embedded Recording IDs or the fixed sampled fallback; routine membership scans reuse known IDs. Actual embedded/sample identity is verified before inference or accepting a browsed list, blocking incorrect known catalogue IDs. Complete missing-source lists rebuild automatically unless pending/legacy recovery needs an explicit choice. Invalid/partial input and read failures keep their safeguards. Relocation requires complete observed paths and an absent old path; available duplicates are blocked. No random replacement identity is assigned to unreadable/unsupported embedded metadata.
+
+New TXT headers omit Audio Source ID and historical values no longer affect parsing, recovery evidence or playback cache scope. Archive/Recording ID conflicts remain enforced. Rare fallback headers declare their method; audio JSON retains validated full sampled evidence. Internal catalogue UUIDs/recovery locks remain. Pending exports, verified native writes, iPhone sharing/cancellation and legacy assigned-ID restore are preserved. Missing phone list recovery associates pending work only through an exact embedded-ID set, not names. Search reuses existing model/representation-compatible vectors only for exact text/ordinal matches and unique filenames; changed text and ambiguous archives cannot borrow them.
+
+The final focused run records 19 production identity/Search groups, 48 app integration, 47 persistence, 34 schema/planner, 29 transcript-folder, 22 helper, 10 playback groups and 10 database/semantic-cache groups (219 passing). These are synthetic/disposable harness results, not real inference, cloud sync or device acceptance. Candidate build advances to 2026-11-20.3; schema remains 6. User files, shared folder UI and Settings recovery storage were not changed. Real MacBook/iPhone acceptance precedes the next production step. See [current status](CURRENT_STATUS.md) and [prefix contract](Recording_Identity_Prefix_Contract.md). No agent commit/deployment.
