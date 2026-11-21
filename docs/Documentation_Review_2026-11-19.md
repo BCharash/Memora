@@ -33,14 +33,14 @@ Source checkpoint: **47ca641**, following **33e69dc**. Displayed application bui
 | [docs/Audio_Library_Architecture_Proposal.md](Audio_Library_Architecture_Proposal.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/CURRENT_STATUS.md](CURRENT_STATUS.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/Documentation_Review_2026-11-19.md](Documentation_Review_2026-11-19.md) | New review inventory, findings and validation boundaries. |
-| [docs/File_Workflow_Inventory.md](File_Workflow_Inventory.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
-| [docs/MEMORA_COMBINE_ARCHITECTURE.md](MEMORA_COMBINE_ARCHITECTURE.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
-| [docs/MEMORA_COMBINE_PHASE_1_CONTRACTS.md](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/File_Workflow_Inventory.md](archive/2026-11-21-contracts/File_Workflow_Inventory.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/MEMORA_COMBINE_ARCHITECTURE.md](archive/2026-11-21-contracts/MEMORA_COMBINE_ARCHITECTURE.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/MEMORA_COMBINE_PHASE_1_CONTRACTS.md](archive/2026-11-21-contracts/MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/Memora_Model_Registry_and_Self_Test_Architecture_Plan.md](Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/README.md](README.md) | Current documentation map, source checkpoint and fifth-volume links updated. |
-| [docs/Recording_Identity_Handoff.md](Recording_Identity_Handoff.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
-| [docs/Recording_Identity_Implementation_Contract.md](Recording_Identity_Implementation_Contract.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
-| [docs/Runtime_and_Database_Status.md](Runtime_and_Database_Status.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/Recording_Identity_Handoff.md](archive/2026-11-21-contracts/Recording_Identity_Handoff.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/Recording_Identity_Implementation_Contract.md](archive/2026-11-21-contracts/Recording_Identity_Implementation_Contract.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
+| [docs/Runtime_and_Database_Status.md](archive/2026-11-21-contracts/Runtime_and_Database_Status.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/Self_Test_Timelines_and_Problem_Reports.md](Self_Test_Timelines_and_Problem_Reports.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/Whisper_Catalogue_Resolver_Contract.md](Whisper_Catalogue_Resolver_Contract.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |
 | [docs/Whisper_Configuration_and_Test_Design.md](Whisper_Configuration_and_Test_Design.md) | Active status/contract/plan reviewed against current source; dated history and implementation boundaries retained. |

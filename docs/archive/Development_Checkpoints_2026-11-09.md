@@ -195,7 +195,7 @@ Checkpoint 2A normal/cancel/retry checks passed as reported for Mac Tiny/Large; 
 | Search audio `560fff7` | Simulated controls/picker checks; user desktop/iPhone playback passed. Explicit iPad behavior intentionally joined the iOS path; no separate iPad hardware result. |
 | Build label `7cfb099` | Label checks passed; user confirmed Mac display and iPhone caching problem. |
 
-These checks do not validate all model families, sequences, backends or browsers. Separate Android/iPad hardware acceptance is unreported. See [foundation record](../Runtime_and_Database_Status.md) and [test instructions](../../tests/README.md).
+These checks do not validate all model families, sequences, backends or browsers. Separate Android/iPad hardware acceptance is unreported. See [foundation record](2026-11-21-contracts/Runtime_and_Database_Status.md) and [test instructions](../../tests/README.md).
 
 ## Working rules and deferred scope
 

@@ -1,4 +1,4 @@
-> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](../Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
+> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](2026-11-21-contracts/Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
 
 # IndexedDB repair and ownership plan
 

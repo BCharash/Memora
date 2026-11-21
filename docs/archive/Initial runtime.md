@@ -1,4 +1,4 @@
-> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](../Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
+> Archived 7 November 2026: completed planning/checkpoint history. Earlier pending/unimplemented statements below are historical. See [current foundation record](2026-11-21-contracts/Runtime_and_Database_Status.md) and [current handoff](../CURRENT_STATUS.md). Do not execute this document as a new implementation plan.
 
 # Initial Runtime Identification
 
@@ -8,7 +8,7 @@ Latest acceptance: user confirmed iPhone verification passed after Mac acceptanc
 
 ## Updated scope and order — 29 October 2026
 
-Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](../CURRENT_STATUS.md). The [file workflow inventory](../File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
+Progress: the naming cleanup and core runtime migration are substantially complete. Remaining runtime work is recorded below; the database blocker has been repaired on Mac Chrome, with iPhone verification pending. See [current handoff](../CURRENT_STATUS.md). The [file workflow inventory](2026-11-21-contracts/File_Workflow_Inventory.md) is an overview, not an exhaustive dependency audit. Sharing refactors remain unimplemented. Proceed one small change at a time, pausing for the user's test results; specifically identify changes that affect iPhone paths so deployment/device testing is requested only when relevant. Do not commit or publish without instruction.
 
 ### Current implementation and test evidence
 

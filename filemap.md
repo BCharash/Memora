@@ -10,7 +10,7 @@ There are **57 JavaScript files in `js/`**, including **19 whose names begin wit
 
 Production entry points follow app.js, including lazy imports and worker-script references. Standalone inventory tools are separate from production; the earlier module groups below are not a claim that every JS file runs at startup. They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
-The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
+The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/archive/2026-11-21-contracts/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
 
 The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. Build .8 removes unused private declarations and extra arguments found across the current 57 modules; it also consolidates old transcript cache snapshots during Settings refresh. Historical exported-helper candidates below are separate from that local-declaration audit. See [cleanup findings](#cleanup-findings) before deleting anything.
 
@@ -30,7 +30,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 | Model disposal acknowledgement | `js/whisperDisposal.js` and the two active Whisper workers |
 | Investigating a page restart | `js/runtimeDiagnostics.js` and the exported test report |
 | IndexedDB schema and upgrades | `js/database.js` |
-| File saving/sharing | `js/storage.js`, then the specific workflow in `app.js`, `searchUI.js` or `combineUI.js`; see [file workflow inventory](docs/File_Workflow_Inventory.md) |
+| File saving/sharing | `js/storage.js`, then the specific workflow in `app.js`, `searchUI.js` or `combineUI.js`; see [file workflow inventory](docs/archive/2026-11-21-contracts/File_Workflow_Inventory.md) |
 | Current limits, pending work and how to resume | [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) |
 
 ## How the main features connect

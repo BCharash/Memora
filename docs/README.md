@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current source: **2026-11-21.10**, database schema **10**. Documentation housekeeping checkpoint 3, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
+Current source: **2026-11-21.10**, database schema **10**. Documentation housekeeping checkpoint 4, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
 
 ## Start here
 
@@ -14,23 +14,24 @@ Current source: **2026-11-21.10**, database schema **10**. Documentation houseke
 
 ## Current contracts and methodology
 
-These documents retain useful detail but are still scheduled for consolidation. Where an older plan conflicts with current source, use the current-status page and the audit's source-checked findings.
+The references below separate current contracts, preserved research and future proposals. Superseded contracts are historical records in the archive, not competing current instructions. Some unrelated Whisper/operations documents remain scheduled for later consolidation.
 
 | Topic | Reference |
 |---|---|
-| Recording identity | [Exact reproducible-ID contract](Recording_Identity_Prefix_Contract.md); retain its algorithm and independent vector, not historical checkpoint-next instructions |
-| Runtime, database and caches | [Foundation record](Runtime_and_Database_Status.md); current schema/store summary is in the handoff |
+| Recording identity | [Identity and storage](Recording_Identity_and_Storage.md), with the separate [exact prefix-ID algorithm/vector](Recording_Identity_Prefix_Contract.md#prefix-method-version-1) |
+| Architecture, runtime and file access | [Architecture and file workflows](Architecture_and_File_Workflows.md) |
+| Database and caches | [Identity/storage responsibilities, schema and preservation](Recording_Identity_and_Storage.md#database-ownership-and-preservation) |
 | Search | [Current methodology](Search_Methodology.md), [preserved governing strategy](search%20model%20optimization.md) and [complete research record](archive/Search_Optimization_Research_Record.md) |
 | Paragraphing | [Current methodology](Paragraphing_Methodology.md) and the intact [R4/R5 comparison, decision and revisit protocol](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) |
 | Whisper configuration and qualification | [Catalogue/resolver contract](Whisper_Catalogue_Resolver_Contract.md) and [testing/eligibility design](Whisper_Configuration_and_Test_Design.md) |
 | Model failures, reviews and reporting | [Execution-failure contract](Whisper_Execution_Failure_Contract.md) and [self-test timelines/reports](Self_Test_Timelines_and_Problem_Reports.md) |
 | Publishing and recovery | [Build numbering](build-versioning.md), [Pages recovery procedure](Pages_Deployment_Recovery.md) and its manual workflow; review the deployment SHA rather than reusing a historical incident default |
 
-Checkpoint 3 is additive: the Search and paragraphing summaries sit alongside the full original records. Uncertain future value favors retention; no research is deleted or shortened.
+Nine superseded guides are now consolidated into the two current references above and the future Combine contract below. All nine originals remain complete in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026), with notices and repaired navigation. Search/paragraphing research remains intact; no uncertain-value history is destroyed.
 
 ## Future work and preserved evidence
 
-- [Combine architecture](MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](MEMORA_COMBINE_PHASE_1_CONTRACTS.md) preserve future workspace/import/editing requirements. Their old sidecar and filename-keyed cache assumptions are superseded; multi-archive Combine is not implemented.
+- [Consolidated future Combine contract](Multi_Archive_Combine_Contract.md) separates implemented foundations, agreed future behavior and proposals. Both original plans remain archived; multi-archive Combine is not implemented.
 - [Audio library proposal](Audio_Library_Architecture_Proposal.md) retains broader recursive ownership ideas. Shared parent-folder selection is already implemented.
 - [DOCX metadata evidence](validation/docx-custom-properties/README.md) retains browser/Word round-trip results and unresolved interoperability limits; it does not implement production import.
 - Offline Tiny, Vite/release conversion and iMuse convergence remain [deferred proposals](archive/README.md), requiring a fresh source review before implementation.

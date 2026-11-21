@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Reviewed **21 November 2026** against source commit **c4c3816**: application **2026-11-21.10**, database schema **10**. This housekeeping checkpoint changes documentation only. Publication and actual .10 device acceptance are not established by this review.
+Reviewed **21 November 2026** against source commit **95fe938**: application **2026-11-21.10**, database schema **10**. This housekeeping checkpoint changes documentation only. Publication and actual .10 device acceptance are not established by this review.
 
 ## Current behavior
 
@@ -79,7 +79,7 @@ Earlier user-reported playback, identity reconstruction, report saving and Pages
 
 ## Next work
 
-**Current authorized checkpoint:** documentation cleanup step 3, additive Search/paragraphing methodology summaries with conservative preservation. Step 2 completed the current-only entry points. The original strategy, research, alternatives, experiments and evidence stay intact; material of uncertain value is retained. Next proposed batch is contract consolidation with a concrete preservation/disposition review before any later removal. See the [audit and staged plan](Documentation_Audit_2026-11-21.md).
+**Current authorized checkpoint:** documentation cleanup step 4. Nine overlapping file/identity/Combine guides are consolidated into [file workflows](Architecture_and_File_Workflows.md), [identity and storage](Recording_Identity_and_Storage.md) and the [future Combine contract](Multi_Archive_Combine_Contract.md). All nine originals are archived intact apart from archive notices/navigation, with preservation verification in the [audit](Documentation_Audit_2026-11-21.md). The exact prefix contract stays separate; full research/validation evidence is retained. No application behavior is implemented by these documents. Further removals or broader model/operations consolidation require their own conservative disposition review.
 
 After documentation: perform the separate JavaScript structural audit. Then design multi-archive Combine: additive membership, per-archive retained audio access, durable-reference selection/editing/export, duplicate-version policy and source-specific refresh/removal. The identity/cache foundation exists; the workspace does not.
 
