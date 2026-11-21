@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **21 November 2026**, journal version **41**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Reviewed and synchronized **21 November 2026**, journal version **42**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -12,6 +12,8 @@ Reviewed and synchronized **21 November 2026**, journal version **41**. The [who
 | [Volume 5](05-design-journal-sections-60-62.md) | **60–62** | November runtime/database/Whisper consolidation, recording identity/migration, self-test summary, Settings, root reconciliation, browser qualification and guided audio/file location. |
 
 Volume 4 keeps its existing filename for link/bookmark compatibility; despite ending in 49-51 it already contains sections through 59. The new fifth volume fills the missing split coverage for sections 60–62. Historical duplicate section numbers 22 and 24, and gaps such as 12 and 27, are retained in both representations. Match sections by number **and heading title**, not number alone. No content was discarded or renumbered.
+
+The [21 November documentation audit](Documentation_Audit_2026-11-21.md) recommends consolidation and generation of split volumes while preserving their historical bodies. Its disposition register is an assessment; no journal volume is removed or renamed here.
 
 ## Recent material in Volume 5
 

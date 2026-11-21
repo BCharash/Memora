@@ -2,6 +2,10 @@
 
 Updated **21 November 2026** for candidate **2026-11-21.10**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#semicolon-separated-search-descriptions--21-november-2026).
 
+## Documentation audit — 21 November 2026
+
+The [comprehensive audit and per-document recommendations](Documentation_Audit_2026-11-21.md) covers all 49 pre-existing Markdown files. It identifies obsolete current-facing guidance below and in older plans, protects methodology/evidence, and proposes a staged consolidation. **This is the audit checkpoint: no documents have been deleted or moved.** Use the audit's current-source findings before following historical next steps.
+
 ## Current file and cache workflow
 
 Production no longer creates, reads or saves audio/transcript inventory JSON. Existing files remain untouched. Embedded Apple/iMuse Recording IDs and the unchanged reproducible fallback identify audio; TXT headers retain recording and transcript Archive UUID identities. **Search embeddings remain in search-embeddings.json.**

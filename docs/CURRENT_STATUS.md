@@ -1,5 +1,9 @@
 # Memora — current status and resume instructions
 
+## Documentation audit checkpoint — 21 November 2026
+
+Completed the [comprehensive documentation audit](Documentation_Audit_2026-11-21.md), with a disposition recommendation for every one of the 49 baseline Markdown files. Current implementation remains **2026-11-21.10**, schema **10**. No application or runtime tests changed or ran. No documents were moved or deleted. Proposed next documentation batch: rewrite the current index/handoff/test guide, then preserve methodology and consolidate contracts before removing redundant histories. JavaScript organization and multi-archive Combine remain separate later work. Older next-step sections below are dated history; the audit identifies where they conflict with current source.
+
 ## Semicolon-separated Search descriptions — 21 November 2026
 
 Candidate **2026-11-21.10**, schema **10** unchanged. Combined-document suggestions and the Combine list-origin description format each semicolon-separated query term individually and join them with **; **. Commas remain part of a term. Search already uses semicolons as its query delimiter; retrieval is unchanged. The Search input now explicitly explains the delimiter and references that help for assistive technology. Example: `dreams; Silence, stillness` displays `Search: Dreams; Silence, Stillness`, retaining the comma inside the second term. Actual device visual acceptance remains pending.

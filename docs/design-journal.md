@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 41
+**Version:** 42
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4846,3 +4846,11 @@ Verification: **45 focused browser groups passed** (33 catalogue/app/Settings, 7
 ### 62.35 Semicolon delimiter in Search descriptions — 21 November 2026
 
 Candidate **2026-11-21.10**, schema **10** unchanged. Combined-document suggestions and the Combine list-origin description format each semicolon-separated query term individually and join them with **; **. Commas remain part of a term. Search already uses semicolons as its query delimiter; retrieval is unchanged. The Search input now explicitly explains the delimiter and references that help for assistive technology. Example: `dreams; Silence, stillness` displays `Search: Dreams; Silence, Stillness`, retaining the comma inside the second term. Actual device visual acceptance remains pending.
+
+### 62.36 Comprehensive documentation audit and preservation-first cleanup plan — 21 November 2026
+
+The user requested a comprehensive documentation audit before the JavaScript structural review and multi-archive Combine. The [audit and complete disposition register](Documentation_Audit_2026-11-21.md) covers all 49 baseline Markdown documents, legal/fixture exclusions, repeated guidance, source-checked contradictions, journal duplication, protected research and a staged cleanup plan. It recommends a current-truth pass first; methodology/evidence extraction precedes removal. No existing document is deleted, moved or renamed at this checkpoint.
+
+Preserve the R4/R5 paragraphing decision and exact experiment definitions, Search ranking/benchmark research, identity/sidecar-retirement and database preservation lessons, model evidence distinctions, mobile sharing limits and DOCX round-trip artifacts. Keep the whole journal and split volumes; recommend generating splits from one canonical whole rather than independent manual copies. Future plans remain explicitly distinct from implemented behavior and acceptance.
+
+Baseline automated checks found 569 local inline links with zero missing targets or unresolved Markdown anchors. Whole/split journal substantive bodies match, with boundary separator/whitespace differences in volumes 1 and 4. This is documentation/source review only: no new runtime/model/device acceptance, no user-data or application changes, build .10/schema 10 unchanged. The audit adds one Markdown report; all original files remain. The separate JavaScript audit should include the stale source/persistence routes in the committed test runner; they are not repaired by editing documentation.
