@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current source: **2026-11-21.10**, database schema **10**. Documentation housekeeping checkpoint 2, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
+Current source: **2026-11-21.10**, database schema **10**. Documentation housekeeping checkpoint 3, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
 
 ## Start here
 
@@ -20,11 +20,13 @@ These documents retain useful detail but are still scheduled for consolidation. 
 |---|---|
 | Recording identity | [Exact reproducible-ID contract](Recording_Identity_Prefix_Contract.md); retain its algorithm and independent vector, not historical checkpoint-next instructions |
 | Runtime, database and caches | [Foundation record](Runtime_and_Database_Status.md); current schema/store summary is in the handoff |
-| Search | [Governing strategy](search%20model%20optimization.md) and [complete research record](archive/Search_Optimization_Research_Record.md) |
-| Paragraphing | [R4/R5 comparison, decision and revisit protocol](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md); current production behavior is summarized in the handoff |
+| Search | [Current methodology](Search_Methodology.md), [preserved governing strategy](search%20model%20optimization.md) and [complete research record](archive/Search_Optimization_Research_Record.md) |
+| Paragraphing | [Current methodology](Paragraphing_Methodology.md) and the intact [R4/R5 comparison, decision and revisit protocol](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) |
 | Whisper configuration and qualification | [Catalogue/resolver contract](Whisper_Catalogue_Resolver_Contract.md) and [testing/eligibility design](Whisper_Configuration_and_Test_Design.md) |
 | Model failures, reviews and reporting | [Execution-failure contract](Whisper_Execution_Failure_Contract.md) and [self-test timelines/reports](Self_Test_Timelines_and_Problem_Reports.md) |
 | Publishing and recovery | [Build numbering](build-versioning.md), [Pages recovery procedure](Pages_Deployment_Recovery.md) and its manual workflow; review the deployment SHA rather than reusing a historical incident default |
+
+Checkpoint 3 is additive: the Search and paragraphing summaries sit alongside the full original records. Uncertain future value favors retention; no research is deleted or shortened.
 
 ## Future work and preserved evidence
 

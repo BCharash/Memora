@@ -226,3 +226,21 @@ The test guide inventories all 35 existing HTML pages, identifies the catalogue-
 The next proposed batch is methodology/decision preservation. No application, schema, user data, model state or deployment changes; no runtime tests were rerun. No original research/history document was deleted.
 
 Checkpoint-2 validation: **51 Markdown documents**, **631 local inline references**, zero unresolved file/Markdown-heading targets; all five journal bodies synchronized. The 35-page test inventory matches the actual HTML file set. Original-guide Git blobs match all three recorded SHA-256 values. The three live guides shrank from **190,832 to 27,841 bytes (85.4%)**; the preservation ledger is additional, deliberately concise evidence. Other existing contract/file-map edits are navigation-only. No runtime tests were run.
+
+## Cleanup progress — checkpoint 3, conservative preservation
+
+The user explicitly requested conservative preservation before authorizing checkpoint 3. Added [Search methodology](Search_Methodology.md) and [paragraphing methodology](Paragraphing_Methodology.md) alongside the originals. They document current source behavior, historical decision rationale, numerical/evaluation limits and conditions for revisiting the methods. No original research/strategy/history/evidence file is deleted, shortened, moved or renamed. Uncertain future value favors retention; Git history is an extra safeguard, not the only home of valuable material.
+
+The source review makes important distinctions explicit: production preserves existing blank-line paragraphs while the experimental loop considered long existing paragraphs; Search passage fusion uses k=60 while transcript fusion uses k=30 with sentence weight 2; exact lexical matching includes normalized/limited-inflection equivalence; slider release currently reruns the full query; and a single shared TXT parse throughout indexing is not established. These are documentation findings, not application changes or approval to optimize the pipeline.
+
+Protected originals include the full R4/R5 comparison, complete Search research, original Search strategy, first four journal volumes, all archived documents and retained DOCX/JSON validation artifacts. Baseline SHA-256 checks cover 28 files. The three central original records remain at the same paths with these hashes:
+
+| Original | SHA-256 retained in checkpoint 3 |
+|---|---|
+| docs/archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md | 1fd40d7f8972ba9d8455264a964b38fb0c9c5b39b1ff070bbef21427d387a6bf |
+| docs/archive/Search_Optimization_Research_Record.md | a55079abc113dd735d7410ae03324e482ba8e166860ae2b9a79a1e60caad8dce |
+| docs/search model optimization.md | 62755e7ae520c526aa26d188f91860f8a773801d6d00f9219945336d696eba0d |
+
+Only new methodology pages and supporting Markdown navigation/progress/journal updates are in scope. No application, schema, model, benchmark, user-file, cache or deployment changes; no runtime/model/device tests were run. The broad identity/runtime/model contract consolidation and deletion decisions remain later checkpoints.
+
+Checkpoint-3 validation: **53 Markdown files**, **674 local inline references**, zero missing local targets/unresolved Markdown heading fragments, and all five journal bodies synchronized. SHA-256 checks confirm all **28 protected original research/history/validation files are byte-for-byte unchanged**. Change scope is limited to the two new methodology pages and six supporting Markdown updates. No runtime or model tests were run.

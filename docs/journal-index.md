@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **21 November 2026**, journal version **43**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Reviewed and synchronized **21 November 2026**, journal version **44**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -14,6 +14,8 @@ Reviewed and synchronized **21 November 2026**, journal version **43**. The [who
 Volume 4 keeps its existing filename for link/bookmark compatibility; despite ending in 49-51 it already contains sections through 59. The new fifth volume fills the missing split coverage for sections 60–62. Historical duplicate section numbers 22 and 24, and gaps such as 12 and 27, are retained in both representations. Match sections by number **and heading title**, not number alone. No content was discarded or renumbered.
 
 The [21 November documentation audit](Documentation_Audit_2026-11-21.md) recommends consolidation and generation of split volumes while preserving their historical bodies. Its disposition register is an assessment; no journal volume is removed or renamed here.
+
+The current [Search](Search_Methodology.md) and [paragraphing](Paragraphing_Methodology.md) summaries are additive companions to the full research records; checkpoint 3 preserves original research, alternatives and evidence intact.
 
 ## Recent material in Volume 5
 
