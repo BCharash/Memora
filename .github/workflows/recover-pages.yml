@@ -1,0 +1,59 @@
+name: Recover stuck Pages deployment
+
+# Manual only. This requests cancellation of one Pages deployment; it does not
+# build, publish, delete artifacts, or change the repository's Pages settings.
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_commit:
+        description: Full commit SHA GitHub says is still deploying
+        required: true
+        default: 0d6b3ac5cba9eb332ef5c10a1d6d3de3aed36da1
+        type: string
+
+permissions:
+  pages: write
+
+concurrency:
+  group: pages-recovery
+  cancel-in-progress: false
+
+jobs:
+  cancel-stuck-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request cancellation of the specified Pages deployment
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PAGES_COMMIT: ${{ inputs.deployment_commit }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$PAGES_COMMIT" =~ ^[[:xdigit:]]{40}$ ]]; then
+            echo '::error::Enter the full 40-character commit SHA from the Pages error.'
+            exit 1
+          fi
+          response_code="$(curl --silent --show-error \
+            --output "$RUNNER_TEMP/pages-recovery-response.json" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/pages/deployments/$PAGES_COMMIT/cancel")"
+          if [[ "$response_code" != '204' ]]; then
+            echo "::error::Pages cancellation returned HTTP $response_code. No deployment was started."
+            python3 - "$RUNNER_TEMP/pages-recovery-response.json" <<'PY'
+          import json, sys
+          try:
+              with open(sys.argv[1]) as response:
+                  print(json.load(response).get('message', 'No error details supplied.'))
+          except (ValueError, OSError):
+              print('GitHub returned a response without JSON error details.')
+          PY
+            exit 1
+          fi
+          echo "GitHub accepted the Pages cancellation request for $PAGES_COMMIT."
+          echo 'Wait for cancellation to settle, then check or rerun the latest Pages deployment.' >> "$GITHUB_STEP_SUMMARY"

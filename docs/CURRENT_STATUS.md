@@ -5,6 +5,11 @@
 
 
 
+
+## Pages deployment blocker — 21 November 2026
+
+GitHub built the inventory checkpoint and .4 commits, but rejected publication because it still considered .3 commit 0d6b3ac5cba9eb332ef5c10a1d6d3de3aed36da1 deploying. The live site remained on .3 and the new test URL returned 404. Rerunning failed jobs remained queued. A manual [Pages recovery workflow](../.github/workflows/recover-pages.yml) is prepared to request cancellation through GitHub's documented Pages endpoint; it has not been committed, pushed or run by Codex. See [recovery instructions](Pages_Deployment_Recovery.md). It changes no app behavior/build/schema and does not publish automatically. YAML/shell syntax and three mock recovery cases passed; real recovery and publication remain pending.
+
 ## iPhone return/discovery lifecycle and parent-grouped metadata — 21 November 2026
 
 Build **2026-11-21.4**, database schema **8** unchanged. The user reported .3 had not resolved iPhone Enable Transcription or missing shared recording rows. Expanded tests now use production selectFolder/file-input handling instead of the synthetic folder-return shortcut. Two additional paths are handled: returning without a discovered transcript folder prepares the selected audio list while leaving setup open; child discovery finishing after return immediately refreshes the gate when shared selection commits. Selecting a new audio root clears stale rows before deferred rendering. A discovered/selected transcript folder still gates untouched Transcribe; Enable populates the selected audio unchecked. No automatic inference occurs. The hidden forwarded-save protection from .3 remains.
