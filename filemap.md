@@ -1,5 +1,8 @@
 # Memora file map
 
+Settings .5: settings.js renders separate parent-grouped folder metadata entries and shared bulk selection controls. transcriptCatalogue.js removes exact observed scope snapshots atomically, rejecting concurrent changes. Audio Recording List Cache and Transcript Folder Metadata Cache precede Model Registry Cache; audio persistence remains active.
+
+
 Read-only audio inventory checkpoint: audioInventory.js is an independent identity/comparison adapter; audioInventoryTest.js belongs only to the standalone audio-inventory-test.html. Neither is imported by production app.js. See [checkpoint notes](docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
 
 

@@ -36,6 +36,29 @@ export async function clearTranscriptCatalogueCache() {
     } finally { db.close(); }
 }
 
+// Delete exact observed snapshots only; a refresh in another tab is retained.
+export async function removeTranscriptCatalogueCache(entries) {
+    if(!entries.length)return;
+    const db=await openMemoraDatabase();
+    try{
+        await new Promise((resolve,reject)=>{
+            const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);let failure;
+            tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(failure||tx.error||Error('Could not delete transcript folder metadata.'));
+            for(const entry of entries){const request=store.get(entry.id);request.onsuccess=()=>{
+                if(request.result&&JSON.stringify(request.result)!==JSON.stringify(entry)){
+                    failure=Error('Transcript folder metadata changed. Refresh the list before deleting.');tx.abort();return;
+                }
+                if(request.result)store.delete(entry.id);
+            };}
+        });
+    }finally{db.close();}
+}
+
+export function transcriptMetadataParent(row) {
+    const names=[...new Set(row.records.map(record=>record.originalAudioFolderName).filter(Boolean))];
+    return names.length===1?names[0]:names.length>1?'Multiple Audio Folders':row.parentAudioFolderName||'Parent Audio Folder Unknown';
+}
+
 export async function cacheTranscriptMetadata(source, records) {
     const entry = {
         id: scope(source), folderName: source.name, updatedAt: Date.now(),
@@ -125,8 +148,7 @@ export async function openTranscriptCatalogue(source) {
 export function formatTranscriptMetadataCache(rows) {
     const groups=new Map();
     for(const row of rows){
-        const names=[...new Set(row.records.map(record=>record.originalAudioFolderName).filter(Boolean))];
-        const parent=names.length===1?names[0]:names.length>1?'Multiple Audio Folders':row.parentAudioFolderName||'Parent Audio Folder Unknown';
+        const parent=transcriptMetadataParent(row);
         if(!groups.has(parent))groups.set(parent,[]);groups.get(parent).push(row);
     }
     return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([parent,entries])=>parent+'\n'+entries.sort((a,b)=>a.folderName.localeCompare(b.folderName)||b.updatedAt-a.updatedAt).map(row=>{

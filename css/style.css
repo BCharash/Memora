@@ -1704,12 +1704,12 @@ button:disabled {
 }
 
 /* Named local-storage categories stay readable on narrow Settings panels. */
-:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item {
+:is(#settingsSourceRecoveryDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
 }
-:is(#settingsSourceRecoveryDetail, #settingsRegistryCacheDetail) .settings-item-info {
+:is(#settingsSourceRecoveryDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item-info {
     overflow-wrap: anywhere;
 }
 
@@ -1720,7 +1720,7 @@ button:disabled {
     align-items: center;
 }
 .settings-storage-category > span:nth-child(2) { text-align: center; overflow-wrap: anywhere; }
-.settings-storage-category > button { width: 64px; justify-self: end; }
+#settingsStorage .settings-storage-category > button { width: 64px; justify-self: end; }
 .settings-selection-actions { margin: 10px 0; flex-wrap: wrap; }
 .settings-detail .settings-item-info { min-width: 0; overflow-wrap: anywhere; }
 .settings-cache-path { font-size: .8em; overflow-wrap: anywhere; }
@@ -1758,3 +1758,7 @@ button:disabled {
 
 .export-location { font-size:1.1rem;font-weight:600;overflow-wrap:anywhere;margin:10px 0; }
 #enableTranscriptionButton { margin:14px 0; }
+
+.settings-cache-files { margin-top: 6px; font-size: 13px; overflow-wrap: anywhere; }
+.settings-cache-files summary { cursor: pointer; }
+.settings-cache-files ul { margin: 6px 0; padding-left: 20px; }

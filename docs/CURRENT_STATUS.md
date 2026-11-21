@@ -7,6 +7,18 @@
 
 
 
+
+## Settings folder cache cleanup — 21 November 2026
+
+Build **2026-11-21.5**, database schema **8** unchanged. Settings now presents **Audio Recording List Cache**, **Transcript Folder Metadata Cache**, then **Model Registry Cache**, with a separator before each category and centered size/count summaries. The transcript disclosure now uses the same toggle action styling as the other View/Hide controls. Storage disclosure widths remain fixed when the label changes; transcript metadata rows share the audio/registry checkbox grid on narrow screens.
+
+Transcript metadata is shown as individual folder-snapshot rows under parent audio headings, with transcript count, estimated metadata size, update time, Archive UUIDs and an expandable Transcript Files list. Same-name scopes remain separate. This replaces the combined preformatted report. Select all and Delete Selected appear above the folder rows only when populated; Delete Selected starts disabled. The separate Clear action is removed. Canceling deletion preserves all snapshots; deleting metadata leaves files, cached full-text transcripts, pending exports, audio-list recovery, registry definitions and embeddings intact. Selection targets exact scope IDs; if a chosen snapshot changed after viewing, the deletion transaction aborts and preserves all targeted snapshots for refresh.
+
+Validation: **47 targeted groups passed** — 25 catalogue/page/Settings, 10 database integration, 7 full-text identity and 5 iPhone gate.
+
+This pass does not change cache scope association/deduplication, implement the incremental audio cache, retire audio JSON or remove active audio-list recovery protections. Those remain within the staged inventory plan. Device visual acceptance is pending. Tests cover individual selection, select-all, cancel/empty states, parent grouping, category order and separator placement, matching disclosures, a true 390px iframe layout with production CSS/inline styles, stale-snapshot atomic rollback, existing cache identity and iPhone gating.
+
+
 ## Audio inventory device comparison: Dayananda — 21 November 2026
 
 The user supplied MacBook Chrome and iPhone Safari reports for **Dayananda Ashram Audio journal**, at 10:52:38Z and 11:18:21Z. Both enumerated the same **107 audio files** (489,775,383 bytes), recovered **107 embedded Apple Recording IDs**, and matched all 107 against a valid existing audio JSON. There were no path-set, file-size or case-insensitive Recording ID differences between devices; both reported zero unresolved, mismatched, added, absent, renamed or old assigned entries and no inventory issues.

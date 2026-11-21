@@ -1,5 +1,5 @@
 import {directory,selections,calls,seedAudio} from './transcription-identity-fixtures.js';
-import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache,formatTranscriptMetadataCache} from '../js/transcriptCatalogue.js';
+import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache,formatTranscriptMetadataCache,removeTranscriptCatalogueCache} from '../js/transcriptCatalogue.js';
 import {createTranscriptionGate} from '../js/transcriptionGate.js';
 import {readTranscriptIdentity} from '../js/transcriptMetadata.js';
 import {openMemoraDatabase} from './source-database-adapter.js';
@@ -75,11 +75,46 @@ await test('Never-saved warning, canceled save retry, TXT-only share and post-sh
 await test('A second new batch resets save warnings and pulse instead of inheriting the previous share result',async()=>{
  const before=calls.length;click('transcribeButton');await choose('Discard pending transcripts');await wait(()=>calls.length>before&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');assert(document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));click('transcribeButton');await wait(()=>document.querySelector('dialog[open]'));assert(document.querySelector('dialog[open]').textContent.includes('There are transcripts waiting to be saved'));await choose('Keep pending transcripts');
 });
-await test('Settings exposes the rebuildable local metadata cache without disturbing pending exports',async()=>{
- click('settingsButton');await wait(()=>document.getElementById('settingsStorageStatus').textContent.startsWith('Updated '));await wait(()=>document.querySelector('[data-settings-action="view-transcript-metadata"]'));document.querySelector('[data-settings-action="view-transcript-metadata"]').click();await wait(()=>document.getElementById('settingsTranscriptMetadataEntries').textContent.length>0);assert(document.getElementById('settingsTranscriptMetadataDetail').textContent.includes('new transcripts'));document.querySelector('[data-settings-action="clear-transcript-metadata"]').click();await wait(()=>!document.querySelector('[data-settings-action="clear-transcript-metadata"]'));click('settingsButton');assert(!document.getElementById('iphoneExportButton').disabled&&document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));
+await test('Settings places named folder caches together with matching disclosures, separators and individual parent-grouped rows',async()=>{
+ click('settingsButton');await wait(()=>document.getElementById('settingsStorageStatus').textContent.startsWith('Updated '));
+ const audio=document.querySelector('[data-settings-action="toggle-source-recovery"]').parentElement,metadata=document.querySelector('[data-settings-action="toggle-transcript-metadata"]').parentElement,registry=document.querySelector('[data-settings-action="toggle-registry-cache"]').parentElement;
+ assert(audio.textContent.includes('Audio Recording List Cache')&&metadata.textContent.includes('Transcript Folder Metadata Cache'));
+ assert(audio.compareDocumentPosition(metadata)&Node.DOCUMENT_POSITION_FOLLOWING);assert(metadata.compareDocumentPosition(registry)&Node.DOCUMENT_POSITION_FOLLOWING);assert(metadata.previousElementSibling.classList.contains('settings-section-divider'));
+ const toggle=metadata.querySelector('button');assert(getComputedStyle(toggle).width===getComputedStyle(audio.querySelector('button')).width);assert(document.documentElement.scrollWidth<=window.innerWidth,'Settings has horizontal overflow');toggle.click();
+ await wait(()=>document.querySelector('#settingsTranscriptMetadataDetail .settings-item'));
+ const detail=document.getElementById('settingsTranscriptMetadataDetail');assert(toggle.textContent==='Hide'&&detail.textContent.includes('new transcripts')&&detail.textContent.includes('Phone 2018'));
+ assert(detail.querySelectorAll('.settings-item').length===(await listTranscriptCatalogueCache()).length,'Folder scopes collapsed into a report');
+ assert(detail.querySelector('.settings-selection-actions').compareDocumentPosition(detail.querySelector('.settings-item'))&Node.DOCUMENT_POSITION_FOLLOWING);
+ toggle.click();assert(detail.hidden&&toggle.textContent==='View');toggle.click();await wait(()=>!detail.hidden&&detail.querySelector('.settings-item'));
+});
+await test('Settings folder entries and disclosures fit a real 390px iframe viewport',async()=>{
+ const parsed=new DOMParser().parseFromString(await(await fetch('../index.html')).text(),'text/html');
+ const iframe=document.createElement('iframe');iframe.style.width='390px';iframe.style.height='844px';iframe.style.border='0';
+ const loaded=new Promise(resolve=>iframe.onload=resolve);
+ iframe.srcdoc=`<!doctype html><html><head><link rel="stylesheet" href="${new URL('../css/style.css',location.href)}">${[...parsed.head.querySelectorAll('style')].map(style=>style.outerHTML).join('')}</head><body>${document.getElementById('settingsStorage').outerHTML}</body></html>`;
+ document.body.append(iframe);await loaded;
+ try{const doc=iframe.contentDocument,view=iframe.contentWindow;assert(view.innerWidth===390);assert(doc.documentElement.scrollWidth<=390,'Narrow Settings overflow');const a=doc.querySelector('[data-settings-action="toggle-source-recovery"]'),b=doc.querySelector('[data-settings-action="toggle-transcript-metadata"]');assert(view.getComputedStyle(a).width===view.getComputedStyle(b).width,'View and Hide button widths differ');assert(view.getComputedStyle(b.parentElement.children[1]).textAlign==='center');assert(doc.querySelectorAll('#settingsTranscriptMetadataDetail .settings-item').length>1);}finally{iframe.remove();}
+});
+await test('Settings deletes one selected folder metadata snapshot and preserves unselected folders and pending transcript exports',async()=>{
+ const detail=document.getElementById('settingsTranscriptMetadataDetail'),before=await listTranscriptCatalogueCache();const check=detail.querySelector('.settings-item input[type="checkbox"]'),remove=[...detail.querySelectorAll('button')].find(b=>b.textContent==='Delete Selected');assert(remove.disabled);check.checked=true;check.dispatchEvent(new Event('change',{bubbles:true}));assert(!remove.disabled);const confirm=window.confirm;window.confirm=()=>true;
+ try{remove.click();await wait(()=>document.querySelectorAll('#settingsTranscriptMetadataDetail .settings-item').length===before.length-1);}finally{window.confirm=confirm;}
+ assert((await listTranscriptCatalogueCache()).length===before.length-1);
+});
+await test('Settings select-all cancellation preserves metadata, deletion empties only that cache, and empty controls are hidden',async()=>{
+ let detail=document.getElementById('settingsTranscriptMetadataDetail'),count=(await listTranscriptCatalogueCache()).length;
+ let all=detail.querySelector('.settings-selection-actions input');all.checked=true;all.dispatchEvent(new Event('change'));assert([...detail.querySelectorAll('.settings-item input')].every(c=>c.checked));
+ const confirm=window.confirm;window.confirm=()=>false;
+ let remove=[...detail.querySelectorAll('button')].find(b=>b.textContent==='Delete Selected');remove.click();await new Promise(r=>setTimeout(r,25));assert((await listTranscriptCatalogueCache()).length===count);
+ window.confirm=()=>true;
+ try{remove.click();await wait(()=>document.getElementById('settingsTranscriptMetadataDetail').textContent.includes('No cached transcript folders.'));}finally{window.confirm=confirm;}
+ detail=document.getElementById('settingsTranscriptMetadataDetail');assert(!detail.querySelector('.settings-selection-actions')&&!detail.querySelector('.settings-item'));assert(document.querySelector('[data-settings-action="toggle-transcript-metadata"]').textContent==='Hide');
+ click('settingsButton');assert(!document.getElementById('iphoneExportButton').disabled&&document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));
+});
+await test('Concurrent metadata refresh prevents atomic deletion of a newer snapshot',async()=>{
+ const a={kind:'file-input',name:'Race A',files:[new File([header()],'a.txt')]},b={kind:'file-input',name:'Race B',files:[new File([header()],'b.txt')]};await readTranscriptFolder(a);await readTranscriptFolder(b);const before=await listTranscriptCatalogueCache();a.files=[new File([header(f.OTHER)],'changed.txt')];await readTranscriptFolder(a);let blocked=false;try{await removeTranscriptCatalogueCache(before);}catch{blocked=true;}assert(blocked);const after=await listTranscriptCatalogueCache();assert(after.length===2&&after.some(row=>row.folderName==='Race A'&&row.records[0].filename==='changed.txt')&&after.some(row=>row.folderName==='Race B'));
 });
 await test('Local metadata retention is bounded and keeps the latest distinct folder observation',async()=>{
  for(let index=0;index<18;index++)await readTranscriptFolder({kind:'file-input',name:'Bounded '+index,files:[new File([header()],'a.txt')]});const rows=await listTranscriptCatalogueCache();assert(rows.length<=16&&rows.some(row=>row.folderName==='Bounded 17'));assert(rows.every(row=>!row.records.some(record=>'transcript' in record)));
 });
 await test('Local metadata clearing changes no audio, TXT, source JSON or identities',async()=>{await clearTranscriptCatalogueCache();assert((await openTranscriptCatalogue({kind:'file-input',name:'Rebuilt',files:[new File([header()],'a.txt')]})).archiveUuid===UUID);assert(root.state.files.has('memora-audio-source.json'));assert(await(await(await child.getFileHandle('memora-transcript-archive.json')).getFile()).text()==='DO NOT READ OR CHANGE');});
-const result={passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});
+const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

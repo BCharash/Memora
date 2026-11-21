@@ -114,7 +114,7 @@ try {
             document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
             const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();
             const names=[...document.querySelectorAll('.settings-storage-category .settings-disclosure-title')].map(node=>node.textContent);
-            assert(JSON.stringify(names)===JSON.stringify(['Semantic Index','Other Cached Models','DOM Diagnostics','Cached Transcripts','Audio Recording List — Saved Local Copies','Model Registry Cache','Transcript Metadata Cache','Whisper Models']),'storage section order');
+            assert(JSON.stringify(names)===JSON.stringify(['Semantic Index','Other Cached Models','DOM Diagnostics','Cached Transcripts','Audio Recording List Cache','Transcript Folder Metadata Cache','Model Registry Cache','Whisper Models']),'storage section order');
             assert(!document.querySelector('[data-settings-action^="clear-all-"]'),'old bulk deletion remains');
             const open=action=>document.querySelector(`[data-settings-action="${action}"]`).click();
             const button=(detail,label)=>[...detail.querySelectorAll('button')].find(node=>node.textContent===label);

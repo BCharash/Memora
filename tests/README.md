@@ -1,5 +1,8 @@
 # Memora test guide
 
+Build **2026-11-21.5** Settings cleanup: **47 targeted groups passed** — 25 catalogue/page/Settings (including true 390px iframe styling, section order, per-folder selection, select-all/cancel/empty states and stale-snapshot rollback), 10 database integration, 7 full-text cache identity and 5 iPhone gate. View/Hide now uses toggle-transcript-metadata; the standalone Clear metadata action is replaced by selection deletion. No user archive/model execution or real iPhone visual acceptance is claimed.
+
+
 Build **2026-11-21.4**: **80 groups passed** — 5 iPhone gate tests now exercise production file-input selection, an audio-only source return, and delayed identity reading with discovery finishing after return; 21 catalogue/page groups include parent-folder grouping without archive-scope merging; 7 shared-folder and 47 persistence groups remain green. New iphone-source-fixtures.js retains synthetic metadata/inference while forwarding selectFolder to the real implementation. Device confirmation remains pending.
 
 

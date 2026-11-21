@@ -163,12 +163,21 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure settings-storage-category">
-                <span class="settings-disclosure-title">Audio Recording List — Saved Local Copies</span>
+                <span class="settings-disclosure-title">Audio Recording List Cache</span>
                 <span id="settingsSourceRecoverySummary">${formatBytes(recoveryStore.bytes)} · ${(sourceRecoveryGroups?.length??recoveryStore.count).toLocaleString()} sources</span>
                 ${button("View", "toggle-source-recovery")}
             </div>
             <p class="settings-note">Latest browser-local copy for each verified source. These are separate from JSON files saved in your folders.</p>
             <div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure settings-storage-category">
+                <span class="settings-disclosure-title">Transcript Folder Metadata Cache</span>
+                <span>${formatBytes(transcriptMetadata.bytes)} · ${transcriptMetadata.count.toLocaleString()} folders</span>
+                ${button("View", "toggle-transcript-metadata")}
+            </div>
+            <p class="settings-note">Folder metadata rebuilt when transcripts are opened.</p>
+            <div id="settingsTranscriptMetadataDetail" class="settings-detail" hidden></div>
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure settings-storage-category">
@@ -178,8 +187,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             </div>
             <p class="settings-note">Model definitions cached by Memora. Deleting them preserves downloaded models and test results.</p>
             <div id="settingsRegistryCacheDetail" class="settings-detail" hidden></div>
-            <div class="settings-disclosure settings-storage-category"><span class="settings-disclosure-title">Transcript Metadata Cache</span><span>${formatBytes(transcriptMetadata.bytes)} · ${transcriptMetadata.count} folders</span>${transcriptMetadata.count?button("View", "view-transcript-metadata"):''}</div>
-            <p class="settings-note">Rebuilt from transcript files when opened.</p><div id="settingsTranscriptMetadataDetail" class="settings-detail" hidden><div class="settings-selection-actions">${transcriptMetadata.count?button("Clear", "clear-transcript-metadata"): ''}</div><pre id="settingsTranscriptMetadataEntries"></pre></div>
             ${legacyMetadata?.count?`<div class="settings-row"><span>Unused Semantic Metadata · ${formatBytes(legacyMetadata.bytes)} · ${legacyMetadata.count} legacy entries</span>${button("Clear", "clear-unused-semantic-metadata")}</div><p class="settings-note">Retained legacy data; current Search does not use this store.</p>`:''}
 
 
@@ -1055,6 +1062,36 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].id);await refresh();await showTranscripts();});
     }
 
+    async function showTranscriptMetadata(){
+        const detail=document.getElementById('settingsTranscriptMetadataDetail'),toggle=storage.querySelector('[data-settings-action="toggle-transcript-metadata"]');
+        if(!detail)return;
+        detail.hidden=!detail.hidden;toggle.textContent=detail.hidden?'View':'Hide';toggle.setAttribute('aria-expanded',String(!detail.hidden));
+        if(detail.hidden)return;
+        const catalogue=await import('./transcriptCatalogue.js');
+        const rows=(await catalogue.listTranscriptCatalogueCache()).sort((a,b)=>catalogue.transcriptMetadataParent(a).localeCompare(catalogue.transcriptMetadataParent(b))||a.folderName.localeCompare(b.folderName)||b.updatedAt-a.updatedAt);
+        detail.innerHTML='<p class="settings-note">Deleting metadata leaves transcript files, cached text and Search indexes unchanged.</p>';
+        if(!rows.length){detail.insertAdjacentHTML('beforeend','<p class="settings-note">No cached transcript folders.</p>');return;}
+        let parent=null;
+        for(const [index,row]of rows.entries()){
+            const label=catalogue.transcriptMetadataParent(row);
+            if(label!==parent){detail.insertAdjacentHTML('beforeend',`<h4 class="settings-cache-parent">${escapeHtml(label)}</h4>`);parent=label;}
+            const archives=[...new Set(row.records.map(record=>record.archiveUuid).filter(Boolean))];
+            const time=new Date(row.updatedAt),updated=Number.isFinite(time.getTime())?time.toLocaleString():'Update time unavailable';
+            detail.insertAdjacentHTML('beforeend',`<div class="settings-item" data-selection-index="${index}"><div class="settings-item-info">
+                <div class="settings-item-name">${escapeHtml(row.folderName)}</div>
+                <div class="settings-item-detail">${row.records.length} transcripts · ${formatBytes(new Blob([JSON.stringify(row)]).size)} · ${escapeHtml(updated)}</div>
+                ${archives.length?`<div class="settings-item-detail">Archive: ${archives.map(escapeHtml).join(', ')}</div>`:''}
+                ${row.records.length?`<details class="settings-cache-files"><summary>Transcript Files</summary><ul>${row.records.map(record=>`<li>${escapeHtml(record.filename)}${record.whisperModel?' · '+escapeHtml(record.whisperModel):''}${record.operation?' · '+escapeHtml(record.operation):''}</li>`).join('')}</ul></details>`:''}
+            </div></div>`);
+        }
+        selectableRows(detail,async checks=>{
+            if(!confirm(`Delete metadata for ${checks.length} selected transcript folders? Transcript files and cached text are preserved.`))return;
+            await catalogue.removeTranscriptCatalogueCache(checks.map(check=>rows[Number(check.dataset.index)]));
+            await refresh({initializeRegistry:false});await showTranscriptMetadata();
+        });
+        detail.insertBefore(detail.querySelector('.settings-selection-actions'),detail.querySelector('.settings-cache-parent'));
+    }
+
     async function showSourceRecovery(){
         const detail=document.getElementById('settingsSourceRecoveryDetail'),toggle=storage.querySelector('[data-settings-action="toggle-source-recovery"]');if(!detail)return;
         if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
@@ -1102,9 +1139,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-source-recovery") return await showSourceRecovery();
-            if(action==='view-transcript-metadata'){const detail=document.getElementById('settingsTranscriptMetadataDetail');detail.hidden=!detail.hidden;target.textContent=detail.hidden?'View':'Hide';target.setAttribute('aria-expanded',String(!detail.hidden));if(!detail.hidden){const rows=await (await import('./transcriptCatalogue.js')).listTranscriptCatalogueCache();document.getElementById('settingsTranscriptMetadataEntries').textContent=(await import('./transcriptCatalogue.js')).formatTranscriptMetadataCache(rows);}return;}
-            if(action==='clear-transcript-metadata'){await (await import('./transcriptCatalogue.js')).clearTranscriptCatalogueCache();return await refresh({initializeRegistry:false});}
-            if(action==='toggle-registry-cache')return await showRegistryCache();
+            if(action==='toggle-transcript-metadata')return await showTranscriptMetadata();
             if(action==='clear-unused-semantic-metadata'){
                 if(!confirm('Clear unused legacy semantic metadata? Current embeddings and transcript files are preserved.'))return;
                 const manager=await getStorageManager();await manager.clearUnusedSemanticMetadata();await refresh({initializeRegistry:false});return;

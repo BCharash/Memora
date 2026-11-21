@@ -1,5 +1,8 @@
 # Production build identification
 
+21 November 2026: **2026-11-21.5**, schema **8** unchanged. Standardize folder cache Settings sections, disclosure styles and individual selectable transcript metadata snapshots. Preserve other stores and reject stale snapshot deletion atomically. No model/configuration revision or audio JSON retirement.
+
+
 21 November 2026: **2026-11-21.4**, schema **8** unchanged. Refresh the transcription gate after delayed folder discovery, prepare rows on visible returns without a transcript selection, clear stale source rows, and group transcript metadata by parent audio folder. 80 targeted checks passed; actual iPhone acceptance pending.
 
 

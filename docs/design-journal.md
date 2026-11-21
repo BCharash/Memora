@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 35
+**Version:** 36
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4770,3 +4770,13 @@ Identity inspection took **1,193 ms on MacBook** and **972 ms on iPhone**. Both 
 The user reports the Pages recovery worked and the iPhone test became accessible. No cancellation API response was provided, so server-side recovery details are not independently established. The paired reports establish cross-device inventory parity for this archive; they do not test the other three archives or the stripped fallback recording, and they do not establish acceptance of the separate .4 Transcribe UI fix. Both reports found a valid JSON despite the earlier deletion report; reconstruction still derives identities from audio and uses JSON only for comparison.
 
 Checkpoint 1's cross-device proof is established for Dayananda. The next staged implementation is the preserving local inventory/cache and incremental refresh; production audio JSON retirement remains pending. No code/build/schema or user files were changed while reviewing these reports.
+
+### 62.30 Settings folder cache list and selection cleanup — 21 November 2026
+
+Build **2026-11-21.5**, database schema **8** unchanged. Settings now presents **Audio Recording List Cache**, **Transcript Folder Metadata Cache**, then **Model Registry Cache**, with a separator before each category and centered size/count summaries. The transcript disclosure now uses the same toggle action styling as the other View/Hide controls. Storage disclosure widths remain fixed when the label changes; transcript metadata rows share the audio/registry checkbox grid on narrow screens.
+
+Transcript metadata is shown as individual folder-snapshot rows under parent audio headings, with transcript count, estimated metadata size, update time, Archive UUIDs and an expandable Transcript Files list. Same-name scopes remain separate. This replaces the combined preformatted report. Select all and Delete Selected appear above the folder rows only when populated; Delete Selected starts disabled. The separate Clear action is removed. Canceling deletion preserves all snapshots; deleting metadata leaves files, cached full-text transcripts, pending exports, audio-list recovery, registry definitions and embeddings intact. Selection targets exact scope IDs; if a chosen snapshot changed after viewing, the deletion transaction aborts and preserves all targeted snapshots for refresh.
+
+Validation: **47 targeted groups passed** — 25 catalogue/page/Settings, 10 database integration, 7 full-text identity and 5 iPhone gate.
+
+This pass does not change cache scope association/deduplication, implement the incremental audio cache, retire audio JSON or remove active audio-list recovery protections. Those remain within the staged inventory plan. Device visual acceptance is pending. Tests cover individual selection, select-all, cancel/empty states, parent grouping, category order and separator placement, matching disclosures, a true 390px iframe layout with production CSS/inline styles, stale-snapshot atomic rollback, existing cache identity and iPhone gating.
