@@ -1171,6 +1171,12 @@ textSizeSlider?.addEventListener("input", () => {
 
 
 function createSearchCombineTitle(query) {
+    const terms=[...new Set(String(query||'').split(';').map(term=>term.trim()).filter(Boolean))]
+        .map(createSearchTermTitle).filter(Boolean);
+    return terms.length?`Memora — Search: ${terms.join('; ')}`:DEFAULT_COMBINE_TITLE;
+}
+
+function createSearchTermTitle(query) {
 
     let phrase =
         String(query || "")
@@ -1180,7 +1186,7 @@ function createSearchCombineTitle(query) {
             .trim();
 
     if (!phrase) {
-        return DEFAULT_COMBINE_TITLE;
+        return '';
     }
 
     const framingPatterns = [
@@ -1237,7 +1243,7 @@ function createSearchCombineTitle(query) {
             );
         }).join(" ");
 
-    return `Memora — Search: ${phrase}`;
+    return phrase;
 }
 
 

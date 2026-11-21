@@ -516,6 +516,8 @@
                         Search your transcripts
                     </label>
 
+                    <p id="searchTermDelimiterHelp" class="settings-note">Separate search terms with a semicolon (;). Commas stay within a term.</p>
+
                     <div class="lexical-fuzzy-control">
                         <div class="lexical-fuzzy-heading">
                             <label for="lexicalFuzzySlider">Lexical fuzzy matching</label>
@@ -542,6 +544,7 @@
                                 type="search"
                                 autocomplete="off"
                                 aria-label="Search your transcripts"
+                                aria-describedby="searchTermDelimiterHelp"
                                 disabled
                             >
                             <button

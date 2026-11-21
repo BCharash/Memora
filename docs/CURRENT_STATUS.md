@@ -1,5 +1,9 @@
 # Memora — current status and resume instructions
 
+## Semicolon-separated Search descriptions — 21 November 2026
+
+Candidate **2026-11-21.10**, schema **10** unchanged. Combined-document suggestions and the Combine list-origin description format each semicolon-separated query term individually and join them with **; **. Commas remain part of a term. Search already uses semicolons as its query delimiter; retrieval is unchanged. The Search input now explicitly explains the delimiter and references that help for assistive technology. Example: `dreams; Silence, stillness` displays `Search: Dreams; Silence, Stillness`, retaining the comma inside the second term. Actual device visual acceptance remains pending.
+
 ## Combine list origin and folder labels — 21 November 2026
 
 Candidate **2026-11-21.9**, schema **10** unchanged. Combine's Transcripts heading matches Audio Source and Transcript Source at 20px on all viewport sizes; the Transcribe Transcripts heading uses the same size. A bordered two-line box below Combine's heading identifies the loaded transcript folder and **All** for folder loads, or **Search: description** for a Search selection. The description reuses the suggested combined-document title with only its Memora prefix removed. Tab returns preserve Search scope; explicitly selecting a transcript folder loads its full list and resets the box to All. Changing source clears the previous scope. The box describes list origin, not checkbox selection count.

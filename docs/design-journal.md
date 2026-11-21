@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 40
+**Version:** 41
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4842,3 +4842,7 @@ Candidate **2026-11-21.9**, schema **10** unchanged. Combine's Transcripts headi
 Across Transcribe, Combine and Search, audio-folder buttons say **Select Audio Folder** and transcript-source buttons say **Select Transcript Folder**, including reset/edit paths. The Combine button no longer switches to Text Source: folder after a Search transfer. Transcription destination controls retain their destination wording. Search retrieval, model behavior, TXT metadata and embeddings formats are unchanged. Actual desktop/iPhone visual acceptance remains pending; no commit, push or deployment was performed.
 
 Verification: **45 focused browser groups passed** (33 catalogue/app/Settings, 7 shared-folder production, 5 iPhone-path gate), including actual Search-to-Combine subset transfer, scope persistence/reset, unchanged suggested document title and matching headings/box fit in a 390px iframe. These are synthetic Chrome checks; actual iPhone Safari visual acceptance remains pending.
+
+### 62.35 Semicolon delimiter in Search descriptions — 21 November 2026
+
+Candidate **2026-11-21.10**, schema **10** unchanged. Combined-document suggestions and the Combine list-origin description format each semicolon-separated query term individually and join them with **; **. Commas remain part of a term. Search already uses semicolons as its query delimiter; retrieval is unchanged. The Search input now explicitly explains the delimiter and references that help for assistive technology. Example: `dreams; Silence, stillness` displays `Search: Dreams; Silence, Stillness`, retaining the comma inside the second term. Actual device visual acceptance remains pending.

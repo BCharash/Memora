@@ -1,6 +1,6 @@
 # Memora documentation
 
-Updated **21 November 2026** for candidate **2026-11-21.9**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#combine-list-origin-and-folder-labels--21-november-2026).
+Updated **21 November 2026** for candidate **2026-11-21.10**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#semicolon-separated-search-descriptions--21-november-2026).
 
 ## Current file and cache workflow
 
