@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 34
+**Version:** 35
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4760,3 +4760,13 @@ Settings Transcript Metadata Cache is grouped by Original Audio Folder from TXT 
 **80 targeted groups passed**: 5 iPhone gate/actual-input/delayed-discovery, 21 catalogue/page/cache-grouping, 7 shared-folder and 47 audio persistence. Real iPhone confirmation remains pending; these synthetic checks do not prove the exact cause on the user's device. Refresh .4, open a parent in Combine, return to Transcribe, and verify either Enable then unchecked rows (transcript folder selected), or directly visible unchecked rows (no transcript folder). Settings-only visits remain excluded.
 
 The user has deleted existing JSON files. The standalone audio-inventory-test.html can reconstruct without them and reports an absent baseline; no recreation is required for that checkpoint. Production still uses its current audio-list create/save workflow until the staged retirement switch. Search embeddings are independent; the user did not specify which JSON filenames were deleted. No user files were inspected or changed by this fix.
+
+### 62.29 Dayananda cross-device audio inventory proof — 21 November 2026
+
+The user supplied MacBook Chrome and iPhone Safari reports for **Dayananda Ashram Audio journal**, at 10:52:38Z and 11:18:21Z. Both enumerated the same **107 audio files** (489,775,383 bytes), recovered **107 embedded Apple Recording IDs**, and matched all 107 against a valid existing audio JSON. There were no path-set, file-size or case-insensitive Recording ID differences between devices; both reported zero unresolved, mismatched, added, absent, renamed or old assigned entries and no inventory issues.
+
+Identity inspection took **1,193 ms on MacBook** and **972 ms on iPhone**. Both requested **68,277 audio bytes in 2,458 reads**. Enumeration after folder access took 116 ms and 0 ms respectively. These are single-run measurements, excluding picker/provider preparation and JSON discovery/comparison; requested bytes are not a measurement of iCloud downloads or peak memory. This does not prove a general device speed advantage or warm persistent-cache performance.
+
+The user reports the Pages recovery worked and the iPhone test became accessible. No cancellation API response was provided, so server-side recovery details are not independently established. The paired reports establish cross-device inventory parity for this archive; they do not test the other three archives or the stripped fallback recording, and they do not establish acceptance of the separate .4 Transcribe UI fix. Both reports found a valid JSON despite the earlier deletion report; reconstruction still derives identities from audio and uses JSON only for comparison.
+
+Checkpoint 1's cross-device proof is established for Dayananda. The next staged implementation is the preserving local inventory/cache and incremental refresh; production audio JSON retirement remains pending. No code/build/schema or user files were changed while reviewing these reports.

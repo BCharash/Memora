@@ -6,6 +6,18 @@
 
 
 
+
+## Audio inventory device comparison: Dayananda — 21 November 2026
+
+The user supplied MacBook Chrome and iPhone Safari reports for **Dayananda Ashram Audio journal**, at 10:52:38Z and 11:18:21Z. Both enumerated the same **107 audio files** (489,775,383 bytes), recovered **107 embedded Apple Recording IDs**, and matched all 107 against a valid existing audio JSON. There were no path-set, file-size or case-insensitive Recording ID differences between devices; both reported zero unresolved, mismatched, added, absent, renamed or old assigned entries and no inventory issues.
+
+Identity inspection took **1,193 ms on MacBook** and **972 ms on iPhone**. Both requested **68,277 audio bytes in 2,458 reads**. Enumeration after folder access took 116 ms and 0 ms respectively. These are single-run measurements, excluding picker/provider preparation and JSON discovery/comparison; requested bytes are not a measurement of iCloud downloads or peak memory. This does not prove a general device speed advantage or warm persistent-cache performance.
+
+The user reports the Pages recovery worked and the iPhone test became accessible. No cancellation API response was provided, so server-side recovery details are not independently established. The paired reports establish cross-device inventory parity for this archive; they do not test the other three archives or the stripped fallback recording, and they do not establish acceptance of the separate .4 Transcribe UI fix. Both reports found a valid JSON despite the earlier deletion report; reconstruction still derives identities from audio and uses JSON only for comparison.
+
+Checkpoint 1's cross-device proof is established for Dayananda. The next staged implementation is the preserving local inventory/cache and incremental refresh; production audio JSON retirement remains pending. No code/build/schema or user files were changed while reviewing these reports.
+
+
 ## Pages deployment blocker — 21 November 2026
 
 GitHub built the inventory checkpoint and .4 commits, but rejected publication because it still considered .3 commit 0d6b3ac5cba9eb332ef5c10a1d6d3de3aed36da1 deploying. The live site remained on .3 and the new test URL returned 404. Rerunning failed jobs remained queued. A manual [Pages recovery workflow](../.github/workflows/recover-pages.yml) is prepared to request cancellation through GitHub's documented Pages endpoint; it has not been committed, pushed or run by Codex. See [recovery instructions](Pages_Deployment_Recovery.md). It changes no app behavior/build/schema and does not publish automatically. YAML/shell syntax and three mock recovery cases passed; real recovery and publication remain pending.
