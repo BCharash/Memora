@@ -1,6 +1,8 @@
 # Memora file map
 
-Updated **21 November 2026** for candidate **2026-11-21.1**, schema **7**. See [current status](docs/CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026) for the approved implementation, validation and device checklist. Earlier module/checkpoint notes retain their historical dates.
+Updated **21 November 2026** for candidate **2026-11-21.2**, schema **8**. See [current status](docs/CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026) for the approved implementation, validation and device checklist. Earlier module/checkpoint notes retain their historical dates.
+
+Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](docs/CURRENT_STATUS.md).
 
 ## TXT catalogue and explicit transcription ownership
 
@@ -12,7 +14,7 @@ Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reprod
 
 ## The short answer about the number of files
 
-There are **59 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **45 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (50 total). Test files are separate from the normal application.
+There are **60 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **46 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (51 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 

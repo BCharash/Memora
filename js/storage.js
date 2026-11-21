@@ -1,3 +1,4 @@
+import {cachedTranscriptRecord,transcriptFilenameKey} from './transcriptCacheIdentity.js';
 // --------------------------------------------------
 // Storage
 // --------------------------------------------------
@@ -58,7 +59,7 @@ import { openMemoraDatabase as openTranscriptDatabase } from "./database.js";
 const TRANSCRIPT_STORE_NAME = "transcripts";
 const MODEL_REGISTRY_STORE_NAME = "modelRegistry";
 
-export async function transcriptExists(filename) {
+export async function transcriptExists(filename,{archiveUuid=null}={}) {
     const database =
         await openTranscriptDatabase();
     try {
@@ -75,8 +76,9 @@ export async function transcriptExists(filename) {
                     TRANSCRIPT_STORE_NAME
                 );
 
-            const request =
-                store.getKey(filename);
+            const request = archiveUuid
+                ? store.index('archiveFilename').getKey([archiveUuid.toLowerCase(),transcriptFilenameKey(filename)])
+                : store.index('filenameKey').getKey(transcriptFilenameKey(filename));
 
             request.onsuccess = () => {
                 resolve(request.result !== undefined);
@@ -122,14 +124,7 @@ export async function saveTranscriptRecord(
                     TRANSCRIPT_STORE_NAME
                 );
 
-            store.put({
-                filename,
-                transcript,
-                metadata,
-                model,
-                operation,
-                savedAt: new Date()
-            });
+            store.put(cachedTranscriptRecord({filename,transcript,metadata,model,operation,savedAt:new Date()}));
 
             transaction.oncomplete = () => {
                 database.close();

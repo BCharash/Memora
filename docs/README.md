@@ -1,16 +1,18 @@
 # Memora documentation
 
-Updated **21 November 2026** for candidate build **2026-11-21.1**, database schema **7** (worktree based on b983463). Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
+Updated **21 November 2026** for candidate build **2026-11-21.2**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
+
+Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](CURRENT_STATUS.md).
 
 ## TXT catalogue and transcription session candidate
 
 The approved simplification retires **only memora-transcript-archive.json** from production reading/writing/saving. Existing files stay untouched. **memora-audio-source.json and search-embeddings.json remain**. Transcribe/Combine/Search read TXT metadata into a bounded, rebuildable local cache, exposed in Settings. Existing TXT identities remain authoritative; empty destinations receive a session UUID written into their first TXT. Schema 7 adds the cache without resetting other stores.
 
-Transcribe has source above and destination below. Its controls are visible on first opening; untouched departures to Combine/Search guard the return behind **Enable Transcription**, with Settings excluded. Shared selection does not prepare its recording rows until intent is expressed, and new recording lists start unchecked. Native and phone new-folder choices need no transcript JSON. iPhone shares TXT only, with a prominent batch-bound destination and different never-saved/post-share warnings. Audio JSON naming/replacement still belongs to Files and remains a separate reported issue.
+Transcribe has source above and destination below. Its controls are visible on first opening; untouched departures to Combine/Search guard the return, when a transcript folder is selected, behind **Enable Transcription**, with Settings excluded. Shared selection does not prepare its recording rows until intent is expressed, and new recording lists start unchecked. Native and phone new-folder choices need no transcript JSON. iPhone shares TXT only, with a prominent batch-bound destination and different never-saved/post-share warnings. Audio JSON naming/replacement still belongs to Files and remains a separate reported issue.
 
 ## Validation and acceptance
 
-The current [TXT catalogue/session harness](../tests/transcript-catalogue.html) replaces the historical .7 sidecar/bundle app harness; [transcription-identity.html](../tests/transcription-identity.html) runs the current suite as a compatible entry point. **129 groups passed** in the focused run. Checks cover local metadata, schema/data preservation, audio-list recovery, identity/embeddings reuse and playback. See [current status](CURRENT_STATUS.md) and the [test guide](../tests/README.md) for counts and scope. Real MacBook/iPhone Files, folder creation and visual acceptance remain required. No deployment or user-archive edits were performed.
+The current [TXT catalogue/session harness](../tests/transcript-catalogue.html) replaces the historical .7 sidecar/bundle app harness; [transcription-identity.html](../tests/transcription-identity.html) runs the current suite as a compatible entry point. **136 groups passed** in the focused run. Checks cover local metadata, schema/data preservation, audio-list recovery, identity/embeddings reuse and playback. See [current status](CURRENT_STATUS.md) and the [test guide](../tests/README.md) for counts and scope. Real MacBook/iPhone Files, folder creation and visual acceptance remain required. No deployment or user-archive edits were performed.
 
 ## Deferred architecture
 

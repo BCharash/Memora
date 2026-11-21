@@ -1047,12 +1047,12 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const items = await manager.listCachedTranscripts();
         detail.innerHTML = items.length ? items.map((item, i) => `
             <div class="settings-item" data-selection-index="${i}">
-                <div class="settings-item-info"><div class="settings-item-name">${item.filename}</div><div class="settings-item-detail">${formatBytes(item.bytes)}${item.model ? ` · ${item.model}` : ""}</div></div>
+                <div class="settings-item-info"><div class="settings-item-name">${escapeHtml(item.filename)}</div><div class="settings-item-detail">${formatBytes(item.bytes)}${item.model ? ` · ${escapeHtml(item.model)}` : ""}${item.archiveUuid?` · ${escapeHtml(item.originalAudioFolderName||"Archive")} · ${escapeHtml(item.archiveUuid)}`:" · Legacy cached copy"}</div></div>
             </div>
         `).join("") : `<p class="settings-note">No cached transcripts.</p>`;
         if (items.length) detail.insertAdjacentHTML("beforeend", `<div class="action-row" style="margin-top:10px;">${button("Save Selected Transcripts", "save-transcripts")}</div>`);
         detail._items = items;
-        selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].filename);await refresh();await showTranscripts();});
+        selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].id);await refresh();await showTranscripts();});
     }
 
     async function showSourceRecovery(){
@@ -1185,22 +1185,29 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     async function saveCachedTranscripts(manager) {
         const detail = document.getElementById("settingsTranscriptsDetail");
         const selected = new Set([...detail.querySelectorAll('.settings-item input[type="checkbox"]:checked')]
-            .map(check => detail._items[Number(check.dataset.index)].filename));
+            .map(check => detail._items[Number(check.dataset.index)].id));
         if (!selected.size) return;
         const storageModule = await getStorage();
         let folder = null;
         if (window.showDirectoryPicker) {
             folder = await storageModule.selectFolder();
         }
-        const records = (await manager.readCachedTranscripts()).filter(record => selected.has(record.filename));
+        const records = (await manager.readCachedTranscripts()).filter(record => selected.has(record.id));
         if (!records.length) return;
+        const used=new Set();
+        const exports=records.map(record=>{
+            let filename=record.filename,number=2;
+            while(used.has(filename.toLowerCase()))filename=record.filename.replace(/\.txt$/i,'')+` - cached ${number++}.txt`;
+            used.add(filename.toLowerCase());return {...record,exportFilename:filename};
+        });
         if (folder) {
             if (folder.kind !== "file-input") {
-                const existing = new Set((await storageModule.listTextFiles(folder)).map(file => file.name));
+                const existing = new Set((await storageModule.listTextFiles(folder)).map(file => file.name.normalize('NFC').toLowerCase()));
                 let saved = 0;
-                for (const record of records) {
-                    if (!existing.has(record.filename)) {
-                        await storageModule.writeTextFile(folder, record.filename, record.transcript);
+                for (const record of exports) {
+                    if (!existing.has(record.exportFilename.normalize('NFC').toLowerCase())) {
+                        await storageModule.writeTextFile(folder, record.exportFilename, record.transcript);
+                        existing.add(record.exportFilename.normalize('NFC').toLowerCase());
                         saved++;
                     }
                 }
@@ -1208,7 +1215,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
                 return;
             }
         }
-        const files = records.map(record => new File([record.transcript], record.filename, {type:"text/plain"}));
+        const files=exports.map(record=>new File([record.transcript],record.exportFilename,{type:'text/plain'}));
         if (!navigator.share || (navigator.canShare && !navigator.canShare({files}))) {
             alert("This browser cannot save cached transcripts through the Files app.");
             return;

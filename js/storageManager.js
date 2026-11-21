@@ -412,6 +412,7 @@ export async function listCachedTranscripts() {
             const request = transaction.objectStore("transcripts").getAll();
             request.onsuccess = () => {
                 const records = (request.result || []).map(record => ({
+                    id:record.id,archiveUuid:record.archiveUuid||null,recordingId:record.recordingId||null,originalAudioFolderName:record.originalAudioFolderName||null,identityStatus:record.identityStatus||'legacy',
                     filename: record.filename,
                     bytes: estimateValueBytes(record.transcript || ""),
                     model: record.model || "",
@@ -448,12 +449,12 @@ export async function readCachedTranscripts() {
     }
 }
 
-export async function clearCachedTranscript(filename) {
+export async function clearCachedTranscript(id) {
     const database = await openReadWriteStore("transcripts");
     try {
         return await new Promise((resolve, reject) => {
             const transaction = database.transaction("transcripts", "readwrite");
-            transaction.objectStore("transcripts").delete(filename);
+            transaction.objectStore("transcripts").delete(id);
             transaction.oncomplete = () => { database.close(); resolve(); };
             transaction.onerror = () => { database.close(); reject(transaction.error); };
             transaction.onabort = () => { database.close(); reject(transaction.error); };

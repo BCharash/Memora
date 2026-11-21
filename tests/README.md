@@ -1,5 +1,8 @@
 # Memora test guide
 
+Current candidate **2026-11-21.2**, schema **8**: **136 groups passed**. [Durable cache tests](transcript-cache-identity.html) add seven groups for distinct archive identities, scoped lookups, TXT metadata authority, Settings export/delete isolation, filename collision protection, schema-7 migration and failed-upgrade rollback. The 18 catalogue/page groups now cover returning with no selected transcript folder and the fixed Browse label. Test both selected-folder and no-folder returns on devices; Settings alone must not activate the gate. Earlier checklist/counts below describe .1.
+
+
 ## Current TXT catalogue/session suite — 21 November 2026
 
 Candidate **2026-11-21.1**, schema **7**: [transcript-catalogue.html](transcript-catalogue.html) is the current actual-page integration entry point. [transcription-identity.html](transcription-identity.html) aliases this same suite; the previous transcription-identity.test.js script documents the retired .7 sidecar/bundle workflow and is not a current-production page suite. Legacy transcriptFolder/transcriptArchive helper tests remain historical compatibility checks, not requirements to create external JSON.

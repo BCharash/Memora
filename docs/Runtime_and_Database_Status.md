@@ -1,5 +1,8 @@
 # Runtime and database foundation — completed
 
+Current candidate **2026-11-21.2**, schema **8**: atomically migrate full-text cached transcripts from filename keys to existing Archive UUID/Recording ID variant keys, preserving legacy copies and other stores. Failed upgrades roll back. Browse labels and conditional Enable Transcription gating are refined. See [current status](CURRENT_STATUS.md). Earlier entries below describe their dated versions.
+
+
 ## TXT catalogue and explicit transcription candidate — 21 November 2026
 
 Build **2026-11-21.1**, schema **7**, implements the approved change: retire the external transcript JSON requirement, retain **memora-audio-source.json** and **search-embeddings.json**, and read identity/model/operation/audio metadata from TXT into a rebuildable local cache. Existing sidecars stay untouched. New empty destinations need no JSON; desktop creates a child, while iPhone names an intended folder for Save to Files. Source stays above and destination below. Enable Transcription guards untouched returns from Combine/Search while excluding Settings; recording defaults are unchecked. Save warnings distinguish pending from share-return verification; iPhone shares TXT only, with a prominent batch-bound destination. Settings exposes the bounded metadata cache; the schema upgrade preserves other stores. See [current implementation and device checklist](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Earlier proposals below are historical. The numbered audio-JSON replacement and hosted Mac picker reports remain unresolved/separate; no deployment or user-data modification.

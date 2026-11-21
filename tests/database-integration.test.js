@@ -8,6 +8,7 @@ import { getWhisperEligibilityContext } from "../js/whisperEligibilityEvidence.j
 import { eligibilityKey } from "../js/whisperEligibility.js";
 import { initSettingsUI } from "../js/settings.js";
 
+const cachedText=body=>`memo.wav\nRecording ID: 4cd30ed1-dad7-4f9b-876c-0ba7f9d53ed9\nArchive UUID: 9599e552-b194-4511-8865-b37a07413a38\nWhisper model: tiny\nOperation: transcribe\n--------------------------------------------------\n${body}`;
 const lines = [];
 const output = document.getElementById("results");
 let result = "failed";
@@ -46,12 +47,12 @@ try {
         const db = await openMemoraDatabase(); assert(db.version === DATABASE_VERSION, "upgraded"); db.close();
     });
     await test("Cached transcript save/list/read/clear and registry evidence", async () => {
-        await storage.saveTranscriptRecord("new.txt", "new transcript", {}, "tiny", "transcribe");
+        await storage.saveTranscriptRecord("new.txt", cachedText("new transcript"), {}, "tiny", "transcribe");
         assert((await manager.listCachedTranscripts()).length === 2, "list");
         assert((await manager.readCachedTranscripts()).find(x => x.filename === "keep.txt").transcript === "preserve", "preserved text");
         await storage.saveModelRegistryRecords([{ id: "test-evidence", validation: { status: "passed" } }]);
         assert((await storage.listModelRegistryRecords()).some(x => x.id === "test-evidence" && x.validation.status === "passed"), "evidence");
-        await manager.clearCachedTranscript("new.txt");
+        await manager.clearCachedTranscript((await manager.listCachedTranscripts()).find(record=>record.filename==="new.txt").id);
         assert(!await storage.transcriptExists("new.txt"), "delete only target");
     });
     await test("Catalogue projection refresh preserves saved registry evidence", async () => {
@@ -128,7 +129,7 @@ try {
             open('toggle-whisper-models');await waitFor(()=>document.querySelector('#settingsWhisperModelsDetail input[data-cache-name]'));
             detail=document.getElementById('settingsWhisperModelsDetail');assert(detail.querySelector('#settingsWhisperModelsDetail input[data-cache-name]').dataset.cacheName==='whisper-small','cached action shifted onto unavailable tiny');
             detail.querySelector('.settings-selection-actions input').click();button(detail,'Delete Selected').click();await waitFor(()=>!document.querySelector('#settingsWhisperModelsDetail input[data-cache-name]'));assert(!await cache.match(urls[2]),'selected Whisper cache survived');assert(await cache.match(urls[1]),'Whisper deletion removed other model');
-            await storage.saveTranscriptRecord('selected.txt','body',{},'tiny','transcribe');await storage.saveTranscriptRecord('keep-selected.txt','keep',{},'tiny','transcribe');await ui.refresh();open('toggle-transcripts');await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('.settings-item input').length===2);
+            await storage.saveTranscriptRecord('selected.txt',cachedText('body'),{},'tiny','transcribe');await storage.saveTranscriptRecord('keep-selected.txt',cachedText('keep'),{},'tiny','transcribe');await ui.refresh();open('toggle-transcripts');await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('.settings-item input').length===2);
             detail=document.getElementById('settingsTranscriptsDetail');assert(button(detail,'Save Selected Transcripts').disabled,'save enabled without selection');[...detail.querySelectorAll('.settings-item')].find(row=>row.querySelector('.settings-item-name').textContent==='selected.txt').querySelector('input').click();assert(!button(detail,'Save Selected Transcripts').disabled,'selected save disabled');assert(detail.querySelector('.settings-selection-actions input').indeterminate,'partial selection missing');button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsTranscriptsDetail').querySelectorAll('.settings-item').length===1);assert(await storage.transcriptExists('keep-selected.txt')&&!await storage.transcriptExists('selected.txt'),'transcript selection');
             await manager.clearAllCachedTranscripts();
             const db=await openMemoraDatabase();await new Promise((resolve,reject)=>{const tx=db.transaction('semanticEntries','readwrite');tx.objectStore('semanticEntries').put({id:'selection-fixture',modelId:'fixture',representationType:'document',embedding:[1]});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();

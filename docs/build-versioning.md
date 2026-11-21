@@ -1,5 +1,8 @@
 # Production build identification
 
+Current candidate **2026-11-21.2**, schema **8**: atomically migrate full-text cached transcripts from filename keys to existing Archive UUID/Recording ID variant keys, preserving legacy copies and other stores. Failed upgrades roll back. Browse labels and conditional Enable Transcription gating are refined. See [current status](CURRENT_STATUS.md). Earlier entries below describe their dated versions.
+
+
 Adopted 7 November 2026, matching iMuse's convention: **YYYY-MM-DD.N**, the UTC release-preparation date and a positive daily sequence starting at 1. Memora's first identifier is `2026-11-07.1`. Its sequence is independent of iMuse's; this is not semantic versioning or the database schema version.
 
 `js/build-info.js` is the single source of the identifier. Before publishing changed application contents, advance it once per release. Several edits may belong to one unpublished candidate. Identical deployment retries keep the identifier; changed candidates need a new one if the earlier candidate was shared for testing. Documentation/tests-only changes do not need a new number. Never reuse an identifier for different released application contents.

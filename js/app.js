@@ -596,7 +596,7 @@ let currentAudioFiles=[],renderedAudioSource=null;
 const transcriptionWorkspace=document.createElement('div'),enableTranscriptionButton=document.createElement('button');
 transcriptionWorkspace.id='transcriptionWorkspace';enableTranscriptionButton.id='enableTranscriptionButton';enableTranscriptionButton.textContent='Enable Transcription';enableTranscriptionButton.type='button';enableTranscriptionButton.hidden=true;
 const transcriptionContainer=transcriptionPanel.querySelector('.panel');transcriptionWorkspace.append(...transcriptionContainer.childNodes);transcriptionContainer.append(enableTranscriptionButton,transcriptionWorkspace);
-function renderTranscriptionGate(){const state=transcriptionGate.snapshot();transcriptionWorkspace.hidden=state.guarded;enableTranscriptionButton.hidden=!state.guarded;}
+function renderTranscriptionGate(){transcriptionGate.setTranscriptSource(!!sharedFolders.snapshot().transcript);const state=transcriptionGate.snapshot();transcriptionWorkspace.hidden=state.guarded;enableTranscriptionButton.hidden=!state.guarded;}
 async function prepareRecordingDisplay(){
     if(!sourceHandle||renderedAudioSource===sourceHandle)return;
     showEmptyMessage();
@@ -615,7 +615,7 @@ function updateSharedFolderControls(){
 function applySharedTranscriptSelection(){
     const state=sharedFolders.snapshot();
     destinationHandle=state.transcript?.source||null;
-    destinationButton.textContent=destinationHandle?`Use "${destinationHandle.name}"`:'Browse for Another Folder';
+    destinationButton.textContent='Browse for Another Folder';
     document.querySelectorAll('[data-audio-folder]').forEach(node=>node.textContent=sharedFolders.audioLabel());
     document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
     const hasDefault=state.folders.some(folder=>folder.name.toLowerCase()==='transcription');
@@ -690,7 +690,7 @@ async function chooseSharedTranscript(view,{browse=false,source:chosenSource=nul
         sharedFolders.setTranscript(selected.source,selected.label);
         applySharedTranscriptSelection();
         publishTranscribeDestination(destinationSession);
-        destinationButton.textContent=`Use "${selected.source.name}"`;
+        destinationButton.textContent='Browse for Another Folder';
         if(view!=='combine'){
             textSourceHandle=null;combineFolderSession=null;combineDestinationHandle=null;renderCombineTranscriptList();
             clearSharedCombineRows();
@@ -702,7 +702,15 @@ async function chooseSharedTranscript(view,{browse=false,source:chosenSource=nul
     }catch(error){if(error.name!=='AbortError'){
         if(view==='combine')combineStatus.textContent=`Unable to read the text source folder. ${error.message}`;
         else alert(error.message);
-    }}finally{sharedFolderOperation=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}
+    }}finally{
+        sharedFolderOperation=false;
+        if(view==='transcribe'&&transcriptionGate.snapshot().enabled&&sourceHandle&&renderedAudioSource!==sourceHandle){
+            sourceSelectionRequested=true;updateSharedFolderControls();
+            try{await prepareRecordingDisplay();}catch(error){audioInventoryStatus.textContent=error.message;}
+            finally{sourceSelectionRequested=false;}
+        }
+        updateSharedFolderControls();await refreshQualifiedWhisperModels();
+    }
 }
 async function ensureSharedTranscriptForActiveView(){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;

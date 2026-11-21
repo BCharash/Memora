@@ -1,10 +1,11 @@
+import {cachedTranscriptRecord} from './transcriptCacheIdentity.js';
 // Canonical schema owner. Importing this module never opens a database.
 // All application database opens go through this owner.
-export const DATABASE_VERSION = 7;
+export const DATABASE_VERSION = 8;
 
 const schema = [
     { name: "transcriptCatalogues", keyPath: "id", indexes: [] },
-    { name: "transcripts", keyPath: "filename", indexes: [] },
+    { name: "transcripts", keyPath: "id", indexes: ["filenameKey", "archiveFilename"] },
     { name: "semanticEntries", keyPath: "id", indexes: ["representationKey", "sourceKey"] },
     { name: "semanticMetadata", keyPath: "key", indexes: [] },
     { name: "modelRegistry", keyPath: "id", indexes: [] },
@@ -78,12 +79,26 @@ export function createDatabaseManager({ name = "Memora", indexedDB: factory = gl
                     request.transaction.abort();
                     return;
                 }
-                try {
-                    checkSchema(request.result, request.transaction, true);
-                } catch (error) {
-                    failure = error;
-                    request.transaction.abort();
-                }
+                const upgrade=()=>{try{checkSchema(request.result,request.transaction,true);}catch(error){failure=error;request.transaction.abort();}};
+                const database=request.result,tx=request.transaction;
+                if(database.objectStoreNames.contains('transcripts')&&tx.objectStore('transcripts').keyPath==='filename'){
+                    // Read first, then replace only within this atomic versionchange
+                    // transaction. Any error restores the old store and version.
+                    const read=tx.objectStore('transcripts').getAll();
+                    read.onsuccess=()=>{try{
+                        const records=read.result.map(record=>cachedTranscriptRecord(record,{allowLegacy:true}));
+                        database.deleteObjectStore('transcripts');
+                        const store=database.createObjectStore('transcripts',{keyPath:'id'});
+                        const used=new Set();
+                        for(const record of records){
+                            const base=record.id;let copy=1;
+                            while(used.has(record.id))record.id=JSON.stringify(['retained-cache-copy',base,copy++]);
+                            used.add(record.id);store.put(record);
+                        }
+                        upgrade();
+                    }catch(error){failure=error;tx.abort();}};
+                    read.onerror=()=>{failure=read.error;tx.abort();};
+                }else upgrade();
             };
             request.onerror = () => reject(failure || request.error);
             request.onsuccess = () => {

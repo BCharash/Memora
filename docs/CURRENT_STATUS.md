@@ -1,5 +1,17 @@
 # Memora — current status and resume instructions
 
+
+## Durable cached copies and conditional transcription gate — 21 November 2026
+
+Build **2026-11-21.2**, database schema **8**. This update supersedes the earlier unconditional unused-return gate. Returning to untouched Transcribe shows **Enable Transcription** only when a transcript source/destination is selected; without one its controls remain visible. Settings navigation remains excluded. Direct destination selection prepares deferred recording rows when needed. The destination button always says **Browse for Another Folder**; the destination field displays the selected location.
+
+Two local stores have different purposes: transcriptCatalogues holds rebuildable metadata from loaded TXT; transcripts holds full-text cached copies of generated transcripts. Full-text cache keys now include the existing Archive UUID, Recording ID, filename, model and operation, rather than filename alone. TXT headers supply the identities; no replacement IDs are invented. Equal folder/file names in different archives stay separate. Settings selects, exports and deletes by exact cache key, displays archive identity, and gives same-named selected exports distinct filenames without changing their contents. Native exports also protect existing case-equivalent filenames.
+
+Schema 8 atomically migrates old full-text cache entries, preserving their bodies, dates, unidentified legacy entries and normalization collisions. A failed upgrade rolls back to the old store. Other stores remain intact. This preserves essential identity information for future multi-archive Combine; it does not implement a persistent multi-archive workspace. Audio-source JSON and Search embeddings JSON remain unchanged.
+
+**136 targeted groups passed**: 7 durable-cache/migration/Settings, 18 catalogue/page, 13 database, 10 storage integration, 19 production identity, 47 audio persistence, 10 playback, 7 shared folders and 5 source performance. Tests use isolated data and disposable Chrome profiles; real iPhone/Mac visual and Files acceptance remains pending. No user archives were modified and no commit or deployment was performed.
+
+
 ## Implemented candidate: TXT catalogue and explicit transcription — 21 November 2026
 
 Build **2026-11-21.1**, database schema **7**. This candidate implements the approved simplification and session/save UI changes. **Only the external transcript JSON dependency is retired. memora-audio-source.json and search-embeddings.json remain in use.** Removing the audio list was discussed but not approved or implemented.
