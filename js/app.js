@@ -603,8 +603,11 @@ async function prepareRecordingDisplay(){
     await displayFiles(currentAudioFiles,file=>readAudioMetadata(file,identityWorkflow.getSession().getRecordingMetadataIdentity(file)),formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
     renderedAudioSource=sourceHandle;audioInventoryStatus.textContent='';
 }
-transcriptionWorkspace.addEventListener('click',event=>{if(event.target.closest('button,input,select'))transcriptionGate.activity();});
-transcriptionWorkspace.addEventListener('change',event=>{if(!event.detail?.preserveExports)transcriptionGate.activity();});
+// Shared iPhone save controls forward clicks here from Combine/Search. Those
+// hidden actions are not transcription intent and must not bypass its gate.
+const transcriptionSetupVisible=()=>!transcriptionPanel.hidden&&!transcriptionWorkspace.hidden;
+transcriptionWorkspace.addEventListener('click',event=>{if(transcriptionSetupVisible()&&event.target.closest('button,input,select'))transcriptionGate.activity();});
+transcriptionWorkspace.addEventListener('change',event=>{if(transcriptionSetupVisible()&&!event.detail?.preserveExports)transcriptionGate.activity();});
 enableTranscriptionButton.addEventListener('click',async()=>{transcriptionGate.activity();renderTranscriptionGate();sourceSelectionRequested=true;updateSharedFolderControls();try{await prepareRecordingDisplay();}catch(error){audioInventoryStatus.textContent=error.message;}finally{sourceSelectionRequested=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}});
 let loadedSharedCombine=null,loadedSharedSearch=null;
 let transcribeDestinationSession=null;

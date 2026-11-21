@@ -1,9 +1,12 @@
 # Memora documentation
 
+Latest fix: hidden forwarded audio-list save clicks from Combine/Search no longer enable Transcribe. See [current status](CURRENT_STATUS.md) for the .3 regression results and iPhone checklist.
+
+
 Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
 
 
-Updated **21 November 2026** for candidate build **2026-11-21.2**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
+Updated **21 November 2026** for candidate build **2026-11-21.3**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
 
 Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](CURRENT_STATUS.md).
 

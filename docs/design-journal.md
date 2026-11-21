@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 31
+**Version:** 32
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4738,3 +4738,9 @@ The requested [audio JSON audit](Audio_JSON_Retirement_Audit.md) is complete aga
 Recommended direction: a metadata-only, rebuildable local inventory; cold identity reads, incremental warm reuse, automatic size/time invalidation, actual-file checks before inference/playback, and latest snapshots per established scope. Preserve the exact embedded/prefix ID rules, old random-ID associations needing migration, same-name folder separation, complete-folder reconciliation and Search embeddings. iPhone lacks persistent directory handles: folder names and metadata tuples alone cannot prove physical-folder identity. Cache association must stay conservative. Current recovery records are not yet the proposed incremental metadata cache, and transcriptCatalogue selection scopes are not durable physical-folder identities.
 
 Next proposed checkpoint: an independent read-only inventory/comparison adapter, reporting embedded, reproducible, legacy and unresolved counts before switching production. Later checkpoints cover persistent cache, consumer/save-gate replacement, Settings and device acceptance. Existing disk JSON stays untouched. This audit changes documentation only; no build/schema increment, user-data edits, runtime test results, commit or deployment.
+
+### 62.26 iPhone hidden shared-save gate bypass — 21 November 2026
+
+Build **2026-11-21.3**, schema **8** unchanged. Saving the audio recording list from Combine/Search forwards a click to Transcribe's original save button. Previously its delegated activity listener treated that hidden click as transcription intent, bypassing Enable Transcription before the recording rows were prepared. Transcribe activity now counts only while its panel and setup workspace are visible. Explicit Enable Transcription still prepares shared recordings unchecked; Settings and no-transcript-folder gating rules are unchanged.
+
+Verification: **28 targeted groups passed** — 3 new iPhone shared-save/gate regression groups, 18 catalogue/page groups and 7 shared-folder groups. The regression reproduces the hidden-save gate bypass and verifies shared audio rows after Enable, without automatic inference. This is a simulated iPhone file-input/share path in isolated Chrome; real iPhone acceptance remains required. On a fresh app load, enter Combine, select an audio parent with a transcription child, save the audio recording list if requested, return to Transcribe, and press Enable Transcription. Expect the shared audio rows unchecked. No audio JSON retirement implementation or user-data changes are included.

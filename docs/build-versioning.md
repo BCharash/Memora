@@ -1,5 +1,8 @@
 # Production build identification
 
+21 November 2026: candidate **2026-11-21.3**, schema **8** unchanged. Fix hidden forwarded iPhone audio-list save clicks bypassing Enable Transcription; 28 targeted groups passed. Device acceptance pending.
+
+
 Current candidate **2026-11-21.2**, schema **8**: atomically migrate full-text cached transcripts from filename keys to existing Archive UUID/Recording ID variant keys, preserving legacy copies and other stores. Failed upgrades roll back. Browse labels and conditional Enable Transcription gating are refined. See [current status](CURRENT_STATUS.md). Earlier entries below describe their dated versions.
 
 

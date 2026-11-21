@@ -2,6 +2,14 @@
 
 
 
+
+## iPhone shared-save transcription gate fix — 21 November 2026
+
+Build **2026-11-21.3**, schema **8** unchanged. Saving the audio recording list from Combine/Search forwards a click to Transcribe's original save button. Previously its delegated activity listener treated that hidden click as transcription intent, bypassing Enable Transcription before the recording rows were prepared. Transcribe activity now counts only while its panel and setup workspace are visible. Explicit Enable Transcription still prepares shared recordings unchecked; Settings and no-transcript-folder gating rules are unchanged.
+
+Verification: **28 targeted groups passed** — 3 new iPhone shared-save/gate regression groups, 18 catalogue/page groups and 7 shared-folder groups. The regression reproduces the hidden-save gate bypass and verifies shared audio rows after Enable, without automatic inference. This is a simulated iPhone file-input/share path in isolated Chrome; real iPhone acceptance remains required. On a fresh app load, enter Combine, select an audio parent with a transcription child, save the audio recording list if requested, return to Transcribe, and press Enable Transcription. Expect the shared audio rows unchecked. No audio JSON retirement implementation or user-data changes are included.
+
+
 ## Audio JSON retirement audit — 21 November 2026
 
 The requested [audio JSON audit](Audio_JSON_Retirement_Audit.md) is complete against checkout 736a292, build **2026-11-21.2**, schema **8**. Modern transcript/audio linking depends on Recording ID, not Audio Source ID. Production source preparation, transcription, shared playback inventory, iPhone export readiness and Settings still depend on audio-list session/recovery APIs; these need a coordinated replacement rather than simply deleting the JSON writer.

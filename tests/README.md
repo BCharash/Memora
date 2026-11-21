@@ -1,5 +1,8 @@
 # Memora test guide
 
+Build **2026-11-21.3**: [iPhone shared-save gate regression](iphone-transcription-gate.html) adds three groups covering deferred shared audio, audio-list saving from Combine without enabling hidden Transcribe, and explicit Enable preparing unchecked rows without inference. All three plus the existing 18 catalogue and 7 shared-folder groups passed (28 total). Real iPhone acceptance remains pending.
+
+
 Current candidate **2026-11-21.2**, schema **8**: **136 groups passed**. [Durable cache tests](transcript-cache-identity.html) add seven groups for distinct archive identities, scoped lookups, TXT metadata authority, Settings export/delete isolation, filename collision protection, schema-7 migration and failed-upgrade rollback. The 18 catalogue/page groups now cover returning with no selected transcript folder and the fixed Browse label. Test both selected-folder and no-folder returns on devices; Settings alone must not activate the gate. Earlier checklist/counts below describe .1.
 
 
