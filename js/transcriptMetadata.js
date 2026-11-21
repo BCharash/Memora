@@ -16,7 +16,7 @@ export function readTranscriptIdentity(text) {
     const recordingId=field('Recording ID'),legacy=field('Voice Memo ID');
     if(recordingId&&legacy&&recordingId.toLowerCase()!==legacy.toLowerCase())throw Error('Recording ID and Voice Memo ID disagree. The transcript was not changed.');
     // Historical Audio Source ID is intentionally ignored, including malformed/repeated values.
-    const result={recordingId:recordingId||legacy,archiveUuid:field('Archive UUID'),audioSourceId:null,originalAudioFolderName:field('Original Audio Folder'),metadataVersion:field('Metadata version'),recordingIdentityMethod:field('Recording ID method')};
+    const result={recordingId:recordingId||legacy,archiveUuid:field('Archive UUID'),originalAudioFolderName:field('Original Audio Folder'),metadataVersion:field('Metadata version'),recordingIdentityMethod:field('Recording ID method')};
     for(const key of ['recordingId','archiveUuid'])if(result[key]&&!isRecordingUuid(result[key]))throw Error(`The transcript contains an invalid ${key}.`);
     if(result.recordingIdentityMethod&&result.recordingIdentityMethod!=='memora-recording-prefix-v1')throw Error('The recording identity method is unsupported.');
     if(result.metadataVersion&&result.metadataVersion!=='1')throw Error('The transcript metadata version is unsupported.');

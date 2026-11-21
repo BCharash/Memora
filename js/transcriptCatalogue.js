@@ -13,7 +13,7 @@ function scope(source) {
     return scopes.get(source);
 }
 
-export async function listTranscriptCatalogueCache() {
+async function readTranscriptCatalogueRows() {
     const db = await openMemoraDatabase();
     try {
         return await new Promise((resolve, reject) => {
@@ -23,6 +23,44 @@ export async function listTranscriptCatalogueCache() {
         });
     } finally { db.close(); }
 }
+
+const normalize=value=>String(value).normalize('NFC').toLowerCase();
+const hasHandle=row=>typeof row.directoryHandle?.isSameEntry==='function';
+function logicalScope(row){
+    if(typeof row.folderName!=='string'||!Array.isArray(row.records))return null;
+    const ids=[...new Set(row.records.map(record=>record.archiveUuid).filter(id=>typeof id==='string'&&id).map(normalize))].sort();
+    return ids.length?JSON.stringify([normalize(row.folderName),normalize(transcriptMetadataParent(row)),ids]):null;
+}
+async function sameScope(older,newer){
+    if(hasHandle(older)&&hasHandle(newer)){
+        try{return await newer.directoryHandle.isSameEntry(older.directoryHandle);}catch{return false;}
+    }
+    const scope=logicalScope(older);if(!scope||scope!==logicalScope(newer))return false;
+    // Do not let a handle-free row bridge two proven physical locations.
+    if(hasHandle(older)&&!hasHandle(newer)&&newer.complete!==false)return false;
+    return true;
+}
+function withMetadataLock(work){
+    return globalThis.navigator?.locks?navigator.locks.request('memora-transcript-metadata',work):work();
+}
+async function cleanedTranscriptRows(){
+    for(let attempt=0;attempt<2;attempt++){
+        const rows=await readTranscriptCatalogueRows(),keep=[],obsolete=[];
+        rows.sort((a,b)=>Number(a.complete===false)-Number(b.complete===false)||b.updatedAt-a.updatedAt);
+        for(const row of rows){
+            if(Array.isArray(row.records)&&row.records.length===0){obsolete.push(row);continue;}
+            let duplicate=false;
+            for(const current of keep)if(await sameScope(row,current)){duplicate=true;break;}
+            (duplicate?obsolete:keep).push(row);
+        }
+        if(!obsolete.length)return rows;
+        try{await removeTranscriptCatalogueCache(obsolete);return await readTranscriptCatalogueRows();}
+        catch(error){if(attempt)throw error;} // Recheck a snapshot refreshed during cleanup.
+    }
+}
+// Settings refresh and reads also clean pre-existing versions, even if their
+// original folder has not been selected again since the app was updated.
+export function listTranscriptCatalogueCache(){return withMetadataLock(cleanedTranscriptRows);}
 
 export async function clearTranscriptCatalogueCache() {
     const db = await openMemoraDatabase();
@@ -59,7 +97,8 @@ export function transcriptMetadataParent(row) {
     return names.length===1?names[0]:names.length>1?'Multiple Audio Folders':row.parentAudioFolderName||'Parent Audio Folder Unknown';
 }
 
-export async function cacheTranscriptMetadata(source, records) {
+export function cacheTranscriptMetadata(source,records){return withMetadataLock(()=>writeTranscriptMetadata(source,records));}
+async function writeTranscriptMetadata(source, records) {
     const complete=source.kind==='directory'||source.selectionScope==='folder';
     const archives=[...new Set(records.map(record=>record.archiveUuid?.toLowerCase()).filter(Boolean))].sort();
     const entry={id:scope(source),folderName:source.name,updatedAt:Date.now(),revision:crypto.randomUUID(),complete,
@@ -68,7 +107,7 @@ export async function cacheTranscriptMetadata(source, records) {
             operation:record.operation,recordingDate:record.recordingDate,duration:record.duration,audioRelativePath:record.audioRelativePath,
             recordingFilename:record.recordingFilename,originalAudioFolderName:record.originalAudioFolderName,size:record.file.size,lastModified:record.file.lastModified})),
         ...(source.kind==='directory'?{directoryHandle:source}:{})};
-    const existing=await listTranscriptCatalogueCache(),matches=[];
+    const existing=await cleanedTranscriptRows(),matches=[];
     for(const old of existing){
         let same=old.id===entry.id;
         if(!same&&source.kind==='directory'&&old.directoryHandle){try{same=await source.isSameEntry(old.directoryHandle);}catch{/* Unproved association. */}}
@@ -78,6 +117,7 @@ export async function cacheTranscriptMetadata(source, records) {
         }
         if(same)matches.push(old);
     }
+    if(!records.length){if(complete&&matches.length)await removeTranscriptCatalogueCache(matches);return;}
     matches.sort((a,b)=>b.updatedAt-a.updatedAt);const latest=matches[0];
     if(latest){if(!complete&&latest.complete)return;entry.id=latest.id;}
     const db=await openMemoraDatabase();
@@ -152,19 +192,4 @@ export async function openTranscriptCatalogue(source) {
     if (!snapshot.records.length && !emptyCollections.has(source))
         emptyCollections.set(source, crypto.randomUUID());
     return {archiveUuid: snapshot.archiveUuid || emptyCollections.get(source), snapshot};
-}
-
-// Presentation grouping only: identical labels never merge scope records or IDs.
-export function formatTranscriptMetadataCache(rows) {
-    const groups=new Map();
-    for(const row of rows){
-        const parent=transcriptMetadataParent(row);
-        if(!groups.has(parent))groups.set(parent,[]);groups.get(parent).push(row);
-    }
-    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([parent,entries])=>parent+'\n'+entries.sort((a,b)=>a.folderName.localeCompare(b.folderName)||b.updatedAt-a.updatedAt).map(row=>{
-        const archives=[...new Set(row.records.map(record=>record.archiveUuid).filter(Boolean))];
-        return '  '+row.folderName+' — '+row.records.length+' transcripts'+
-            (archives.length?'\n  Archive: '+archives.join(', '):'')+'\n'+
-            row.records.map(record=>'    '+record.filename+' · '+(record.whisperModel||'unknown model')+' · '+(record.operation||'')).join('\n');
-    }).join('\n\n')).join('\n\n');
 }

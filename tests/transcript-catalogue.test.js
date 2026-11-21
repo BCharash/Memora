@@ -1,6 +1,6 @@
 import {sharedFolders} from '../js/sharedFolderSelection.js';
 import {directory,selections,calls,seedAudio} from './transcription-identity-fixtures.js';
-import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache,formatTranscriptMetadataCache,removeTranscriptCatalogueCache} from '../js/transcriptCatalogue.js';
+import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache,transcriptMetadataParent,removeTranscriptCatalogueCache} from '../js/transcriptCatalogue.js';
 import {createTranscriptionGate} from '../js/transcriptionGate.js';
 import {readTranscriptIdentity} from '../js/transcriptMetadata.js';
 import {openMemoraDatabase} from './source-database-adapter.js';
@@ -23,14 +23,15 @@ await test('Refreshing TXT metadata replaces stale local observations without bo
 });
 await test('Empty native and phone destinations need no JSON and receive a stable session UUID',async()=>{for(const source of [directory('Empty').root,{kind:'file-input',name:'New',files:[],selectionScope:'selection'}]){const first=await openTranscriptCatalogue(source),again=await openTranscriptCatalogue(source);assert(first.archiveUuid===again.archiveUuid&&first.snapshot.records.length===0);if(source.kind==='directory'){let count=0;for await(const _ of source.entries())count++;assert(count===0);}}});
 await test('Missing/conflicting TXT identities still block new writes; read-only mixed archives remain loadable',async()=>{const source={kind:'file-input',name:'Mixed',files:[new File([header()],'a.txt'),new File([header(f.OTHER,f.OTHER)],'b.txt')]};assert((await readTranscriptFolder(source)).records.length===2);let blocked=false;try{await openTranscriptCatalogue(source);}catch{blocked=true;}assert(blocked);});
-await test('Metadata cache groups matching parent labels while keeping different archive scopes separate',()=>{
- const rows=[{id:'one',folderName:'transcription',updatedAt:2,records:[{filename:'a.txt',archiveUuid:UUID,originalAudioFolderName:'2018'}]}, {id:'two',folderName:'transcription',updatedAt:1,records:[{filename:'b.txt',archiveUuid:f.OTHER,originalAudioFolderName:'2018'}]}];
- const text=formatTranscriptMetadataCache(rows);assert(text.startsWith('2018\n')&&text.includes(UUID)&&text.includes(f.OTHER));assert(text.split('transcription — 1 transcripts').length===3,'Separate same-name scopes were merged');assert(rows.length===2&&rows[0].id==='one');
+await test('Metadata parent labels use consistent TXT provenance and explicit unknown/mixed fallbacks',()=>{
+ assert(transcriptMetadataParent({records:[{originalAudioFolderName:'2018'},{originalAudioFolderName:'2018'}]})==='2018');
+ assert(transcriptMetadataParent({records:[],parentAudioFolderName:'Granted Audio'})==='Granted Audio');
+ assert(transcriptMetadataParent({records:[]})==='Parent Audio Folder Unknown');
+ assert(transcriptMetadataParent({records:[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}],parentAudioFolderName:'Wrong Guess'})==='Multiple Audio Folders');
 });
-await test('Metadata cache uses granted parent context for empty folders and labels unknown/mixed parents explicitly',()=>{
- const text=formatTranscriptMetadataCache([{folderName:'empty',parentAudioFolderName:'Granted Audio',updatedAt:1,records:[]},{folderName:'unknown',updatedAt:1,records:[]},{folderName:'mixed',parentAudioFolderName:'Wrong Guess',updatedAt:1,records:[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}]}]);assert(text.includes('Granted Audio\n  empty')&&text.includes('Parent Audio Folder Unknown\n  unknown')&&text.includes('Multiple Audio Folders\n  mixed')&&!text.includes('Wrong Guess'));
+await test('Empty granted children keep session identity without storing empty cache rows',async()=>{
+ const source={kind:'file-input',name:'Empty child',parentAudioName:'Audio Parent',selectionScope:'folder',files:[]};const first=await openTranscriptCatalogue(source),again=await openTranscriptCatalogue(source);assert(first.archiveUuid===again.archiveUuid);assert(!(await listTranscriptCatalogueCache()).some(row=>row.folderName==='Empty child'));
 });
-await test('Metadata cache persists parent context when an empty granted child is loaded',async()=>{await readTranscriptFolder({kind:'file-input',name:'Empty child',parentAudioName:'Audio Parent',files:[]});assert((await listTranscriptCatalogueCache()).some(row=>row.folderName==='Empty child'&&row.parentAudioFolderName==='Audio Parent'));});
 await test('Reopening an identified transcript folder replaces its cached snapshot instead of retaining history',async()=>{
  const one={kind:'file-input',selectionScope:'folder',name:'Latest transcript folder',files:[new File([header()],'old.txt')]};await readTranscriptFolder(one);const before=(await listTranscriptCatalogueCache()).find(row=>row.folderName===one.name);const two={...one,files:[new File([header()],'new.txt')]};await readTranscriptFolder(two);const after=(await listTranscriptCatalogueCache()).filter(row=>row.folderName===one.name);assert(after.length===1&&after[0].id===before.id&&after[0].revision!==before.revision&&after[0].records[0].filename==='new.txt');
  const broken={...two,files:[new File(['broken'],'bad.txt')]};await readTranscriptFolder(broken);assert((await listTranscriptCatalogueCache()).find(row=>row.id===before.id).records[0].filename==='new.txt','Failed read replaced the valid snapshot');
@@ -40,6 +41,18 @@ await test('Newer duplicate transcript cache snapshot prevails and older copies 
 });
 await test('Partial transcript access does not replace the existing complete cached folder',async()=>{
  const source={kind:'file-input',selectionScope:'folder',name:'Partial guarded cache',files:[new File([header()],'a.txt'),new File([header(f.OTHER)],'b.txt')]};await readTranscriptFolder(source);const before=(await listTranscriptCatalogueCache()).find(row=>row.folderName===source.name);source.selectionScope='selection';source.files=[source.files[0]];await readTranscriptFolder(source);assert((await listTranscriptCatalogueCache()).find(row=>row.id===before.id).records.length===2);
+});
+await test('Listing old cache entries immediately keeps only the latest identified snapshot and removes empty rows',async()=>{
+ await clearTranscriptCatalogueCache();const metadata=(count,parent,archive)=>Array.from({length:count},(_,index)=>({filename:`recording-${index}.txt`,recordingId:ID,archiveUuid:archive,originalAudioFolderName:parent,whisperModel:'tiny',operation:'transcribe'}));
+ const rows=[{id:'year-old',folderName:'transcription',updatedAt:100,records:metadata(83,'2016',UUID)},{id:'year-new',folderName:'transcription',updatedAt:200,records:metadata(83,'2016',UUID)},{id:'test-old',folderName:'testing',updatedAt:100,records:metadata(2,'Dayananda',f.OTHER)},{id:'test-new',folderName:'testing',updatedAt:200,records:metadata(3,'Dayananda',f.OTHER)},{id:'empty-root',folderName:'Dayananda',updatedAt:300,records:[]}];
+ const db=await openMemoraDatabase();await new Promise((resolve,reject)=>{const tx=db.transaction('transcriptCatalogues','readwrite');for(const row of rows)tx.objectStore('transcriptCatalogues').put(row);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();const after=await listTranscriptCatalogueCache();assert(after.length===2&&after.some(row=>row.id==='year-new'&&row.records.length===83)&&after.some(row=>row.id==='test-new'&&row.records.length===3));
+});
+await test('Distinct native folders with equal names and archive identities are not collapsed',async()=>{
+ await clearTranscriptCatalogueCache();const root=await navigator.storage.getDirectory(),a=await(await root.getDirectoryHandle('Cache A',{create:true})).getDirectoryHandle('transcription',{create:true}),b=await(await root.getDirectoryHandle('Cache B',{create:true})).getDirectoryHandle('transcription',{create:true});
+ const row={folderName:'transcription',updatedAt:100,records:[{filename:'a.txt',archiveUuid:UUID,recordingId:ID,originalAudioFolderName:'Same parent'}]};const db=await openMemoraDatabase();await new Promise((resolve,reject)=>{const tx=db.transaction('transcriptCatalogues','readwrite');tx.objectStore('transcriptCatalogues').put({...row,id:'native-a',directoryHandle:a});tx.objectStore('transcriptCatalogues').put({...row,id:'native-b',directoryHandle:b,updatedAt:200});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();assert((await listTranscriptCatalogueCache()).length===2);
+});
+await test('Concurrent initial reads create one stored snapshot before Settings cleanup is invoked',async()=>{
+ await clearTranscriptCatalogueCache();const source=()=>({kind:'file-input',selectionScope:'folder',name:'Concurrent transcript',files:[new File([header()],'a.txt')]});const snapshots=await Promise.all([readTranscriptFolder(source()),readTranscriptFolder(source())]);assert(snapshots.every(s=>!s.cacheError));const db=await openMemoraDatabase();const rows=await new Promise((resolve,reject)=>{const request=db.transaction('transcriptCatalogues').objectStore('transcriptCatalogues').getAll();request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});db.close();assert(rows.length===1);
 });
 await test('Session gate guards only untouched primary departures and resets per app session',()=>{const gate=createTranscriptionGate();assert(!gate.snapshot().guarded);gate.leave();assert(!gate.snapshot().guarded);gate.setTranscriptSource(true);assert(gate.snapshot().guarded);gate.activity();gate.leave();assert(!gate.snapshot().guarded&&gate.snapshot().enabled);assert(!createTranscriptionGate().snapshot().guarded);});
 await test('Actual page opens with source at top and destination below; Settings alone does not gate it',async()=>{

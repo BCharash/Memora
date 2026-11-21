@@ -28,12 +28,12 @@ export async function discoverTranscriptFolders(root) {
     return folders.sort((a,b)=>a.name.localeCompare(b.name));
 }
 export function createSharedFolderSelection() {
-    let audio=null,transcript=null,folders=[],audioFiles=[],recordings=[];
+    let audio=null,transcript=null,folders=[],audioFiles=[],audioRecords=[];
     return {
         snapshot:()=>({audio,transcript,folders:[...folders]}),
         setAudio(source,children,files,inventory) {
             if(!Array.isArray(inventory?.records))throw new TypeError('Audio inventory records are missing. Reopen the Audio Source folder.');
-            audio=source;folders=children;audioFiles=files;recordings=inventory.records;
+            audio=source;folders=children;audioFiles=files;audioRecords=inventory.records;
             const defaults=folders.filter(folder=>key(folder.name)==='transcription');
             transcript=defaults.length===1?{...defaults[0],label:`${source.name} / ${defaults[0].name}`}:null;
         },
@@ -46,7 +46,7 @@ export function createSharedFolderSelection() {
             if(!audio)return null;
             const id=record.recordingId||record.voiceMemoId;
             let paths;
-            if(id) paths=recordings.filter(item=>key(item.recordingId)===key(id)).map(item=>item.audioRelativePath);
+            if(id) paths=audioRecords.filter(item=>key(item.recordingId)===key(id)).map(item=>item.audioRelativePath);
             else paths=audioFiles.filter(file=>key(file.name)===key(record.recordingFilename||'')).map(file=>file.name);
             if(paths.length>1)throw Error('Several audio files have this Recording ID. Select the correct recording explicitly.');
             const wanted=paths[0];if(!wanted)return null;

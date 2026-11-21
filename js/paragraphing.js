@@ -405,7 +405,6 @@ export async function paragraphizeTranscript(text, statusCallback) {
         return await paragraphize(text, statusCallback);
     }
 
-    const separatorStart = match.index;
     const separatorEnd = match.index + match[0].length;
     const afterSeparator = normalized.slice(separatorEnd);
     const leadingLineBreaks = afterSeparator.match(/^(?:[ \t]*\n)+/);

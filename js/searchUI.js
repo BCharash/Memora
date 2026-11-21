@@ -397,74 +397,6 @@ function normalizeSentenceMatchKey(text) {
 }
 
 
-function appendHighlightedParagraph(
-    container,
-    paragraph,
-    matchedSentences
-) {
-
-    const text =
-        normalizeSearchParagraph(paragraph);
-
-    if (!text) {
-        return;
-    }
-
-    const matches = [...matchedSentences]
-        .sort((a, b) =>
-            a.sentenceIndex - b.sentenceIndex
-        );
-
-    let cursor = 0;
-
-    for (const match of matches) {
-
-        const sentence =
-            normalizeSearchParagraph(match.sentence);
-
-        if (!sentence) {
-            continue;
-        }
-
-        const start =
-            text.indexOf(sentence, cursor);
-
-        if (start === -1) {
-            continue;
-        }
-
-        if (start > cursor) {
-            container.appendChild(
-                document.createTextNode(
-                    text.slice(cursor, start)
-                )
-            );
-        }
-
-        const mark =
-            document.createElement("mark");
-
-        mark.textContent = sentence;
-        container.appendChild(mark);
-
-        cursor =
-            start + sentence.length;
-    }
-
-    if (cursor < text.length) {
-        container.appendChild(
-            document.createTextNode(
-                text.slice(cursor)
-            )
-        );
-    }
-
-    if (!container.childNodes.length) {
-        container.textContent = text;
-    }
-}
-
-
 function searchPositionKey(filename, paragraphIndex, sentenceIndex) {
     return `position:${filename}|${paragraphIndex}|${sentenceIndex}`;
 }
@@ -2179,52 +2111,6 @@ function renderSearchResults(payload) {
         displayedChunkCount
     };
 }
-
-function appendHighlightedChunk(
-    container,
-    chunkText,
-    matchedSentences,
-    representation
-) {
-
-    const text =
-        normalizeSearchParagraph(chunkText);
-
-    if (!text) {
-        return;
-    }
-
-    // The color identifies the size of the contextual representation that
-    // produced this result. Direct sentence matches remain yellow on top.
-    const contextualColors = {
-        "3–1": "#C8E7FF",
-        "5–2": "#FFD2B3",
-        "7–3": "#D8EBCB"
-    };
-    const contextualColor =
-        contextualColors[representation] || "transparent";
-
-    const highlightedText = document.createElement("span");
-    highlightedText.style.backgroundColor = contextualColor;
-    highlightedText.style.borderRadius = "2px";
-    highlightedText.style.boxDecorationBreak = "clone";
-    highlightedText.style.webkitBoxDecorationBreak = "clone";
-
-    if (!matchedSentences || matchedSentences.length === 0) {
-        highlightedText.textContent = text;
-    } else {
-        // Yellow sentence marks are nested inside the contextual span and
-        // therefore take visual precedence over the contextual background.
-        appendHighlightedParagraph(
-            highlightedText,
-            text,
-            matchedSentences
-        );
-    }
-
-    container.appendChild(highlightedText);
-}
-
 
 function updateClearSearchButton() {
     if (!clearSearchButton) return;

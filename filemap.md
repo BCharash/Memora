@@ -1,8 +1,8 @@
 # Memora file map
 
-Current **2026-11-21.7**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
+Current **2026-11-21.8**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
 
-The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#automatic-audio-lookup-fix-and-legacy-audio-json-removal--21-november-2026) governs .7 acceptance; dated historical notes below retain their context.
+The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#transcript-metadata-deduplication-and-interface-audit--21-november-2026) governs .8 acceptance; dated historical notes below retain their context.
 
 ## The short answer about the number of files
 
@@ -12,7 +12,7 @@ Production entry points follow app.js, including lazy imports and worker-script 
 
 The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
 
-The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. There are also unused functions and overlapping selection/catalogue logic inside otherwise active files. See [cleanup findings](#cleanup-findings) before deleting anything.
+The obsolete `whisper-test-worker.js` and its regression-test case have been removed. Production and self-tests share the active platform worker. Build .8 removes unused private declarations and extra arguments found across the current 57 modules; it also consolidates old transcript cache snapshots during Settings refresh. Historical exported-helper candidates below are separate from that local-declaration audit. See [cleanup findings](#cleanup-findings) before deleting anything.
 
 “Active” below means current application code references the module. It does not mean every function in the module is necessary, or that every feature is used on every visit. A worker is a background program; it is not a separate browser tab.
 

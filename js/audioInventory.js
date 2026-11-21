@@ -3,7 +3,7 @@
 import {createReproducibleRecordingIdentityResolver,RECORDING_SAMPLE_METHOD} from './reproducibleRecordingIdentity.js';
 const key=value=>value.normalize('NFC').toLowerCase();
 const abort=signal=>{if(signal?.aborted)throw new DOMException('Inventory cancelled.','AbortError');};
-export async function inspectAudioInventory(files,{complete=false,signal,onProgress=()=>{}}={}){
+export async function inspectAudioInventory(files,{complete=false,signal,onProgress=(_progress)=>{}}={}){
  const started=performance.now(),resolver=createReproducibleRecordingIdentityResolver();
  const stats={bytesRequested:0,readRequests:0,elapsedMs:0};
  const records=[],issues=[],paths=new Set();

@@ -81,7 +81,6 @@ const iphoneExportButton =
     document.getElementById("iphoneExportButton");
 const iphoneExportStatus =
     document.getElementById("iphoneExportStatus");
-const fileInput = document.getElementById("fileInput");
 const modelSelect = document.getElementById("modelSelect");
 let transcriptionBatchActive = false;
 let sourceSelectionActive = false;
@@ -311,54 +310,6 @@ async function updateCombineFolderButton() {
 }
 
 
-async function updateTranscriptionFolderButton() {
-
-    if (!sourceHandle) {
-        transcriptionDestinationButton.textContent =
-            'Create "transcription" Folder';
-        return;
-    }
-
-    try {
-
-        const storage =
-            await getStorageModule();
-
-        const transcriptionFolder =
-            await storage.getSubfolder(
-                sourceHandle,
-                "transcription",
-                false
-            );
-
-        transcriptionDestinationButton.textContent =
-            'Use "transcription" Folder';
-
-        destinationHandle =
-            transcriptionFolder;
-
-        setActiveDestinationButton(
-            transcriptionDestinationButton
-        );
-
-    } catch (error) {
-
-        if (error.name === "NotFoundError") {
-
-            transcriptionDestinationButton.textContent =
-                'Create "transcription" Folder';
-
-        } else {
-
-            console.error(
-                "Unable to check transcription folder:",
-                error
-            );
-        }
-    }
-}
-
-
 // --------------------------------------------------
 // Transcription module
 // --------------------------------------------------
@@ -439,19 +390,6 @@ async function getDOCXModule() {
 
 
 // --------------------------------------------------
-
-let whisperModule = null;
-
-async function getWhisperModule() {
-
-    if (!whisperModule) {
-        whisperModule =
-            await import("./whisper.js");
-    }
-
-    return whisperModule;
-}
-
 
 // --------------------------------------------------
 // Paragraphing module
@@ -840,24 +778,7 @@ if (languageSelect) {
 // Establish the correct initial state when Memora loads.
 updateOperationAvailability();
 
-// Changing the model invalidates any completed-but-not-yet-saved
-// iPhone transcript batch. A new model must start a new save batch.
-if (modelSelect) {
-    modelSelect.addEventListener("change", event => {
-        // Automatic eligibility refresh must not discard successful transcripts
-        // waiting for the user's Files share action.
-        // Completed artifacts retain the settings that produced them.
-    });
-}
-
-// Changing paragraphing changes the transcript that will be produced.
-// A new iPhone save batch must therefore start from zero.
-if (paragraphingCheckbox) {
-    paragraphingCheckbox.addEventListener("change", () => {
-        // Existing completed artifacts remain available until explicitly discarded.
-    });
-}
-
+// Completed artifacts retain their original settings until explicitly discarded.
 // Keep the button text synchronized if the user changes
 // the operation for a language where it is enabled.
 if (operationSelect && transcribeButton) {
@@ -935,7 +856,7 @@ transcribeButton.addEventListener(
                     ? null
                     : destinationHandle;
 
-            await identityWorkflow.begin(sourceHandle,destinationHandle,filesToTranscribe);
+            await identityWorkflow.begin(sourceHandle,destinationHandle);
             exportBatchLocation=sharedFolders.transcriptLabel();
 
             for (
@@ -1014,7 +935,7 @@ transcribeButton.addEventListener(
                                     transcriptionAudioPath
                                 );
 
-                            const prepared = { transcriptionFolder, record, transcript, operation, identity, filename: null };
+                            const prepared = { transcriptionFolder, record, transcript, operation, filename: null };
                             try {
                                 await atWhisperFailureBoundary({ stage: "save" }, () => savePreparedTranscript(prepared));
                             } catch (error) {
@@ -1034,7 +955,7 @@ transcribeButton.addEventListener(
             );
 
             if (isIPhoneSource) {
-                updateIPhoneExportButton(true);
+                updateIPhoneExportButton();
             }
 
         } catch (error) {
@@ -1049,7 +970,7 @@ transcribeButton.addEventListener(
             );
 
             if (isIPhoneSource && pendingIPhoneExports.length > 0) {
-                updateIPhoneExportButton(true);
+                updateIPhoneExportButton();
             }
 
         } finally {
@@ -1916,7 +1837,6 @@ if (combineHTMLButton) {
 // Audio processing module
 // --------------------------------------------------
 
-let audioProcessor = null;
 
 
 
@@ -2040,9 +1960,8 @@ function buildTranscript(
 
 // Save verified identity-bearing TXT independently of metadata cache availability.
 async function savePreparedTranscript(prepared) {
-    const {transcriptionFolder,record,transcript,operation,identity} = prepared;
+    const {transcriptionFolder,record,transcript,operation} = prepared;
     const storage = await getStorageModule();
-    await identityWorkflow.persist();
     if (!prepared.filename) prepared.filename = await createUniqueTranscriptFilename(transcriptionFolder,record.file,record.metadata,record.model,operation);
     const filename = prepared.filename;
     if (transcriptionFolder) {
@@ -2058,9 +1977,8 @@ async function savePreparedTranscript(prepared) {
     }
     if (!transcriptionFolder && !pendingIPhoneExports.some(file => file.name === filename)) {
         pendingIPhoneExports.push(new File([transcript],filename,{type:"text/plain"}));
-        updateIPhoneExportButton(true);
+        updateIPhoneExportButton();
     }
-    identityWorkflow.finishRecording(record.file);
 }
 retryTranscriptSaveButton?.addEventListener("click", async () => {
     retryTranscriptSaveButton.disabled = true;

@@ -79,6 +79,7 @@ async function getTranscriptHash(record) {
         source: {
             recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
+            // Retain the null slot in the hash format so existing vectors remain reusable.
             audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,
@@ -145,31 +146,6 @@ function getArchiveEmbedding(
     );
 
     return item ? base64ToFloat32(item.embedding) : null;
-}
-
-function archiveRepresentationComplete(
-    archiveTranscript,
-    representationKey,
-    items
-) {
-    if (!archiveTranscript) return false;
-
-    const collection =
-        representationKey === "sentence"
-            ? archiveTranscript.sentences
-            : archiveTranscript.chunks?.[representationKey];
-
-    if (!Array.isArray(collection) || collection.length !== items.length) {
-        return false;
-    }
-
-    return items.every(item =>
-        collection.some(candidate =>
-            candidate.ordinal === item.ordinal &&
-            candidate.text === item.text &&
-            typeof candidate.embedding === "string"
-        )
-    );
 }
 
 export function createSearchEmbeddingsArchive(index) {
@@ -279,9 +255,6 @@ export function serializeSearchEmbeddingsArchive(index) {
     );
 }
 
-let searchWorker = null;
-let nextWorkerRequestId = 1;
-const pendingWorkerRequests = new Map();
 
 
 function splitSentences(text) {
@@ -451,24 +424,6 @@ function buildChunkEntries(
 }
 
 
-async function embedTexts(
-    texts,
-    modelId,
-    statusCallback,
-    phaseLabel = "Analyzing",
-    prefixOverride = null,
-    semanticContext = null
-) {
-    return getSemanticEmbeddings({
-        texts,
-        modelId,
-        statusCallback,
-        phaseLabel,
-        prefixOverride,
-        ...semanticContext
-    });
-}
-
 function cosine(a, b) {
 
     let dot = 0;
@@ -584,6 +539,7 @@ export async function buildSearchIndex(
             await digestText(JSON.stringify({
                 recordingId: records[index].recordingId || records[index].voiceMemoId || null,
                 archiveUuid: records[index].archiveUuid || null,
+                // Retain the null slot in the hash format so existing vectors remain reusable.
                 audioSourceId: null,
                 voiceMemoId: records[index].recordingId || records[index].voiceMemoId || null,
                 recordingFilename: records[index].recordingFilename || null,

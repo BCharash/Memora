@@ -30,7 +30,7 @@ export function createArchiveFolderAccess(files){
     };
     return {
         rootName,
-        async discover(onProgress=()=>{}){
+        async discover(onProgress=(_message)=>{}){
             const groups=new Map();let scanned=0;
             // Immediate transcript subfolders only; combined exports stay outside scope.
             for(const entry of entries.values()){
@@ -67,7 +67,7 @@ export function createArchiveFolderAccess(files){
             return group;
         },
         async preview(transcript){return (await transcript.file.slice(0,65536).text());},
-        async buildInventory({onProgress=()=>{},signal}={}){
+        async buildInventory({onProgress=(_message)=>{},signal}={}){
             const audio=[...entries.values()].filter(entry=>!entry.path.includes('/')&&AUDIO.test(entry.file.name));
             const candidates=[];
             for(let i=0;i<audio.length;i++){
@@ -78,7 +78,7 @@ export function createArchiveFolderAccess(files){
             }
             abort(signal);const index=groupRecordingIdentityCandidates(candidates);
             return {rootName,mode:'audio-metadata',candidates,...index,
-                recordings:candidates.filter(c=>c.status==='ready').map(c=>({audioRelativePath:c.path,recordingId:c.recordingId,method:c.method,...(c.fingerprint?{sampledIdentity:c.fingerprint}:{})}))};
+                records:candidates.filter(c=>c.status==='ready').map(c=>({audioRelativePath:c.path,recordingId:c.recordingId,method:c.method,...(c.fingerprint?{sampledIdentity:c.fingerprint}:{})}))};
         },
         async resolve(transcript,{inventory}={}){
             const record=transcript.record;if(!record)fail('The transcript header could not be read.');

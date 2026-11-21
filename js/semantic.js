@@ -95,6 +95,7 @@ async function getSourceKey(record) {
     return digestText(JSON.stringify({
         recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
+            // This serialized null slot preserves existing source/hash keys.
             audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
         recordingFilename: record.recordingFilename || null,
@@ -108,6 +109,7 @@ async function getTranscriptHash(record) {
         source: {
             recordingId: record.recordingId || record.voiceMemoId || null,
             archiveUuid: record.archiveUuid || null,
+            // This serialized null slot preserves existing source/hash keys.
             audioSourceId: null,
             voiceMemoId: record.recordingId || record.voiceMemoId || null,
             recordingFilename: record.recordingFilename || null,

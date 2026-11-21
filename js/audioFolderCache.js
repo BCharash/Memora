@@ -24,7 +24,7 @@ export async function openAudioFolderInventory(source,files,options={}){
  const run=()=>buildAudioFolderInventory(source,files,options);
  return globalThis.navigator?.locks? navigator.locks.request('memora-audio-metadata',{...(options.signal?{signal:options.signal}:{})},run):run();
 }
-async function buildAudioFolderInventory(source,files,{store=createAudioFolderCacheStore(),signal,onProgress=()=>{},force=false}={}){
+async function buildAudioFolderInventory(source,files,{store=createAudioFolderCacheStore(),signal,onProgress=(_message)=>{}}={}){
  abort(signal);let saved=[],cacheError=null;
  try{saved=(await store.list()).filter(valid);}catch(error){cacheError=error.message;}
  const native=source.kind==='directory',complete=native||source.selectionScope==='folder';
@@ -36,7 +36,7 @@ async function buildAudioFolderInventory(source,files,{store=createAudioFolderCa
   abort(signal);onProgress(`Checking audio: ${index+1} of ${files.length} — ${file.name}`);
   if(!file.name||/[\\/\x00-\x1f]/.test(file.name)||paths.has(key(file.name))){issues.push(`Ambiguous audio filename: ${file.name}`);continue;}paths.add(key(file.name));
   const known=oldByPath.get(key(file.name));let record;
-  if(!force&&sameFile(known,file)){record={...known,audioRelativePath:file.name};reused++;}
+  if(sameFile(known,file)){record={...known,audioRelativePath:file.name};reused++;}
   else{
    const identity=await resolver.resolve(file,{signal});inspected++;
    if(identity.status!=='ready'){issues.push(`${file.name}: ${identity.issues?.[0]?.message||identity.code||'Recording ID unavailable'}`);continue;}
@@ -53,7 +53,7 @@ async function buildAudioFolderInventory(source,files,{store=createAudioFolderCa
  // Exact copies with identical labels/IDs share rebuildable inventory metadata,
  // never file access. Ambiguous overlapping inventories remain separate.
  if(!native&&complete){const candidates=saved.filter(entry=>!entry.directoryHandle&&key(entry.folderName)===key(source.name)&&entry.records.some(r=>ids.has(key(r.recordingId))));const exact=candidates.filter(entry=>entry.records.length===ids.size&&entry.records.every(record=>ids.has(key(record.recordingId)))).sort((a,b)=>b.updatedAt-a.updatedAt);if(exact.length){previous=exact[0];obsolete=exact.slice(1);}else if(candidates.length===1)previous=candidates[0];}
- if(!native&&previous&&!force){const old=new Map(previous.records.map(r=>[key(r.recordingId),r]));for(const record of records){const prior=old.get(key(record.recordingId));if(prior?.metadata&&sameFile(prior,{size:record.size,lastModified:record.lastModified}))record.metadata=prior.metadata;}}
+ if(!native&&previous){const old=new Map(previous.records.map(r=>[key(r.recordingId),r]));for(const record of records){const prior=old.get(key(record.recordingId));if(prior?.metadata&&sameFile(prior,{size:record.size,lastModified:record.lastModified}))record.metadata=prior.metadata;}}
  const inventory={id:previous?.id||crypto.randomUUID(),version:VERSION,revision:crypto.randomUUID(),folderName:source.name,updatedAt:Date.now(),records,...(native?{directoryHandle:source}:{})};
  let revision=previous?.revision||null;
  async function save(){
@@ -67,7 +67,7 @@ async function buildAudioFolderInventory(source,files,{store=createAudioFolderCa
  let metadataChanged=false;
  return {
   getInventory:()=>inventory,
-  getSummary:()=>({checked:records.length,reused,inspected,removed:previous&&complete?previous.records.filter(r=>!paths.has(key(r.audioRelativePath))).length:0,cacheError,coverage:complete?'folder':'selection',sourceFolder:source.name}),
+  getSummary:()=>({checked:records.length,reused,inspected,cacheError}),
   async getRecordingMetadata(file,readMetadata){const record=byPath.get(key(file.name));if(!record)throw Error('Reopen the audio folder before reading this recording.');if(record.metadata&&sameFile(record,file))return record.metadata;const metadata=await readMetadata(file,identityFor(record));record.metadata=metadata;metadataChanged=true;return metadata;},
   async saveMetadata(){if(metadataChanged){metadataChanged=false;await save();}},
   async prepare(file){

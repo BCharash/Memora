@@ -51,11 +51,11 @@ $('buildInventory').onclick=async()=>{
  try{
   const built=await current.buildInventory({signal:controller.signal,onProgress:message=>{if(request===token)$('inventoryStatus').textContent=message;}});
   if(request!==token)return;inventory=built;
-  const embedded=built.recordings.filter(r=>r.method==='embedded').length,ambiguous=built.groups.filter(g=>g.status==='ambiguous');
-  const messages=[`Temporary list: ${built.recordings.length} recording(s); ${embedded} embedded IDs; ${built.recordings.length-embedded} sampled IDs.`,`${built.unresolved.length} blocked audio file(s); ${ambiguous.length} ambiguous Recording ID(s).`,'No JSON read or written.',`Elapsed: ${Math.round(performance.now()-start)} ms (may include file-provider download time).`];
+  const embedded=built.records.filter(r=>r.method==='embedded').length,ambiguous=built.groups.filter(g=>g.status==='ambiguous');
+  const messages=[`Temporary list: ${built.records.length} recording(s); ${embedded} embedded IDs; ${built.records.length-embedded} sampled IDs.`,`${built.unresolved.length} blocked audio file(s); ${ambiguous.length} ambiguous Recording ID(s).`,'No JSON read or written.',`Elapsed: ${Math.round(performance.now()-start)} ms (may include file-provider download time).`];
   for(const c of built.unresolved)messages.push(`Blocked: ${c.path} — ${c.issues?.[0]?.message||c.code}`);
   for(const group of ambiguous)messages.push(`Ambiguous: ${group.recordingId} — ${group.candidates.map(c=>c.path).join(', ')}`);
-  $('inventoryStatus').textContent=messages.join('\n');$('inventoryPreview').textContent=JSON.stringify({previewOnly:true,recordings:built.recordings},null,2);log(messages.join('\n'));
+  $('inventoryStatus').textContent=messages.join('\n');$('inventoryPreview').textContent=JSON.stringify({previewOnly:true,recordings:built.records},null,2);log(messages.join('\n'));
  }catch(error){if(request===token){$('inventoryStatus').textContent=error.message;log(`Temporary inventory failed: ${error.message}`);}}
  finally{if(request===token){buildController=null;$('buildInventory').disabled=false;$('transcriptFolder').disabled=!folders.length;$('linkedTranscript').disabled=!chosen?.transcripts.length;$('resolveAudio').disabled=!inventory||!chosen?.transcripts.length;}}
 };

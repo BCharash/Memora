@@ -15,8 +15,6 @@ export function createTranscriptionIdentity(){
    if(archive&&destination===selectedDestination)return;
    archive=await openTranscriptCatalogue(selectedDestination);destination=selectedDestination;
   },
-  async prepare(file){const identity=await session.prepare(file);const resolved={...identity,archiveUuid:archive.archiveUuid,originalAudioFolderName:source.name};recordingIdentityLines(resolved);return resolved;},
-  finishRecording(){},
-  persist:()=>session?.saveMetadata()
+  async prepare(file){const identity=await session.prepare(file);const resolved={...identity,archiveUuid:archive.archiveUuid,originalAudioFolderName:source.name};recordingIdentityLines(resolved);return resolved;}
  };
 }

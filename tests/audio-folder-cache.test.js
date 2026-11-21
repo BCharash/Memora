@@ -44,7 +44,7 @@ await test('Newer duplicate cache snapshot prevails; older copies are removed at
  await clear();await open(phone(),[file()]);const store=createAudioFolderCacheStore(),old=(await listAudioFolderCache())[0];await store.put({...old,id:crypto.randomUUID(),revision:crypto.randomUUID(),updatedAt:old.updatedAt+100,records:old.records.map(r=>({...r,metadata:{duration:5}}))});const a=await open(phone(),[file()]);assert((await listAudioFolderCache()).length===1&&a.getInventory().records[0].metadata.duration===5);
 });
 await test('Production identity workflow works without audio JSON and writes the original IDs to TXT metadata',async()=>{
- const workflow=createTranscriptionIdentity(),source=phone();await workflow.prepareSource(source,[file()]);await workflow.begin(source,{kind:'file-input',name:'Empty',files:[]});const identity=await workflow.prepare(file());assert(identity.recordingId===f.ID&&identity.archiveUuid&&!('sourceId'in identity));await workflow.persist();
+ const workflow=createTranscriptionIdentity(),source=phone();await workflow.prepareSource(source,[file()]);await workflow.begin(source,{kind:'file-input',name:'Empty',files:[]});const identity=await workflow.prepare(file());assert(identity.recordingId===f.ID&&identity.archiveUuid&&!('sourceId'in identity));
 });
 await test('Parallel native opens keep one latest snapshot rather than racing duplicate scopes',async()=>{
  await clear();const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('parallel-'+crypto.randomUUID(),{create:true}),writer=await(await root.getFileHandle('memo.wav',{create:true})).createWritable();await writer.write(file());await writer.close();

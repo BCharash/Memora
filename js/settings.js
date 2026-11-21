@@ -1,4 +1,3 @@
-import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 import { renderWhisperExecutionHistory, renderWhisperEligibilityReviews, createWhisperHistorySelection, renderWhisperExecutionReport } from "./whisperExecutionReports.js";
 import { getRuntimeDiagnosticReport } from "./runtimeDiagnostics.js";
 import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whisperEligibilityEvidence.js";
@@ -771,27 +770,6 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
     }
 
-    async function showRegistryCache(){
-        const detail=document.getElementById('settingsRegistryCacheDetail'),toggle=storage.querySelector('[data-settings-action="toggle-registry-cache"]');
-        if(!detail)return;
-        if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
-        detail.hidden=false;toggle.textContent='Hide';detail.textContent='Loading Model Registry Cache…';
-        const api=await getStorage(),records=await api.listModelRegistryRecords();detail.replaceChildren();
-        const note=document.createElement('p');note.className='settings-note';note.textContent='Refresh storage information restores deleted built-in entries.';detail.append(note);
-        async function remove(ids){
-            if(!ids.length||!confirm(`Delete ${ids.length} Model Registry Cache entries? Downloaded models and current test qualification are preserved. Built-in definitions return on Refresh storage information.`))return;
-            await api.deleteModelRegistryRecords(ids);await refresh({initializeRegistry:false});await showRegistryCache();
-        }
-        if(!records.length){const empty=document.createElement('p');empty.textContent='No cached model definitions. Refresh storage information recreates the built-in entries.';detail.append(empty);}
-        for(const record of records){
-            const row=document.createElement('div');row.className='settings-item';const check=document.createElement('input');check.type='checkbox';check.setAttribute('aria-label',`Select ${record.label||record.id}`);
-            check.dataset.recordId=record.id;
-            const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.label||record.id;const text=document.createElement('div');text.className='settings-note';text.textContent=`${record.family||'Custom'} · ${record.platform||'Unspecified device'} · ${record.id}`;info.append(name,text);
-            row.append(check,info);detail.append(row);
-        }
-        selectionActions(detail,checks=>remove(checks.map(check=>check.dataset.recordId)));
-    }
-
     async function showOtherModels() {
         const detail = document.getElementById("settingsOtherModelsDetail");
         if (!detail) return;
@@ -1246,6 +1224,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             let registryWarning=null;
             if(initializeRegistry){try{await initializeModelRegistry();}catch(error){registryWarning=error;}}
             const manager = await getStorageManager();
+            await (await import('./transcriptCatalogue.js')).listTranscriptCatalogueCache();
             const report = await manager.getStorageReport();
             if (selfTestController) return;
             render(report);

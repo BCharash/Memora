@@ -15,7 +15,7 @@ export async function displayFiles(
     readAudioMetadata,
     formatRecordingDate,
     formatDuration,
-    onProgress = () => {}
+    onProgress = (_progress) => {}
 ) {
 
     selectedFiles = files;

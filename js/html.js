@@ -762,7 +762,7 @@ function inferDefaultSort(records) {
     );
     const dates = records.map(getRecordingSortDate);
 
-    const isSorted = compare => records.every((record, index) =>
+    const isSorted = compare => records.every((_record, index) =>
         index === 0 || compare(index - 1, index) <= 0
     );
 

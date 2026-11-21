@@ -1,6 +1,6 @@
 # Memora documentation
 
-Updated **21 November 2026** for candidate **2026-11-21.7**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#automatic-audio-lookup-fix-and-legacy-audio-json-removal--21-november-2026).
+Updated **21 November 2026** for candidate **2026-11-21.8**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#transcript-metadata-deduplication-and-interface-audit--21-november-2026).
 
 ## Current file and cache workflow
 
