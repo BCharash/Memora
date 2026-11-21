@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Reviewed **21 November 2026** against source commit **8d4cf88** plus the local Settings fix: candidate application **2026-11-21.11**, database schema **10**. Whisper consolidation is documentation-only; a separate authorized fix restores the Model Registry Cache View/Hide and selected-delete path. Publication and actual .10 device acceptance are not established by this review.
+Reviewed **21 November 2026** against source commit **b9f8a35**: candidate application **2026-11-21.11**, database schema **10**. The current operations consolidation is documentation-only; the previously committed registry-cache repair remains unchanged. Publication and actual .10 device acceptance are not established by this review.
 
 ## Current behavior
 
@@ -79,9 +79,9 @@ Earlier user-reported playback, identity reconstruction, report saving and Pages
 
 ## Next work
 
-**Current authorized checkpoint:** documentation step 5 consolidates four Whisper guides into one current reference, archives complete originals and keeps the failure contract separate. The user's new memory handoff stays at its original path byte-for-byte unchanged. The registry-cache View bug is fixed separately as candidate .11. Next proposed documentation batch: operations/build/Pages guidance. Memory feasibility/implementation, broader structural JavaScript cleanup and multi-archive Combine are not activated by this consolidation.
+**Current authorized checkpoint:** operations documentation is consolidated at [the existing build-versioning.md URL](build-versioning.md), with both original guides archived complete. Workflow/hosting/application settings and the memory handoff are unchanged. Main file/identity, Combine, Whisper and operations consolidations are complete; all original records remain. The next proposed task is the separate JavaScript structural audit after review, not further history deletion or automatic memory implementation.
 
-After documentation: perform the separate JavaScript structural audit. Then design multi-archive Combine: additive membership, per-archive retained audio access, durable-reference selection/editing/export, duplicate-version policy and source-specific refresh/removal. The identity/cache foundation exists; the workspace does not.
+After reviewing documentation: perform the separate JavaScript structural audit. Then design multi-archive Combine: additive membership, per-archive retained audio access, durable-reference selection/editing/export, duplicate-version policy and source-specific refresh/removal. The identity/cache foundation exists; the workspace does not.
 
 Other deferred work stays separate: equal-model filename-counter priority; portable collection imports/metadata and DOCX/HTML output controls; query-only Search history; broader recursive library ownership; offline Tiny/release conversion; variant comparison/discovery; iMuse convergence. Older plans may contain superseded prerequisites and are not today's implementation instructions.
 

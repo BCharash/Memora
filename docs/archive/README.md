@@ -60,3 +60,14 @@ Four guides now feed the [current Whisper architecture/qualification/reporting r
 | [Whisper_Catalogue_Resolver_Contract.md](2026-11-21-whisper/Whisper_Catalogue_Resolver_Contract.md) | Exact catalogue/selection/fingerprint contracts, cache/qualification distinctions and deferred discovery. |
 | [Whisper_Configuration_and_Test_Design.md](2026-11-21-whisper/Whisper_Configuration_and_Test_Design.md) | PASS/lifecycle/recovery policy, timing/instability evidence and unimplemented sequence/retry proposals. |
 | [Self_Test_Timelines_and_Problem_Reports.md](2026-11-21-whisper/Self_Test_Timelines_and_Problem_Reports.md) | Timeline capture/backfill, saved observations, JSON summaries, device limits and historical test evidence. |
+
+## Operations originals consolidated — 21 November 2026
+
+The current [operations/deployment guide](../build-versioning.md) retains the old build-versioning.md URL for bookmarks and the build module's reference. It covers local serving, build/commit/schema identity, publication verification, caching distinctions and diagnosed Pages recovery. These full originals preserve their historical build chronology, incident, validation evidence and deferred-release references:
+
+| Complete archived original | Preserved value |
+|---|---|
+| [build-versioning.md](2026-11-21-operations/build-versioning.md) | Original numbering decisions, released/withdrawn candidates, source/footer mismatch and earlier release checkpoints. |
+| [Pages_Deployment_Recovery.md](2026-11-21-operations/Pages_Deployment_Recovery.md) | Full deployment-lock incident, old SHA, manual recovery procedure and authored-checkpoint validation limits. |
+
+The current guide records the later user-reported successful recovery without rewriting the original report. Workflow/API invocation and live hosting verification were not performed by this documentation task. Existing Vite/asset/offline plans remain separate and unchanged.

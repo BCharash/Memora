@@ -2,6 +2,8 @@
 
 Reviewed **21 November 2026** against source **da80b8a**, application **2026-11-21.10**, schema **10**. This is a current procedure/index, not a fresh test result. Older counts and acceptance observations are in the [dated evidence record](../docs/archive/Current_Guides_Preservation_2026-11-21.md) and journal.
 
+For local serving, build identification and hosted publication/recovery, use the [operations guide](../docs/build-versioning.md). This page owns test selection and isolation, not deployment.
+
 ## Run a focused browser harness
 
 1. Serve the repository root through VS Code Live Server or another localhost static server. These pages use ES modules/import maps; do not open them as file URLs.

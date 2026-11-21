@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current source: **2026-11-21.11**, database schema **10**. Documentation housekeeping checkpoint 5, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
+Current source: **2026-11-21.11**, database schema **10**. Documentation housekeeping checkpoint 6, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
 
 ## Start here
 
@@ -14,7 +14,7 @@ Current source: **2026-11-21.11**, database schema **10**. Documentation houseke
 
 ## Current contracts and methodology
 
-The references below separate current contracts, preserved research and future proposals. Superseded contracts are historical records in the archive, not competing current instructions. Whisper guidance is now consolidated; operations documents remain scheduled for later consolidation.
+The references below separate current contracts, preserved research and future proposals. Superseded contracts are historical records in the archive, not competing current instructions. File/identity, future Combine, Whisper and operations guidance now have consolidated owners; older plans remain historical or explicitly deferred.
 
 | Topic | Reference |
 |---|---|
@@ -26,9 +26,9 @@ The references below separate current contracts, preserved research and future p
 | Whisper configuration, qualification and reporting | [Current Whisper guide](Whisper_Architecture_and_Qualification.md); four complete originals retained in the [Whisper archive](archive/README.md#whisper-guides-consolidated--21-november-2026) |
 | Model failures and review state machine | [Separate execution-failure contract](Whisper_Execution_Failure_Contract.md) |
 | Planned self-test memory work | [User memory handoff](Memora_Whisper_Memory_Handoff.md), preserved unchanged; feasibility first, not implemented |
-| Publishing and recovery | [Build numbering](build-versioning.md), [Pages recovery procedure](Pages_Deployment_Recovery.md) and its manual workflow; review the deployment SHA rather than reusing a historical incident default |
+| Local serving, build numbering, publishing and recovery | [Operations and deployment](build-versioning.md); the existing URL is retained, and both original guides are archived |
 
-The first nine superseded guides are consolidated into the two current references above and the future Combine contract below. All nine originals remain complete in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026), with notices and repaired navigation. Search/paragraphing research remains intact; no uncertain-value history is destroyed.
+Across the three consolidation batches, **15 old guides feed 5 current references**, with all 15 originals archived complete. See the [archive index](archive/README.md) and [audit/preservation records](Documentation_Audit_2026-11-21.md). The separate prefix/failure contracts, research, validation artifacts and user memory handoff remain retained; no uncertain-value history is destroyed.
 
 ## Future work and preserved evidence
 
