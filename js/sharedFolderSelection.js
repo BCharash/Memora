@@ -31,8 +31,9 @@ export function createSharedFolderSelection() {
     let audio=null,transcript=null,folders=[],audioFiles=[],recordings=[];
     return {
         snapshot:()=>({audio,transcript,folders:[...folders]}),
-        setAudio(source,children,files,manifest) {
-            audio=source;folders=children;audioFiles=files;recordings=manifest.recordings;
+        setAudio(source,children,files,inventory) {
+            if(!Array.isArray(inventory?.records))throw new TypeError('Audio inventory records are missing. Reopen the Audio Source folder.');
+            audio=source;folders=children;audioFiles=files;recordings=inventory.records;
             const defaults=folders.filter(folder=>key(folder.name)==='transcription');
             transcript=defaults.length===1?{...defaults[0],label:`${source.name} / ${defaults[0].name}`}:null;
         },

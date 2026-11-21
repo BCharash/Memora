@@ -1,18 +1,18 @@
 # Memora documentation
 
-Updated **21 November 2026** for candidate **2026-11-21.6**, database schema **9**. Start with [current behavior and device checks](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026).
+Updated **21 November 2026** for candidate **2026-11-21.7**, database schema **10**. Start with [current behavior and device checks](CURRENT_STATUS.md#automatic-audio-lookup-fix-and-legacy-audio-json-removal--21-november-2026).
 
 ## Current file and cache workflow
 
 Production no longer creates, reads or saves audio/transcript inventory JSON. Existing files remain untouched. Embedded Apple/iMuse Recording IDs and the unchanged reproducible fallback identify audio; TXT headers retain recording and transcript Archive UUID identities. **Search embeddings remain in search-embeddings.json.**
 
-Audio Folder Metadata Cache and Transcript Folder Metadata Cache hold rebuildable metadata, with one latest snapshot per identified scope, selection deletion and stale/partial/failure protection. Desktop can reuse unchanged metadata after browser-confirmed folder association. iPhone verifies current audio IDs before associating logical inventories and reusing date/duration metadata; equal copied sources cannot be physically distinguished by the File input API. Uncertain associations never grant access to a different folder. Cached full-text transcripts remain separate. Previous recording-list cache data is retained for optional inspection/deletion, not used for current audio identity.
+Audio Folder Metadata Cache and Transcript Folder Metadata Cache hold rebuildable metadata, with one latest snapshot per identified scope, selection deletion and stale/partial/failure protection. Desktop can reuse unchanged metadata after browser-confirmed folder association. iPhone verifies current audio IDs before associating logical inventories and reusing date/duration metadata; equal copied sources cannot be physically distinguished by the File input API. Uncertain associations never grant access to a different folder. Cached full-text transcripts remain separate. Legacy recording-list support and its local recovery store are removed. Existing disk JSON files stay untouched. The .6 shared audio lookup mismatch is fixed by using the current inventory records field.
 
 Transcribe has Audio Source above and Transcript Destination below. Unused return is gated by Enable Transcription only after a transcript folder is selected. Without one, setup stays visible and populates shared audio unchecked. Settings alone does not trigger the gate. iPhone shares TXT only, with the batch destination shown clearly and different unsaved/post-share warnings. There is no audio-list save prerequisite.
 
 ## Validation and acceptance
 
-**191 focused groups passed**, including 17 new audio cache and 29 current app/catalogue/Settings groups, with schema preservation, actual origin-private directory handles, 390px layout, playback, embeddings, identity and historical compatibility coverage. See the [test guide](../tests/README.md). Dayananda's earlier isolated inventory proof matched 107 IDs on MacBook and iPhone; actual production .6 acceptance remains pending. No real model/user archive execution or deployment was performed by Codex.
+**183 focused groups passed.** Checks cover targeted legacy-store removal and rollback, preserved active data, real origin-private directory handles, current cache/Settings and 390px layout, connected automatic playback, embeddings and recording identity. Obsolete sidecar suites were removed; see the current test guide for .7 counts. See the [test guide](../tests/README.md). Dayananda's earlier isolated inventory proof matched 107 IDs on MacBook and iPhone; actual production .7 acceptance remains pending. No real model/user archive execution or deployment was performed by Codex.
 
 ## Deferred architecture
 

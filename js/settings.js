@@ -29,7 +29,7 @@ function getWhisperRuntimeDescription() {
         : "Transformers.js 4.0.0 · worker · requested backend: WebGPU";
 }
 
-export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSourceId = () => null }) {
+export function initSettingsUI({ getStorageManager, getStorage }) {
     const status = document.getElementById("settingsStorageStatus");
     const storage = document.getElementById("settingsStorage");
     const refreshButton = document.getElementById("settingsRefreshButton");
@@ -52,7 +52,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
     });
 
     let currentReport = null;
-    let sourceRecoveryGroups=null;
     let modelAvailability = null;
     let latestDomDiagnostics = null;
     let selfTestController = null;
@@ -113,7 +112,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const models = report.modelCache;
         const transcripts = report.indexedDB.transcripts;
         const registryStore=report.indexedDB.otherStores.find(item=>item.name==='modelRegistry')||{bytes:0,count:0};
-        const recoveryStore=report.indexedDB.otherStores.find(item=>item.name==='audioSourceRecovery')||{bytes:0,count:0};
         const audioMetadata=report.indexedDB.otherStores.find(item=>item.name==='audioFolderCatalogues')||{bytes:0,count:0};
         const transcriptMetadata=report.indexedDB.otherStores.find(item=>item.name==='transcriptCatalogues')||{bytes:0,count:0};
         const legacyMetadata=report.indexedDB.otherStores.find(item=>item.name==='semanticMetadata');
@@ -170,7 +168,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             </div>
             <p class="settings-note">Recording identities and metadata rebuilt from audio when needed.</p>
             <div id="settingsAudioMetadataDetail" class="settings-detail" hidden></div>
-            ${recoveryStore.count?`<details><summary>Previous Audio Recording Lists · ${formatBytes(recoveryStore.bytes)} · ${recoveryStore.count} copies</summary><p class="settings-note">Retained from earlier versions. These are not used by the current audio inventory.</p><div id="settingsSourceRecoverySummary"></div>${button('View','toggle-source-recovery')}<div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div></details>`:''}
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure settings-storage-category">
@@ -1104,41 +1101,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         detail.insertBefore(detail.querySelector('.settings-selection-actions'),detail.querySelector('.settings-cache-parent'));
     }
 
-    async function showSourceRecovery(){
-        const detail=document.getElementById('settingsSourceRecoveryDetail'),toggle=storage.querySelector('[data-settings-action="toggle-source-recovery"]');if(!detail)return;
-        if(!detail.hidden){detail.hidden=true;toggle.textContent='View';return;}
-        detail.hidden=false;toggle.textContent='Hide';detail.textContent='Loading saved Audio Recording Lists…';
-        const {createAudioSourceRecoveryStore,groupAudioSourceRecovery}=await import('./audioSourceRecovery.js'),store=createAudioSourceRecoveryStore();
-        const signature=groups=>(groups||[]).flatMap(group=>group.records.map(record=>`${record.audioSourceId}:${record.revision}`)).sort().join('|');
-        const groups=await groupAudioSourceRecovery(await store.list());
-        if(signature(groups)!==signature(sourceRecoveryGroups)){
-            const report=await (await getStorageManager()).getStorageReport(),item=report.indexedDB.otherStores.find(store=>store.name==='audioSourceRecovery');
-            const summary=document.getElementById('settingsSourceRecoverySummary');if(summary)summary.textContent=`${formatBytes(item?.bytes||0)} · ${groups.length.toLocaleString()} sources`;
-        }
-        sourceRecoveryGroups=groups;detail.replaceChildren();
-        const active=group=>group.records.some(record=>String(record.audioSourceId).toLowerCase()===getActiveAudioSourceId()?.toLowerCase());
-        const note=document.createElement('p');note.className='settings-note';note.textContent='Latest local copies of your Audio Recording Lists. Deleting a copy leaves folder files unchanged. Lists in use are protected.';detail.append(note);
-        async function remove(targets){
-            if(!targets.length)return;
-            if(targets.some(active))throw Error('A selected Audio Recording List is now in use. Its saved copy was kept.');
-            const records=targets.flatMap(group=>group.records),pending=records.some(record=>record.state!=='verified'||record.pendingTranscriptArchive);
-            if(!confirm(`Delete saved Audio Recording Lists for ${targets.length} sources?${pending?' Some copies may contain unsaved audio/transcript list data. Save any needed pending lists first.':''} Audio, transcripts and JSON files in your folders are preserved.`))return;
-            if(targets.some(active))throw Error('A selected source is now in use. No copies were removed.');
-            await store.removeMany(records);await refresh({initializeRegistry:false});await showSourceRecovery();
-        }
-        const run=targets=>remove(targets).catch(error=>{status.textContent=error.message;});
-        if(!groups.length){const empty=document.createElement('p');empty.textContent='No saved Audio Recording Lists.';detail.append(empty);}
-        for(const group of groups){
-            const record=group.latest,row=document.createElement('div');row.className='settings-item';
-            const check=document.createElement('input');check.type='checkbox';check.disabled=active(group);check.setAttribute('aria-label',`Select saved list for ${record.sourceName||'Audio source'}`);check._group=group;
-            const info=document.createElement('div');info.className='settings-item-info';const name=document.createElement('div');name.className='settings-item-name';name.textContent=record.sourceName||'Audio source';
-            const text=document.createElement('p');text.className='settings-note';const time=Date.parse(record.updatedAt);const pending=group.records.filter(item=>item.pendingTranscriptArchive).length;
-            text.textContent=`${Number.isFinite(time)?new Date(time).toLocaleString():'Update time unavailable'} · ${group.recordingCount??'Unknown'} recordings · ${record.state==='verified'?'Saved local copy':'List save awaiting confirmation'}${pending?` · ${pending} retained transcript-list exports`:''}${group.invalid?' · Recovery data needs inspection':''}${active(group)?' · In use; protected from deletion':''}`;info.append(name,text);
-            row.append(check,info);detail.append(row);
-        }
-        selectionActions(detail,checks=>run(checks.map(check=>check._group)));
-    }
-
     async function handleAction(event) {
         const target = event.target.closest("[data-settings-action]");
         if (!target) return;
@@ -1151,7 +1113,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
             if(action==='toggle-audio-metadata')return await showAudioMetadata();
-            if (action === "toggle-source-recovery") return await showSourceRecovery();
             if(action==='toggle-transcript-metadata')return await showTranscriptMetadata();
             if(action==='clear-unused-semantic-metadata'){
                 if(!confirm('Clear unused legacy semantic metadata? Current embeddings and transcript files are preserved.'))return;
@@ -1284,8 +1245,6 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         try {
             let registryWarning=null;
             if(initializeRegistry){try{await initializeModelRegistry();}catch(error){registryWarning=error;}}
-            const {createAudioSourceRecoveryStore,groupAudioSourceRecovery}=await import('./audioSourceRecovery.js');
-            sourceRecoveryGroups=await groupAudioSourceRecovery(await createAudioSourceRecoveryStore().list());
             const manager = await getStorageManager();
             const report = await manager.getStorageReport();
             if (selfTestController) return;

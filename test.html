@@ -47,8 +47,7 @@
 </section>
 <section>
 <h2>Build a temporary recording list</h2>
-<p>This creates a list in browser memory from audio directly in the selected parent. It never replaces or deletes your JSON. With simulation checked, the existing JSON is not read by this operation.</p>
-<label><input id="ignoreAudioList" type="checkbox" checked> Pretend the Audio Recording List is missing</label>
+<p>This creates a list in browser memory directly from the selected audio. It does not read or write inventory JSON.</p>
 <button id="buildInventory" type="button" disabled>Build Temporary Recording List</button>
 <pre id="inventoryStatus" role="status">Select an archive folder first.</pre>
 <details><summary>Temporary list preview</summary><pre id="inventoryPreview"></pre></details>
@@ -88,7 +87,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const AUDIO=/\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
-const KNOWN=new Set(['memora-audio-source.json','memora-transcript-archive.json','memora-archive.json','search-embeddings.json']);
+const KNOWN=new Set(['search-embeddings.json']);
 let files=[],documents=[],audioFiles=[],baseReport=[],checks=[],objectURL=null,loadedAudioPath=null,generation=0;
 const pathOf=file=>file.webkitRelativePath||file.name;
 const kindOf=file=>AUDIO.test(file.name)?'audio':/\.txt$/i.test(file.name)?'txt':/\.json$/i.test(file.name)?'json':'other';

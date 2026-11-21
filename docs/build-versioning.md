@@ -1,5 +1,8 @@
 # Production build identification
 
+21 November 2026: **2026-11-21.7**, database **10**. Fix automatic shared playback by consuming inventory.records; remove legacy audio JSON code/UI and target only audioSourceRecovery for deletion during upgrade. Active metadata/text/model/embedding stores remain unchanged; failed upgrades roll back. No deployment by Codex.
+
+
 21 November 2026: **2026-11-21.6**, database **9**. Retire production audio JSON persistence/export gating and introduce rebuildable audioFolderCatalogues with preserving upgrade. Consolidate latest identified audio/transcript metadata snapshots. Search embeddings, model configuration/evidence and TXT identities remain unchanged; no deployment by Codex.
 
 

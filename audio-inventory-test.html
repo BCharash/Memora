@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Memora audio inventory comparison</title>
+<title>Memora audio inventory report</title>
 <style>body{font:17px system-ui;margin:20px auto;padding:0 16px;max-width:850px}button{font:inherit;padding:12px;margin:6px 8px 6px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}#busy:not([hidden]){display:inline-block;width:18px;height:18px;border:3px solid #bbb;border-top-color:#275fac;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
-<h1>Audio inventory comparison</h1>
-<p>Rebuilds Recording IDs from audio and compares the existing audio list if present. Reads audio directly in the selected folder. Does not change audio, transcripts, JSON or browser caches.</p>
+<h1>Audio inventory report</h1>
+<p>Rebuilds Recording IDs directly from audio. Reads audio directly in the selected folder. Does not change audio, transcripts, JSON or browser caches.</p>
 <button id="choose">Select Audio Source Folder</button><button id="save" disabled>Save Test Report</button>
 <input id="input" type="file" webkitdirectory multiple hidden>
 <span id="busy" hidden aria-hidden="true"></span><p id="status" role="status">Ready.</p><pre id="report"></pre>

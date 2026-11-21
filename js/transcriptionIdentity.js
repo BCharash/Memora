@@ -1,8 +1,6 @@
 import {openTranscriptCatalogue} from './transcriptCatalogue.js';
 import {openAudioFolderInventory} from './audioFolderCache.js';
 import {recordingIdentityLines} from './transcriptMetadata.js';
-// Historical source UUIDs are not modern recording identity.
-export async function associatedSourceEvidence(){return {ids:[],labels:new Map()};}
 export function createTranscriptionIdentity(){
  let session=null,archive=null,destination=null,source=null;
  return {

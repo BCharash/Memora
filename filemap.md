@@ -1,31 +1,14 @@
 # Memora file map
 
-Current **2026-11-21.6**, schema **9**: audioFolderCache.js owns production metadata inventory and latest snapshot persistence. transcriptionIdentity.js binds verified audio to TXT catalogue identity. identityDialog.js shares dialogs independently of retired audioSourcePersistence.js; the latter and recordingIdentityUI.js remain for historical compatibility tests/tools. app.js no longer saves/exports/requires audio JSON. settings.js exposes Audio Folder Metadata Cache and optional previous-list inspection; transcriptCatalogue.js consolidates latest identified snapshots. [Current status](docs/CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026) supersedes older module ownership notes below.
+Current **2026-11-21.7**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
 
-
-Settings .5: settings.js renders separate parent-grouped folder metadata entries and shared bulk selection controls. transcriptCatalogue.js removes exact observed scope snapshots atomically, rejecting concurrent changes. Audio Recording List Cache and Transcript Folder Metadata Cache precede Model Registry Cache; audio persistence remains active.
-
-
-Read-only audio inventory checkpoint: audioInventory.js is an independent identity/comparison adapter; audioInventoryTest.js belongs only to the standalone audio-inventory-test.html. Neither is imported by production app.js. See [checkpoint notes](docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
-
-
-Updated **21 November 2026** for candidate **2026-11-21.2**, schema **8**. See [current status](docs/CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026) for the approved implementation, validation and device checklist. Earlier module/checkpoint notes retain their historical dates.
-
-Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](docs/CURRENT_STATUS.md).
-
-## TXT catalogue and explicit transcription ownership
-
-Production transcript loading uses transcriptCatalogue.js: TXT metadata is authoritative; transcriptCatalogues is a bounded local cache, not folder-access permission or a source of replacement IDs. database.js adds the cache store in schema 7. Settings shows View/Clear for that cache. transcriptionGate.js owns session intent and guarded untouched returns; app.js excludes Settings navigation, reuses shared access, renders Transcribe recordings lazily, and binds save messages to each batch's chosen destination. transcriptionUI.js defaults newly prepared recording checkboxes to unchecked. Audio JSON persistence/recovery and Search embeddings remain active. External transcript JSON creation/reading/export is removed from production; legacy validators/helpers remain for old-file diagnostics/tests.
-
-## Production recording identity foundation — 20 November 2026
-
-Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reproducibleRecordingIdentity.js) to production source enrollment and declared fallback playback. [audioSourcePersistence.js](js/audioSourcePersistence.js) retains save/concurrency/recovery ownership; [transcriptMetadata.js](js/transcriptMetadata.js) retires TXT source-UUID binding. Search and semantic cache hashes ignore that obsolete value and can retain unchanged vectors. New [production identity harness](tests/production-recording-identity.html) plus focused regressions passed; see [current status](docs/CURRENT_STATUS.md) for exact scope and device acceptance. Module/test inventory counts below retain their earlier dated checkpoint; shared folder rows and Settings cache retirement are not part of this foundation change.
+The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#automatic-audio-lookup-fix-and-legacy-audio-json-removal--21-november-2026) governs .7 acceptance; dated historical notes below retain their context.
 
 ## The short answer about the number of files
 
-There are **64 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **51 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (56 total). Test files are separate from the normal application.
+There are **57 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **46 top-level test/fixture JavaScript files under `tests/`** and no nested test JavaScript files (46 total). Test files are separate from the normal application.
 
-Production entry points follow app.js, including lazy imports and worker-script references. Standalone inventory labs and historical sidecar helpers are retained separately; the earlier module groups below are not a claim that every JS file runs at startup. They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
+Production entry points follow app.js, including lazy imports and worker-script references. Standalone inventory tools are separate from production; the earlier module groups below are not a claim that every JS file runs at startup. They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
 The one-time archive migration is complete. Its disposable tool and tests were removed; it has no production dependency path. See the [recording identity handoff](docs/Recording_Identity_Handoff.md) for checkpoint 3 integration and its acceptance boundary.
 
@@ -175,7 +158,7 @@ Search and paragraphing both can use MiniLM, but perform different jobs and own 
 
 ## Recording and transcript identity
 
-Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the older sidecar workflow remains only for compatibility. Standalone harnesses keep tests separate from user data.
+Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the old sidecar workflow is removed. Standalone harnesses keep tests separate from user data.
 
 | File | Responsibility | Main callers |
 |---|---|---|
@@ -184,14 +167,7 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the older
 | [reproducibleRecordingIdentity.js](js/reproducibleRecordingIdentity.js) | Embedded identity first, fixed prefix/size fallback, immutable-snapshot reuse. | Inventory, playback and tests |
 | [transcriptCacheIdentity.js](js/transcriptCacheIdentity.js) | Durable full-text cache keys from existing TXT identities. | Database migration and storage |
 | [recordingIdentity.js](js/recordingIdentity.js) | Bounded read-only Apple/iMuse embedded ID and provenance inspection. | Reproducible resolver, playback and tests |
-| [audioSourceIdentity.js](js/audioSourceIdentity.js) | Pure recording-list validation, serialization and identity decisions. | Isolated tests and source persistence/recovery APIs |
-| [audioFingerprint.js](js/audioFingerprint.js) | Incremental SHA-256 helpers for isolated APIs/tests plus abort checks; production source membership does not hash full audio. | Historical source APIs and isolated tests |
-| [audioSourceRecovery.js](js/audioSourceRecovery.js) | Revision-checked schema-6 recovery persistence and evidence-based source matching. | Optional previous-list Settings inspection and historical tests |
-| [audioSourcePersistence.js](js/audioSourcePersistence.js) | Source discovery, staged identities, safe writes and pending file-input JSON exports. | Historical sidecar compatibility tests/tools |
-| [recordingIdentityUI.js](js/recordingIdentityUI.js) | Text-only source/recording prompts and explicit picker/share actions. | Historical sidecar compatibility tools |
 | [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
-| [transcriptArchive.js](js/transcriptArchive.js) | Canonical memora-transcript-archive.json name, bounded validation, archive/folder labels, reference appends and locked/verified writes. | Historical sidecar validation/tests |
-| [transcriptFolder.js](js/transcriptFolder.js) | Historical transcript-sidecar reconciliation helper, retained for legacy tests. | Not the production TXT catalogue; use transcriptCatalogue.js |
 | [transcriptCatalogue.js](js/transcriptCatalogue.js) | TXT-only metadata inventory, bounded local cache, existing identity preservation and empty-collection session identity. | Transcribe, Combine, Search and Settings |
 | [transcriptionGate.js](js/transcriptionGate.js) | Session intent and untouched primary-tab departure state; Settings routing remains separate. | App Transcribe setup |
 | [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session audio/transcript selection, immediate child handles or rebased phone snapshots, default/reset rules and ID-first parent audio lookup. | App folder rows and shared Combine/Search playback |
@@ -202,7 +178,7 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the older
 
 | File | Responsibility | Main callers |
 |---|---|---|
-| [database.js](js/database.js) | Sole owner of the Memora IndexedDB schema/open/upgrade/validation behavior. Current schema version: 9; preserving full-text cache migration and additive audio/transcript metadata stores. | Storage, storage reporting and semantic store |
+| [database.js](js/database.js) | Sole owner of the Memora IndexedDB schema/open/upgrade/validation behavior. Current schema version: 10; only legacy audio recovery is removed, while current caches and full-text identities are preserved. | Storage, storage reporting and semantic store |
 | [storage.js](js/storage.js) | File/folder reading/writing/sharing, transcript cache and legacy model-registry record access. | App and model manager |
 | [storageManager.js](js/storageManager.js) | Measures storage and handles the specific clear/delete actions exposed in Settings. | App-provided Settings service |
 | [settings.js](js/settings.js) | Settings content and actions: availability, testing, eligibility status, reports and storage controls. | App |
@@ -223,12 +199,12 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the older
 
 ## Developer tests — separate from the application
 
-There are **39 top-level HTML developer test pages**. Most import a matching `.test.js`; the isolated reconciliation lab has its own page module. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
+There are **35 top-level HTML developer test pages**. Most import a matching `.test.js`; the isolated reconciliation lab has its own page module. Open via Live Server when a particular change calls for it; see [test instructions](tests/README.md) for isolation and limitations. Synthetic passes do not prove actual iPhone memory stability.
 
 | Test page | What it checks |
 |---|---|
 | [audio-location.html](tests/audio-location.html) | Shared audio-location prompts, phone-width hints, source-scoped batch/cache reuse, identity mismatch and native fallback. |
-| [transcript-folder.html](tests/transcript-folder.html) | Complete/partial coverage, manifest reconciliation, identity preservation, year-specific rebuild guidance, retries/concurrency and isolated OPFS saves. |
+| [transcript-folder.html](https://github.com/BCharash/Memora/blob/456fbffaec2a06e3eea2311c12f0291e977434d9/tests/transcript-folder.html) | Complete/partial coverage, manifest reconciliation, identity preservation, year-specific rebuild guidance, retries/concurrency and isolated OPFS saves. |
 | [whisper-executions.html](tests/whisper-executions.html) | Production history ownership, retention, privacy, real navigation recovery and linked report controls. |
 | [whisper-production-reviews.html](tests/whisper-production-reviews.html) | Durable policy/user reviews, reference recovery, ordering, stability and persistence safety in isolated fixtures. |
 | [whisper-worker-failures.html](tests/whisper-worker-failures.html) | Typed actual-worker fault evidence, legacy/mismatched envelopes and self-test verdict preservation. |
@@ -249,7 +225,7 @@ There are **39 top-level HTML developer test pages**. Most import a matching `.t
 | [whisper-loader-gate.html](tests/whisper-loader-gate.html) | Loader guard and prevention of repository/dtype override bypasses. |
 | [whisper-disposal.html](tests/whisper-disposal.html) | Disposal handshake, deadlines and mandatory termination fallback. |
 
-Examples of top-level support JavaScript files are transcription-recovery-fixtures.js, whisper-diagnostics-fixtures.js, recording-identity-fixtures.js, source-database-adapter.js, database-adapter.js, whisper-executions-fixture.js, transcription-identity-fixtures.js and whisper-loader-gate-fixture.js. Additional fixtures and test modules are described in tests/README.md. The five lab JS files are additional, under tests/labs. tests/fixtures/whisper-registry-baseline-v2.json is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
+Examples of top-level support JavaScript files are whisper-diagnostics-fixtures.js, recording-identity-fixtures.js, source-database-adapter.js, database-adapter.js, whisper-executions-fixture.js, transcription-identity-fixtures.js and whisper-loader-gate-fixture.js. Additional fixtures and test modules are described in tests/README.md. The obsolete archive-reconciliation lab JS files have been removed. tests/fixtures/whisper-registry-baseline-v2.json is an independent pre-migration snapshot; do not regenerate it from new code to disguise a mismatch.
 
 ## Cleanup findings
 

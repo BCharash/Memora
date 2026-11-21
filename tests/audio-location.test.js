@@ -1,3 +1,5 @@
+import {openAudioFolderInventory} from '../js/audioFolderCache.js';
+import {sharedFolders} from '../js/sharedFolderSelection.js';
 import * as fixtures from './recording-identity-fixtures.js';
 import {createReproducibleRecordingIdentityResolver} from '../js/reproducibleRecordingIdentity.js';
 const source=await(await fetch('../js/searchUI.js')).text();
@@ -57,6 +59,13 @@ try{
  });
  await test('Changing only retired Audio Source ID does not invalidate playback cache',async()=>{
   const archiveUuid=crypto.randomUUID(),metadata={...record('Rebuilt'),archiveUuid},first=mount(ios,metadata);first.button.click();await first.choose([audio('memo.wav',ID)]);await waitFor(()=>!first.player.hidden);const before=pickerOpens,second=mount(ios,{...metadata,audioSourceId:OTHER});second.button.click();await waitFor(()=>!second.player.hidden);assert(pickerOpens===before,'Source UUID alone forced another picker');
+ });
+ await test('Current inventory producer connects to shared automatic audio lookup on iPhone and desktop',async()=>{
+  const selectedAudio=audio('renamed.wav',ID),root={kind:'file-input',name:'Shared Audio',selectionScope:'folder',files:[selectedAudio]};
+  const session=await openAudioFolderInventory(root,[selectedAudio],{store:{async list(){return [];},async put(){}}});
+  sharedFolders.setAudio(root,[],[selectedAudio],session.getInventory());assert(sharedFolders.resolveAudio(record('Shared Audio'))===selectedAudio);
+  const picker=window.showDirectoryPicker;window.showDirectoryPicker=async()=>{throw Error('Unexpected audio folder picker');};
+  try{for(const module of [ios,desktop]){const before=pickerOpens,handle={kind:'directory',name:'transcription',async getFileHandle(){throw Error('Transcript folder should not be searched');}},control=mount(module,record('Shared Audio'),handle);control.button.click();await waitFor(()=>!control.player.hidden);assert(pickerOpens===before,'Automatic lookup opened another picker');assert(control.player.src.startsWith('blob:'),'Shared recording was not loaded');assert(!control.section.querySelector('.search-audio-error').textContent.includes('filter'),'Inventory contract mismatch');}}finally{window.showDirectoryPicker=picker;}
  });
 }finally{HTMLMediaElement.prototype.play=play;for(const element of document.querySelectorAll('audio[data-object-url]'))URL.revokeObjectURL(element.dataset.objectUrl);}
 document.getElementById('results').textContent=lines.join('\n')+`\n${lines.length-failed.length}/${lines.length} groups passed`;document.body.dataset.result=failed.length?'failed':'passed';

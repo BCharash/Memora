@@ -1704,12 +1704,12 @@ button:disabled {
 }
 
 /* Named local-storage categories stay readable on narrow Settings panels. */
-:is(#settingsSourceRecoveryDetail, #settingsAudioMetadataDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item {
+:is(#settingsAudioMetadataDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
 }
-:is(#settingsSourceRecoveryDetail, #settingsAudioMetadataDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item-info {
+:is(#settingsAudioMetadataDetail, #settingsTranscriptMetadataDetail, #settingsRegistryCacheDetail) .settings-item-info {
     overflow-wrap: anywhere;
 }
 

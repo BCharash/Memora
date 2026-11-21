@@ -1,7 +1,7 @@
 import {cachedTranscriptRecord} from './transcriptCacheIdentity.js';
 // Canonical schema owner. Importing this module never opens a database.
 // All application database opens go through this owner.
-export const DATABASE_VERSION = 9;
+export const DATABASE_VERSION = 10;
 
 const schema = [
     { name: "audioFolderCatalogues", keyPath: "id", indexes: [] },
@@ -9,9 +9,7 @@ const schema = [
     { name: "transcripts", keyPath: "id", indexes: ["filenameKey", "archiveFilename"] },
     { name: "semanticEntries", keyPath: "id", indexes: ["representationKey", "sourceKey"] },
     { name: "semanticMetadata", keyPath: "key", indexes: [] },
-    { name: "modelRegistry", keyPath: "id", indexes: [] },
-    // Source identity recovery is durable until explicit removal; never transcript cache.
-    { name: "audioSourceRecovery", keyPath: "audioSourceId", indexes: [] }
+    { name: "modelRegistry", keyPath: "id", indexes: [] }
 ];
 
 function schemaError(message) {
@@ -82,6 +80,9 @@ export function createDatabaseManager({ name = "Memora", indexedDB: factory = gl
                 }
                 const upgrade=()=>{try{checkSchema(request.result,request.transaction,true);}catch(error){failure=error;request.transaction.abort();}};
                 const database=request.result,tx=request.transaction;
+                // Explicitly retired by the user; versionchange rollback protects
+                // every other store if validation or migration fails.
+                if(database.objectStoreNames.contains('audioSourceRecovery'))database.deleteObjectStore('audioSourceRecovery');
                 if(database.objectStoreNames.contains('transcripts')&&tx.objectStore('transcripts').keyPath==='filename'){
                     // Read first, then replace only within this atomic versionchange
                     // transaction. Any error restores the old store and version.

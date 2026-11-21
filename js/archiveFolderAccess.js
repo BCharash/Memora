@@ -1,6 +1,5 @@
 // Read-only parent-selection adapter. Not connected to production UI or storage.
 import {parseTranscriptFile} from './combine.js';
-import {parseAudioSourceManifest, AUDIO_SOURCE_LIMITS} from './audioSourceIdentity.js';
 import {createReproducibleRecordingIdentityResolver,groupRecordingIdentityCandidates} from './reproducibleRecordingIdentity.js';
 const AUDIO=/\.(m4a|mp3|wav|webm|mp4|aiff|flac|ogg)$/i;
 const key=path=>path.normalize('NFC').toLowerCase();
@@ -29,16 +28,6 @@ export function createArchiveFolderAccess(files){
             catch(error){return {record:null,error:error.message};}
         })());return headers.get(entry.path);
     };
-    let sourcePromise=null;
-    async function sourceList(){
-        if(!sourcePromise)sourcePromise=(async()=>{
-            const entry=entries.get('memora-audio-source.json');if(!entry)return null;
-            if(entry.file.size>AUDIO_SOURCE_LIMITS.jsonBytes)fail('Audio Recording List exceeds the read limit.');
-            const parsed=parseAudioSourceManifest(await entry.file.text());
-            if(parsed.status!=='valid')fail('Audio Recording List is invalid: '+(parsed.issues?.[0]?.message||parsed.status));
-            return parsed.manifest;
-        })();return sourcePromise;
-    }
     return {
         rootName,
         async discover(onProgress=()=>{}){
@@ -46,14 +35,14 @@ export function createArchiveFolderAccess(files){
             // Immediate transcript subfolders only; combined exports stay outside scope.
             for(const entry of entries.values()){
                 const parts=entry.path.split('/');if(parts.length!==2)continue;
-                if(!/\.txt$/i.test(entry.file.name)&&!['memora-transcript-archive.json','memora-archive.json'].includes(entry.file.name))continue;
-                const group=groups.get(parts[0])||{name:parts[0],transcripts:[],issues:[],hasTranscriptList:false};groups.set(parts[0],group);
+                if(!/\.txt$/i.test(entry.file.name))continue;
+                const group=groups.get(parts[0])||{name:parts[0],transcripts:[],issues:[]};groups.set(parts[0],group);
                 if(/\.txt$/i.test(entry.file.name)){
                     const result=await readHeader(entry);if(result.record)group.transcripts.push({...entry,...result});else group.issues.push({path:entry.path,error:result.error});
                     if(++scanned%16===0){onProgress(`Checked ${scanned} transcript headers…`);await new Promise(resolve=>setTimeout(resolve,0));}
-                }else group.hasTranscriptList=true;
+                }
             }
-            const folders=[...groups.values()].filter(g=>g.transcripts.length||g.hasTranscriptList).sort((a,b)=>a.name.localeCompare(b.name));
+            const folders=[...groups.values()].filter(g=>g.transcripts.length).sort((a,b)=>a.name.localeCompare(b.name));
             for(const group of folders){
                 group.transcripts.sort((a,b)=>a.file.name.localeCompare(b.file.name));
                 const ids=new Set(group.transcripts.map(t=>t.record.archiveUuid?.toLowerCase()).filter(Boolean));
@@ -62,13 +51,12 @@ export function createArchiveFolderAccess(files){
             return folders;
         },
         async openTranscriptSelection(files,name,{relativeFolder=null}={}){
-            const group={name,transcripts:[],issues:[],hasTranscriptList:false};const seen=new Set();
+            const group={name,transcripts:[],issues:[]};const seen=new Set();
             for(const file of files){
                 const parts=file.webkitRelativePath?.split('/');
                 if(parts?.length!==(relativeFolder?3:2)||relativeFolder&&parts[1]!==relativeFolder)continue;
                 const k=key(file.name);if(seen.has(k))fail('Ambiguous transcript filename: '+file.name);seen.add(k);
-                if(['memora-transcript-archive.json','memora-archive.json'].includes(file.name))group.hasTranscriptList=true;
-                if(!/\.txt$/i.test(file.name))continue;
+                                if(!/\.txt$/i.test(file.name))continue;
                 const entry={file,path:`${name}/${file.name}`};
                 let result;try{const text=await file.slice(0,65536).text();const at=text.search(/^--------------------------------------------------[\t ]*(?:\r?\n|$)/m);const cleaned=at<0?text:text.slice(0,at).split(/\r?\n/).filter(line=>!line.startsWith('Audio Source ID:')).join('\n')+'\n'+text.slice(at);result={record:parseTranscriptFile(file,cleaned),error:null};}catch(error){result={record:null,error:error.message};}
                 if(result.record)group.transcripts.push({...entry,...result});else group.issues.push({path:entry.path,error:result.error});
@@ -79,7 +67,7 @@ export function createArchiveFolderAccess(files){
             return group;
         },
         async preview(transcript){return (await transcript.file.slice(0,65536).text());},
-        async buildInventory({ignoreList=false,onProgress=()=>{},signal}={}){
+        async buildInventory({onProgress=()=>{},signal}={}){
             const audio=[...entries.values()].filter(entry=>!entry.path.includes('/')&&AUDIO.test(entry.file.name));
             const candidates=[];
             for(let i=0;i<audio.length;i++){
@@ -89,17 +77,7 @@ export function createArchiveFolderAccess(files){
                 if(i%16===0)await new Promise(resolve=>setTimeout(resolve,0));
             }
             abort(signal);const index=groupRecordingIdentityCandidates(candidates);
-            let comparison={status:ignoreList?'ignored':'absent'};
-            if(!ignoreList){
-                try{const list=await sourceList();if(list){
-                    const byPath=new Map(candidates.filter(c=>c.status==='ready').map(c=>[key(c.path),c]));const listedPaths=new Set(list.recordings.map(item=>key(item.audioRelativePath)));
-                    let matched=0;const conflicts=[],missing=[];
-                    for(const item of list.recordings){const found=byPath.get(key(item.audioRelativePath));if(!found)missing.push(item.audioRelativePath);else if(same(found.recordingId,item.recordingId))matched++;else conflicts.push(item.audioRelativePath);}
-                    comparison={status:'compared',matched,conflicts,missing,unlisted:candidates.filter(c=>c.status==='ready'&&!listedPaths.has(key(c.path))).map(c=>c.path)};
-                }}catch(error){comparison={status:'invalid',message:error.message};}
-            }
-            abort(signal);
-            return {rootName,mode:ignoreList?'simulate-missing':'read-only-comparison',candidates,...index,comparison,
+            return {rootName,mode:'audio-metadata',candidates,...index,
                 recordings:candidates.filter(c=>c.status==='ready').map(c=>({audioRelativePath:c.path,recordingId:c.recordingId,method:c.method,...(c.fingerprint?{sampledIdentity:c.fingerprint}:{})}))};
         },
         async resolve(transcript,{inventory}={}){

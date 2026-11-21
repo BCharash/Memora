@@ -1,5 +1,10 @@
 # Runtime and database foundation — completed
 
+## Current cleanup and playback fix — 21 November 2026
+
+Build **2026-11-21.7**, schema **10**, removes legacy audio JSON code, optional recovery UI and the retired audioSourceRecovery store at the user’s explicit request. All current caches, TXT identities, models and Search embeddings are preserved. Shared audio lookup now consumes the actual inventory **records** field, fixing the .6 filter-on-undefined regression; connected playback tests cover both platforms. Standalone audio inventory no longer compares JSON. Existing disk JSON files are untouched and may be removed by the user; **search-embeddings.json remains active**. See [current status](CURRENT_STATUS.md#automatic-audio-lookup-fix-and-legacy-audio-json-removal--21-november-2026). Earlier retained-legacy claims below describe superseded .6 behavior.
+
+
 ## Current production inventory candidate — 21 November 2026
 
 Build **2026-11-21.6**, schema **9**, supersedes older audio JSON save/recovery requirements below. Source audio supplies embedded or unchanged reproducible Recording IDs; the new local metadata cache replaces external audio JSON persistence. TXT retains recording/archive identity; **search-embeddings.json remains**. Latest identified snapshots replace older copies, with conservative scope association and stale/partial/failure protection. Existing disk files and older local data are preserved; legacy local lists have optional Settings inspection/deletion. The prefix algorithm is unchanged. See [current status and acceptance checklist](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026) for native/iPhone differences and implementation evidence. Multi-archive Combine remains future work; .6 device acceptance is pending. Earlier entries below are historical.
@@ -36,7 +41,7 @@ User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks
 
 ## Database ownership and schema
 
-database.js alone owns application opens/schema. Current version **9** adds audioFolderCatalogues while preserving existing stores. The known schema-7 filename-keyed transcript cache migrates atomically to durable keys in schema 8; source JSON recovery data is retained separately for compatibility. Feature modules release caller-owned connections. Model registry initialization remains separate from schema repair.
+database.js alone owns application opens/schema. Current version **10** removes only the retired audioSourceRecovery store; version 9 added audioFolderCatalogues. All active stores remain intact. The known schema-7 filename-keyed transcript cache migrates atomically to durable keys in schema 8; source JSON recovery is now explicitly retired. Feature modules release caller-owned connections. Model registry initialization remains separate from schema repair.
 
 | Store | Inline key | Required indexes |
 |---|---|---|
@@ -46,7 +51,6 @@ database.js alone owns application opens/schema. Current version **9** adds audi
 | semanticEntries | id | representationKey/sourceKey, non-unique and non-multiEntry |
 | semanticMetadata | key | None; legacy |
 | modelRegistry | id | None |
-| audioSourceRecovery | audioSourceId | None; previous list data retained for inspection/removal |
 
 Upgrade adds missing stores/indexes, validates definitions and preserves unknown stores/records. Known transcript key migration preserves every body and rolls back on failure. Other incompatible structures abort rather than reset. Connections close on versionchange; blocked/abandoned requests cannot silently upgrade later. Future versions are refused without downgrade. Registry rebuild remains record replacement, not schema repair.
 
