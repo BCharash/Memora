@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current source: **2026-11-21.11**, database schema **10**. Documentation housekeeping checkpoint 6, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
+Current source: **2026-11-21.11**, database schema **10**. JavaScript survey/checkpoint documentation, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
 
 ## Start here
 
@@ -8,7 +8,8 @@ Current source: **2026-11-21.11**, database schema **10**. Documentation houseke
 |---|---|
 | What works now, what needs testing, and what comes next? | [Current status and resume instructions](CURRENT_STATUS.md) |
 | How do I run a relevant check safely? | [Test guide](../tests/README.md) |
-| Which modules own a feature? | [File map](../filemap.md); its structural JavaScript review is still pending |
+| Which modules own a feature? | [File map](../filemap.md) |
+| What did the JavaScript survey find, and what cleanup is proposed? | [Survey and staged checkpoint plan](JavaScript_Survey_and_Cleanup_Plan.md); assessment complete, implementation not authorized |
 | What documentation should be kept or consolidated? | [Complete audit and disposition register](Documentation_Audit_2026-11-21.md) |
 | Where are earlier results and decisions? | [Journal index](journal-index.md), [preservation/evidence record](archive/Current_Guides_Preservation_2026-11-21.md) and [archive index](archive/README.md) |
 

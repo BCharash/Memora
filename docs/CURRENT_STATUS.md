@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Reviewed **21 November 2026** against source commit **b9f8a35**: candidate application **2026-11-21.11**, database schema **10**. The current operations consolidation is documentation-only; the previously committed registry-cache repair remains unchanged. Publication and actual .10 device acceptance are not established by this review.
+Reviewed **21 November 2026** against source commit **886ab1a**: candidate application **2026-11-21.11**, database schema **10**. The current task records a read-only JavaScript survey and proposed cleanup checkpoints; application behavior and the previous registry-cache repair are unchanged. Publication and actual .10 device acceptance are not established by this review.
 
 ## Current behavior
 
@@ -79,9 +79,9 @@ Earlier user-reported playback, identity reconstruction, report saving and Pages
 
 ## Next work
 
-**Current authorized checkpoint:** operations documentation is consolidated at [the existing build-versioning.md URL](build-versioning.md), with both original guides archived complete. Workflow/hosting/application settings and the memory handoff are unchanged. Main file/identity, Combine, Whisper and operations consolidations are complete; all original records remain. The next proposed task is the separate JavaScript structural audit after review, not further history deletion or automatic memory implementation.
+**Current authorized checkpoint:** document the [JavaScript survey and staged cleanup plan](JavaScript_Survey_and_Cleanup_Plan.md). Static assessment covers 57 modules, 54 production-referenced paths and three standalone diagnostic modules. No cleanup code, runner, worker, schema, model or memory instrumentation changed; no new runtime/device tests ran. The plan records preservation rules, scoped acceptance and stop points. It does not authorize implementation.
 
-After reviewing documentation: perform the separate JavaScript structural audit. Then design multi-archive Combine: additive membership, per-archive retained audio access, durable-reference selection/editing/export, duplicate-version policy and source-specific refresh/removal. The identity/cache foundation exists; the workspace does not.
+Recommended first implementation after review: checkpoint 1 (obsolete tooling/routes and carefully reviewed public exports), then a small naming batch. Shared hashing, playback/edit rules and source/session extraction follow separately. Multi-archive Combine remains future work after the relevant boundaries are safe; low-value cosmetic cleanup need not become a prerequisite. The user memory handoff remains unchanged for separate feasibility work.
 
 Other deferred work stays separate: equal-model filename-counter priority; portable collection imports/metadata and DOCX/HTML output controls; query-only Search history; broader recursive library ownership; offline Tiny/release conversion; variant comparison/discovery; iMuse convergence. Older plans may contain superseded prerequisites and are not today's implementation instructions.
 

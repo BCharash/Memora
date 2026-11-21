@@ -29,7 +29,7 @@ Each nonempty trimmed term goes through **both lexical and semantic retrieval**,
 
 A long description can have no qualifying consecutive lexical phrase while still returning useful semantic results. Additional short terms supply remembered lexical clues, without surrendering their own semantic contribution.
 
-The current user-facing fuzzy range is **50–100%**, initially 80% unless a stored setting overrides it. The lower-level lexical API has its own 70% default when no threshold is supplied; the UI supplies the selected value. Do not confuse those defaults.
+The current user-facing fuzzy range is **50–100%**. Normal JavaScript initialization uses **70%** unless a valid stored setting overrides it; the lower-level lexical API also defaults to 70%. The static HTML declares 80%, and the storage-exception catch can leave that value in place. This documents an existing initialization discrepancy, not a newly chosen fallback policy. No slider behavior is changed by the documentation correction.
 
 At 100%, lexical search remains active. Current token normalization is case-insensitive and punctuation-insensitive, and a phrase must match a contiguous word window within a sentence. The implementation also gives limited common English inflection variants a score of 1. Therefore “100% exact” describes the normalized-token policy, not literal byte equality. This is an existing detail to preserve or explicitly review, not a new morphology/language feature.
 

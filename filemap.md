@@ -1,8 +1,10 @@
 # Memora file map
 
-Current **2026-11-21.10**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
+Current **2026-11-21.11**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
 
-The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#combine-and-search) governs .10 acceptance; dated historical notes below retain their context.
+The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#combine-and-search) governs current acceptance; dated historical notes below retain their context.
+
+The [read-only JavaScript survey and checkpoint plan](docs/JavaScript_Survey_and_Cleanup_Plan.md) records the latest source/dependency assessment. It proposes cleanup; no implementation is authorized by the plan itself.
 
 ## The short answer about the number of files
 
@@ -30,15 +32,15 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 | Model disposal acknowledgement | `js/whisperDisposal.js` and the two active Whisper workers |
 | Investigating a page restart | `js/runtimeDiagnostics.js` and the exported test report |
 | IndexedDB schema and upgrades | `js/database.js` |
-| File saving/sharing | `js/storage.js`, then the specific workflow in `app.js`, `searchUI.js` or `combineUI.js`; see [file workflow inventory](docs/archive/2026-11-21-contracts/File_Workflow_Inventory.md) |
+| File saving/sharing | `js/storage.js`, then the specific workflow in `app.js`, `searchUI.js` or `combineUI.js`; see [current file workflows](docs/Architecture_and_File_Workflows.md) |
 | Current limits, pending work and how to resume | [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) |
 
 ## How the main features connect
 
-- **Transcribe:** `index.html` → `app.js` → source identity/persistence and transcript archive coordination → `transcription.js` → `whisper.js` → the iOS or desktop worker. Production transcriptions reuse the loaded model while the configuration stays the same.
+- **Transcribe:** `index.html` → `app.js`, `audioFolderCache.js`, `transcriptCatalogue.js` and `transcriptionIdentity.js` → `transcription.js` → `whisper.js` → the iOS or desktop worker. Production transcriptions reuse the loaded model while the configuration stays the same. External inventory sidecars are retired.
 - **Self-test:** `settings.js` → `whisperSelfTest.js` → `whisperTestLifecycle.js` → the same platform worker. Each standalone test creates a fresh worker and ends it after the test. This repeated-load behavior is under investigation on iPhone.
 - **Permission to transcribe:** canonical configurations + saved eligibility → `whisperProductionEligibility.js` → the selector and the loader. File availability/cache presence alone does not grant eligibility.
-- **Combine:** `app.js` → `transcriptFolder.js`/`transcriptArchive.js` for root read/reconciliation, then `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls.
+- **Combine:** `app.js` → `transcriptCatalogue.js` for TXT folder reading/local metadata, then `combineUI.js` → `combine.js` → text, HTML or Word output. `combineShareExport.js` manages the additional share/export controls. The retired transcriptFolder/transcriptArchive modules are not current dependencies.
 - **Shared audio playback:** `searchUI.js` supplies Combine and Search with location guidance, scoped caches and bounded embedded-ID checks where available. Legacy filename fallback and the broader pending audio resolver remain distinct.
 - **Search:** `searchUI.js` + `search.js` → `semantic.js` → `semantic-worker.js` for meaning-based search. Keyword search is also implemented in `search.js`.
 - **Paragraphs:** `paragraphing.js` → `paragraphing-worker.js`. This is a separate feature from speech recognition.
@@ -52,7 +54,7 @@ The obsolete `whisper-test-worker.js` and its regression-test case have been rem
 | [manifest.json](manifest.json) | Web-app installation metadata and icons. It is not a model registry or cache manager. |
 | `icons/` and `favicon.ico` | App/tab icons. |
 | `data/whisper-test/` | The fixed test recording and expected transcript used to measure accuracy. Changing these changes test identity. |
-| [test.html](test.html) | Standalone parent-folder selection/access probe with nested-file report sharing; no production imports, models or Memora storage. |
+| [test.html](test.html) | Standalone parent-folder selection/access probe with nested-file report sharing; read-only production helpers, no app bootstrap/model loading or Memora storage. |
 | [webgpu-test.html](webgpu-test.html) | Standalone WebGPU probe with inline JavaScript. Does not run Whisper or qualify models. Not part of normal startup. |
 | [tests/](tests/README.md) | Isolated developer checks and their HTML runners. |
 | [docs/](docs/README.md) | Current handoff, plans and feature documentation. |
@@ -239,7 +241,7 @@ No complete JavaScript files are byte-for-byte identical. That does **not** mean
 | **Production selection — shared core in .21** | Production gate and async resolver now use the same canonical exact-ID/family/default selector and platform compatibility checks. Self-test now calls the same catalogue list API (.22). Its historical non-iOS menu fallback is an explicit list-only option; production/resolver compatibility stays strict. |
 | **Separate family catalogue — derived in .21** | `modelManager.js` now projects family labels/repositories and Large's mixed-precision readiness fields from canonical definitions. Unused preferredDtype hints were removed. Legacy generic ONNX-pair availability checks are preserved; exact per-configuration readiness would be a separate behavior change. |
 | **Two model/evidence representations** | Legacy IndexedDB registry validation and newer local eligibility coexist. Display meaning is clarified in .23: current eligibility is authoritative, older registry validation is historical. Both stores and their evidence remain intact. |
-| **Unused exported helpers** | `getModelCatalog()` has no caller found; `isMobile`/`isDesktop` have no current consumers. `loadTranscriberConfiguration()` is currently exercised by a loader test, not an app caller. These are function-level cleanup candidates, not reasons to delete their modules. |
+| **Unused exported helpers** | `getModelCatalog()` and `loadTranscriberConfiguration()` have test consumers. `isMobile`/`isDesktop` have no other current code-text consumers; internal/dynamic callers must be checked before changing an export. See the survey plan; a missing external caller is not justification to delete its whole module. |
 | **Similar embedding services** | Paragraphing and semantic search can each load MiniLM in separate workers. A shared service might reduce duplicated live resources, but this requires feature/lifecycle design and is not a safe file deletion. |
 | **Potentially regroupable small modules** | Activity ownership, report presentation and diagnostic formatting are small but have different callers/responsibilities. Optional later organization work; lower priority than eliminating genuinely duplicated selection/definitions. |
 
@@ -251,7 +253,7 @@ Checked the initial 41 `js/` filenames (40 remained after obsolete-worker remova
 
 This is a static dependency/organization audit, not a fresh device test, exhaustive line-by-line proof of necessity, memory profile or guarantee of every external cached client's behavior. The initial inventory changed documentation only. Subsequent authorized cleanups removed the obsolete worker/test case and unused page-side loader/fallback branches. Build .20 identifies the latter change. Active worker files, HTML, CSS, databases, model options and configuration fingerprints are unchanged.
 
-## Current next checkpoint and future selection
+## Earlier model-selection checkpoint and future direction
 
 Candidate .6 implements the audio JSON retirement and local latest-snapshot inventories; real MacBook/iPhone production acceptance is next. Family-then-filename-counter transcript priority remains agreed but unimplemented; that is separate from newest-cache-snapshot replacement. Search embeddings persist independently. Persistent multi-archive Combine/imports and recursive catalogue ownership remain future work. Use [CURRENT_STATUS](docs/CURRENT_STATUS.md) for the device checklist and limitations.
 
