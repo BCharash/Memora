@@ -1,5 +1,8 @@
 # Recording identity and rebuildable audio lists
 
+Audio inventory checkpoint 1 is ready: [standalone read-only comparison](../audio-inventory-test.html), [implementation and device checklist](Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026). Production audio JSON workflow is unchanged pending staged verification.
+
+
 Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
 
 

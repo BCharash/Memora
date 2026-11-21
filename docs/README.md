@@ -1,5 +1,8 @@
 # Memora documentation
 
+Audio inventory checkpoint 1 is ready: [standalone read-only comparison](../audio-inventory-test.html), [implementation and device checklist](Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026). Production audio JSON workflow is unchanged pending staged verification.
+
+
 Latest fix: hidden forwarded audio-list save clicks from Combine/Search no longer enable Transcribe. See [current status](CURRENT_STATUS.md) for the .3 regression results and iPhone checklist.
 
 

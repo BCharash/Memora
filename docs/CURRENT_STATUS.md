@@ -3,6 +3,14 @@
 
 
 
+
+## Audio inventory checkpoint 1 ready — 21 November 2026
+
+User confirmation: all four active archives are Apple Voice Memo recordings; the deliberately stripped test recording already reproduced its fallback ID. This is the modern prefix case, not an irreplaceable random legacy ID. Independent reconstruction and comparison are now implemented in [audioInventory.js](../js/audioInventory.js), with the standalone [audio-inventory-test.html](../audio-inventory-test.html) for MacBook/iPhone reports. It reads current audio, optionally compares the list, classifies differences/legacy mappings, and reports bounded requested reads and timing without writing files/caches. Report export alone saves a named TXT. Duplicate/unsupported/unreadable identity stays visible; complete-folder and partial reads remain distinct.
+
+**44 targeted groups passed**: 16 inventory, 3 standalone page, 22 existing reproducible identity and 3 iPhone gate regressions. Production behavior/build **2026-11-21.3**, schema **8**, audio JSON and embeddings remain unchanged. No real archive or model tests were run. See the [audit checkpoint addendum](Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026) for device steps and interpretation. Review archive comparison/timing reports before the later production switch; next code checkpoint is a preserving incremental local cache.
+
+
 ## iPhone shared-save transcription gate fix — 21 November 2026
 
 Build **2026-11-21.3**, schema **8** unchanged. Saving the audio recording list from Combine/Search forwards a click to Transcribe's original save button. Previously its delegated activity listener treated that hidden click as transcription intent, bypassing Enable Transcription before the recording rows were prepared. Transcribe activity now counts only while its panel and setup workspace are visible. Explicit Enable Transcription still prepares shared recordings unchecked; Settings and no-transcript-folder gating rules are unchanged.

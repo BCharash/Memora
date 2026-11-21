@@ -1,5 +1,8 @@
 # Memora test guide
 
+Audio inventory checkpoint 1: [inventory tests](audio-inventory.html) (16), [standalone page tests](audio-inventory-page.html) (3), existing reproducible identity (22) and iPhone gate (3) passed **44 groups**. Covers embedded/fallback rebuilding, optional corrupt/absent JSON, legacy classification, mismatch/rename/membership, duplicate/unreadable/cancel cases, read-only desktop access, immediate-only phone audio, and TXT-only report sharing. No persistence or production switch; real-device instructions are in the [audit](../docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
+
+
 Build **2026-11-21.3**: [iPhone shared-save gate regression](iphone-transcription-gate.html) adds three groups covering deferred shared audio, audio-list saving from Combine without enabling hidden Transcribe, and explicit Enable preparing unchecked rows without inference. All three plus the existing 18 catalogue and 7 shared-folder groups passed (28 total). Real iPhone acceptance remains pending.
 
 

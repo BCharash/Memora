@@ -1,5 +1,8 @@
 # Memora file map
 
+Read-only audio inventory checkpoint: audioInventory.js is an independent identity/comparison adapter; audioInventoryTest.js belongs only to the standalone audio-inventory-test.html. Neither is imported by production app.js. See [checkpoint notes](docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
+
+
 Updated **21 November 2026** for candidate **2026-11-21.2**, schema **8**. See [current status](docs/CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026) for the approved implementation, validation and device checklist. Earlier module/checkpoint notes retain their historical dates.
 
 Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](docs/CURRENT_STATUS.md).
@@ -14,7 +17,7 @@ Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reprod
 
 ## The short answer about the number of files
 
-There are **60 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **46 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (51 total). Test files are separate from the normal application.
+There are **62 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **49 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (54 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
