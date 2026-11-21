@@ -121,11 +121,10 @@
 
                         <button id="saveRecordingListButton" type="button" hidden>Save Audio Recording List</button>
                     </div>
-                    <div class="shared-folder-row"><h2>Transcript Destination</h2><output data-transcript-folder>None Selected</output><button type="button" data-select-transcript="transcribe">Select Transcript Destination</button></div>
-                    <p id="transcribeDestinationStatus" class="settings-note" role="status"></p>
                     <p id="recordingListSaveStatus" class="settings-note" role="status"></p>
                     <div id="audioSourceActivity" class="audio-source-activity" role="status" hidden><span class="audio-source-spinner" aria-hidden="true"></span><span>Opening Audio Source…</span><span id="audioSourceElapsed" aria-hidden="true">Elapsed: 0s</span></div>
                     <p id="audioInventoryStatus" class="settings-note" role="status" aria-live="polite"></p>
+                    <p id="transcribeDestinationStatus" class="settings-note" role="status"></p>
 
 
 
@@ -217,7 +216,7 @@
 
                 <div id="transcriptionDestinationSection" class="destination-section">
 
-                    <div class="shared-folder-row"><h3>Transcript Destination</h3><output data-transcript-folder>None Selected</output></div>
+                    <div class="shared-folder-row"><h3>Transcript Destination</h3><output data-transcript-folder>None Selected</output><button type="button" data-select-transcript="transcribe">Select Transcript Destination</button></div>
 
                     <div
                         id="desktopTranscriptionDestinationOptions"
@@ -254,11 +253,7 @@
                         style="display:none;"
                     >
 
-                        <div class="identity-save-controls">
-                            <button id="saveTranscriptArchiveButton" type="button" hidden>Save transcript file list to Files</button>
-                            <p id="transcriptArchiveSaveStatus" class="settings-note" role="status"></p>
-                        </div>
-
+                        <p id="iphoneExportLocation" class="export-location" hidden></p>
                         <button
                             id="iphoneExportButton"
                             type="button"
@@ -328,12 +323,6 @@
                             Select Transcript Source
                         </button></div>
 
-                    <div class="action-row">
-
-                        <button id="saveCombineTranscriptListButton" type="button" hidden>
-                            Save Transcript File List
-                        </button>
-                    </div>
                     <p id="combineTranscriptListStatus" class="settings-note" role="status" hidden></p>
 
                 </div>

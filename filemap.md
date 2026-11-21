@@ -1,10 +1,10 @@
 # Memora file map
 
-Updated **20 November 2026** against source **ce1583b**, displayed build **2026-11-20.7**, schema **6**. [Current project status](docs/CURRENT_STATUS.md) distinguishes implemented shared folder/destination/bundle behavior from the next documentation-only plan. Historical module/checkpoint notes below keep their dates.
+Updated **21 November 2026** for candidate **2026-11-21.1**, schema **7**. See [current status](docs/CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026) for the approved implementation, validation and device checklist. Earlier module/checkpoint notes retain their historical dates.
 
-## Next implementation ownership: Enable Transcription and save guidance
+## TXT catalogue and explicit transcription ownership
 
-Not implemented: keep selectors initially visible, guard untouched returns from Combine/Search behind **Enable Transcription**, and exclude Settings from that primary-tab state. app.js owns the tab/setup state, deferred Transcribe list preparation, per-batch save attempt/result and accurate destination/status rendering; transcriptionUI.js owns the new-list checkbox default; sharedFolderSelection.js retains granted shared access. storage.js and transcriptionIdentity.js retain identity/delivery ownership. The next change must not trigger transcription work merely from Combine/Search selection or weaken write/partial-coverage safeguards. See the [full next-task contract](docs/CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance), including warning text, prominent correct iPhone folder labels and audio-before-transcript status order.
+Production transcript loading uses transcriptCatalogue.js: TXT metadata is authoritative; transcriptCatalogues is a bounded local cache, not folder-access permission or a source of replacement IDs. database.js adds the cache store in schema 7. Settings shows View/Clear for that cache. transcriptionGate.js owns session intent and guarded untouched returns; app.js excludes Settings navigation, reuses shared access, renders Transcribe recordings lazily, and binds save messages to each batch's chosen destination. transcriptionUI.js defaults newly prepared recording checkboxes to unchecked. Audio JSON persistence/recovery and Search embeddings remain active. External transcript JSON creation/reading/export is removed from production; legacy validators/helpers remain for old-file diagnostics/tests.
 
 ## Production recording identity foundation — 20 November 2026
 
@@ -12,7 +12,7 @@ Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reprod
 
 ## The short answer about the number of files
 
-There are **57 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **44 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (49 total). Test files are separate from the normal application.
+There are **59 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **45 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (50 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 
@@ -176,7 +176,9 @@ These modules are now connected to normal transcription. Standalone harnesses ke
 | [recordingIdentityUI.js](js/recordingIdentityUI.js) | Text-only source/recording prompts and explicit picker/share actions. | Transcription identity workflow |
 | [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
 | [transcriptArchive.js](js/transcriptArchive.js) | Canonical memora-transcript-archive.json name, bounded validation, archive/folder labels, reference appends and locked/verified writes. | App, transcription identity, shared transcript reader |
-| [transcriptFolder.js](js/transcriptFolder.js) | One root inventory/read; safe reconciliation; complete-folder coverage; independent pending/native JSON session and rebuild identity. | Edit/Combine through app.js; shared Transcribe/Search integration is pending |
+| [transcriptFolder.js](js/transcriptFolder.js) | Historical transcript-sidecar reconciliation helper, retained for legacy tests. | Not the production TXT catalogue; use transcriptCatalogue.js |
+| [transcriptCatalogue.js](js/transcriptCatalogue.js) | TXT-only metadata inventory, bounded local cache, existing identity preservation and empty-collection session identity. | Transcribe, Combine, Search and Settings |
+| [transcriptionGate.js](js/transcriptionGate.js) | Session intent and untouched primary-tab departure state; Settings routing remains separate. | App Transcribe setup |
 | [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session audio/transcript selection, immediate child handles or rebased phone snapshots, default/reset rules and ID-first parent audio lookup. | App folder rows and shared Combine/Search playback |
 | [transcriptionIdentity.js](js/transcriptionIdentity.js) | Coordinates source evidence, identity, archive selection, persistence gates and snapshot release. | App |
 

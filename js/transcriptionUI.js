@@ -412,7 +412,7 @@ export async function displayFiles(
             checkbox.checked =
                 hasExistingSelection
                     ? checkedNames.has(file.name)
-                    : true;
+                    : false;
 
             checkbox.className =
                 "recording-checkbox";

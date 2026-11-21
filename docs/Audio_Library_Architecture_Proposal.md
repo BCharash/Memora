@@ -1,5 +1,13 @@
 # Audio library hierarchy — agreed behavior and delivery plan
 
+## TXT catalogue and explicit transcription candidate — 21 November 2026
+
+Build **2026-11-21.1**, schema **7**, implements the approved change: retire the external transcript JSON requirement, retain **memora-audio-source.json** and **search-embeddings.json**, and read identity/model/operation/audio metadata from TXT into a rebuildable local cache. Existing sidecars stay untouched. New empty destinations need no JSON; desktop creates a child, while iPhone names an intended folder for Save to Files. Source stays above and destination below. Enable Transcription guards untouched returns from Combine/Search while excluding Settings; recording defaults are unchecked. Save warnings distinguish pending from share-return verification; iPhone shares TXT only, with a prominent batch-bound destination. Settings exposes the bounded metadata cache; the schema upgrade preserves other stores. See [current implementation and device checklist](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Earlier proposals below are historical. The numbered audio-JSON replacement and hosted Mac picker reports remain unresolved/separate; no deployment or user-data modification.
+
+
+Verification: **129 groups passed** — 18 current TXT-catalogue/session integration, 13 database/schema, 10 database/Settings integration, 19 recording identity/embedding compatibility, 47 audio persistence/recovery, 10 playback, 7 shared-folder access and 5 bounded metadata groups. Tests use synthetic files, isolated databases and stubbed model/Search execution. These counts replace the old .7 app-sidecar test counts; they do not establish real iPhone Files or model acceptance.
+
+
 ## Planned UI/session follow-up — 20 November 2026
 
 The [next implementation plan](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) records **Enable Transcription** for untouched returns from Combine/Search, with selectors initially visible and Settings excluded. Shared audio/transcript access must not itself enable or prepare Transcribe's recording controls. That future pass also corrects per-batch save-warning state and destination guidance and simplifies audio-before-transcript list statuses. It preserves identity/schema rules, separate parent/child JSON ownership, files-only iPhone bundles, partial-coverage safeguards and pending-work recovery. Documentation only; implementation planned for 21 November. Current build remains .7, schema 6.

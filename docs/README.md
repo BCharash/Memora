@@ -1,18 +1,20 @@
 # Memora documentation
 
-Reviewed **20 November 2026** against source **ce1583b**, displayed build **2026-11-20.7**, database schema **6**. Start with [Current status and resume instructions](CURRENT_STATUS.md). Its opening section records the revised plan for 21 November; dated checkpoint notes remain historical evidence.
+Updated **21 November 2026** for candidate build **2026-11-21.1**, database schema **7** (worktree based on b983463). Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
 
-## Next implementation: Enable Transcription and save guidance
+## TXT catalogue and transcription session candidate
 
-**Planned, not implemented.** Initial Transcribe selectors remain visible. Leaving untouched Transcribe for Combine/Search guards the return behind **Enable Transcription**; Settings does not count as leaving or transcription activity. Reuse shared folder selections, defer Transcribe-only recording-list preparation and leave its recordings unchecked. Also revise never-saved versus post-share warning text, fix stale iPhone destination guidance with a prominent current-batch location, and consolidate audio-first/transcript-second list statuses. The earlier hide-on-first-opening proposal is superseded. See the [full plan and acceptance checklist](CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance).
+The approved simplification retires **only memora-transcript-archive.json** from production reading/writing/saving. Existing files stay untouched. **memora-audio-source.json and search-embeddings.json remain**. Transcribe/Combine/Search read TXT metadata into a bounded, rebuildable local cache, exposed in Settings. Existing TXT identities remain authoritative; empty destinations receive a session UUID written into their first TXT. Schema 7 adds the cache without resetting other stores.
 
-## Current implementation and evidence
+Transcribe has source above and destination below. Its controls are visible on first opening; untouched departures to Combine/Search guard the return behind **Enable Transcription**, with Settings excluded. Shared selection does not prepare its recording rows until intent is expressed, and new recording lists start unchecked. Native and phone new-folder choices need no transcript JSON. iPhone shares TXT only, with a prominent batch-bound destination and different never-saved/post-share warnings. Audio JSON naming/replacement still belongs to Files and remains a separate reported issue.
 
-Build .7 includes reproducible recording identities, shared parent audio/transcript folder access, destination-time transcript reconciliation, native TXT verification before publishing references, and combined files-only iPhone transcript-plus-JSON sharing. The Audio Recording List remains separately saved in its parent. Shared folder reads currently also prepare Transcribe; separating that work is part of the next planned pass. The previous implementation run passed **176 targeted groups**; no tests have run for the new plan because no code changed. Combine playback was user-confirmed on MacBook and iPhone. The user says test.html loaded; production picker cancellation while browsing remains unconfirmed. Share completion does not verify actual Files placement.
+## Validation and acceptance
 
-## Identity and deferred architecture
+The current [TXT catalogue/session harness](../tests/transcript-catalogue.html) replaces the historical .7 sidecar/bundle app harness; [transcription-identity.html](../tests/transcription-identity.html) runs the current suite as a compatible entry point. **129 groups passed** in the focused run. Checks cover local metadata, schema/data preservation, audio-list recovery, identity/embeddings reuse and playback. See [current status](CURRENT_STATUS.md) and the [test guide](../tests/README.md) for counts and scope. Real MacBook/iPhone Files, folder creation and visual acceptance remain required. No deployment or user-archive edits were performed.
 
-The [recording identity checkpoints](Recording_Identity_Checkpoints.md) preserve the staged history and current contracts: embedded IDs or the reproducible sampled fallback identify recordings; obsolete TXT source UUIDs do not establish audio access. Shared parent-folder access is implemented; saved-copy/cache retirement, broader recursive/multi-archive ownership and workspace/import work remain separate. Consult current status rather than treating a dated pending implementation note as today's boundary.
+## Deferred architecture
+
+The earlier combined TXT-plus-transcript-JSON workflow and its two-file save requirement are superseded. There is no transcript sidecar to reconcile with Search embeddings. Broader multi-archive workspace/import, recursive ownership, filename priority refinements and other deferred features remain separate. The audio catalogue has not been retired. See the [identity checkpoints](Recording_Identity_Checkpoints.md).
 
 ## What changed on 18–19 November
 
@@ -29,14 +31,14 @@ The [recording identity checkpoints](Recording_Identity_Checkpoints.md) preserve
 | File | Role |
 |---|---|
 | memora-audio-source.json | Audio Recording List beside source audio. |
-| memora-transcript-archive.json | Transcript File List in the transcript folder. |
+| memora-transcript-archive.json | Retired production sidecar; old copies are ignored and left untouched. |
 | search-embeddings.json | Separate derived Search archive. |
 
-Canonical lists now use memora-transcript-archive.json. Preserve Recording IDs and Archive UUIDs when reconciling/rebuilding. Desktop verifies native writes; iPhone shares transcript TXT files and their updated list together into the named transcript folder, while the audio list stays in its parent. This does not require deleting audio lists or embeddings.
+TXT headers now supply the transcript catalogue. No external transcript list needs rebuilding or saving. Audio catalogue and Search embeddings remain independent. Do not delete/rewrite TXT metadata, audio lists or embeddings as part of this change.
 
 The detailed Whisper metadata/backfill-tool proposal and extra transcription timestamp have been dropped. Keep existing model-family metadata. The agreed family-then-filename-counter priority rule is **not yet implemented**, and iPhone Files naming does not yet guarantee the desktop `-N` pattern. Audio whole-folder coverage parity is fixed in .24: successful complete native and iPhone folder reads remove missing immediate entries; partial/skipped/error/cancelled reads retain safeguards. iPhone still explicitly saves changed JSON; audio files are not deleted. See the exact [resume boundary](CURRENT_STATUS.md#resume-boundary--remaining-work).
 
-Transcribe reconciles the destination at selection and adds native references after successful TXT writes; Search's shared scan/two-JSON reconciliation remains a future stage. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
+Transcribe reads destination TXT metadata; Search reuses the current TXT snapshots for metadata and existing embeddings reconciliation. The former two-JSON reconciliation proposal is obsolete after transcript-sidecar retirement. Parent catalogues, recursive ownership/discovery, persistent multi-archive Combine/imports and DOCX/HTML output-metadata controls are distinct deferred work. Historical “architecture pause” text is not a claim that all later authorized root reconciliation is still unimplemented.
 
 ## Documentation map
 

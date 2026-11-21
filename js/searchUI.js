@@ -1,3 +1,4 @@
+import {readTranscriptFolder} from './transcriptCatalogue.js';
 import {sharedFolders} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
@@ -166,17 +167,7 @@ function formatElapsed(seconds) {
 }
 
 
-async function getSearchSourceFiles(handle) {
-
-    const storage =
-        await getStorageModule();
-
-    return handle.kind === "file-input"
-        ? handle.files.filter(
-            file => /\.txt$/i.test(file.name) && (!file.webkitRelativePath || file.webkitRelativePath===`${handle.name}/${file.name}`)
-        )
-        : await storage.listTextFiles(handle);
-}
+async function getSearchSourceFiles(handle){const snapshot=await readTranscriptFolder(handle);if(snapshot.issues.length)throw Error(snapshot.issues.join(' '));return snapshot.files;}
 
 
 // Keep the save action visible only while an index update is available.

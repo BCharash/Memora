@@ -1755,3 +1755,6 @@ button:disabled {
 .shared-folder-row h2 { margin:0; }
 .shared-folder-row output { flex:1 1 180px;min-width:0;overflow-wrap:anywhere;border:1px solid var(--border,#71809b);border-radius:6px;padding:8px 10px; }
 .shared-folder-note { margin:0 0 10px; }
+
+.export-location { font-size:1.1rem;font-weight:600;overflow-wrap:anywhere;margin:10px 0; }
+#enableTranscriptionButton { margin:14px 0; }

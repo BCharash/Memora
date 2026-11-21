@@ -1,5 +1,13 @@
 # Memora — Archives, Dynamic Transcript Selection, Edit & Combine
 
+## TXT catalogue and explicit transcription candidate — 21 November 2026
+
+Build **2026-11-21.1**, schema **7**, implements the approved change: retire the external transcript JSON requirement, retain **memora-audio-source.json** and **search-embeddings.json**, and read identity/model/operation/audio metadata from TXT into a rebuildable local cache. Existing sidecars stay untouched. New empty destinations need no JSON; desktop creates a child, while iPhone names an intended folder for Save to Files. Source stays above and destination below. Enable Transcription guards untouched returns from Combine/Search while excluding Settings; recording defaults are unchecked. Save warnings distinguish pending from share-return verification; iPhone shares TXT only, with a prominent batch-bound destination. Settings exposes the bounded metadata cache; the schema upgrade preserves other stores. See [current implementation and device checklist](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Earlier proposals below are historical. The numbered audio-JSON replacement and hosted Mac picker reports remain unresolved/separate; no deployment or user-data modification.
+
+
+Verification: **129 groups passed** — 18 current TXT-catalogue/session integration, 13 database/schema, 10 database/Settings integration, 19 recording identity/embedding compatibility, 47 audio persistence/recovery, 10 playback, 7 shared-folder access and 5 bounded metadata groups. Tests use synthetic files, isolated databases and stubbed model/Search execution. These counts replace the old .7 app-sidecar test counts; they do not establish real iPhone Files or model acceptance.
+
+
 ## Planned for 21 November: Enable Transcription
 
 Decision recorded 20 November 2026; **documentation only**, not implemented. Keep the initial Transcribe Audio Source and Transcript Destination selectors visible. If the user leaves untouched Transcribe for Combine/Search, returning hides its controls behind **Enable Transcription**; Settings is excluded. Direct Transcribe activity or Enable Transcription keeps setup available for the session. Reuse shared folders, defer Transcribe-only recording-list work and leave its recordings unchecked by default.

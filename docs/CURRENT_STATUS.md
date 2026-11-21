@@ -1,6 +1,43 @@
 # Memora — current status and resume instructions
 
+## Implemented candidate: TXT catalogue and explicit transcription — 21 November 2026
+
+Build **2026-11-21.1**, database schema **7**. This candidate implements the approved simplification and session/save UI changes. **Only the external transcript JSON dependency is retired. memora-audio-source.json and search-embeddings.json remain in use.** Removing the audio list was discussed but not approved or implemented.
+
+### TXT metadata and local catalogue
+
+Production Transcribe, Combine and Search read selected TXT metadata instead of creating, reading, reconciling or exporting memora-transcript-archive.json. Existing sidecars are ignored and left untouched; do not delete or modify existing TXT headers/identities. Legacy sidecar validators/test helpers remain for old-file diagnostics and historical tests, not as the production catalogue. The .7 sidecar/bundle page harness is superseded by tests/transcript-catalogue.html; tests/transcription-identity.html now runs that current harness too.
+
+Existing Recording IDs and Archive UUIDs come from TXT metadata. A genuinely empty destination receives a session Archive UUID, written into its first TXT; subsequent loads recover it from TXT. Adding to missing/conflicting-identity collections blocks rather than using an old JSON or local cache to invent/replace identities. Read-only Combine/Search can inspect records from different archives. Embedded audio IDs, reproducible fallback IDs, legacy audio-list identities and actual playback verification are preserved.
+
+transcriptCatalogue.js writes a derived IndexedDB transcriptCatalogues cache of important metadata (identities, filename, model/operation, recording date/duration, audio references and file size/time), not transcript bodies. Cache scope belongs to the selected access object, not a guessed same-name folder; only the latest 16 scope snapshots are retained. Every load reads the supplied TXT snapshots; the cache is never an identity authority or a substitute for granted folder access. Cache failure does not prevent valid TXT loading. Settings adds Transcript Metadata Cache with counts, View and Clear when populated. Clearing it preserves pending exports, all files, audio-list recovery, model definitions and embeddings. Schema 6 upgrades add this store without dropping/resetting existing stores; schema-6 preservation is covered explicitly.
+
+### Layout, intent and empty destinations
+
+Transcribe has Audio Source at the top and Transcript Destination below, with both controls visible on initial opening. Leaving untouched Transcribe for Combine/Search guards its return behind **Enable Transcription**. Opening/using/closing Settings alone does not trigger that gate or count as transcription intent. Direct interaction with Transcribe or pressing Enable keeps it enabled for that app session; reload resets the session state. Shared access selected elsewhere prepopulates the controls but does not render/read display metadata for Transcribe's recording rows until intent/enablement. Newly prepared recording lists have no recordings checked; Select All remains available. No automatic inference occurs.
+
+The lower common destination selector offers existing subfolders, Browse and **New Transcript Folder…**. Desktop creates/reads a real child handle, including an empty directory. iPhone can name an intended new destination without requiring any files or JSON to be readable; the folder must then be created/chosen in Save to Files. Naming does not claim a writable phone handle or actual folder creation. Existing nonempty transcript folders need no JSON. Native picking remains the non-upload directory picker. iPhone cannot infer empty folders omitted by Files enumeration; New Transcript Folder is the explicit route around that limitation.
+
+### Delivery and messages
+
+Desktop saves/verifies only TXT for transcription. iPhone shares only the pending TXT files together, using a files-only payload; no transcript sidecar or guidance text attachment is included. The audio list remains a separate parent-folder save; Search still loads and saves its existing embeddings archive, reusing unchanged vectors.
+
+Each generated batch captures the selected destination label. A prominent **Save in: [archive / folder]** line above the phone save action uses that same context for retry/status text, rather than old transcript-JSON provenance. Never-saved or canceled/failed batches keep a pending pulse and the waiting-to-be-saved warning. After a normal share return, the pulse clears and the warning instead asks **Please verify that your transcripts were saved…**. New batches reset this state. Before-unload and explicit pending-work guards retain unsaved text; browser share completion still cannot prove Files placement or replacement. A partial in-session TXT snapshot supports subsequent batches without claiming verified disk contents; reselecting supplies fresh provider observations.
+
+Status messages show one concise Audio Recording List state first, followed by Transcripts loaded/new-destination state; there is no external Transcript File List save status. Routine subfolder/no-new-save boilerplate is removed; real skipped/unverified/read/identity issues remain visible. Audio-saving guidance names the canonical parent/file. iPhone Files may still create a numbered audio JSON instead of replacing the original; the app does not control that naming/replacement. This reported issue remains separate, as does the MacBook hosted picker disappearing while browsing. test.html loading was reported, not a confirmed native picker diagnosis.
+
+### Acceptance boundary
+
+Verification: **129 groups passed** — 18 current TXT-catalogue/session integration, 13 database/schema, 10 database/Settings integration, 19 recording identity/embedding compatibility, 47 audio persistence/recovery, 10 playback, 7 shared-folder access and 5 bounded metadata groups. Tests use synthetic files, isolated databases and stubbed model/Search execution. These counts replace the old .7 app-sidecar test counts; they do not establish real iPhone Files or model acceptance.
+
+The candidate has not been deployed or device-accepted by this implementation. Automated checks use synthetic folders/media, isolated databases and stubbed model/Search execution. Real MacBook/iPhone acceptance: initial setup and Settings-only visits; untouched Combine/Search departure/Enable return; playback using shared audio; existing TXT-only collections; desktop new empty-folder creation; iPhone naming a new folder; unchecked recordings; TXT-only single/multiple transcript saves; correct large destination label; cancel/retry; never-saved versus share-return warnings; a new batch after sharing; unchanged audio JSON no-repeat behavior; Search embeddings unchanged/reusable; metadata cache View/Clear. Preserve original archives; existing transcript sidecars can remain unused during testing.
+
+Older sections below retain historical decisions, including the superseded top destination selector, bundled transcript JSON and next-day plan. This candidate changes no model configuration, self-test requirements or audio/embedding schemas. No user archives, models, commits or hosting were modified by the harnesses.
+
+
 ## Next implementation: Enable Transcription and save guidance
+
+**Historical plan, superseded by the 21 November candidate above.** The final approved layout is source above/destination below; only transcript JSON is retired, with audio JSON and embeddings retained.
 
 **Decision recorded 20 November 2026; planned implementation 21 November 2026. Documentation only.** Current application remains **2026-11-20.7**, schema **6**, source **ce1583b**. No feature in this section is implemented by this documentation update. This revised plan supersedes the earlier suggestion to hide transcription setup immediately on opening. The exact button label is **Enable Transcription**, not Set Up Transcription or Select Source.
 

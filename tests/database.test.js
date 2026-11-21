@@ -72,7 +72,7 @@ try {
     await test("Fresh database and independent concurrent connections", async () => {
         const manager = createDatabaseManager({ name: nameFor("fresh") });
         const [a, b] = await Promise.all([managedOpen(manager), managedOpen(manager)]);
-        assert(a !== b && a.version === DATABASE_VERSION && a.objectStoreNames.length === 5, "fresh schema and separate connections");
+        assert(a !== b && a.version === DATABASE_VERSION && a.objectStoreNames.length === 6, "fresh schema and separate connections");
         a.close();
         assert((await records(b, "transcripts")).length === 0, "closing one connection leaves another usable");
         b.close();
@@ -80,7 +80,7 @@ try {
     await test("Empty version 1 upgraded", async () => {
         const name = nameFor("empty"); (await rawOpen(name, 1)).close();
         const db = await managedOpen(createDatabaseManager({ name }));
-        assert(db.version === DATABASE_VERSION && db.objectStoreNames.length === 5, "empty schema repaired"); db.close();
+        assert(db.version === DATABASE_VERSION && db.objectStoreNames.length === 6, "empty schema repaired"); db.close();
     });
     for (const [label, options] of [["healthy", {}], ["missing-registry", { registry: false }], ["missing-indexes", { indexes: false }]]) {
         await test(`Version 4 ${label}: schema and exact fixture preservation`, async () => {
@@ -92,6 +92,10 @@ try {
             await preserved(db, options.registry !== false); db.close();
         });
     }
+    await test("Version 6 upgrades preserve transcripts, embeddings, registry and audio recovery",async()=>{
+        const name=nameFor('v6-metadata');(await rawOpen(name,6,db=>{fixture(db);db.createObjectStore('audioSourceRecovery',{keyPath:'audioSourceId'}).put({audioSourceId:'keep-source',manifestText:'preserve pending audio'});})).close();
+        const db=await managedOpen(createDatabaseManager({name}));await preserved(db,true);assert((await records(db,'audioSourceRecovery'))[0].manifestText==='preserve pending audio','audio recovery preserved');assert((await records(db,'transcriptCatalogues')).length===0,'new metadata store starts empty');db.close();
+    });
     await test("Incompatible schema aborts upgrade and preserves version/data", async () => {
         const name = nameFor("incompatible");
         (await rawOpen(name, 4, db => fixture(db, { registry: false, incompatible: true }))).close();

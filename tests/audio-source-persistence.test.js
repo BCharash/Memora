@@ -340,7 +340,7 @@ if(globalThis.indexedDB) await test('Real IndexedDB v5 upgrade preserves four st
  };
  (await req(legacy)).close();const manager=createDatabaseManager({name}),store=createAudioSourceRecoveryStore({openDatabase:()=>manager.open()});
  try{
-  const db=await manager.open();eq(db.version,DATABASE_VERSION);eq(db.objectStoreNames.length,5);
+  const db=await manager.open();eq(db.version,DATABASE_VERSION);eq(db.objectStoreNames.length,6);
   const tx=db.transaction(['transcripts','semanticEntries','semanticMetadata','modelRegistry']);const requests=[...tx.objectStoreNames].map(key=>req(tx.objectStore(key).getAll()));const values=await Promise.all(requests);assert(values.every(items=>items.length===1),'legacy records lost');db.close();
   const record={audioSourceId:SOURCE,revision:'first',state:'pending',manifestText:JSON.stringify(manifest()),baseBytes:null};await store.put(record,null);
   await rejects(()=>store.put({...record,revision:'second'},null),'recovery-conflict');eq((await store.get(SOURCE)).revision,'first');

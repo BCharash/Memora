@@ -1,3 +1,5 @@
+// Historical build .7 sidecar/bundle harness. Replaced in production by transcript-catalogue.test.js.
+// Retained as specification evidence for the retired workflow, not a current app suite.
 import {directory,selections,calls,seedAudio,pauseNextTranscription} from './transcription-identity-fixtures.js';
 import {readTranscriptIdentity,replaceTranscriptBody,recordingIdentityLines} from '../js/transcriptMetadata.js';
 import {parseTranscriptArchive,appendTranscriptReference,openTranscriptArchive} from '../js/transcriptArchive.js';

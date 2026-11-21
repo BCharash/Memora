@@ -1,8 +1,9 @@
 // Canonical schema owner. Importing this module never opens a database.
 // All application database opens go through this owner.
-export const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 7;
 
 const schema = [
+    { name: "transcriptCatalogues", keyPath: "id", indexes: [] },
     { name: "transcripts", keyPath: "filename", indexes: [] },
     { name: "semanticEntries", keyPath: "id", indexes: ["representationKey", "sourceKey"] },
     { name: "semanticMetadata", keyPath: "key", indexes: [] },

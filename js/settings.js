@@ -114,6 +114,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const transcripts = report.indexedDB.transcripts;
         const registryStore=report.indexedDB.otherStores.find(item=>item.name==='modelRegistry')||{bytes:0,count:0};
         const recoveryStore=report.indexedDB.otherStores.find(item=>item.name==='audioSourceRecovery')||{bytes:0,count:0};
+        const transcriptMetadata=report.indexedDB.otherStores.find(item=>item.name==='transcriptCatalogues')||{bytes:0,count:0};
         const legacyMetadata=report.indexedDB.otherStores.find(item=>item.name==='semanticMetadata');
 
         storage.innerHTML = `
@@ -177,6 +178,8 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             </div>
             <p class="settings-note">Model definitions cached by Memora. Deleting them preserves downloaded models and test results.</p>
             <div id="settingsRegistryCacheDetail" class="settings-detail" hidden></div>
+            <div class="settings-disclosure settings-storage-category"><span class="settings-disclosure-title">Transcript Metadata Cache</span><span>${formatBytes(transcriptMetadata.bytes)} · ${transcriptMetadata.count} folders</span>${transcriptMetadata.count?button("View", "view-transcript-metadata"):''}</div>
+            <p class="settings-note">Rebuilt from transcript files when opened.</p><div id="settingsTranscriptMetadataDetail" class="settings-detail" hidden><div class="settings-selection-actions">${transcriptMetadata.count?button("Clear", "clear-transcript-metadata"): ''}</div><pre id="settingsTranscriptMetadataEntries"></pre></div>
             ${legacyMetadata?.count?`<div class="settings-row"><span>Unused Semantic Metadata · ${formatBytes(legacyMetadata.bytes)} · ${legacyMetadata.count} legacy entries</span>${button("Clear", "clear-unused-semantic-metadata")}</div><p class="settings-note">Retained legacy data; current Search does not use this store.</p>`:''}
 
 
@@ -1099,6 +1102,8 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
             if (action === "toggle-source-recovery") return await showSourceRecovery();
+            if(action==='view-transcript-metadata'){const detail=document.getElementById('settingsTranscriptMetadataDetail');detail.hidden=!detail.hidden;target.textContent=detail.hidden?'View':'Hide';target.setAttribute('aria-expanded',String(!detail.hidden));if(!detail.hidden){const rows=await (await import('./transcriptCatalogue.js')).listTranscriptCatalogueCache();document.getElementById('settingsTranscriptMetadataEntries').textContent=rows.map(row=>row.folderName+' — '+row.records.length+' transcripts\n'+row.records.map(record=>record.filename+' · '+(record.whisperModel||'unknown model')+' · '+(record.operation||'')).join('\n')).join('\n\n');}return;}
+            if(action==='clear-transcript-metadata'){await (await import('./transcriptCatalogue.js')).clearTranscriptCatalogueCache();return await refresh({initializeRegistry:false});}
             if(action==='toggle-registry-cache')return await showRegistryCache();
             if(action==='clear-unused-semantic-metadata'){
                 if(!confirm('Clear unused legacy semantic metadata? Current embeddings and transcript files are preserved.'))return;
