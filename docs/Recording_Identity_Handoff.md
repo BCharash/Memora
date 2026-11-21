@@ -1,5 +1,10 @@
 # Recording identity — checkpoint and iMuse handoff
 
+## Current production inventory candidate — 21 November 2026
+
+Build **2026-11-21.6**, schema **9**, supersedes older audio JSON save/recovery requirements below. Source audio supplies embedded or unchanged reproducible Recording IDs; the new local metadata cache replaces external audio JSON persistence. TXT retains recording/archive identity; **search-embeddings.json remains**. Latest identified snapshots replace older copies, with conservative scope association and stale/partial/failure protection. Existing disk files and older local data are preserved; legacy local lists have optional Settings inspection/deletion. The prefix algorithm is unchanged. See [current status and acceptance checklist](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026) for native/iPhone differences and implementation evidence. Multi-archive Combine remains future work; .6 device acceptance is pending. Earlier entries below are historical.
+
+
 Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
 
 

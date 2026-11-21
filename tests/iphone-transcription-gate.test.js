@@ -28,17 +28,15 @@ await test('iPhone Combine selection discovers transcription without preparing T
  click('combineTab');let release,paused=false;
  const originalSlice=audio.slice.bind(audio);audio.slice=(...args)=>{const blob=originalSlice(...args);if(!paused){paused=true;const read=blob.arrayBuffer.bind(blob);blob.arrayBuffer=()=>new Promise(resolve=>{release=async()=>resolve(await read());});}return blob;};
  pickFiles([audio,txt]);document.querySelector('#combinePanel [data-select-audio]').click();
- await wait(()=>document.querySelector('dialog[open]'));[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='Discard pending lists').click();
  await wait(()=>release);click('transcriptionTab');assert(document.getElementById('enableTranscriptionButton').hidden,'Previous audio-only source must remain unguarded before discovery');await release();
  await wait(()=>!document.getElementById('sourceButton').disabled&&document.querySelector('[data-transcript-folder]').textContent.includes('Phone / transcription'));
  assert(!document.getElementById('enableTranscriptionButton').hidden&&document.getElementById('transcriptionWorkspace').hidden,'Finishing delayed discovery must refresh the gate without another tab click');
  click('combineTab');await wait(()=>document.querySelector('#transcripts .recording-checkbox'));
  assert(!document.querySelector('#recordings .recording-checkbox'),'Transcribe rows eagerly prepared');
 });
-await test('Saving the audio list from Combine must not enable hidden Transcribe',async()=>{
- click('combineTab');
- const button=[...document.querySelectorAll('#combinePanel .shared-folder-note button')].find(b=>b.textContent==='Save Audio Recording List');await wait(()=>button&&!button.hidden);button.click();await wait(()=>shares===1&&!button.disabled);
- click('transcriptionTab');assert(!document.getElementById('enableTranscriptionButton').hidden,'Hidden forwarded save click incorrectly enabled transcription');assert(document.getElementById('transcriptionWorkspace').hidden,'Unused Transcribe was exposed');
+await test('Combine has no audio JSON save controls or hidden save clicks and preserves the transcription gate',async()=>{
+ click('combineTab');assert(!document.getElementById('saveRecordingListButton')&&!document.querySelector('#combinePanel .shared-folder-note button'));assert(shares===0&&!document.querySelector('dialog[open]'));
+ click('transcriptionTab');assert(!document.getElementById('enableTranscriptionButton').hidden&&document.getElementById('transcriptionWorkspace').hidden);
 });
 await test('Enable Transcription lists the shared iPhone recordings unchecked without inference',async()=>{
  click('enableTranscriptionButton');await wait(()=>document.querySelector('#recordings .recording-checkbox')&&!document.getElementById('sourceButton').disabled);assert(!document.getElementById('transcriptionWorkspace').hidden);assert([...document.querySelectorAll('#recordings .recording-checkbox')].every(box=>!box.checked));assert(calls.length===0,'Automatic inference');click('combineTab');click('transcriptionTab');assert(document.getElementById('enableTranscriptionButton').hidden,'Explicit enable was not retained');

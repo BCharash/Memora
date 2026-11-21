@@ -1,5 +1,10 @@
 # Audio JSON retirement audit and staged plan
 
+## Production implementation candidate — 21 November 2026
+
+The authorized coordinated switch is implemented in **2026-11-21.6**, schema **9**. The standalone-first proposal below is historical; the user approved direct production integration. See [current implementation, limits and device checklist](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026). Production no longer requires/writes audio JSON; Search embeddings remain. Latest identified audio/transcript cache snapshots replace older copies; iPhone identity verification remains necessary on reopen. Previous legacy data is retained separately for explicit inspection/deletion. Real .6 device acceptance is pending.
+
+
 21 November 2026. Audited checkout **736a292**, application **2026-11-21.2**, database schema **8**. This is a code audit and implementation proposal, not a production change. The user has approved moving toward removing the external audio JSON, starting with this audit. No user archives or local user databases were inspected or modified, and no timing measurements were made.
 
 ## Conclusion

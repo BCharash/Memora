@@ -60,35 +60,45 @@ export function transcriptMetadataParent(row) {
 }
 
 export async function cacheTranscriptMetadata(source, records) {
-    const entry = {
-        id: scope(source), folderName: source.name, updatedAt: Date.now(),
-        parentAudioFolderName: source.parentAudioName || null,
-        records: records.map(record => ({
-            filename: record.filename, recordingId: record.recordingId,
-            archiveUuid: record.archiveUuid, whisperModel: record.whisperModel,
-            operation: record.operation, recordingDate: record.recordingDate,
-            duration: record.duration, audioRelativePath: record.audioRelativePath,
-            recordingFilename: record.recordingFilename,
-            originalAudioFolderName: record.originalAudioFolderName,
-            size: record.file.size, lastModified: record.file.lastModified
-        }))
-    };
-    const db = await openMemoraDatabase();
-    try {
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readwrite');
-            const store = tx.objectStore(STORE);
-            store.put(entry);
-            const request = store.getAll();
-            request.onsuccess = () => {
-                const recent = request.result.sort((a, b) => b.updatedAt - a.updatedAt ||
-                    (a.id === entry.id ? -1 : b.id === entry.id ? 1 : 0));
-                for (const old of recent.slice(MAX_CACHED_FOLDERS)) store.delete(old.id);
-            };
-            tx.oncomplete = resolve;
-            tx.onerror = tx.onabort = () => reject(tx.error);
+    const complete=source.kind==='directory'||source.selectionScope==='folder';
+    const archives=[...new Set(records.map(record=>record.archiveUuid?.toLowerCase()).filter(Boolean))].sort();
+    const entry={id:scope(source),folderName:source.name,updatedAt:Date.now(),revision:crypto.randomUUID(),complete,
+        parentAudioFolderName:source.parentAudioName||null,
+        records:records.map(record=>({filename:record.filename,recordingId:record.recordingId,archiveUuid:record.archiveUuid,whisperModel:record.whisperModel,
+            operation:record.operation,recordingDate:record.recordingDate,duration:record.duration,audioRelativePath:record.audioRelativePath,
+            recordingFilename:record.recordingFilename,originalAudioFolderName:record.originalAudioFolderName,size:record.file.size,lastModified:record.file.lastModified})),
+        ...(source.kind==='directory'?{directoryHandle:source}:{})};
+    const existing=await listTranscriptCatalogueCache(),matches=[];
+    for(const old of existing){
+        let same=old.id===entry.id;
+        if(!same&&source.kind==='directory'&&old.directoryHandle){try{same=await source.isSameEntry(old.directoryHandle);}catch{/* Unproved association. */}}
+        if(!same&&!old.directoryHandle&&archives.length&&complete){
+            const oldArchives=[...new Set(old.records.map(record=>record.archiveUuid?.toLowerCase()).filter(Boolean))].sort();
+            same=old.folderName.normalize('NFC').toLowerCase()===source.name.normalize('NFC').toLowerCase()&&transcriptMetadataParent(old)===transcriptMetadataParent(entry)&&JSON.stringify(oldArchives)===JSON.stringify(archives);
+        }
+        if(same)matches.push(old);
+    }
+    matches.sort((a,b)=>b.updatedAt-a.updatedAt);const latest=matches[0];
+    if(latest){if(!complete&&latest.complete)return;entry.id=latest.id;}
+    const db=await openMemoraDatabase();
+    try{
+        await new Promise((resolve,reject)=>{
+            const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);let failure;
+            tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(failure||tx.error);
+            const expected=new Map(matches.map(row=>[row.id,row]));if(!expected.has(entry.id))expected.set(entry.id,null);
+            let pending=expected.size;
+            for(const [id,old]of expected){const request=store.get(id);request.onsuccess=()=>{
+                if(JSON.stringify(request.result||null)!==JSON.stringify(old)){
+                    failure=Error('Transcript metadata was refreshed elsewhere. The newer snapshot was kept.');tx.abort();return;
+                }
+                if(--pending===0){
+                    for(const old of matches)if(old.id!==entry.id)store.delete(old.id);
+                    store.put(entry);const all=store.getAll();all.onsuccess=()=>{for(const old of all.result.sort((a,b)=>b.updatedAt-a.updatedAt).slice(MAX_CACHED_FOLDERS))store.delete(old.id);};
+                }
+            };}
         });
-    } finally { db.close(); }
+        scopes.set(source,entry.id);
+    }finally{db.close();}
 }
 
 export async function readTranscriptFolder(source, {onProgress, signal} = {}) {
@@ -123,7 +133,7 @@ export async function readTranscriptFolder(source, {onProgress, signal} = {}) {
     check();
     const ids = new Set(records.map(record => record.archiveUuid?.toLowerCase()).filter(Boolean));
     let cacheError = null;
-    try { await cacheTranscriptMetadata(source, records); }
+    try { if(!issues.length)await cacheTranscriptMetadata(source, records); }
     catch (error) { cacheError = error.message; } // Cache availability never establishes identity.
     return {source, files: records.map(record => record.file), records, issues, cacheError,
         archiveUuid: ids.size === 1 ? records.find(record => record.archiveUuid).archiveUuid : null,

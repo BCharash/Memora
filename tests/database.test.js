@@ -72,7 +72,7 @@ try {
     await test("Fresh database and independent concurrent connections", async () => {
         const manager = createDatabaseManager({ name: nameFor("fresh") });
         const [a, b] = await Promise.all([managedOpen(manager), managedOpen(manager)]);
-        assert(a !== b && a.version === DATABASE_VERSION && a.objectStoreNames.length === 6, "fresh schema and separate connections");
+        assert(a !== b && a.version === DATABASE_VERSION && a.objectStoreNames.length === 7, "fresh schema and separate connections");
         a.close();
         assert((await records(b, "transcripts")).length === 0, "closing one connection leaves another usable");
         b.close();
@@ -80,7 +80,7 @@ try {
     await test("Empty version 1 upgraded", async () => {
         const name = nameFor("empty"); (await rawOpen(name, 1)).close();
         const db = await managedOpen(createDatabaseManager({ name }));
-        assert(db.version === DATABASE_VERSION && db.objectStoreNames.length === 6, "empty schema repaired"); db.close();
+        assert(db.version === DATABASE_VERSION && db.objectStoreNames.length === 7, "empty schema repaired"); db.close();
     });
     for (const [label, options] of [["healthy", {}], ["missing-registry", { registry: false }], ["missing-indexes", { indexes: false }]]) {
         await test(`Version 4 ${label}: schema and exact fixture preservation`, async () => {

@@ -114,7 +114,7 @@ try {
             document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
             const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();
             const names=[...document.querySelectorAll('.settings-storage-category .settings-disclosure-title')].map(node=>node.textContent);
-            assert(JSON.stringify(names)===JSON.stringify(['Semantic Index','Other Cached Models','DOM Diagnostics','Cached Transcripts','Audio Recording List Cache','Transcript Folder Metadata Cache','Model Registry Cache','Whisper Models']),'storage section order');
+            assert(JSON.stringify(names)===JSON.stringify(['Semantic Index','Other Cached Models','DOM Diagnostics','Cached Transcripts','Audio Folder Metadata Cache','Transcript Folder Metadata Cache','Model Registry Cache','Whisper Models']),'storage section order');
             assert(!document.querySelector('[data-settings-action^="clear-all-"]'),'old bulk deletion remains');
             const open=action=>document.querySelector(`[data-settings-action="${action}"]`).click();
             const button=(detail,label)=>[...detail.querySelectorAll('button')].find(node=>node.textContent===label);
@@ -139,7 +139,7 @@ try {
     await test("Registry initialization failure leaves storage inspection and deletion accessible",async()=>{
         await storage.clearModelRegistry();document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
         const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='modelRegistry')throw new DOMException('Injected registry quota failure','QuotaExceededError');return original.apply(this,args);};
-        try{const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();assert(document.getElementById('settingsStorageStatus').textContent.includes('Model Registry Cache update failed'),'registry error hidden');assert(document.querySelector('[data-settings-action="toggle-registry-cache"]'),'cache controls hidden by failed initialization');assert(document.querySelector('[data-settings-action="toggle-source-recovery"]'),'saved-list controls hidden by failed initialization');}
+        try{const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});await ui.refresh();assert(document.getElementById('settingsStorageStatus').textContent.includes('Model Registry Cache update failed'),'registry error hidden');assert(document.querySelector('[data-settings-action="toggle-registry-cache"]'),'cache controls hidden by failed initialization');assert(document.querySelector('[data-settings-action="toggle-audio-metadata"]'),'saved-list controls hidden by failed initialization');}
         finally{IDBObjectStore.prototype.put=original;}
     });
     await test("Settings runtime stays visible when storage reporting fails", async () => {

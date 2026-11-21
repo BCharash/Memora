@@ -114,6 +114,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         const transcripts = report.indexedDB.transcripts;
         const registryStore=report.indexedDB.otherStores.find(item=>item.name==='modelRegistry')||{bytes:0,count:0};
         const recoveryStore=report.indexedDB.otherStores.find(item=>item.name==='audioSourceRecovery')||{bytes:0,count:0};
+        const audioMetadata=report.indexedDB.otherStores.find(item=>item.name==='audioFolderCatalogues')||{bytes:0,count:0};
         const transcriptMetadata=report.indexedDB.otherStores.find(item=>item.name==='transcriptCatalogues')||{bytes:0,count:0};
         const legacyMetadata=report.indexedDB.otherStores.find(item=>item.name==='semanticMetadata');
 
@@ -163,12 +164,13 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure settings-storage-category">
-                <span class="settings-disclosure-title">Audio Recording List Cache</span>
-                <span id="settingsSourceRecoverySummary">${formatBytes(recoveryStore.bytes)} · ${(sourceRecoveryGroups?.length??recoveryStore.count).toLocaleString()} sources</span>
-                ${button("View", "toggle-source-recovery")}
+                <span class="settings-disclosure-title">Audio Folder Metadata Cache</span>
+                <span>${formatBytes(audioMetadata.bytes)} · ${audioMetadata.count.toLocaleString()} folders</span>
+                ${button("View", "toggle-audio-metadata")}
             </div>
-            <p class="settings-note">Latest browser-local copy for each verified source. These are separate from JSON files saved in your folders.</p>
-            <div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div>
+            <p class="settings-note">Recording identities and metadata rebuilt from audio when needed.</p>
+            <div id="settingsAudioMetadataDetail" class="settings-detail" hidden></div>
+            ${recoveryStore.count?`<details><summary>Previous Audio Recording Lists · ${formatBytes(recoveryStore.bytes)} · ${recoveryStore.count} copies</summary><p class="settings-note">Retained from earlier versions. These are not used by the current audio inventory.</p><div id="settingsSourceRecoverySummary"></div>${button('View','toggle-source-recovery')}<div id="settingsSourceRecoveryDetail" class="settings-detail" hidden></div></details>`:''}
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
             <div class="settings-disclosure settings-storage-category">
@@ -1062,6 +1064,16 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].id);await refresh();await showTranscripts();});
     }
 
+    async function showAudioMetadata(){
+        const detail=document.getElementById('settingsAudioMetadataDetail'),toggle=storage.querySelector('[data-settings-action="toggle-audio-metadata"]');
+        detail.hidden=!detail.hidden;toggle.textContent=detail.hidden?'View':'Hide';if(detail.hidden)return;
+        const cache=await import('./audioFolderCache.js'),rows=(await cache.listAudioFolderCache()).sort((a,b)=>a.folderName.localeCompare(b.folderName));
+        detail.innerHTML='<p class="settings-note">Deleting metadata preserves audio, transcripts and Search indexes.</p>';
+        if(!rows.length){detail.insertAdjacentHTML('beforeend','<p class="settings-note">No cached audio folders.</p>');return;}
+        for(const [index,row]of rows.entries())detail.insertAdjacentHTML('beforeend',`<div class="settings-item" data-selection-index="${index}"><div class="settings-item-info"><div class="settings-item-name">${escapeHtml(row.folderName)}</div><div class="settings-item-detail">${row.records.length} recordings · ${escapeHtml(new Date(row.updatedAt).toLocaleString())}</div><details class="settings-cache-files"><summary>Recordings</summary><ul>${row.records.map(record=>`<li>${escapeHtml(record.audioRelativePath)} · ${escapeHtml(record.recordingId)}</li>`).join('')}</ul></details></div></div>`);
+        selectableRows(detail,async checks=>{if(!confirm(`Delete metadata for ${checks.length} selected audio folders? Audio and transcript files are preserved.`))return;await cache.removeAudioFolderCache(checks.map(check=>rows[Number(check.dataset.index)]));await refresh({initializeRegistry:false});await showAudioMetadata();});
+    }
+
     async function showTranscriptMetadata(){
         const detail=document.getElementById('settingsTranscriptMetadataDetail'),toggle=storage.querySelector('[data-settings-action="toggle-transcript-metadata"]');
         if(!detail)return;
@@ -1138,6 +1150,7 @@ export function initSettingsUI({ getStorageManager, getStorage, getActiveAudioSo
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
+            if(action==='toggle-audio-metadata')return await showAudioMetadata();
             if (action === "toggle-source-recovery") return await showSourceRecovery();
             if(action==='toggle-transcript-metadata')return await showTranscriptMetadata();
             if(action==='clear-unused-semantic-metadata'){

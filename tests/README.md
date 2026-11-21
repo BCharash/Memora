@@ -1,5 +1,12 @@
 # Memora test guide
 
+## Production audio cache and JSON retirement — 21 November 2026
+
+Build **2026-11-21.6**, schema **9**: **191 groups passed** across 12 focused suites. [audio-folder-cache.html](audio-folder-cache.html) adds 17 checks for actual native directory-handle reuse, phone identity inspection/metadata reuse, latest snapshot consolidation, disjoint/same-name inventories, added/removed/renamed files, partial/failed/canceled reads, duplicate actual IDs, unavailable/deleted cache, stale sessions, parallel opens and schema-8 data preservation. [transcript-catalogue.html](transcript-catalogue.html) now has 29 current app/Settings cases including retired audio controls, existing audio JSON left untouched, latest transcript cache replacement, duplicate consolidation, partial protection and audio metadata deletion. The 5 iPhone gate cases use actual file-input selection with synthetic data and assert no audio JSON save/share control. Other suites cover database 13, integration 10, full-text identity 7, shared-folder 7, playback 10, reproducible identity 22, identity/embedding compatibility 19, legacy persistence 47 and bounded metadata 5.
+
+Legacy audioSourcePersistence and older production-recording-identity helper checks remain compatibility evidence. Their create/save/recovery expectations do not describe the new app flow. Schema 9 adds audioFolderCatalogues and retains the previous store set. Runtime source preparation no longer uses those sidecar APIs. No user Memora database/audio/model was used. Device acceptance of .6 remains pending; see [current checklist](../docs/CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026). Earlier counts/labels below are dated rollout evidence.
+
+
 Build **2026-11-21.5** Settings cleanup: **47 targeted groups passed** — 25 catalogue/page/Settings (including true 390px iframe styling, section order, per-folder selection, select-all/cancel/empty states and stale-snapshot rollback), 10 database integration, 7 full-text cache identity and 5 iPhone gate. View/Hide now uses toggle-transcript-metadata; the standalone Clear metadata action is replaced by selection deletion. No user archive/model execution or real iPhone visual acceptance is claimed.
 
 

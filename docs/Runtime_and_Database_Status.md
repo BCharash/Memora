@@ -1,5 +1,10 @@
 # Runtime and database foundation — completed
 
+## Current production inventory candidate — 21 November 2026
+
+Build **2026-11-21.6**, schema **9**, supersedes older audio JSON save/recovery requirements below. Source audio supplies embedded or unchanged reproducible Recording IDs; the new local metadata cache replaces external audio JSON persistence. TXT retains recording/archive identity; **search-embeddings.json remains**. Latest identified snapshots replace older copies, with conservative scope association and stale/partial/failure protection. Existing disk files and older local data are preserved; legacy local lists have optional Settings inspection/deletion. The prefix algorithm is unchanged. See [current status and acceptance checklist](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026) for native/iPhone differences and implementation evidence. Multi-archive Combine remains future work; .6 device acceptance is pending. Earlier entries below are historical.
+
+
 Current candidate **2026-11-21.2**, schema **8**: atomically migrate full-text cached transcripts from filename keys to existing Archive UUID/Recording ID variant keys, preserving legacy copies and other stores. Failed upgrades roll back. Browse labels and conditional Enable Transcription gating are refined. See [current status](CURRENT_STATUS.md). Earlier entries below describe their dated versions.
 
 
@@ -31,17 +36,19 @@ User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks
 
 ## Database ownership and schema
 
-database.js alone owns application opens/schema. Checkpoint 2B (18 November 2026) advances the shared schema additively to version 6 for source identity recovery; the earlier version-5 repair evidence below remains historical. storage.js, semantic.js and storageManager.js obtain caller-owned connections and release them on success/failure. ModelManager retains registry seeding/merging; queries remain in feature/storage modules.
+database.js alone owns application opens/schema. Current version **9** adds audioFolderCatalogues while preserving existing stores. The known schema-7 filename-keyed transcript cache migrates atomically to durable keys in schema 8; source JSON recovery data is retained separately for compatibility. Feature modules release caller-owned connections. Model registry initialization remains separate from schema repair.
 
 | Store | Inline key | Required indexes |
 |---|---|---|
-| transcripts | filename | None |
+| audioFolderCatalogues | id | None; metadata-only, revision-checked latest snapshots |
+| transcriptCatalogues | id | None; TXT-derived latest metadata snapshots |
+| transcripts | id | filenameKey, archiveFilename |
 | semanticEntries | id | representationKey/sourceKey, non-unique and non-multiEntry |
-| semanticMetadata | key | None |
+| semanticMetadata | key | None; legacy |
 | modelRegistry | id | None |
-| audioSourceRecovery | audioSourceId | None; explicit revision-checked removal, no expiry |
+| audioSourceRecovery | audioSourceId | None; previous list data retained for inspection/removal |
 
-Upgrade adds missing required stores/indexes, validates existing definitions and preserves unknown stores/records. Incompatible structures abort rather than being dropped/recreated. Connections close on versionchange. Blocked requests report errors and abandoned requests do not later upgrade unnoticed. No automatic reset/downgrade is implemented. Registry rebuild is record replacement, not schema repair.
+Upgrade adds missing stores/indexes, validates definitions and preserves unknown stores/records. Known transcript key migration preserves every body and rolls back on failure. Other incompatible structures abort rather than reset. Connections close on versionchange; blocked/abandoned requests cannot silently upgrade later. Future versions are refused without downgrade. Registry rebuild remains record replacement, not schema repair.
 
 Settings displays registry loading/errors and runtime diagnostics before storage reporting. Bulk accounting remains a separate potential memory concern, not a proven cause of earlier intermittent Settings behavior.
 

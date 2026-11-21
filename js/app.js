@@ -5,8 +5,7 @@ import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 import {readTranscriptFolder} from "./transcriptCatalogue.js";
 import { readTranscriptSourceText } from "./combine.js";
 import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
-import { shareFile as shareIdentityFile } from "./storage.js";
-import { askIdentity } from "./recordingIdentityUI.js";
+import { askIdentity } from "./identityDialog.js";
 import { renderWhisperExecutionReport, renderWhisperReviewNotice } from "./whisperExecutionReports.js";
 import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
@@ -211,50 +210,23 @@ let sourceHandle = null;
 let destinationHandle = null;
 
 let pendingIPhoneExports = [];
-let pendingRecordingList=null;
-let recordingListShared=false;
 let exportBatchLocation=null,exportBatchState="unattempted";
 const pendingTranscriptSaves = [];
-const saveRecordingListButton = document.getElementById("saveRecordingListButton");
 
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
-function setPendingRecordingList(file) {
-        pendingRecordingList = file; recordingListShared = false;
-        if (saveRecordingListButton) { saveRecordingListButton.hidden = !file || sourceSelectionActive; saveRecordingListButton.classList.toggle("has-pending-archive-save", !!file); }
-        document.getElementById("recordingListSaveStatus").textContent = file ? "Audio Recording List: Save required." : "";
-        updateIPhoneExportButton(true);
-}
-function createIdentityWorkflow() { return createTranscriptionIdentity({
-    onStatus: message => { if(sourceSelectionActive)document.getElementById("audioInventoryStatus").textContent=message;else setTranscriptionBusy(message); },
-    onPendingList: setPendingRecordingList,
-
-}); }
+function createIdentityWorkflow() { return createTranscriptionIdentity(); }
 let identityWorkflow = createIdentityWorkflow();
 window.addEventListener("beforeunload", event => {
-    if (pendingTranscriptSaves.length || pendingIPhoneExports.length && exportBatchState!=='shared' || !identityFilesReady()) {
+    if (pendingTranscriptSaves.length || pendingIPhoneExports.length && exportBatchState!=='shared') {
         event.preventDefault(); event.returnValue = "";
     }
 });
-function iPhoneExportReady(){return !pendingRecordingList||recordingListShared;}
-function identityFilesReady(){return iPhoneExportReady();}
-saveRecordingListButton.addEventListener('click',async()=>{
-    const file=pendingRecordingList;if(!file)return;
-    saveRecordingListButton.disabled=true;
-    try{await shareIdentityFile(file);await identityWorkflow.acknowledgeShared('source',file);if(file===pendingRecordingList)recordingListShared=true;document.getElementById('recordingListSaveStatus').textContent=`Audio Recording List: Shared. Verify ${sourceHandle?.name||'Audio folder'} / memora-audio-source.json in Files.`;}
-    catch(error){if(error.name!=='AbortError')alert(error.message);}
-    finally{saveRecordingListButton.disabled=false;saveRecordingListButton.classList.toggle('has-pending-archive-save',!!pendingRecordingList&&!recordingListShared);updateIPhoneExportButton(true);}
-});
-
 function updatePendingSaveButton() {
     if (retryTranscriptSaveButton) retryTranscriptSaveButton.hidden = !pendingTranscriptSaves.length;
     document.getElementById("pendingTranscriptSaveStatus").textContent = pendingTranscriptSaves.length ? "Completed text is retained below. Retry its save without transcribing again." : "";
 }
-async function confirmPendingDiscard({includeLists=false}={}) {
+async function confirmPendingDiscard() {
     if (!pendingIPhoneExports.length && !pendingTranscriptSaves.length) {
-        if(includeLists && !identityFilesReady()){
-            const answer=await askIdentity({title:"Keep the pending recording lists?",message:"An updated recording list is waiting to be saved. Save it before selecting a source folder again, or explicitly discard the pending copy.",choices:[{action:"cancel",label:"Keep pending lists"},{action:"discard",label:"Discard pending lists"}]});
-            return answer.action==='discard';
-        }
         return true;
     }
     const wasShared=exportBatchState==='shared';
@@ -600,7 +572,8 @@ function renderTranscriptionGate(){transcriptionGate.setTranscriptSource(!!share
 async function prepareRecordingDisplay(){
     if(!sourceHandle||renderedAudioSource===sourceHandle)return;
     showEmptyMessage();
-    await displayFiles(currentAudioFiles,file=>readAudioMetadata(file,identityWorkflow.getSession().getRecordingMetadataIdentity(file)),formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
+    await displayFiles(currentAudioFiles,file=>identityWorkflow.getSession().getRecordingMetadata(file,readAudioMetadata),formatRecordingDate,formatDuration,message=>{audioInventoryStatus.textContent=message;});
+    await identityWorkflow.getSession().saveMetadata();
     renderedAudioSource=sourceHandle;audioInventoryStatus.textContent='';
 }
 // Shared iPhone save controls forward clicks here from Combine/Search. Those
@@ -646,7 +619,7 @@ function resetSharedConsumers(){
     clearSharedCombineRows();
     resetSharedSearchSource();
 }
-async function confirmSharedFolderChange({audio=false}={}){
+async function confirmSharedFolderChange(){
     if(transcriptionBatchActive||pendingTranscriptSaves.length||document.querySelector('.search-transcript-save-button:disabled,.combine-transcript-editor-actions button:disabled'))return false;
     const dirty=[...document.querySelectorAll('.combine-transcript-editor-input,.search-transcript-editor')].some(editor=>editor.value!==editor.defaultValue && !editor.parentElement.hidden);
     if(dirty){
@@ -657,7 +630,7 @@ async function confirmSharedFolderChange({audio=false}={}){
         const answer=await askIdentity({title:'Unsaved Search Index',message:'Keep the current folders to save the Search Index, or discard its pending update before changing folders.',choices:[{action:'keep',label:'Keep current folders'},{action:'discard',label:'Discard index update'}]});
         if(answer.action!=='discard')return false;
     }
-    return await retainPendingCombineList() && await confirmPendingDiscard({includeLists:audio});
+    return await retainPendingCombineList() && await confirmPendingDiscard();
 }
 async function prepareTranscribeDestination(source){
     if(!source)return null;
@@ -747,16 +720,15 @@ for(const panel of [document.getElementById('combinePanel'),document.getElementB
     const mirror=document.createElement('div');mirror.className='shared-folder-note';
     const activity=document.getElementById('audioSourceActivity').cloneNode(true);activity.removeAttribute('id');activity.querySelector('[id]')?.removeAttribute('id');
     const status=document.createElement('p');status.className='settings-note';status.setAttribute('role','status');
-    const save=document.createElement('button');save.type='button';save.textContent='Save Audio Recording List';save.hidden=true;save.addEventListener('click',()=>saveRecordingListButton.click());
-    mirror.append(activity,status,save);panel.querySelector('.source-section,.search-source-section').append(mirror);
-    const observer=new MutationObserver(()=>{activity.hidden=document.getElementById('audioSourceActivity').hidden;activity.lastElementChild.textContent=document.getElementById('audioSourceElapsed').textContent;status.textContent=[audioInventoryStatus.textContent,document.getElementById('recordingListSaveStatus').textContent].filter(Boolean).join(' ');save.hidden=saveRecordingListButton.hidden;save.disabled=saveRecordingListButton.disabled;save.classList.toggle('has-pending-archive-save',saveRecordingListButton.classList.contains('has-pending-archive-save'));});
-    for(const target of [document.getElementById('audioSourceActivity'),audioInventoryStatus,saveRecordingListButton,document.getElementById('recordingListSaveStatus')])observer.observe(target,{subtree:true,childList:true,attributes:true,characterData:true});
+    mirror.append(activity,status);panel.querySelector('.source-section,.search-source-section').append(mirror);
+    const observer=new MutationObserver(()=>{activity.hidden=document.getElementById('audioSourceActivity').hidden;activity.lastElementChild.textContent=document.getElementById('audioSourceElapsed').textContent;status.textContent=[audioInventoryStatus.textContent,document.getElementById('audioCacheStatus').textContent].filter(Boolean).join(' ');});
+    for(const target of [document.getElementById('audioSourceActivity'),audioInventoryStatus,document.getElementById('audioCacheStatus')])observer.observe(target,{subtree:true,childList:true,attributes:true,characterData:true});
 }
 
 sourceButton.addEventListener("click",()=>loadAudioSource());
 async function loadAudioSource() {
     if(transcriptionBatchActive||sourceSelectionActive||sourceSelectionRequested||sharedFolderOperation||isSearchSourceBusy())return;
-    sourceSelectionRequested=true;updateSharedFolderControls();sourceButton.disabled=true;transcribeButton.disabled=true;saveRecordingListButton.hidden=true;
+    sourceSelectionRequested=true;updateSharedFolderControls();sourceButton.disabled=true;transcribeButton.disabled=true;
     const activity=document.getElementById('audioSourceActivity'),elapsed=document.getElementById('audioSourceElapsed'),started=performance.now();
     activity.hidden=false;sourceButton.closest('.source-section').setAttribute('aria-busy','true');elapsed.textContent='Elapsed: 0s';
     audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
@@ -764,12 +736,11 @@ async function loadAudioSource() {
     let selectedSource=null;
     try {
         const storage=await getStorageModule();
-        if(!await confirmSharedFolderChange({audio:true}))return;
+        if(!await confirmSharedFolderChange())return;
         sourceSelectionActive=true;sourceButton.disabled=true;transcribeButton.disabled=true;
-        saveRecordingListButton.hidden=true;
         audioInventoryStatus.textContent='Waiting for folder selection or Files to make it available. iCloud preparation may take time.';
         selectedSource=await storage.selectFolder();
-        audioInventoryStatus.textContent='Reading audio recording list…';
+        audioInventoryStatus.textContent='Reading audio metadata…';
         const files=await storage.listAudioFiles(selectedSource);
         const selectedIdentityWorkflow=createIdentityWorkflow();
         await selectedIdentityWorkflow.prepareSource(selectedSource,files,{onProgress:message=>{audioInventoryStatus.textContent=message;}});
@@ -783,7 +754,7 @@ async function loadAudioSource() {
         updateDestinationVisibility(sourceHandle.kind==='file-input');
         setActiveDestinationButton(null);
         sourceButton.textContent='Select Source Folder';
-        sharedFolders.setAudio(sourceHandle,children,files,selectedIdentityWorkflow.getSession().getManifest());
+        sharedFolders.setAudio(sourceHandle,children,files,selectedIdentityWorkflow.getSession().getInventory());
         applySharedTranscriptSelection();
         resetSharedConsumers();
         try{publishTranscribeDestination(await prepareTranscribeDestination(destinationHandle));}
@@ -791,20 +762,15 @@ async function loadAudioSource() {
         currentAudioFiles=files;renderedAudioSource=null;showEmptyMessage();
         if(transcriptionGate.snapshot().enabled||(!transcriptionPanel.hidden&&!transcriptionWorkspace.hidden))await prepareRecordingDisplay();
         const summary=identityWorkflow.getInventorySummary();
-        await identityWorkflow.activateSource();
-        document.getElementById('recordingListSaveStatus').textContent=`Audio Recording List: ${summary.pendingSave?'Save required':summary.saveOutcome==='unchanged'?'Up to date':'Saved and verified'}. ${summary.checked} recordings.${summary.pendingSave?' Save '+summary.sourceFolder+' / memora-audio-source.json.':''}`;
-        audioInventoryStatus.textContent=summary.skipped||summary.unverified?`${summary.skipped} skipped; ${summary.unverified} unverified.`:'';
+        document.getElementById('audioCacheStatus').textContent=`Audio: ${summary.checked} recordings ready.${summary.cacheError?' Local metadata cache unavailable.':''}`;
+        audioInventoryStatus.textContent='';
 
     } catch(error) {
-        if(error.saveFailure){
-            const failure=error.saveFailure;
-            audioInventoryStatus.textContent=`Save failed: ${selectedSource?.name||'Selected folder'} / memora-audio-source.json — ${failure.name}: ${failure.message}. The previous source is retained.`;
-        }else audioInventoryStatus.textContent=error.name==='AbortError'?'Source scan cancelled. The previous source is retained.':`Source scan not saved: ${error.message}`;
+        audioInventoryStatus.textContent=error.name==='AbortError'?'Source selection cancelled. The previous source is retained.':`Unable to open audio source: ${error.message}`;
         if(error.name!=='AbortError'){console.error('Source folder error:',error);alert(error.message||'Unable to read the source folder.');}
     } finally {
         clearInterval(activityTimer);activity.hidden=true;sourceButton.closest('.source-section').setAttribute('aria-busy','false');
         sourceSelectionRequested=false;sourceSelectionActive=false;sourceButton.disabled=false;
-        saveRecordingListButton.hidden=!pendingRecordingList;
         if(!transcriptionBatchActive)await refreshQualifiedWhisperModels();
         updateSharedFolderControls();
     }
@@ -1258,7 +1224,6 @@ if (
 const settingsUI = initSettingsUI({
     getStorageManager: getStorageManagerModule,
     getStorage: getStorageModule,
-    getActiveAudioSourceId: () => identityWorkflow.getSession()?.sourceId || null
 });
 
 const textSizeSlider = document.getElementById("textSizeSlider");
@@ -2073,7 +2038,7 @@ function buildTranscript(
 }
 
 
-// Save identity-bearing output only after the source persistence gate passed.
+// Save verified identity-bearing TXT independently of metadata cache availability.
 async function savePreparedTranscript(prepared) {
     const {transcriptionFolder,record,transcript,operation,identity} = prepared;
     const storage = await getStorageModule();
@@ -2109,7 +2074,7 @@ retryTranscriptSaveButton?.addEventListener("click", async () => {
 function updateIPhoneExportButton(){
     const count=pendingIPhoneExports.length;
     iphoneExportButton.textContent=`Save ${count} Transcription${count===1?'':'s'} to Files`;
-    iphoneExportButton.disabled=!count||!iPhoneExportReady();
+    iphoneExportButton.disabled=!count;
     iphoneExportButton.classList.toggle('has-pending-exports',count>0&&exportBatchState!=='shared');
     const location=document.getElementById('iphoneExportLocation');
     location.hidden=!count;location.textContent=`Save in: ${exportBatchLocation||sharedFolders.transcriptLabel()}`;
@@ -2117,7 +2082,7 @@ function updateIPhoneExportButton(){
 }
 function resetIPhoneExportState(){pendingIPhoneExports=[];exportBatchLocation=null;exportBatchState='unattempted';iphoneExportStatus.textContent='';updateIPhoneExportButton();}
 async function exportIPhoneTranscripts(){
-    if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||!pendingIPhoneExports.length||!iPhoneExportReady())return;
+    if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||!pendingIPhoneExports.length)return;
     const files=[...pendingIPhoneExports];
     if(!navigator.share||navigator.canShare&&!navigator.canShare({files})){alert('File sharing is unavailable.');return;}
     sharedFolderOperation=true;updateSharedFolderControls();iphoneExportButton.disabled=true;exportBatchState='sharing';

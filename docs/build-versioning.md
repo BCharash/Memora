@@ -1,5 +1,8 @@
 # Production build identification
 
+21 November 2026: **2026-11-21.6**, database **9**. Retire production audio JSON persistence/export gating and introduce rebuildable audioFolderCatalogues with preserving upgrade. Consolidate latest identified audio/transcript metadata snapshots. Search embeddings, model configuration/evidence and TXT identities remain unchanged; no deployment by Codex.
+
+
 21 November 2026: **2026-11-21.5**, schema **8** unchanged. Standardize folder cache Settings sections, disclosure styles and individual selectable transcript metadata snapshots. Preserve other stores and reject stale snapshot deletion atomically. No model/configuration revision or audio JSON retirement.
 
 

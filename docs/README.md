@@ -1,37 +1,22 @@
 # Memora documentation
 
-Build .5 standardizes Settings cache names/order/disclosures and replaces the transcript metadata report with selectable folder entries. See [current status](CURRENT_STATUS.md) for deletion safeguards and validation. Earlier .4 and inventory checkpoint notes retain their dated scope.
+Updated **21 November 2026** for candidate **2026-11-21.6**, database schema **9**. Start with [current behavior and device checks](CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026).
 
+## Current file and cache workflow
 
-Build .4 handles iPhone delayed folder discovery and visible Transcribe returns without a transcript child, and groups transcript metadata by parent audio folder. [Current status](CURRENT_STATUS.md) has the 80-group regression scope and device checklist. Earlier .3 notes describe the narrower forwarded-save fix.
+Production no longer creates, reads or saves audio/transcript inventory JSON. Existing files remain untouched. Embedded Apple/iMuse Recording IDs and the unchanged reproducible fallback identify audio; TXT headers retain recording and transcript Archive UUID identities. **Search embeddings remain in search-embeddings.json.**
 
+Audio Folder Metadata Cache and Transcript Folder Metadata Cache hold rebuildable metadata, with one latest snapshot per identified scope, selection deletion and stale/partial/failure protection. Desktop can reuse unchanged metadata after browser-confirmed folder association. iPhone verifies current audio IDs before associating logical inventories and reusing date/duration metadata; equal copied sources cannot be physically distinguished by the File input API. Uncertain associations never grant access to a different folder. Cached full-text transcripts remain separate. Previous recording-list cache data is retained for optional inspection/deletion, not used for current audio identity.
 
-Audio inventory checkpoint 1 is ready: [standalone read-only comparison](../audio-inventory-test.html), [implementation and device checklist](Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026). Production audio JSON workflow is unchanged pending staged verification.
-
-
-Latest fix: hidden forwarded audio-list save clicks from Combine/Search no longer enable Transcribe. See [current status](CURRENT_STATUS.md) for the .3 regression results and iPhone checklist.
-
-
-Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
-
-
-Updated **21 November 2026** for candidate build **2026-11-21.5**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
-
-Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](CURRENT_STATUS.md).
-
-## TXT catalogue and transcription session candidate
-
-The approved simplification retires **only memora-transcript-archive.json** from production reading/writing/saving. Existing files stay untouched. **memora-audio-source.json and search-embeddings.json remain**. Transcribe/Combine/Search read TXT metadata into a bounded, rebuildable local cache, exposed in Settings. Existing TXT identities remain authoritative; empty destinations receive a session UUID written into their first TXT. Schema 7 adds the cache without resetting other stores.
-
-Transcribe has source above and destination below. Its controls are visible on first opening; untouched departures to Combine/Search guard the return, when a transcript folder is selected, behind **Enable Transcription**, with Settings excluded. Shared selection does not prepare its recording rows until intent is expressed, and new recording lists start unchecked. Native and phone new-folder choices need no transcript JSON. iPhone shares TXT only, with a prominent batch-bound destination and different never-saved/post-share warnings. Audio JSON naming/replacement still belongs to Files and remains a separate reported issue.
+Transcribe has Audio Source above and Transcript Destination below. Unused return is gated by Enable Transcription only after a transcript folder is selected. Without one, setup stays visible and populates shared audio unchecked. Settings alone does not trigger the gate. iPhone shares TXT only, with the batch destination shown clearly and different unsaved/post-share warnings. There is no audio-list save prerequisite.
 
 ## Validation and acceptance
 
-The current [TXT catalogue/session harness](../tests/transcript-catalogue.html) replaces the historical .7 sidecar/bundle app harness; [transcription-identity.html](../tests/transcription-identity.html) runs the current suite as a compatible entry point. **136 groups passed** in the focused run. Checks cover local metadata, schema/data preservation, audio-list recovery, identity/embeddings reuse and playback. See [current status](CURRENT_STATUS.md) and the [test guide](../tests/README.md) for counts and scope. Real MacBook/iPhone Files, folder creation and visual acceptance remain required. No deployment or user-archive edits were performed.
+**191 focused groups passed**, including 17 new audio cache and 29 current app/catalogue/Settings groups, with schema preservation, actual origin-private directory handles, 390px layout, playback, embeddings, identity and historical compatibility coverage. See the [test guide](../tests/README.md). Dayananda's earlier isolated inventory proof matched 107 IDs on MacBook and iPhone; actual production .6 acceptance remains pending. No real model/user archive execution or deployment was performed by Codex.
 
 ## Deferred architecture
 
-The earlier combined TXT-plus-transcript-JSON workflow and its two-file save requirement are superseded. There is no transcript sidecar to reconcile with Search embeddings. Broader multi-archive workspace/import, recursive ownership, filename priority refinements and other deferred features remain separate. The audio catalogue has not been retired. See the [identity checkpoints](Recording_Identity_Checkpoints.md).
+Persistent multi-archive Combine/import, recursive ownership, transcript filename priority refinements and broader model catalogue work remain separate. Latest cache snapshot replacement does not select among actual duplicate audio files or implement transcript-family/filename-counter priority. See the [identity checkpoints](Recording_Identity_Checkpoints.md).
 
 ## What changed on 18–19 November
 
@@ -47,7 +32,7 @@ The earlier combined TXT-plus-transcript-JSON workflow and its two-file save req
 
 | File | Role |
 |---|---|
-| memora-audio-source.json | Audio Recording List beside source audio. |
+| memora-audio-source.json | Retired production sidecar; old copies are ignored and left untouched. |
 | memora-transcript-archive.json | Retired production sidecar; old copies are ignored and left untouched. |
 | search-embeddings.json | Separate derived Search archive. |
 

@@ -1,9 +1,10 @@
 import {cachedTranscriptRecord} from './transcriptCacheIdentity.js';
 // Canonical schema owner. Importing this module never opens a database.
 // All application database opens go through this owner.
-export const DATABASE_VERSION = 8;
+export const DATABASE_VERSION = 9;
 
 const schema = [
+    { name: "audioFolderCatalogues", keyPath: "id", indexes: [] },
     { name: "transcriptCatalogues", keyPath: "id", indexes: [] },
     { name: "transcripts", keyPath: "id", indexes: ["filenameKey", "archiveFilename"] },
     { name: "semanticEntries", keyPath: "id", indexes: ["representationKey", "sourceKey"] },
