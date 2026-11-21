@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **21 November 2026**, journal version **39**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Reviewed and synchronized **21 November 2026**, journal version **40**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|

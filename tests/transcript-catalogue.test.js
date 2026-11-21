@@ -88,6 +88,35 @@ await test('Failed child-folder discovery retains the prior shared source and it
 await test('Search still reads its embeddings JSON while loading TXT metadata locally',async()=>{
  const {sharedSearchArchives}=await import('./shared-production-search-fixtures.js');await put(child,'search-embeddings.json',JSON.stringify({marker:'keep embedding archive'}));click('searchTab');await wait(()=>document.getElementById('searchIndexStatus').textContent.includes('Search ready'));assert(sharedSearchArchives.at(-1).marker==='keep embedding archive');assert(JSON.parse(await(await(await child.getFileHandle('search-embeddings.json')).getFile()).text()).marker==='keep embedding archive');click('transcriptionTab');
 });
+await test('Combine scope shows Search description without Memora, survives tab returns, and resets to All on folder load',async()=>{
+ click('combineTab');await wait(()=>!document.getElementById('textSourceButton').disabled);click('textSourceButton');await choose('Parent / transcription');
+ await wait(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('combineListScope').textContent==='All');
+ assert(document.getElementById('combineListFolder').textContent==='Parent / transcription');
+ click('searchTab');await wait(()=>!document.getElementById('searchButton').disabled);
+ const input=document.getElementById('searchQueryInput');input.value='What did I say about dreams?';input.dispatchEvent(new Event('input'));
+ click('searchButton');await wait(()=>document.querySelector('.search-use-combine-button'));
+ document.querySelector('.search-use-combine-button').click();
+ await wait(()=>!document.getElementById('combinePanel').hidden&&document.getElementById('combineListScope').textContent==='Search: Dreams');
+ assert(document.getElementById('combineListFolder').textContent==='Parent / transcription');
+ assert(document.getElementById('textSourceButton').textContent==='Select Transcript Folder');
+ assert(document.getElementById('combineTitleInput').value==='Memora — Search: Dreams');
+ assert(document.querySelectorAll('#transcripts .recording-checkbox').length===1,'Search subset replaced by full folder');
+ click('searchTab');click('combineTab');assert(document.getElementById('combineListScope').textContent==='Search: Dreams');
+ click('textSourceButton');await choose('Parent / transcription');await wait(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('combineListScope').textContent==='All');
+ const headings=[document.querySelector('#combinePanel .folder-heading'),...document.querySelectorAll('#combinePanel .shared-folder-row h2')];
+ assert(new Set(headings.map(h=>getComputedStyle(h).fontSize)).size===1,'Folder and list heading sizes differ');
+ const frame=document.createElement('iframe');frame.style.width='390px';frame.style.height='700px';document.body.append(frame);
+ try{
+  frame.contentDocument.open();frame.contentDocument.write('<link rel="stylesheet" href="../css/style.css">'+document.getElementById('combinePanel').outerHTML);frame.contentDocument.close();
+  await wait(()=>frame.contentDocument.styleSheets.length>0&&frame.contentWindow.getComputedStyle(frame.contentDocument.querySelector('h2')).fontSize==='20px');
+  const doc=frame.contentDocument,box=doc.getElementById('combineListOrigin');
+  assert(new Set([...doc.querySelectorAll('.shared-folder-row h2,.folder-heading')].map(h=>frame.contentWindow.getComputedStyle(h).fontSize)).size===1,'Phone heading sizes differ');
+  assert(box.getBoundingClientRect().right<=390&&box.scrollWidth<=box.clientWidth,'Phone origin box overflows');
+ }finally{frame.remove();}
+
+ assert([...document.querySelectorAll('[data-select-audio],#sourceButton')].every(button=>button.textContent.trim()==='Select Audio Folder'));
+ click('transcriptionTab');
+});
 const phone={kind:'file-input',name:'Phone 2018',selectionScope:'folder',files:[new File([f.wav([f.wavChunk('imID',f.payload(ID))])],'memo.wav'),new File([JSON.stringify({schemaVersion:1,audioSourceId:f.OTHER,recordings:[{recordingId:ID,audioRelativePath:'memo.wav',identityOrigin:'imuse-embedded'}]})],'memora-audio-source.json')]};let shared=[],cancel=false;
 Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{assert(Object.keys(data).join()==='files');if(cancel)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
 await test('Phone can name an empty/new destination without reading files or requiring JSON',async()=>{

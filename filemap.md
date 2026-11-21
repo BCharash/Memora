@@ -1,8 +1,8 @@
 # Memora file map
 
-Current **2026-11-21.8**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
+Current **2026-11-21.9**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
 
-The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#transcript-metadata-deduplication-and-interface-audit--21-november-2026) governs .8 acceptance; dated historical notes below retain their context.
+The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#combine-list-origin-and-folder-labels--21-november-2026) governs .9 acceptance; dated historical notes below retain their context.
 
 ## The short answer about the number of files
 

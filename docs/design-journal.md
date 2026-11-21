@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 39
+**Version:** 40
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4834,3 +4834,11 @@ The interface audit examined all **57 current JavaScript modules** for unused lo
 Verification: **185 focused groups passed across 15 browser suites**, including seeded historical duplicates, Settings/app flows, concurrent first reads, distinct native locations, identity/hash compatibility, playback, database preservation and bounded audio reads. A separate static audit of all 57 JavaScript modules reports no unused local/private declarations or excess call arguments. Synthetic browser checks do not establish actual iPhone Files or speaker playback acceptance.
 
 Acceptance: reload .8, open Settings and Refresh Storage Information, then View Transcript Folder Metadata Cache. The reported 2016 scope should have one 83-transcript entry; Dayananda/testing should retain the newer 3-transcript entry. Empty parent entries should disappear. No commit, push or deployment was performed; actual MacBook/iPhone .8 acceptance remains pending.
+
+### 62.34 Combine list origin and consistent folder labels — 21 November 2026
+
+Candidate **2026-11-21.9**, schema **10** unchanged. Combine's Transcripts heading matches Audio Source and Transcript Source at 20px on all viewport sizes; the Transcribe Transcripts heading uses the same size. A bordered two-line box below Combine's heading identifies the loaded transcript folder and **All** for folder loads, or **Search: description** for a Search selection. The description reuses the suggested combined-document title with only its Memora prefix removed. Tab returns preserve Search scope; explicitly selecting a transcript folder loads its full list and resets the box to All. Changing source clears the previous scope. The box describes list origin, not checkbox selection count.
+
+Across Transcribe, Combine and Search, audio-folder buttons say **Select Audio Folder** and transcript-source buttons say **Select Transcript Folder**, including reset/edit paths. The Combine button no longer switches to Text Source: folder after a Search transfer. Transcription destination controls retain their destination wording. Search retrieval, model behavior, TXT metadata and embeddings formats are unchanged. Actual desktop/iPhone visual acceptance remains pending; no commit, push or deployment was performed.
+
+Verification: **45 focused browser groups passed** (33 catalogue/app/Settings, 7 shared-folder production, 5 iPhone-path gate), including actual Search-to-Combine subset transfer, scope persistence/reset, unchanged suggested document title and matching headings/box fit in a 390px iframe. These are synthetic Chrome checks; actual iPhone Safari visual acceptance remains pending.

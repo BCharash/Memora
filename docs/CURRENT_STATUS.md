@@ -1,5 +1,14 @@
 # Memora — current status and resume instructions
 
+## Combine list origin and folder labels — 21 November 2026
+
+Candidate **2026-11-21.9**, schema **10** unchanged. Combine's Transcripts heading matches Audio Source and Transcript Source at 20px on all viewport sizes; the Transcribe Transcripts heading uses the same size. A bordered two-line box below Combine's heading identifies the loaded transcript folder and **All** for folder loads, or **Search: description** for a Search selection. The description reuses the suggested combined-document title with only its Memora prefix removed. Tab returns preserve Search scope; explicitly selecting a transcript folder loads its full list and resets the box to All. Changing source clears the previous scope. The box describes list origin, not checkbox selection count.
+
+Across Transcribe, Combine and Search, audio-folder buttons say **Select Audio Folder** and transcript-source buttons say **Select Transcript Folder**, including reset/edit paths. The Combine button no longer switches to Text Source: folder after a Search transfer. Transcription destination controls retain their destination wording. Search retrieval, model behavior, TXT metadata and embeddings formats are unchanged. Actual desktop/iPhone visual acceptance remains pending; no commit, push or deployment was performed.
+
+Verification: **45 focused browser groups passed** (33 catalogue/app/Settings, 7 shared-folder production, 5 iPhone-path gate), including actual Search-to-Combine subset transfer, scope persistence/reset, unchanged suggested document title and matching headings/box fit in a 390px iframe. These are synthetic Chrome checks; actual iPhone Safari visual acceptance remains pending.
+
+
 ## Transcript metadata deduplication and interface audit — 21 November 2026
 
 Candidate **2026-11-21.8**, database schema **10** (unchanged). The user's .7 desktop report showed two 2016/transcription snapshots with the same Archive UUID and 83 records, two Dayananda/testing snapshots with 2 and 3 records, and an empty parent-folder entry. Earlier consolidation ran only when a folder was reopened. Settings refresh and cache listing now also prune existing snapshots: the newest complete identified folder wins, known partial observations do not displace complete ones, and empty metadata rows are removed. Reopening an empty destination still gives it a stable session Archive UUID for its first TXT without storing an empty cache entry.

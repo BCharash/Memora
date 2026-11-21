@@ -2476,7 +2476,7 @@ export function invalidateSearchAfterTranscriptEdit() {
 
     if (searchQueryInput) searchQueryInput.value = "";
     if (searchSourceButton) {
-        searchSourceButton.textContent = "Select Source Folder";
+        searchSourceButton.textContent = "Select Transcript Folder";
         searchSourceButton.disabled = false;
     }
     if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
@@ -2500,7 +2500,7 @@ export function invalidateSearchAfterTranscriptEdit() {
 
 export function resetSharedSearchSource(){
     invalidateSearchAfterTranscriptEdit();
-    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Source';
+    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Folder';
     setSearchIndexStatus('Select a transcript source to prepare Search.');
 }
 export async function openSearchSource(handle){
@@ -2511,7 +2511,7 @@ export async function openSearchSource(handle){
     setSearchIndexStatus('Preparing the semantic index…',true);
     if(searchQueryInput)searchQueryInput.value='';
     updateClearSearchButton();
-    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Source';
+    if(searchSourceButton)searchSourceButton.textContent='Select Transcript Folder';
     if(!files.length){
         setSearchIndexStatus('No transcript files found in the selected folder.');
         if(searchResults)searchResults.innerHTML='<p class="empty-message">No transcript files found.</p>';

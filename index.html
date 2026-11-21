@@ -114,7 +114,7 @@
                 <div class="source-section">
 
                     <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button id="sourceButton" type="button">
-                            Select Source Folder
+                            Select Audio Folder
                         </button></div>
 
                     <p id="audioCacheStatus" class="settings-note" role="status"></p>
@@ -311,12 +311,12 @@
 
                 <div class="source-section">
 
-                    <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button type="button" data-select-audio>Select Source Folder</button></div>
+                    <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button type="button" data-select-audio>Select Audio Folder</button></div>
                     <div class="shared-folder-row"><h2>Transcript Source</h2><output data-transcript-folder>None Selected</output><button
                             id="textSourceButton"
                             type="button"
                         >
-                            Select Transcript Source
+                            Select Transcript Folder
                         </button></div>
 
                     <p id="combineTranscriptListStatus" class="settings-note" role="status" hidden></p>
@@ -326,7 +326,11 @@
 
                 <div class="recordings-section">
 
-                    <h2>Transcripts</h2>
+                    <h2 class="folder-heading">Transcripts</h2>
+                    <output id="combineListOrigin" class="transcript-list-origin" hidden>
+                        <span id="combineListFolder"></span>
+                        <span id="combineListScope"></span>
+                    </output>
 
                     <div id="transcripts" class="recordings">
 
@@ -479,9 +483,9 @@
 
                 <div class="search-source-section">
 
-                    <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button type="button" data-select-audio>Select Source Folder</button></div>
+                    <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button type="button" data-select-audio>Select Audio Folder</button></div>
                     <div class="shared-folder-row"><h2>Transcript Source</h2><output data-transcript-folder>None Selected</output><button id="searchSourceButton" type="button">
-                            Select Transcript Source
+                            Select Transcript Folder
                         </button></div>
 
                     <div class="action-row">
