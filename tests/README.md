@@ -1,237 +1,107 @@
 # Memora test guide
 
-## Production audio cache and JSON retirement — 21 November 2026
+Reviewed **21 November 2026** against source **da80b8a**, application **2026-11-21.10**, schema **10**. This is a current procedure/index, not a fresh test result. Older counts and acceptance observations are in the [dated evidence record](../docs/archive/Current_Guides_Preservation_2026-11-21.md) and journal.
 
-Build **2026-11-21.6**, schema **9**: **191 groups passed** across 12 focused suites. [audio-folder-cache.html](audio-folder-cache.html) adds 17 checks for actual native directory-handle reuse, phone identity inspection/metadata reuse, latest snapshot consolidation, disjoint/same-name inventories, added/removed/renamed files, partial/failed/canceled reads, duplicate actual IDs, unavailable/deleted cache, stale sessions, parallel opens and schema-8 data preservation. [transcript-catalogue.html](transcript-catalogue.html) now has 29 current app/Settings cases including retired audio controls, existing audio JSON left untouched, latest transcript cache replacement, duplicate consolidation, partial protection and audio metadata deletion. The 5 iPhone gate cases use actual file-input selection with synthetic data and assert no audio JSON save/share control. Other suites cover database 13, integration 10, full-text identity 7, shared-folder 7, playback 10, reproducible identity 22, identity/embedding compatibility 19, legacy persistence 47 and bounded metadata 5.
+## Run a focused browser harness
 
-Legacy audioSourcePersistence and older production-recording-identity helper checks remain compatibility evidence. Their create/save/recovery expectations do not describe the new app flow. Schema 9 adds audioFolderCatalogues and retains the previous store set. Runtime source preparation no longer uses those sidecar APIs. No user Memora database/audio/model was used. Device acceptance of .6 remains pending; see [current checklist](../docs/CURRENT_STATUS.md#production-audio-metadata-cache-and-audio-json-retirement--21-november-2026). Earlier counts/labels below are dated rollout evidence.
+1. Serve the repository root through VS Code Live Server or another localhost static server. These pages use ES modules/import maps; do not open them as file URLs.
+2. Use a separate disposable browser profile. Default harnesses use synthetic files, injected workers/storage or named test databases; some create/remove browser-private filesystem data. They must not be run against a user's real archive/database to diagnose a failure.
+3. Open the relevant tests/ page below **without query parameters**. It runs automatically and renders PASS/FAIL output. Read the final failure list; a loaded page, unsupported API or skipped path is not a pass.
+4. Record commit, displayed build, browser/platform, page, result and any skips. Compare fixture coverage with the behavior actually changed.
+5. Use real-device/model checks only when required by the application change, with a small agreed scope. Documentation-only edits need link/source checks, not new model tests.
 
+HTTPS/localhost is required for features such as SubtleCrypto and browser-private filesystem APIs. Chromium-native tests require the relevant APIs. Simulated iPhone paths in desktop Chrome are not actual Safari/Files acceptance.
 
-Build **2026-11-21.5** Settings cleanup: **47 targeted groups passed** — 25 catalogue/page/Settings (including true 390px iframe styling, section order, per-folder selection, select-all/cancel/empty states and stale-snapshot rollback), 10 database integration, 7 full-text cache identity and 5 iPhone gate. View/Hide now uses toggle-transcript-metadata; the standalone Clear metadata action is replaced by selection deletion. No user archive/model execution or real iPhone visual acceptance is claimed.
+Optional **?report=1** is for an orchestrator implementing the page's report endpoint. Ordinary Live Server does not provide it; use the page without that parameter for manual checks. The temporary local Python orchestration used in previous sessions is not committed project tooling.
 
+## Current harness inventory
 
-Build **2026-11-21.4**: **80 groups passed** — 5 iPhone gate tests now exercise production file-input selection, an audio-only source return, and delayed identity reading with discovery finishing after return; 21 catalogue/page groups include parent-folder grouping without archive-scope merging; 7 shared-folder and 47 persistence groups remain green. New iphone-source-fixtures.js retains synthetic metadata/inference while forwarding selectFolder to the real implementation. Device confirmation remains pending.
+All **35 HTML pages** below exist in tests/. The transcription-identity page is an alias using transcript-catalogue.test.js, so do not count it as independent coverage.
 
+### Identity, folders and app integration
 
-Audio inventory checkpoint 1: [inventory tests](audio-inventory.html) (16), [standalone page tests](audio-inventory-page.html) (3), existing reproducible identity (22) and iPhone gate (3) passed **44 groups**. Covers embedded/fallback rebuilding, optional corrupt/absent JSON, legacy classification, mismatch/rename/membership, duplicate/unreadable/cancel cases, read-only desktop access, immediate-only phone audio, and TXT-only report sharing. No persistence or production switch; real-device instructions are in the [audit](../docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
-
-
-Build **2026-11-21.3**: [iPhone shared-save gate regression](iphone-transcription-gate.html) adds three groups covering deferred shared audio, audio-list saving from Combine without enabling hidden Transcribe, and explicit Enable preparing unchecked rows without inference. All three plus the existing 18 catalogue and 7 shared-folder groups passed (28 total). Real iPhone acceptance remains pending.
-
-
-Current candidate **2026-11-21.2**, schema **8**: **136 groups passed**. [Durable cache tests](transcript-cache-identity.html) add seven groups for distinct archive identities, scoped lookups, TXT metadata authority, Settings export/delete isolation, filename collision protection, schema-7 migration and failed-upgrade rollback. The 18 catalogue/page groups now cover returning with no selected transcript folder and the fixed Browse label. Test both selected-folder and no-folder returns on devices; Settings alone must not activate the gate. Earlier checklist/counts below describe .1.
-
-
-## Current TXT catalogue/session suite — 21 November 2026
-
-Candidate **2026-11-21.1**, schema **7**: [transcript-catalogue.html](transcript-catalogue.html) is the current actual-page integration entry point. [transcription-identity.html](transcription-identity.html) aliases this same suite; the previous transcription-identity.test.js script documents the retired .7 sidecar/bundle workflow and is not a current-production page suite. Legacy transcriptFolder/transcriptArchive helper tests remain historical compatibility checks, not requirements to create external JSON.
-
-**129 focused groups passed**, including 18 current page/catalogue groups, 13 schema, 10 storage integration, 19 identity/embeddings, 47 audio persistence, 10 playback, 7 folder access and 5 metadata groups.
-
-The current suite checks ignored unreadable legacy sidecars, preserved TXT IDs, empty native/phone destinations, stale-cache refresh, bounded local metadata and Settings controls, session gating with Settings excluded, deferred recording rows and unchecked defaults, native creation/first write without a sidecar, retained Search embeddings loading, TXT-only phone shares, cancellation/retry, prominent current destination and per-batch warning/pulse state. Other focused suites cover schema-6 migration/data preservation, audio-list recovery, recording identities/embedding reuse, native/file-input playback and bounded metadata reads. All use synthetic data, disposable profiles and isolated stores, with no real model or user archive execution.
-
-Device checklist: refresh both devices; select a parent in Combine/Search, verify playback and an untouched Transcribe return guarded by Enable Transcription; check Settings-only visits; enable and select recordings explicitly; create a new destination from the lower selector; save TXT only on iPhone and inspect its actual location/name; cancel/retry and start another batch; inspect/clear the local metadata cache; confirm unchanged audio lists and existing Search embeddings still work. Audio JSON replacement/numeric suffix behavior and Mac native picker closure remain separate device/provider issues. Preserve original data and leave old transcript sidecars untouched while testing.
-
-
-## Planned acceptance: Enable Transcription and save guidance
-
-**Historical plan; superseded by the current candidate above.** The [21 November plan](../docs/CURRENT_STATUS.md#next-implementation-enable-transcription-and-save-guidance) supersedes initially hiding selectors. Extend the actual-page harness for initial visibility; Settings-only visits; untouched departures/returns through Combine and Search; Enable Transcription sharing existing folders without inference; real Transcribe activity keeping setup enabled; no checked recording defaults; and no Transcribe-only display/metadata work from other views. Verify per-batch never-attempted/post-share/canceled/failed warning states, second-batch reset and no false pulse reset. Verify one prominent correct destination across annual archives with the same transcription child name, separate folder selection, retry/keep/discard, audio-first/transcript-second simplified statuses, progress and real errors, and files-only multi-TXT/JSON sharing. MacBook/iPhone device acceptance follows isolated checks. The previous .7 run's 176 passing groups do not establish these future behaviors. This documentation pass runs no application tests.
-
-
-## Production recording identity foundation — 20 November 2026
-
-Candidate **2026-11-20.3**: [production-recording-identity.html](production-recording-identity.html) has 19 groups covering stable rebuilds, sampled header/list evidence, source independence, missing/partial/invalid lists, duplicates/relocation, legacy and pending recovery, native no-op saves and safe Search vector reuse. Together with 48 actual-page integration, 47 persistence, 34 schema/planner, 29 transcript-folder, 22 helper, 10 playback groups and 10 database/semantic-cache groups, **219 groups passed**. UI fixtures now use distinct unidentified audio content and model the existing verified-copy pruning behavior. The obsolete missing-list cancellation test was replaced by automatic-rebuild checks; partial/invalid-list cancellation remains covered. Synthetic model/semantic fixtures avoid real model loads or user databases. Actual device/native Files acceptance is pending; preserve user archives and use disposable copies when testing rebuilds. [Current status](../docs/CURRENT_STATUS.md).
-
-## Shared folder architecture — 20 November 2026
-
-[shared-folder-selection.html](shared-folder-selection.html): **15 synthetic groups passed**, plus 20 parent-folder and 22 identity groups rerun (57 total). Shared defaults/overrides/reset, native directory picking without the upload input, fallback and separately selected transcript linking, empty native folders, cancellation, mock sample-save verification/refusal and 320px containment are covered. Root [test.html](../test.html) is now test 5. Its explicit Save Test File can create a disposable sample on a user-selected device; automated checks use synthetic handles/sharing only. No real user archives or Memora databases were written by these harnesses. Test-5 real-device acceptance remains pending.
-
-## Parent-folder reconstruction checkpoint 2 — 20 November 2026
-
-[archive-folder-access.html](archive-folder-access.html): **20 synthetic adapter/UI groups passed**, plus the 22 identity-helper groups rerun successfully. Includes missing-list/no-JSON reconstruction, source UUID independence, list disagreement, recording ID ambiguity/failure, scope/legacy paths, sampled rename/rebuild, cancellation, real test-page controls and report privacy. No user files, databases, models or writes; synthetic audio verifies player loading only. Root [test.html](../test.html) test 4 is the user device-acceptance page, with a default missing-list simulation and no JSON replacement.
-
-## Reproducible recording identity checkpoint 1 — 20 November 2026
-
-[reproducible-recording-identity.html](reproducible-recording-identity.html): **22 synthetic Chrome groups passed** for the isolated helper, including an independent Python hash vector, embedded priority, prefix bounds, rebuild/rename/size behavior, metadata failures, cancellation/cache, ambiguity and unchanged production UUID-validator compatibility. No user archives, IndexedDB, models or writes. Large-file reads are synthetic; real device/iCloud behavior is the next checkpoint. [Exact contract](../docs/Recording_Identity_Prefix_Contract.md).
-
-## Current recorded verification — 19 November 2026
-
-Reviewed source **47ca641**, displayed build **2026-11-19.25**, schema **6**. The audio whole-folder correction has now been tested as described below; earlier .23 documentation consolidation itself did not rerun tests. The counts below are previously recorded runs, not a sum of independent model/device validations.
-
-| Page / checkpoint | Latest relevant recorded groups | Coverage |
-|---|---:|---|
-| [audio-location.html](audio-location.html), .25 | 8 | Shared Combine/Search hints, 240px layout, picker cancellation, missing/correct files, batch reuse, cross-archive names, inspectable embedded-ID mismatch, legacy fallback and native folder guidance. Uses stubbed media playback; no actual iPhone playback claim. |
-| [transcript-folder.html](https://github.com/BCharash/Memora/blob/456fbffaec2a06e3eea2311c12f0291e977434d9/tests/transcript-folder.html), .24 recheck | 29 | One read/parse, immutable File snapshot isolation, complete desktop/iPhone versus partial coverage, invalid/conflicting identity, unchanged saves, retries/concurrency, real isolated OPFS, new filename and yearly labels. |
-| [transcription-identity.html](transcription-identity.html), .24 | 49 | Actual app with synthetic files/inference, source/recovery/save UI, Settings, Combine sorting/body editor, source failure retention, iPhone cancellation/share/reopen and Transcribe/Combine year-specific JSON guidance; whole-folder iPhone audio pruning, nested retention, returning files, skipped/partial/failure/cancellation safeguards and actual pending-save/reopen controls. |
-| [audio-source-persistence.html](https://github.com/BCharash/Memora/blob/456fbffaec2a06e3eea2311c12f0291e977434d9/tests/audio-source-persistence.html), .24 recheck | 47 | Source identity/storage, no-op/large-inventory paths, recovery cleanup, pending payloads, verified persistence and isolated native handles/database. |
-| [whisper-eligibility.html](whisper-eligibility.html), .22 | 13 | Qualification decisions, saved browser-version continuity, distinct browser families, later holds and raw report preservation. |
-| [whisper-evidence.html](whisper-evidence.html), .22 | 14 | Journal ingestion, manual recovery, old-context resolution and preserved holds. |
-| [whisper-production-reviews.html](whisper-production-reviews.html), .22 | 15 | Legacy/new production keys, cross-version hold/reference handling, review decisions and UI notices. |
-| [whisper-production-eligibility.html](whisper-production-eligibility.html), .22 | 8 | Actual Large gate continuity across Chrome versions, later-failure rejection, defaults/platform separation and cached-adapter refusal. |
-| [whisper-settings.html](whisper-settings.html), .22 | 12 | Passed summary grouping/measurements, 240/280/350px widths, history/controls and test lifecycle UI. |
-| [whisper-executions.html](whisper-executions.html), .22 | 9 | Saved execution/ownership/navigation recovery, selected history deletion and iOS report transport. |
-| [archive-reconciliation.html](https://github.com/BCharash/Memora/blob/456fbffaec2a06e3eea2311c12f0291e977434d9/tests/archive-reconciliation.html), .23 fixture rename | 27 | Isolated historical lab and disposable filesystem. Its older policy is separate from production and is not a current acceptance requirement. |
-
-The .25 guidance change passed **86 groups** (8 shared-audio + 49 app integration + 29 transcript-folder), with overlap in the app checks. The .24 core set was **125 groups** (29+49+47), extending .23’s 119-group core set; the .22 eligibility/UI set was **112 groups**, including overlapping app/Settings checks. Do not add repeated checkpoint totals together. No real Whisper inference or user archives/databases are used by these fixture runs. Real iPhone/iCloud replacement/destination behavior and representative large-archive timing/memory remain device acceptance.
-
-## Running current harnesses safely
-
-Serve the repository through Live Server/localhost and use a separate disposable browser profile, not the profile holding real model qualification or archives. Open the relevant page above without query parameters; it displays its own result. Some pages create/remove their own synthetic database/browser-private filesystem fixtures. Confirm Chromium supports the page's required APIs before interpreting a skipped native test as a pass.
-
-The committed Node runner supports `--suite=transcription-identity --browser`, `--persistence --browser`, and its listed Settings/schema/identity suites; set MEMORA_TEST_BROWSER to the browser executable. It does **not** currently accept transcript-folder or the newer eligibility-suite names as --suite values. Open those pages directly. Their optional `?report=1` mode posts to a runner endpoint and is intended for an orchestrator providing that endpoint, not ordinary Live Server use.
-
-Current manual checks: inspect storage order/centered counts/description→selection→rows; ensure empty lists have no actions; cancel and finish pending JSON sharing; rebuild disposable yearly archives and verify the displayed archive plus folder; re-open unchanged lists; confirm actual failure/review holds are preserved. A browser-version change alone no longer requires a reference retest. Do not deliberately crash or stress devices for this documentation task.
-
-Do not use the four user archives as disposable fixtures. The user's separately planned old-JSON rebuild uses Edit/Combine first to preserve header identities. The separately authorized .24 change fixes whole-folder iPhone audio removal parity. It does not implement filename-counter priority, new detailed Whisper metadata, shared Transcribe/Search reconciliation or batch JSON delivery.
-
-## Historical checkpoint instructions
-
-The following material records earlier counts/builds/filenames and acceptance at those dates. Current instructions above and [CURRENT_STATUS](../docs/CURRENT_STATUS.md) supersede contradictory “current”, “not wired”, unchanged-filename and old 22/32-group statements. Preserve the history without treating it as today's task list.
-
-# Current interface/header candidate — 2026-11-18.4; library architecture paused
-
-Checkpoint 3 is committed as `4c8e5f7`. The user clarified selecting the wrong kind of JSON and had not tried .2; a native iCloud picker defect is unconfirmed. This candidate implements approved **Audio recording list** / **Transcript file list** prompts, correct-file/folder guidance, expected-kind validation, the existing Memora pulse for pending saves and the readable TXT header order. No recursive/library implementation is included. Direct transcription/translation comparisons also verified unchanged metadata values and body bytes after the header reorder.
-
-Open **`tests/transcription-identity.html`** through Live Server in Chrome. Expected: **22/22 groups passed**, shown above the app after the test completes. It loads the actual page with synthetic files, mocked inference, memory recovery for fake handles and a disposable transcript-cache database. It does not select user folders, run real models or use the real Memora database. The native 2B harness remains a separate **32/32** check of actual browser handle/IndexedDB behavior.
-
-Earlier checkpoint-3 verification also passed 31 source-identity, 21 embedded-reader, six Whisper diagnostics, four failure-classification, nine Settings/ownership and seven storage/Settings integration groups. No real-device acceptance is inferred from these results.
-
-Run `node tests/run-recording-identity.mjs --suite=transcription-identity --browser` with `MEMORA_TEST_BROWSER` set to Chromium. Other focused browser suites now supported by the runner: `--suite=whisper-diagnostics`, `--suite=whisper-failures`, `--suite=whisper-settings`, `--suite=database`, `--suite=database-integration` (each with `--browser`).
-
-For this candidate, test the wording on the actual iPhone using disposable copies: choose the wrong list once, confirm that it names the right file/folder and lets you retry/cancel, then choose the correct list. Before sharing, both pending list buttons should pulse like existing Memora save buttons. Cancel one share and confirm it still pulses; complete each share and confirm only that list's pulse clears. Reduced motion should suppress animation. File names/schemas stay unchanged and successful sharing does not prove saved placement. The automated suite covers these state transitions and reads actual CSS animation rules, but native picker/visual acceptance remains pending. See [the library proposal](../docs/Audio_Library_Architecture_Proposal.md) for the paused architecture.
-
-Broader checkpoint-3 manual acceptance uses copied short audio and a new empty output destination; do not test writes against the four migrated archives. Follow [contract section 15](../docs/Recording_Identity_Implementation_Contract.md#15-checkpoint-3--production-transcription-integration) for the ordered desktop/iPhone checks and the supported-container limitation. No agent commit/deployment was performed.
-
----
-
-## Historical identity checkpoint 2B — 18 November 2026
-
-Open `tests/audio-source-persistence.html` through Live Server. Expected: **32/32 groups passed** in a Chromium browser with browser-private filesystem support. All default database calls are redirected by the harness import map; only temporary fixture databases/private test directories are created and removed. No real Memora database, selected user folder, models or archive changes. The page writes synthetic data in its browser-private filesystem for native persistence verification.
-
-Recorded verification on Mac: **32/32 Chrome groups**, **30/30 Node groups** (two browser-only groups explicitly skipped), **31/31 checkpoint-2A groups**, **21/21 reader groups**, **12/12 schema groups** and **7/7 storage/Settings integration groups**. Node/Chrome runs use installed VS Code's Electron Node runtime and temporary browser profiles. The initial restricted localhost bind failed before browser tests; successful browser runs used authorized unrestricted execution. No real iPhone or representative-large-archive acceptance is claimed.
-
-Run `node tests/run-recording-identity.mjs --persistence`; add `--browser` and set `MEMORA_TEST_BROWSER` for Chromium. The existing `--source` and default reader suites still work. Database regressions: `--suite=database --browser`, `--suite=database-integration --browser`. Source recovery is schema 6; tests verify additive upgrades preserve the original four stores and transcript/semantic cleanup leaves recovery intact.
-
-Checkpoint 3 is not wired. Review [implementation contract section 14](../docs/Recording_Identity_Implementation_Contract.md#14-checkpoint-2b--isolated-source-persistence) before integration; no transcription/model/iPhone deployment test is needed for this isolated harness review.
-
----
-
-## Earlier test guide
-
-Reviewed 9 November 2026 through candidate application build **2026-11-10.14**. These browser harnesses support focused changes; they are separate from Settings' real model self-test. Detailed prior run counts, device results and checkpoint instructions are preserved in [test history](../docs/archive/Test_Checkpoint_History_2026-11-09.md). Old pending instructions there are historical.
-
-## How to run safely
-
-Serve the repository over localhost using Live Server or a plain static server. Open a test page from the table below; it runs automatically and should finish with **ALL TESTS PASSED**. Use a separate browser profile for developer harnesses: Settings/evidence/selector integration can create synthetic journal, eligibility and diagnostic records. Do not run them in the profile used to establish real model qualification.
-
-Schema tests use temporary `Memora-schema-test-…` databases. Database integration substitutes a temporary `Memora-integration-test-…` owner through an import map; it must not be bundled in a way that bypasses that substitution. Fixtures clean up their temporary databases; closing mid-run may leave fixture databases. Never clear the real Memora or iMuse database for testing.
-
-Whisper harnesses use synthetic workers/pipelines/audio or cancelled/stubbed network responses. Their passes establish code behavior under those fixtures, not real model accuracy, GPU operator execution, iPhone memory reclamation or sequence stability. Expected injected errors can appear in the Console; use the test page's final result. Close fixtures after use.
-
-## Choose a focused harness
-
-| Page | Coverage |
+| Page | Focus |
 |---|---|
-| [audio-source-identity.html](https://github.com/BCharash/Memora/blob/456fbffaec2a06e3eea2311c12f0291e977434d9/tests/audio-source-identity.html) | Checkpoint 2A: 31 in-memory source-list validation/resolution groups; unknown fields, fingerprints/recovery decisions, source conflicts and checkpoint-1 reader integration. No hashing, UUID generation, writes, database or production integration. Node 22+: `node tests/run-recording-identity.mjs --source`; add `--browser` for isolated Edge. See contract section 13. |
-| [recording-identity.html](recording-identity.html) | Checkpoint 1: isolated read-only Apple/iMuse identity reader; 21 groups across all supported containers, malformed/conflicting metadata, provenance and actual exporter fixtures. No production integration or writes. Node 22+: `node tests/run-recording-identity.mjs`; add `--browser` for isolated Edge. See contract section 12 for evidence/limits. |
-| [whisper-executions.html](whisper-executions.html) | Separate production journal, live ownership, page-navigation recovery, privacy projection, bounded retention and shared report controls. |
-| [whisper-production-reviews.html](whisper-production-reviews.html) | Production decisions, mandatory/manual recovery, deferred reviews/notes, stage-aware stability, ordering and persistence safety in memory. |
-| [whisper-worker-failures.html](whisper-worker-failures.html) | Actual worker source with injected typed faults, validated/legacy payloads, original diagnostics and unchanged self-test verdicts. |
-| [whisper-failures.html](whisper-failures.html) | Shared failure vocabulary, original diagnostics and real workflow boundary attribution with injected dependencies. No model/storage access. |
-| [database.html](database.html) | Version-5 schema, incomplete upgrades, preservation, incompatible/future schemas, blocked requests, connection lifecycle and retry. |
-| [database-integration.html](database-integration.html) | Storage/semantic/registry consumers with a temporary database; evidence preservation and Settings registry status/error display. |
-| [whisper-configurations.html](whisper-configurations.html) | Canonical definitions, independent legacy snapshot parity, defaults, compatibility, selection/list policy, availability projection and fingerprints. |
-| [whisper-lifecycle.html](whisper-lifecycle.html) | Stage deadlines, cancellation, late/duplicate messages, worker/protocol failures, cleanup and per-page activity ownership. |
-| [whisper-validation.html](whisper-validation.html) | Inclusive 15% WER gate, normalization, invalid/empty output and separate inference/accuracy outcomes. |
-| [whisper-settings.html](whisper-settings.html) | Controls/layout, adaptive Test/Retest, cancellation, reports/copy, recovery, diagnostics and clearing. |
-| [whisper-diagnostics.html](whisper-diagnostics.html) | Safe initialized-session metadata, timing and active production worker protocols with injected pipelines. |
-| [whisper-attempts.html](whisper-attempts.html) | Durable stages/results, interrupted recovery, locking, retention, failures and history clearing. |
-| [whisper-eligibility.html](whisper-eligibility.html) | Qualification rules, exact-context storage and preservation of adverse/successful evidence. |
-| [whisper-evidence.html](whisper-evidence.html) | Live/recovered evidence, manual-pass restoration, legacy reviews and context identity. |
-| [whisper-production-eligibility.html](whisper-production-eligibility.html) | Canonical selection and qualification gate; unsupported/stale/held configurations stay unavailable. |
-| [whisper-production-selector.html](whisper-production-selector.html) | Qualified family-default dropdown, empty state, updates and active-batch protection. |
-| [whisper-loader-gate.html](whisper-loader-gate.html) | Actual loader guard, override resistance, simulated iOS/desktop reuse/messages and idempotent release. |
-| [runtime-diagnostics.html](runtime-diagnostics.html) | Bounded persistent page/event logs, real fixture navigation, retention and logging-failure isolation. |
-| [whisper-disposal.html](whisper-disposal.html) | Disposal request IDs/acknowledgement/deadline, actual worker handlers and mandatory termination fallback. |
+| [recording-identity.html](recording-identity.html) | Embedded Apple/iMuse identities, containers, malformed/conflicting metadata and exporter fixtures. |
+| [reproducible-recording-identity.html](reproducible-recording-identity.html) | Prefix/size identity, independent vector, rebuild/rename stability, read limits, cancellation and ambiguity. |
+| [production-recording-identity.html](production-recording-identity.html) | Production identity/TXT compatibility and Search vector/hash preservation. |
+| [audio-inventory.html](audio-inventory.html) | In-memory audio inventory, complete/partial reads and explicit issues without sidecar authority. |
+| [audio-inventory-page.html](audio-inventory-page.html) | Standalone inventory page, folder-input/native paths and named report sharing. |
+| [audio-folder-cache.html](audio-folder-cache.html) | Native reuse, phone verification, latest snapshots, unavailable/stale cache and preserving schema migration. |
+| [archive-folder-access.html](archive-folder-access.html) | Parent-folder adapter/test UI, nested TXT discovery and identity-linked playback. |
+| [shared-folder-selection.html](shared-folder-selection.html) | Shared folder prototype controls, defaults/overrides and synthetic save/share behavior. |
+| [shared-folder-production.html](shared-folder-production.html) | Production child discovery, rebasing, source reset, ID-first lookup and picker branches. |
+| [audio-location.html](audio-location.html) | Shared playback guidance, actual inventory producer contract and scoped audio lookup. |
+| [source-selection-performance.html](source-selection-performance.html) | Bounded metadata reads and controlled detail-reader concurrency; not provider/network timing. |
+| [transcript-cache-identity.html](transcript-cache-identity.html) | Durable full-text cache identity, same-name separation, selected export/deletion and migration rollback. |
+| [transcript-catalogue.html](transcript-catalogue.html) | Actual app with synthetic inference/files: TXT catalogue, Search-to-Combine scope, saving, gate, Settings, duplicate cache cleanup and narrow layout. |
+| [transcription-identity.html](transcription-identity.html) | Alternate entry to the same catalogue/app suite; useful for the existing runner, not an additional suite. |
+| [iphone-transcription-gate.html](iphone-transcription-gate.html) | Actual folder-input app branch, audio-only/child-folder discovery and Enable Transcription. |
 
-The independent `fixtures/whisper-registry-baseline-v2.json` was captured before baseline migration. Do not regenerate it from new production code to hide differences. The removed `whisper-test-worker.js` has no active test requirement; the two production workers remain covered.
+### Database and runtime
 
-## Latest recorded checks and acceptance
+| Page | Focus |
+|---|---|
+| [database.html](database.html) | Fresh/older/current/future schemas, preservation, refusal, blocked upgrades and rollback. |
+| [database-integration.html](database-integration.html) | Current production consumers with isolated databases, registry evidence and Settings failure/deletion paths. |
+| [runtime-diagnostics.html](runtime-diagnostics.html) | Injected runtime/storage/worker diagnostics and fixture navigation. |
 
-Build .24: eight Settings groups passed, with active retest wording, unchanged suspended eligibility and idle-message restoration after cancellation. No inference or cooldown was introduced. User wording acceptance pending.
+### Whisper without real model qualification
 
-- Build .20: four loader-gate and six diagnostics groups passed.
-- Build .21: 15 catalogue, six production-eligibility, seven database-integration, eight Settings and four selector groups passed (40 total).
-- Build .22: 16 catalogue, six production-eligibility and eight Settings groups passed (30 total).
-- Build .23: eight Settings and seven database-integration groups passed (15 total), including synthetic exact qualification, collapsed historical validation, other-platform labeling and visible database failure. Its synthetic eligibility key is restored afterward.
+| Page | Focus |
+|---|---|
+| [whisper-configurations.html](whisper-configurations.html) | Canonical definitions/resolver, fingerprint and independent baseline parity. |
+| [whisper-validation.html](whisper-validation.html) | Reference normalization/WER and functional PASS rules. |
+| [whisper-lifecycle.html](whisper-lifecycle.html) | Stage deadlines, cancellation, ownership and test lifecycle. |
+| [whisper-disposal.html](whisper-disposal.html) | Bounded disposal acknowledgement and termination behavior. |
+| [whisper-diagnostics.html](whisper-diagnostics.html) | Worker/timing diagnostic projection with injected dependencies. |
+| [whisper-failures.html](whisper-failures.html) | Stage/source failure classification and workflow boundaries. |
+| [whisper-worker-failures.html](whisper-worker-failures.html) | Actual worker source under injected import/load/call faults; envelope and verdict parity. |
+| [whisper-loader-gate.html](whisper-loader-gate.html) | Loader gate, exact configuration and worker reply/event behavior. |
+| [whisper-eligibility.html](whisper-eligibility.html) | Qualification state and matching-context rules. |
+| [whisper-evidence.html](whisper-evidence.html) | Attempt/execution evidence bridge, browser-version continuity and stale-evidence protection. |
+| [whisper-attempts.html](whisper-attempts.html) | Durable attempts, recovery, timelines and report/observation behavior. |
+| [whisper-executions.html](whisper-executions.html) | Production execution history, retention, report export and fixture navigation. |
+| [whisper-production-eligibility.html](whisper-production-eligibility.html) | Production qualification and exact-context holds. |
+| [whisper-production-selector.html](whisper-production-selector.html) | Qualified family-default choices and selection behavior. |
+| [whisper-production-reviews.html](whisper-production-reviews.html) | Reviews, observations, hold resolution, archival and persistent decisions. |
+| [whisper-settings.html](whisper-settings.html) | Self-test/Settings UI, summary, history, errors and qualification distinctions. |
 
-These are prior focused runs, not a claim that every suite was rerun for each build or during this documentation refresh. The user accepted .23 presentation. Runtime/database integration previously passed user Mac/iPhone/Windows checks; this does not establish Windows acceptance for all later Whisper changes.
+### Separate DOCX experiment
 
-## Real model acceptance
+[docx-custom-properties-validation.html](docx-custom-properties-validation.html) downloads docx and JSZip libraries and automatically creates large synthetic reference collections. This is not a routine lightweight smoke test. Its [method/results and retained Word fixtures](../docs/validation/docx-custom-properties/README.md) explain the experiment, exact text comparison, property-size interoperability risk and untested platforms. It does not implement production import or require access to real transcripts.
 
-For a future execution change, agree a bounded device checklist first. Settings self-test loads real models and records results in that browser. Manual Tiny is the usual small smoke test; confirm displayed build, chosen exact configuration, WER, eligibility and normal transcription only where relevant. Do not require revalidation for documentation or display-only edits.
+## Committed Node runner: supported subset only
 
-Current defaults are 60s prepare/decode, 30s pre-test release, 600s load and 180s inference; the post-inference disposal acknowledgement wait is bounded at 5s. API acknowledgement and worker termination do not prove reclaimed memory. Session WebGPU settings are not an operator execution trace.
+[run-recording-identity.mjs](run-recording-identity.mjs) requires **Node 22+**, no package installation. This documentation pass checked source/routes, not executable Node results.
 
-Automatic sequences/retries are not implemented. Repeated disposable iPhone tests have caused unexplained page loss, while normal reused Small transcription has remained stable in reported sessions. Do not run rapid Tiny/Base/Small or Medium/Large stress sequences. Do not edit watched files during user testing. Use a plain server without automatic reload for a future agreed diagnosis, preserve downloaded reports, and distinguish current page ID from attempt page ID.
+- Without --browser, the default embedded recording-identity suite is the supported current Node route.
+- With --browser, currently usable selectors are **recording-identity**, **database**, **database-integration**, **transcription-identity**, **whisper-diagnostics**, **whisper-failures** and **whisper-settings**.
+- Set **MEMORA_TEST_BROWSER** to a Chromium-compatible browser executable. The runner otherwise defaults to a Windows Edge path, creates a disposable profile, serves the repository on a temporary localhost port and collects report output.
+- Other current pages, including transcript-catalogue and newer evidence/review suites, are **not accepted --suite names** by this runner. Open them directly without ?report=1.
+- The retained **--source** and **--persistence** routes refer to removed audio-source suites. Do not use them. **run-archive-reconciliation.mjs** also targets a removed lab; it is not a current test command. These code leftovers are queued for the separate JavaScript audit.
+- **--generate-fixtures** deliberately rewrites the checked-in synthetic iMuse identity fixture using sibling iMuse exporter source. Do not use it for ordinary verification.
 
-For scope, unresolved issues and the deferred production-error audit, read [CURRENT_STATUS.md](../docs/CURRENT_STATUS.md) and [testing design](../docs/Whisper_Configuration_and_Test_Design.md).
+Examples after configuring the browser executable:
 
-Build .25: seven existing isolated database-integration groups passed after moving/clarifying the registry maintenance control. No reset behavior, inference or eligibility changes.
+    node tests/run-recording-identity.mjs
+    node tests/run-recording-identity.mjs --suite=database --browser
+    node tests/run-recording-identity.mjs --suite=transcription-identity --browser
 
-Build 2026-11-10.1: eight Settings and seven isolated database-integration groups passed after moving/renaming the unload control. No real models, cache deletion or resource reset executed.
+The independent whisper-registry-baseline-v2.json was captured before the old registry migration. Do not regenerate expectations from the implementation under test to hide differences. Keep exporter provenance and literal independent identity vectors.
 
-Build 2026-11-10.2: four new failure-contract/workflow, six expanded loader-gate, six diagnostics, eight Settings, six production-eligibility and four selector groups passed (34 total). Actual production source is exercised with injected metadata/decode/model and worker reply/event/post faults, including simulated iOS/desktop. No real models or user evidence writes. No eligibility decision or page-loss recovery is added.
+## Application acceptance on MacBook and iPhone
 
-Build 2026-11-10.3: 44 groups passed (seven execution journal/UI/navigation, four failure/workflow, six diagnostics, eight Settings, seven database-integration, six production-eligibility and six loader-gate). Execution tests use in-memory fixtures and a dedicated `memora-execution-navigation-test.*` localStorage wrapper for real iframe page replacement, cleaning it afterward. Diagnostics/failure workflow pages substitute `whisper-executions-fixture.js` so normal production history is not modified. No models or real user qualification changes. User check: one short transcription/save, linked Copy/Download, same execution ID in Settings and persistence after refresh on Mac/iPhone; no deliberate interruption needed.
+Use [the current handoff checklist](../docs/CURRENT_STATUS.md#validation-and-acceptance). For .10 it covers parent-folder selection/audio playback, semicolon/comma Search handoff, All versus Search scope, latest cache entries and the existing Transcribe save/gate flow.
 
-Build 2026-11-10.4: seven execution-history groups passed, adding View/Hide, native-disclosure synchronization and accessibility assertions to the existing shared report control coverage. No model run required.
+Use disposable copies when checking additions/removals or edits. On iPhone, verify the actual saved TXT/embedding file in Files; share-sheet completion alone does not prove destination, replacement or synchronization. Keep search-embeddings.json. Inventory sidecars are retired and need no creation/save test.
 
-Build 2026-11-10.5: eight execution-history/report groups passed. Simulated iOS source exercises Save report via native file-sharing API (injected), matching JSON File, gesture-path call, disabled pending action, success, cancel, rejection, unsupported payload/missing API and zero anchor/blob-download fallback. Existing desktop Download and View/Hide coverage remains. Real iPhone Save to Files acceptance is pending; use an existing record and verify source/session retention. Separate intermittent 120-file folder-selection behavior remains unresolved.
+Root [test.html](../test.html) and [audio-inventory-test.html](../audio-inventory-test.html) are separate interactive diagnostics, not automatic production acceptance. They can access user-selected files; use an intentional disposable selection and inspect their on-page version before interpreting a report. A synthetic native/phone adapter check is not real decoding or audible playback evidence.
 
-10 November acceptance update through .6: the user confirmed iPhone execution-report Save to Files preserves the session and accepted pending transcript-save emphasis. Mac Settings JSON matched transcript diagnostics/ID. A separate refresh-persistence result was not explicitly supplied. Source-folder selection intermittently returned to a blank iPhone Transcribe screen for a 120-file folder; cause remains unproven and must not count against Whisper eligibility. The next worker-provenance checkpoint should use injected faults/legacy replies and a bounded normal success smoke check; no new test run occurred for this documentation refresh.
+For a change requiring real Whisper execution, agree a bounded check first. A manual Tiny smoke test records qualification in that browser; documentation/UI-only edits need no fresh self-test. A short English WER pass does not certify long recordings, translation, offline readiness or sequence stability. Do not use rapid repeated Large/Medium stress tests as a generic regression check. Keep an agreed long-running device test on a stable server without live-reload file edits.
 
-Build 2026-11-10.7: 104 focused groups passed—four worker-failure envelope/actual source/self-test-verdict, six diagnostics, six loader-gate, 11 disposal, 22 lifecycle, four failure/workflow, eight execution-history/report, eight Settings, six production-eligibility, 13 evidence and 16 catalogue. New worker cases cover pipeline load/inference on iOS/desktop, desktop runtime-import failures, RuntimeError instance vs forged name, TypeError/network-looking text, DOM aborts, thrown strings, malformed/future/mismatched schemas and original error identity through actual parent branches. Self-test AbortError/TimeoutError/NetworkError replies retain failed/Error outer verdicts with original diagnostics nested. No real models or user data reset. User .7 check: one short normal transcription/save on Mac/iPhone and normal report access; no induced failures or fresh qualification required.
+## Evidence and maintenance
 
-Build 2026-11-10.8: 163 focused groups passed across 18 harnesses (11 production reviews; four worker-failure; six diagnostics; six loader; 11 disposal; 22 lifecycle; four failure/workflow; eight execution history; eight Settings; seven production gate; 13 evidence; 16 configurations; five selector; nine eligibility; ten self-test attempts; seven runtime diagnostics; seven database integration). Policy fixtures cover mandatory retest, neutral faults, deferral/reconstruction, explained preservation, unverified/newer-failure protection, manual reference certificates after history clearing, live-owner/unprocessed retention, persistence refusal, stable-completion notes and historical-context UI. Model-share regression remains covered; no real failures/models/user qualification changes. Review fixture inspected at 390px width. Check .8 with one short normal transcription/save/report on Mac/iPhone and the new Settings section, optionally a labeled stability note; no forced failure/retest needed.
+Keep result counts with their original commit/build, suite membership and limitations. Do not add overlapping runs or the two alias pages into a new total. [Preserved evidence](../docs/archive/Current_Guides_Preservation_2026-11-21.md) distinguishes the .8 185-group set, .9 45-group subset and .10 33-group focused run; none was rerun by this documentation change.
 
-Build .13: 11 production-review groups passed, including muted read-only saved information above the new text box, cleared successful drafts, append-only follow-ups and retained eligibility behavior. Phone-width view inspected; no real model run required.
-
-Pause handoff, 10 November, source .14: user accepted .14 locally and awaits Pages/iPhone layout confirmation. The user previously saw controlled reload reviews on both devices and accepted .13 saved-information presentation. No more induced failures are requested; inspect existing records for final layout acceptance. No application tests were rerun for the documentation-only pause refresh. Read docs/CURRENT_STATUS.md rather than historical pending checklists before resuming.
-
-
-Build 2026-11-11.1: **71 focused groups passed across eight browser harnesses**. History changes are covered by isolated attempt/execution/Settings/review fixtures and evidence/production-selection/loader regressions. Coverage includes newest-pass filtering by complete context, retained failure outcomes, the exact 24-hour successful-record boundary with an injected clock, pending/live protection, empty and selected-only clearing, partial Check all state, View-only technical JSON, preserved iOS share export, top-positioned instability controls and expanded review groups. User acceptance: inspect existing entries on Mac/iPhone; select one report and verify only it clears, then check all behavior. A short normal transcription may verify the linked report. No large-model stress, artificial crash or 24-hour wait is needed.
-
-Build 2026-11-11.2: 20 targeted groups passed (attempt journal and Settings). Added coverage for pass-card grouping across browser revisions and identifiable legacy context formats, and the unconditional separator before Model reviews. Stored qualification contexts remain unchanged. User confirmed .1 successful-transcription expiry at 24 hours; .2 visual acceptance is pending.
-
-
-Build 2026-11-11.4: 51 focused groups passed across review (13), Settings (9), evidence (13), production eligibility (7) and execution/report (9) harnesses. New cases verify that active/deferred/retest-required/runtime-failure reviews cannot be archived; resolved review archive/restore survives history clearing/reload with original snapshots intact and unchanged eligibility; separate stability/incident views, Show archived, exported archive metadata, restored notes and independent Settings disclosures work. Mobile-width layout inspected using a synthetic observation. User acceptance: inspect major headings and all four View controls; use an existing resolved review or optional stability observation to Archive → Show archived → Restore. No induced crash or large-model test required.
-
-## Self-test timeline/reporting checkpoint — 2026-11-13.8
-
-98 groups across eight isolated browser harnesses passed: whisper-attempts, whisper-lifecycle, whisper-settings, whisper-executions, whisper-production-reviews, whisper-evidence, whisper-eligibility and runtime-diagnostics. New cases cover frozen prior sequence/durations/gaps, legacy backfill with unknown timings, compact snapshot privacy, cleanup-stage recovery semantics, cleanup checkpoint failures, and self-test observations surviving history clearing while PASS/qualification remain unchanged. Shared report exports retain their existing iOS no-navigation sharing coverage.
-
-A separate temporary-profile production Settings check used synthetic Tiny/Base/Small history to verify reconstruction, measured 30/45-second gaps, note saving, matching technical export, persistence after clearing/reload and a contained table at 390 px. No real model inference or user storage was used. See [feature guide](../docs/Self_Test_Timelines_and_Problem_Reports.md) for remaining iPhone acceptance; do not rerun models solely to inspect reports.
-
-## Saved-observation visibility follow-up — 2026-11-13.9
-
-32 focused groups across whisper-settings, whisper-production-reviews and whisper-executions pass. Extended the self-test observation regression to check a read-only saved copy on the source card, visibility after the input clears and the direct-link target. A synthetic production Settings check also verifies real direct navigation, the two-pixel input border, preserved export/clear/reload behavior and 390 px containment. No models or real user storage are used.
-
-## History presentation and wordmark follow-up — 2026-11-13.10
-
-46 groups across whisper-attempts, whisper-settings, whisper-production-reviews and whisper-executions pass. Regression checks cover report summary ordering, seconds and model sequence, visible saved notes and removal of the redundant direct button. Synthetic production UI checks cover the first-entry divider, summary-first export, notes surviving clear/reload and 390 px containment. Header checks at 320/359/360/390/430/600/601/768/900/1280 px verify the 10% smaller wordmark, preserved baseline proportions, unchanged section icon sizes and Settings/tab interactions. No real model inference or user data used.
-
-
-### Audio source loading feedback and bounded metadata reads
-
-Open `tests/source-selection-performance.html` for five synthetic groups: resolved Apple/non-Apple MP4 metadata, stale UUID suppression, bounded two-reader rendering of 121 recordings, and per-file failure isolation. The 400 MiB fixture is virtual and rejects large reads; this is not an iCloud speed benchmark. `tests/transcription-identity.html` also checks immediate activity during a delayed picker and cleanup after cancellation/completion.
-
-
-### Production shared folder access
-
-Open `tests/shared-folder-production.html` for native child discovery without content reads, phone rebasing/depth boundaries, shared defaults/overrides/reset, ID-first audio lookup, native picker routing and phone cancellation/reselection cleanup. `tests/transcription-identity.html` additionally exercises actual page controls: shared native/iPhone sources, lazy Search activation, renamed-audio playback without a picker, direct overrides, pending edits, child-scoped JSON exports and Transcribe's supplied/missing/corrupt child-list behavior. Its Search module is replaced by `shared-production-search-fixtures.js`, so these checks never run an embedding model. Real iPhone Files/share/playback acceptance remains separate.
-
-
-### Destination reconciliation and iPhone batch delivery (.7)
-
-The actual-page transcription harness verifies destination rereading from both top and lower desktop controls, removal of stale references, chosen-folder labels, unchanged-list handling, files-only multi-TXT-plus-JSON sharing, cancellation/retry, previous shared references in later phone batches, and native TXT-before-reference publication. Search/model execution remains stubbed and all storage is isolated. Device acceptance must check actual Files multi-file naming/replacement and folder placement; the Mac native picker disappearing mid-browse is not reproduced by the synthetic harness.
+When adding/removing a harness, update this inventory and check runner support separately. Keep import-map adapters and production data paths isolated. Scope validation to the change; a passing fixture is not proof of Safari Files behavior, model execution, memory reclamation or deployment.

@@ -216,3 +216,13 @@ No new model, browser regression or user archive tests were run. The existing ru
 
 
 Final audit-document validation: all **50 Markdown files**, **647 local inline references**, **49 baseline disposition rows** and **five journal volumes** checked. No missing local file targets or unresolved Markdown heading fragments; all five substantive journal bodies remain synchronized. Only the report, documentation navigation/handoff and journal/index were edited. No runtime tests were rerun.
+
+## Cleanup progress — checkpoint 2, 21 November 2026
+
+The authorized current-truth pass rewrites docs/README.md, docs/CURRENT_STATUS.md and tests/README.md as current-only references. The [preservation ledger](archive/Current_Guides_Preservation_2026-11-21.md) retains unique lessons, dated evidence, the exact source commit and SHA-256 of each original guide. Full old wording remains recoverable from pinned Git blobs without adding another full-copy archive. Research, experiments and source files remain unchanged.
+
+The test guide inventories all 35 existing HTML pages, identifies the catalogue-suite alias and lists only currently usable runner routes. Obsolete source/persistence and reconciliation-runner routes are explicitly excluded and left for the separate JavaScript audit. Local inbound links to removed handoff sections are retargeted by topic; journal whole/split links remain synchronized. This is not completion of methodology extraction, broad contract consolidation, deletion/moves, journal generation or the JavaScript audit.
+
+The next proposed batch is methodology/decision preservation. No application, schema, user data, model state or deployment changes; no runtime tests were rerun. No original research/history document was deleted.
+
+Checkpoint-2 validation: **51 Markdown documents**, **631 local inline references**, zero unresolved file/Markdown-heading targets; all five journal bodies synchronized. The 35-page test inventory matches the actual HTML file set. Original-guide Git blobs match all three recorded SHA-256 values. The three live guides shrank from **190,832 to 27,841 bytes (85.4%)**; the preservation ledger is additional, deliberately concise evidence. Other existing contract/file-map edits are navigation-only. No runtime tests were run.

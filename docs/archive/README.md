@@ -6,6 +6,7 @@ Reviewed for documentation consistency on **19 November 2026**, against source *
 
 | Document | Why retained |
 |---|---|
+| [Current-guide preservation, 21 November](Current_Guides_Preservation_2026-11-21.md) | Compact evidence/lesson extraction and immutable originals for the current-only index/handoff/test rewrite; no duplicate full-guide archive. |
 | [10 November checkpoints through .14](Development_Checkpoints_2026-11-10.md) | Detailed implementation/review/UI sequence; old pending notes are superseded by the current handoff. |
 | [Development checkpoints through .23](Development_Checkpoints_2026-11-09.md) | Full earlier handoff, implementation steps, device observations, limits and evidence. Replaced by a shorter current-status document. |
 | [Original Whisper audit/design updates](Whisper_Configuration_and_Test_Design_History.md) | Original ownership map, timing samples, staged proposals and retry/recovery decisions. Current rules are in [testing design](../Whisper_Configuration_and_Test_Design.md). |

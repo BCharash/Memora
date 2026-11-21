@@ -321,7 +321,7 @@ The user clarified that the wrong JSON kind had been selected; the initially sus
 
 ## 62. Self-test summary, Settings and root archive maintenance — 18–19 November 2026
 
-Consolidated documentation at source **957b493**, application build **2026-11-19.23**, schema **6**. See [current handoff](CURRENT_STATUS.md#consolidated-handoff--19-november-2026) for current behavior, checks and exact resume boundaries. This entry records the completed work and subsequent decisions without rewriting earlier checkpoints.
+Consolidated documentation at source **957b493**, application build **2026-11-19.23**, schema **6**. See [current handoff](CURRENT_STATUS.md#current-behavior) for current behavior, checks and exact resume boundaries. This entry records the completed work and subsequent decisions without rewriting earlier checkpoints.
 
 ### 62.1 Passed self-test summary and its limits
 
@@ -716,3 +716,11 @@ The user requested a comprehensive documentation audit before the JavaScript str
 Preserve the R4/R5 paragraphing decision and exact experiment definitions, Search ranking/benchmark research, identity/sidecar-retirement and database preservation lessons, model evidence distinctions, mobile sharing limits and DOCX round-trip artifacts. Keep the whole journal and split volumes; recommend generating splits from one canonical whole rather than independent manual copies. Future plans remain explicitly distinct from implemented behavior and acceptance.
 
 Baseline automated checks found 569 local inline links with zero missing targets or unresolved Markdown anchors. Whole/split journal substantive bodies match, with boundary separator/whitespace differences in volumes 1 and 4. This is documentation/source review only: no new runtime/model/device acceptance, no user-data or application changes, build .10/schema 10 unchanged. The audit adds one Markdown report; all original files remain. The separate JavaScript audit should include the stale source/persistence routes in the committed test runner; they are not repaired by editing documentation.
+
+### 62.37 Current-only documentation entry points and preserved evidence — 21 November 2026
+
+The user authorized documentation cleanup checkpoint 2. The documentation index, current-status handoff and test guide now describe source build 2026-11-21.10/schema 10 without accumulated historical next-step instructions. The guide lists all 35 existing test HTML pages, marks the catalogue alias, separates experimental DOCX execution and flags obsolete runner routes for the later JavaScript audit.
+
+A [concise preservation ledger](archive/Current_Guides_Preservation_2026-11-21.md) retains dated evidence and unique lessons, with immutable Git source links and SHA-256 for each original guide. Paragraphing/Search research, identity vectors, model/reporting contracts, validation artifacts and existing journal bodies remain. Repo-local references to removed handoff headings are repaired by topic. The [audit progress record](Documentation_Audit_2026-11-21.md#cleanup-progress--checkpoint-2-21-november-2026) distinguishes this pass from later consolidation/deletion and the separate JavaScript review.
+
+Only Markdown changed. No application/build/schema changes, runtime tests, user data, cache/model evidence writes, publication or repository commit by Codex. Whole/split journal text remains synchronized. Next proposed batch: preserve current methodology/decision synopses before broad contract consolidation and reviewed document removal.
