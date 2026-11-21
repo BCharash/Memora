@@ -136,6 +136,53 @@ try {
             await ui.refresh();open('toggle-semantic');detail=document.getElementById('settingsSemanticDetail');detail.querySelector('.settings-selection-actions input').click();button(detail,'Delete Selected').click();await waitFor(()=>document.getElementById('settingsSemanticDetail').textContent.includes('No semantic index entries'));assert((await semantic.getSemanticStoreStats()).entryCount===0,'semantic selection');
         }finally{window.fetch=originalFetch;window.confirm=originalConfirm;await caches.delete(cacheName);}
     });
+    await test("Model Registry Cache actual View/Hide and selected deletion remain read-only until refresh", async () => {
+        document.getElementById('fixture').innerHTML = '<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
+        const ui = initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>storage});
+        await ui.refresh();
+        const before = await storage.listModelRegistryRecords();
+        const chosen = before.find(record => record.id === getWhisperConfigurationDefinitions()[0].id) || before[0];
+        const others = before.filter(record => record.id !== chosen.id).map(record => record.id).sort();
+        const button = () => document.querySelector('[data-settings-action="toggle-registry-cache"]');
+        const detail = () => document.getElementById('settingsRegistryCacheDetail');
+        button().click();
+        await waitFor(()=>detail().querySelectorAll('.settings-item').length===before.length);
+        assert(!detail().hidden && button().textContent==='Hide' && button().getAttribute('aria-expanded')==='true','cache did not open');
+        assert(detail().querySelector('.settings-note').compareDocumentPosition(detail().querySelector('.settings-selection-actions')) & Node.DOCUMENT_POSITION_FOLLOWING,'selection above description');
+        button().click();assert(detail().hidden && button().textContent==='View','cache did not hide');
+        button().click();await waitFor(()=>detail().querySelectorAll('.settings-item').length===before.length);
+        const checkbox = [...detail().querySelectorAll('.settings-item input')].find(check=>check.dataset.recordId===chosen.id);
+        checkbox.click();
+        const remove = () => detail().querySelector('.settings-selection-actions button');
+        const originalConfirm=window.confirm;
+        try {
+            window.confirm=()=>false;remove().click();await new Promise(resolve=>setTimeout(resolve,30));
+            assert((await storage.listModelRegistryRecords()).length===before.length,'canceled deletion changed records');
+            window.confirm=()=>true;remove().click();
+            await waitFor(()=>!detail().hidden && detail().querySelectorAll('.settings-item').length===before.length-1);
+            assert(JSON.stringify((await storage.listModelRegistryRecords()).map(record=>record.id).sort())===JSON.stringify(others),'unselected definitions changed');
+            button().click();button().click();await waitFor(()=>detail().querySelectorAll('.settings-item').length===before.length-1);
+            assert(!(await storage.listModelRegistryRecords()).some(record=>record.id===chosen.id),'View recreated deleted definition');
+            await ui.refresh();
+            assert((await storage.listModelRegistryRecords()).some(record=>record.id===chosen.id),'explicit refresh did not restore builtin');
+        } finally { window.confirm=originalConfirm; }
+    });
+    await test("Model Registry Cache empty and failed reads render without bulk controls and can retry", async () => {
+        document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
+        const originalAlert=window.alert;window.alert=()=>{};
+        try {
+        let fail=false;
+        const api={...storage,listModelRegistryRecords:async()=>{if(fail)throw Error('Injected cache read failure');return [];}};
+        const ui=initSettingsUI({getStorageManager:async()=>manager,getStorage:async()=>api});await ui.refresh();
+        const button=document.querySelector('[data-settings-action="toggle-registry-cache"]');
+        const detail=document.getElementById('settingsRegistryCacheDetail');
+        button.click();await waitFor(()=>detail.textContent.includes('No cached model definitions'));
+        assert(!detail.querySelector('.settings-selection-actions'),'empty bulk controls visible');
+        button.click();fail=true;button.click();await waitFor(()=>detail.textContent.includes('Injected cache read failure'));
+        assert(!detail.hidden&&button.textContent==='Hide','failure lost view state');
+        button.click();fail=false;button.click();await waitFor(()=>detail.textContent.includes('No cached model definitions'));
+        } finally {window.alert=originalAlert;}
+    });
     await test("Registry initialization failure leaves storage inspection and deletion accessible",async()=>{
         await storage.clearModelRegistry();document.getElementById('fixture').innerHTML='<div id="settingsStorageStatus"></div><div id="settingsStorage"></div><div id="settingsRuntime"></div><button id="settingsRefreshButton"></button>';
         const original=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='modelRegistry')throw new DOMException('Injected registry quota failure','QuotaExceededError');return original.apply(this,args);};

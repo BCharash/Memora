@@ -9,7 +9,7 @@ Reviewed for documentation consistency on **19 November 2026**, against source *
 | [Current-guide preservation, 21 November](Current_Guides_Preservation_2026-11-21.md) | Compact evidence/lesson extraction and immutable originals for the current-only index/handoff/test rewrite; no duplicate full-guide archive. |
 | [10 November checkpoints through .14](Development_Checkpoints_2026-11-10.md) | Detailed implementation/review/UI sequence; old pending notes are superseded by the current handoff. |
 | [Development checkpoints through .23](Development_Checkpoints_2026-11-09.md) | Full earlier handoff, implementation steps, device observations, limits and evidence. Replaced by a shorter current-status document. |
-| [Original Whisper audit/design updates](Whisper_Configuration_and_Test_Design_History.md) | Original ownership map, timing samples, staged proposals and retry/recovery decisions. Current rules are in [testing design](../Whisper_Configuration_and_Test_Design.md). |
+| [Original Whisper audit/design updates](Whisper_Configuration_and_Test_Design_History.md) | Original ownership map, timing samples, staged proposals and retry/recovery decisions. Current rules are in [testing design](2026-11-21-whisper/Whisper_Configuration_and_Test_Design.md). |
 | [Test checkpoint history](Test_Checkpoint_History_2026-11-09.md) | Prior focused runs/counts and historical device instructions. Use [current test guide](../../tests/README.md) to choose a harness. |
 | [Original runtime plan](Initial%20runtime.md) | Completed identity migration; see [foundation record](2026-11-21-contracts/Runtime_and_Database_Status.md). |
 | [Database repair plan](IndexedDB_Repair_and_Ownership_Plan.md) | Completed schema ownership/repair. |
@@ -49,3 +49,14 @@ Checkpoint 4 consolidates nine active guides into [current file workflows](../Ar
 | [Audio_JSON_Retirement_Audit.md](2026-11-21-contracts/Audio_JSON_Retirement_Audit.md) | [Recording_Identity_and_Storage.md](../Recording_Identity_and_Storage.md) |
 | [MEMORA_COMBINE_ARCHITECTURE.md](2026-11-21-contracts/MEMORA_COMBINE_ARCHITECTURE.md) | [Multi_Archive_Combine_Contract.md](../Multi_Archive_Combine_Contract.md) |
 | [MEMORA_COMBINE_PHASE_1_CONTRACTS.md](2026-11-21-contracts/MEMORA_COMBINE_PHASE_1_CONTRACTS.md) | [Multi_Archive_Combine_Contract.md](../Multi_Archive_Combine_Contract.md) |
+
+## Whisper guides consolidated — 21 November 2026
+
+Four guides now feed the [current Whisper architecture/qualification/reporting reference](../Whisper_Architecture_and_Qualification.md). Full originals remain below with archive notices and repaired navigation only. The [detailed failure contract](../Whisper_Execution_Failure_Contract.md) stays active separately. The user's [memory handoff](../Memora_Whisper_Memory_Handoff.md) remains unchanged in docs/, not moved into this archive.
+
+| Complete archived original | Preserved value |
+|---|---|
+| [Memora_Model_Registry_and_Self_Test_Architecture_Plan.md](2026-11-21-whisper/Memora_Model_Registry_and_Self_Test_Architecture_Plan.md) | Broad overhaul rationale, stage plans, resource hypotheses, observations and candidate-selection proposals. |
+| [Whisper_Catalogue_Resolver_Contract.md](2026-11-21-whisper/Whisper_Catalogue_Resolver_Contract.md) | Exact catalogue/selection/fingerprint contracts, cache/qualification distinctions and deferred discovery. |
+| [Whisper_Configuration_and_Test_Design.md](2026-11-21-whisper/Whisper_Configuration_and_Test_Design.md) | PASS/lifecycle/recovery policy, timing/instability evidence and unimplemented sequence/retry proposals. |
+| [Self_Test_Timelines_and_Problem_Reports.md](2026-11-21-whisper/Self_Test_Timelines_and_Problem_Reports.md) | Timeline capture/backfill, saved observations, JSON summaries, device limits and historical test evidence. |

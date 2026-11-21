@@ -257,7 +257,7 @@ Candidate .6 implements the audio JSON retirement and local latest-snapshot inve
 
 ### Earlier checkpoint note
 
-Current source uses fixed qualified family defaults, not automatic competition among passing variants. Worker failure provenance is implemented in .7 in the existing workers/classifier, with no eligibility changes; normal Mac/iPhone acceptance is next. Production-evidence ingestion/reviews are implemented in .8 through the existing bridge on failure/startup recovery; normal-use acceptance is next. The [catalogue roadmap](docs/Whisper_Catalogue_Resolver_Contract.md#future-candidate-discovery-and-device-specific-variant-selection) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.
+Current source uses fixed qualified family defaults, not automatic competition among passing variants. Worker failure provenance is implemented in .7 in the existing workers/classifier, with no eligibility changes; normal Mac/iPhone acceptance is next. Production-evidence ingestion/reviews are implemented in .8 through the existing bridge on failure/startup recovery; normal-use acceptance is next. The [catalogue roadmap](docs/Whisper_Architecture_and_Qualification.md#unresolved-resource-observations-and-future-work) records later candidate discovery, evaluation and explainable per-device preferred variants. These require no additional model definition source.
 
 ## Stable pause — 10 November 2026
 
@@ -274,4 +274,4 @@ Source .14 is accepted on Mac/iPhone; .2026-11-11.4 history controls and retenti
 
 Wordmark markup/styles live in index.html and css/style.css. Tab icon switching remains in js/app.js; the new central graphic is independent of appIcon.
 
-Self-test reporting guide: [docs/Self_Test_Timelines_and_Problem_Reports.md](docs/Self_Test_Timelines_and_Problem_Reports.md). This adds no application JavaScript module or model.
+Self-test reporting guide: [docs/Self_Test_Timelines_and_Problem_Reports.md](docs/Whisper_Architecture_and_Qualification.md#attempts-recovery-and-timing-context). This adds no application JavaScript module or model.

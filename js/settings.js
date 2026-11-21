@@ -81,7 +81,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
     }
 
     function button(label, action, disabled = false) {
-        const historyId = { "toggle-self-test-summary": "settingsWhisperSummarySection", "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
+        const historyId = { "toggle-registry-cache": "settingsRegistryCacheDetail", "toggle-self-test-summary": "settingsWhisperSummarySection", "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
         return `<button type="button" data-settings-action="${action}" ${historyId ? `aria-expanded="false" aria-controls="${historyId}"` : ""} ${disabled ? "disabled" : ""}>${label}</button>`;
     }
 
@@ -1039,6 +1039,62 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         selectableRows(detail,async checks=>{if(!confirm(`Delete ${checks.length} selected cached transcripts? Files saved to disk are preserved.`))return;for(const check of checks)await manager.clearCachedTranscript(items[Number(check.dataset.index)].id);await refresh();await showTranscripts();});
     }
 
+    async function showRegistryCache() {
+        const detail = document.getElementById('settingsRegistryCacheDetail');
+        const toggle = storage.querySelector('[data-settings-action="toggle-registry-cache"]');
+        if (!detail || !toggle) return;
+        detail.hidden = !detail.hidden;
+        toggle.textContent = detail.hidden ? 'View' : 'Hide';
+        toggle.setAttribute('aria-expanded', String(!detail.hidden));
+        if (detail.hidden) return;
+        detail.textContent = 'Reading Model Registry Cache…';
+        try {
+            // Viewing is read-only: only explicit storage refresh recreates definitions.
+            const api = await getStorage();
+            const records = await api.listModelRegistryRecords();
+            detail.replaceChildren();
+            const note = document.createElement('p');
+            note.className = 'settings-note';
+            note.textContent = 'Deleted built-in definitions return on Refresh Storage Information.';
+            detail.append(note);
+            if (!records.length) {
+                const empty = document.createElement('p');
+                empty.className = 'settings-note';
+                empty.textContent = 'No cached model definitions.';
+                detail.append(empty);
+                return;
+            }
+            for (const record of records) {
+                const row = document.createElement('div');
+                row.className = 'settings-item';
+                const check = document.createElement('input');
+                check.type = 'checkbox';
+                check.dataset.recordId = record.id;
+                check.setAttribute('aria-label', `Select ${record.label || record.id}`);
+                const info = document.createElement('div');
+                info.className = 'settings-item-info';
+                const name = document.createElement('div');
+                name.className = 'settings-item-name';
+                name.textContent = record.label || record.id;
+                const description = document.createElement('div');
+                description.className = 'settings-item-detail';
+                description.textContent = `${record.family || 'Custom'} · ${record.platform || 'Unspecified device'} · ${record.id}`;
+                info.append(name, description);
+                row.append(check, info);
+                detail.append(row);
+            }
+            selectionActions(detail, async checks => {
+                if (!confirm(`Delete ${checks.length} selected model definitions? Downloaded models and test results are preserved.`)) return;
+                await api.deleteModelRegistryRecords(checks.map(check => check.dataset.recordId));
+                await refresh({initializeRegistry: false});
+                await showRegistryCache();
+            });
+        } catch (error) {
+            detail.textContent = `Unable to read Model Registry Cache: ${error?.message || String(error)}`;
+            throw error;
+        }
+    }
+
     async function showAudioMetadata(){
         const detail=document.getElementById('settingsAudioMetadataDetail'),toggle=storage.querySelector('[data-settings-action="toggle-audio-metadata"]');
         detail.hidden=!detail.hidden;toggle.textContent=detail.hidden?'View':'Hide';if(detail.hidden)return;
@@ -1090,6 +1146,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             if (action === "toggle-semantic") return await showSemantic();
             if (action === "toggle-whisper-models") return await showWhisperModels();
             if (action === "toggle-other-models") return await showOtherModels();
+            if(action==='toggle-registry-cache')return await showRegistryCache();
             if(action==='toggle-audio-metadata')return await showAudioMetadata();
             if(action==='toggle-transcript-metadata')return await showTranscriptMetadata();
             if(action==='clear-unused-semantic-metadata'){

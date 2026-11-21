@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Reviewed **21 November 2026** against source commit **95fe938**: application **2026-11-21.10**, database schema **10**. This housekeeping checkpoint changes documentation only. Publication and actual .10 device acceptance are not established by this review.
+Reviewed **21 November 2026** against source commit **8d4cf88** plus the local Settings fix: candidate application **2026-11-21.11**, database schema **10**. Whisper consolidation is documentation-only; a separate authorized fix restores the Model Registry Cache View/Hide and selected-delete path. Publication and actual .10 device acceptance are not established by this review.
 
 ## Current behavior
 
@@ -63,23 +63,23 @@ Settings shows selectable local metadata/cache entries with matching View/Hide c
 
 Browser-version changes alone do not invalidate qualification within the same recognized browser family and matching execution context. Changed configurations/contexts and real failure holds still matter. Confirmed runtime failures require a qualifying reference retest; uncertain interruptions have the existing review path. Notes alone do not release holds. There are no automatic test sequences/retries, cooldowns or preferred-variant discovery.
 
-Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See [failure/review contract](Whisper_Execution_Failure_Contract.md) and [self-test reports](Self_Test_Timelines_and_Problem_Reports.md).
+Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
 ## Validation and acceptance
 
-This documentation pass ran **no runtime/model/device tests**. [Recorded evidence and preserved source checkpoints](archive/Current_Guides_Preservation_2026-11-21.md) keep prior test results and device observations with their original limits; the [test guide](../tests/README.md) lists current runnable harnesses.
+The registry-cache fix passed **57 synthetic browser groups**: database integration 12, catalogue/app/Settings 33 and Whisper Settings 12. They include actual View/Hide, cancel/selected deletion, read-only reopening, explicit refresh restoration and empty/error/retry paths. Documentation consolidation ran no models, memory measurements or actual-device tests. [Recorded evidence and preserved source checkpoints](archive/Current_Guides_Preservation_2026-11-21.md) keep prior test results and device observations with their original limits; the [test guide](../tests/README.md) lists current runnable harnesses.
 
-Outstanding focused .10 acceptance on MacBook/iPhone:
+Outstanding focused .11 acceptance on MacBook/iPhone: confirm Model Registry Cache View/Hide and the retained .10 checks below:
 1. Open a parent audio folder in Combine, confirm the transcription child/All label and automatic audio playback.
 2. Search with semicolon-separated terms containing a comma within one term; send a subset to Combine, return across tabs, then select a folder and confirm All.
 3. Refresh Settings and confirm one latest identified transcript-folder snapshot.
 4. When Transcribe is used, check its conditional gate, unchecked recordings, accurate batch destination and before/after-share warning; verify saved iPhone TXT files in Files.
 
-Earlier user-reported playback, identity reconstruction, report saving and Pages recovery successes do not certify every .10 pathway. No fresh self-test or destructive failure exercise is needed for documentation review. Large-archive provider waits and actual iPhone Files placement remain device-dependent.
+Earlier user-reported playback, identity reconstruction, report saving and Pages recovery successes do not certify every current pathway. No fresh self-test or destructive failure exercise is needed for documentation review. Large-archive provider waits and actual iPhone Files placement remain device-dependent.
 
 ## Next work
 
-**Current authorized checkpoint:** documentation cleanup step 4. Nine overlapping file/identity/Combine guides are consolidated into [file workflows](Architecture_and_File_Workflows.md), [identity and storage](Recording_Identity_and_Storage.md) and the [future Combine contract](Multi_Archive_Combine_Contract.md). All nine originals are archived intact apart from archive notices/navigation, with preservation verification in the [audit](Documentation_Audit_2026-11-21.md). The exact prefix contract stays separate; full research/validation evidence is retained. No application behavior is implemented by these documents. Further removals or broader model/operations consolidation require their own conservative disposition review.
+**Current authorized checkpoint:** documentation step 5 consolidates four Whisper guides into one current reference, archives complete originals and keeps the failure contract separate. The user's new memory handoff stays at its original path byte-for-byte unchanged. The registry-cache View bug is fixed separately as candidate .11. Next proposed documentation batch: operations/build/Pages guidance. Memory feasibility/implementation, broader structural JavaScript cleanup and multi-archive Combine are not activated by this consolidation.
 
 After documentation: perform the separate JavaScript structural audit. Then design multi-archive Combine: additive membership, per-archive retained audio access, durable-reference selection/editing/export, duplicate-version policy and source-specific refresh/removal. The identity/cache foundation exists; the workspace does not.
 

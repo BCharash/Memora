@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **21 November 2026**, journal version **45**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Reviewed and synchronized **21 November 2026**, journal version **46**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -18,6 +18,8 @@ The [21 November documentation audit](Documentation_Audit_2026-11-21.md) recomme
 The current [Search](Search_Methodology.md) and [paragraphing](Paragraphing_Methodology.md) summaries are additive companions to the full research records; checkpoint 3 preserves original research, alternatives and evidence intact.
 
 Current file/identity/Combine contracts are [consolidated](Documentation_Audit_2026-11-21.md#cleanup-progress--checkpoint-4-consolidation-with-complete-archived-originals); all nine superseded originals remain in the dated archive. Journal history remains intact with repaired links.
+
+The [Whisper overview](Whisper_Architecture_and_Qualification.md) consolidates four guides with full archived originals; the user's [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future work. Section 62.40 separately records the registry-cache View repair.
 
 ## Recent material in Volume 5
 

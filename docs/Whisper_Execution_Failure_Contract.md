@@ -1,10 +1,13 @@
 # Whisper execution-failure contract
 
+> Current overview: [Whisper architecture, qualification and reporting](Whisper_Architecture_and_Qualification.md). This detailed failure/review state-machine contract remains separate; dated rollout/test evidence below retains its original scope. The [memory handoff](Memora_Whisper_Memory_Handoff.md) is future feasibility guidance, not an implemented measurement or eligibility change.
+
+
 ## Current review identity — 19 November 2026
 
 Reviewed source 47ca641, displayed build **2026-11-19.25**, includes .22's browser-version-independent qualification. Recognized browser family and unchanged execution/platform context match existing passes and review evidence across version updates. Raw browser versions remain in technical reports; historical keys/reports are preserved. Latest decisions, actual failure holds and pending/required reviews survive updates; resolved reviews remain resolved. Review cards and the Transcribe notice use that same normalized identity. Unknown browsers and genuine context changes are not silently promoted.
 
-The self-test summary is passed-only measurement history, distinct from qualification, the loaded model and failure-review history. Current storage/history deletion controls use Select All/Deselect All and Delete Selected, protecting active/unprocessed evidence. See [current status](CURRENT_STATUS.md) and [testing design](Whisper_Configuration_and_Test_Design.md). Earlier per-build acceptance below is historical.
+The self-test summary is passed-only measurement history, distinct from qualification, the loaded model and failure-review history. Current storage/history deletion controls use Select All/Deselect All and Delete Selected, protecting active/unprocessed evidence. See [current status](CURRENT_STATUS.md) and [testing design](archive/2026-11-21-whisper/Whisper_Configuration_and_Test_Design.md). Earlier per-build acceptance below is historical.
 
 10 November 2026, candidate **2026-11-10.8**. Shared classification/history/provenance and production eligibility/reviews are implemented. **No retries or cooldown are activated.**
 

@@ -40,7 +40,7 @@ Production Whisper, self-test, Settings and Search audio use shared detection. g
 
 Self-test reports environment, requested backend, WebGPU presence and unknown actual backend. Existing worker policy/model options are preserved. Explicitly identified iPads now use the existing iOS audio path. File access stays source/capability-driven; old local names such as isIPhoneSource do not constitute independent device detection.
 
-User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks passed. Separate Android/iPad hardware tests were not reported. Exact model/backend configuration and execution evidence now belong to the implemented Whisper testing/eligibility layer, not unfinished identity work. See the [current catalogue contract](../../Whisper_Catalogue_Resolver_Contract.md).
+User startup/Settings, Tiny production/self-test and desktop/iPhone audio checks passed. Separate Android/iPad hardware tests were not reported. Exact model/backend configuration and execution evidence now belong to the implemented Whisper testing/eligibility layer, not unfinished identity work. See the [current catalogue contract](../2026-11-21-whisper/Whisper_Catalogue_Resolver_Contract.md).
 
 ## Database ownership and schema
 

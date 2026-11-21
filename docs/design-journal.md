@@ -1,6 +1,6 @@
 # Memora Design Journal
 
-**Version:** 45
+**Version:** 46
 **Status:** Living document; current through section 62 (21 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
@@ -4377,7 +4377,7 @@ Isolated Chrome checked 320/359/360/390/430/600/601/768/900/1280 px, confirming 
 
 Each finished/interrupted report offers Report a problem after this self-test, saving the original result, timeline and existing bounded page/Settings diagnostics into separate Session stability observations. PASS and eligibility are unchanged; snapshots/notes survive raw-history clearing. Shared report controls provide consistent View/Copy/export, with iOS sharing to preserve the app document. Cleanup checkpoint failure cannot skip termination, and cleanupPhase is kept separate from the model phase used by qualification recovery. No new models, test sequence, cooldown or database migration.
 
-98 groups across eight focused browser suites pass. Production Settings with synthetic older records confirms reconstruction/gaps, note/export agreement, preserved PASS, clear/reload retention and phone table containment. Existing Small reports can be used for iPhone UI acceptance without running models again. Details: [Self-test timelines and problem reports](Self_Test_Timelines_and_Problem_Reports.md). Resource profiling remains separate and unimplemented.
+98 groups across eight focused browser suites pass. Production Settings with synthetic older records confirms reconstruction/gaps, note/export agreement, preserved PASS, clear/reload retention and phone table containment. Existing Small reports can be used for iPhone UI acceptance without running models again. Details: [Self-test timelines and problem reports](archive/2026-11-21-whisper/Self_Test_Timelines_and_Problem_Reports.md). Resource profiling remains separate and unimplemented.
 
 
 ## 60.34 Visible saved self-test observations — candidate 2026-11-13.9
@@ -4878,3 +4878,11 @@ The user authorized contract consolidation with conservative preservation. Nine 
 All nine originals are moved complete to the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026). Only archive notices and local navigation are adapted; narrative, decisions, examples, earlier schemas, proposed limits and test observations remain. The [audit](Documentation_Audit_2026-11-21.md#cleanup-progress--checkpoint-4-consolidation-with-complete-archived-originals) records original hashes, destinations and preservation verification. Active top-level guides decrease by six; total Markdown rises by three because originals are retained. No deletion of research or historical content is claimed.
 
 The Search and paragraphing originals, validation artifacts and prefix algorithm/vector remain. Whole/split journals are synchronized. Application .10/schema 10 are unchanged; no runtime/model/device tests, user-data change, package installation, publication or commit by Codex. Further model/operations consolidation and actual JavaScript reorganization remain separate work.
+
+### 62.40 Registry-cache View repair, Whisper consolidation and preserved memory handoff — 21 November 2026
+
+After resuming an interrupted documentation turn, the user prioritized the Settings Model Registry Cache View bug. The button had no delegated action. Candidate 2026-11-21.11 restores a read-only renderer/action, View/Hide, selection-only deletion/cancel, empty/error/retry handling and explicit-refresh-only definition restoration. The actual click path is covered by 57 synthetic browser groups across integration, catalogue/app and Whisper Settings. Schema 10, canonical Whisper definitions/workers/qualification and model resource behavior are unchanged; no real model/device stress or memory measurement was run.
+
+Resumed documentation consolidation: four complete registry/catalogue/testing/reporting guides now feed the [current Whisper reference](Whisper_Architecture_and_Qualification.md); the [failure/review contract](Whisper_Execution_Failure_Contract.md) remains separate. All four originals are archived complete with notices/navigation repairs; no historical design, hypothesis or observation is discarded. The [audit](Documentation_Audit_2026-11-21.md#cleanup-progress--whisper-consolidation-and-registry-cache-repair) records sources/hashes and validation.
+
+The user-added [self-test memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved byte-for-byte at its original path and linked prominently. It remains future feasibility-first guidance: exact-configuration measurement provenance, no false RAM/peak claims, no production monitoring or memory-driven eligibility change. No memory implementation follows from the documentation task. Operations cleanup and structural JavaScript review remain later work. No publication or commit by Codex.

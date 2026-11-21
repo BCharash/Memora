@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current source: **2026-11-21.10**, database schema **10**. Documentation housekeeping checkpoint 4, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
+Current source: **2026-11-21.11**, database schema **10**. Documentation housekeeping checkpoint 5, **21 November 2026**. These pages describe the checked-out code, not independently verified deployment or new device acceptance.
 
 ## Start here
 
@@ -14,7 +14,7 @@ Current source: **2026-11-21.10**, database schema **10**. Documentation houseke
 
 ## Current contracts and methodology
 
-The references below separate current contracts, preserved research and future proposals. Superseded contracts are historical records in the archive, not competing current instructions. Some unrelated Whisper/operations documents remain scheduled for later consolidation.
+The references below separate current contracts, preserved research and future proposals. Superseded contracts are historical records in the archive, not competing current instructions. Whisper guidance is now consolidated; operations documents remain scheduled for later consolidation.
 
 | Topic | Reference |
 |---|---|
@@ -23,11 +23,12 @@ The references below separate current contracts, preserved research and future p
 | Database and caches | [Identity/storage responsibilities, schema and preservation](Recording_Identity_and_Storage.md#database-ownership-and-preservation) |
 | Search | [Current methodology](Search_Methodology.md), [preserved governing strategy](search%20model%20optimization.md) and [complete research record](archive/Search_Optimization_Research_Record.md) |
 | Paragraphing | [Current methodology](Paragraphing_Methodology.md) and the intact [R4/R5 comparison, decision and revisit protocol](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) |
-| Whisper configuration and qualification | [Catalogue/resolver contract](Whisper_Catalogue_Resolver_Contract.md) and [testing/eligibility design](Whisper_Configuration_and_Test_Design.md) |
-| Model failures, reviews and reporting | [Execution-failure contract](Whisper_Execution_Failure_Contract.md) and [self-test timelines/reports](Self_Test_Timelines_and_Problem_Reports.md) |
+| Whisper configuration, qualification and reporting | [Current Whisper guide](Whisper_Architecture_and_Qualification.md); four complete originals retained in the [Whisper archive](archive/README.md#whisper-guides-consolidated--21-november-2026) |
+| Model failures and review state machine | [Separate execution-failure contract](Whisper_Execution_Failure_Contract.md) |
+| Planned self-test memory work | [User memory handoff](Memora_Whisper_Memory_Handoff.md), preserved unchanged; feasibility first, not implemented |
 | Publishing and recovery | [Build numbering](build-versioning.md), [Pages recovery procedure](Pages_Deployment_Recovery.md) and its manual workflow; review the deployment SHA rather than reusing a historical incident default |
 
-Nine superseded guides are now consolidated into the two current references above and the future Combine contract below. All nine originals remain complete in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026), with notices and repaired navigation. Search/paragraphing research remains intact; no uncertain-value history is destroyed.
+The first nine superseded guides are consolidated into the two current references above and the future Combine contract below. All nine originals remain complete in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026), with notices and repaired navigation. Search/paragraphing research remains intact; no uncertain-value history is destroyed.
 
 ## Future work and preserved evidence
 

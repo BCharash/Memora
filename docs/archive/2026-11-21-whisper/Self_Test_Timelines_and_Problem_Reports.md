@@ -1,6 +1,9 @@
+> **Archived 21 November 2026 - superseded Whisper guide/history.**
+> Current overview: [Whisper architecture and qualification](../../Whisper_Architecture_and_Qualification.md). Detailed [execution-failure contract](../../Whisper_Execution_Failure_Contract.md) and the preserved [memory handoff](../../Memora_Whisper_Memory_Handoff.md) remain separate. Original narrative is retained below; only this notice and navigation targets are adapted. Historical stage plans and next steps are not current implementation instructions.
+
 # Self-test timelines and problem reports
 
-Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](CURRENT_STATUS.md) and the [five-volume journal index](journal-index.md) give the current implementation boundary.
+Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](../../CURRENT_STATUS.md) and the [five-volume journal index](../../journal-index.md) give the current implementation boundary.
 
 ## Compact summary and current interpretation — 18–19 November 2026
 
@@ -10,7 +13,7 @@ RTF is transcriptionMs/audioDurationMs; loading is excluded. 0.25 means about 15
 
 A summary row is neither proof of a currently loaded worker nor current qualification. Clearing retained reports can reveal an older retained pass/remove its measurements; separate qualification survives history clearing. The user's earlier Large report was interrupted during load, while the later report passed. Current summary code excludes that interrupted record; which record supplied the earlier observed row is unconfirmed. Do not describe it as a proven filter defect.
 
-Since .22, browser version alone no longer invalidates a valid pass within the same recognized browser family/platform/execution context. Full user agents remain in JSON reports, actual failures/holds remain effective and resolved reviews remain resolved. See [eligibility design](Whisper_Configuration_and_Test_Design.md) and [current status](CURRENT_STATUS.md).
+Since .22, browser version alone no longer invalidates a valid pass within the same recognized browser family/platform/execution context. Full user agents remain in JSON reports, actual failures/holds remain effective and resolved reviews remain resolved. See [eligibility design](Whisper_Configuration_and_Test_Design.md) and [current status](../../CURRENT_STATUS.md).
 
 Implemented in Memora **2026-11-13.8**, with saved-note visibility and report presentation improvements through **2026-11-13.10**, 13 November 2026. This records evidence; it does not change model selection, accuracy thresholds, qualification rules, cooldowns or automatic retry behavior.
 

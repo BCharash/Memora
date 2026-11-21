@@ -25,7 +25,7 @@ Normal flow: select audio parent → inspect immediate audio → discover transc
 
 runtime.js distinguishes operating system, device type/class and browser reporting. Capability checks are separate: an API can exist without permission, a working adapter or successful execution. A tablet's shape alone must not choose an OS implementation.
 
-Whisper, self-test, Settings and audio controls consume shared runtime identity. Requested WebGPU/backend settings do not establish actual operator execution. See [catalogue/qualification](Whisper_Catalogue_Resolver_Contract.md) for execution/evidence authority.
+Whisper, self-test, Settings and audio controls consume shared runtime identity. Requested WebGPU/backend settings do not establish actual operator execution. See [catalogue/qualification](Whisper_Architecture_and_Qualification.md#configuration-selection-and-fingerprints) for execution/evidence authority.
 
 Actual source behavior is capability/source-driven:
 - Native directory handles permit enumeration, child-folder discovery and writes after permission.

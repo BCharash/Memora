@@ -1,6 +1,9 @@
+> **Archived 21 November 2026 - superseded Whisper guide/history.**
+> Current overview: [Whisper architecture and qualification](../../Whisper_Architecture_and_Qualification.md). Detailed [execution-failure contract](../../Whisper_Execution_Failure_Contract.md) and the preserved [memory handoff](../../Memora_Whisper_Memory_Handoff.md) remain separate. Original narrative is retained below; only this notice and navigation targets are adapted. Historical stage plans and next steps are not current implementation instructions.
+
 # Whisper testing and eligibility — current design
 
-Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](CURRENT_STATUS.md) and the [five-volume journal index](journal-index.md) give the current implementation boundary.
+Documentation checked at source **47ca641**, displayed build **2026-11-19.25**. The dated decisions/test results below retain their original scope. This review ran no new model/browser tests; [CURRENT_STATUS](../../CURRENT_STATUS.md) and the [five-volume journal index](../../journal-index.md) give the current implementation boundary.
 
 ## Browser continuity and Settings addendum — 19 November 2026
 
@@ -12,7 +15,7 @@ The compact self-test summary shows retained successful measurements only, one l
 
 Exact configuration/precision/backend evidence remains in self-test/execution reports. The later proposal to add all of those fields and a transcription timestamp to every TXT was dropped. Model-family metadata and Metadata version 1 remain the transcript contract. Source code and runtime model settings are unchanged by this documentation update.
 
-Reviewed **19 November 2026** through source build **2026-11-19.23**; the earlier functional baseline was 10 November build 2026-11-10.14. The original audit and staged implementation updates are preserved in [design history](archive/Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](CURRENT_STATUS.md) before starting work.
+Reviewed **19 November 2026** through source build **2026-11-19.23**; the earlier functional baseline was 10 November build 2026-11-10.14. The original audit and staged implementation updates are preserved in [design history](../Whisper_Configuration_and_Test_Design_History.md). This document describes current behavior and separates future proposals. See [current status](../../CURRENT_STATUS.md) before starting work.
 
 ## Current execution and PASS gate
 
@@ -46,9 +49,9 @@ Settings shows the selected model and Run test/Retest, with Cancel below and vis
 
 Manual tests are unlimited. The old `deliberateRetest` flag remains historical/internal compatibility metadata; **a user-requested qualifying manual pass does not depend on that flag or button label**. Explicit automatic/sequence attempts cannot borrow this manual recovery rule. Older adverse reports without exact identity create conservatively scoped review holds; old passes do not acquire invented identity. Legacy resolutions retain original evidence.
 
-Eligibility is separate browser-local storage, checked by both the transcription selector and loader. Only qualified canonical family defaults appear; other tested variants do not replace them. No qualified default means the selector/action is disabled with Settings guidance. A self-test failure can remove a previously qualified choice. **Normal transcription evidence now feeds the existing eligibility bridge in .8.** Confirmed runtime faults require retest; unclear active-model incidents have persistent human reviews. Post-completion instability is observational only. See [failure/review contract](Whisper_Execution_Failure_Contract.md).
+Eligibility is separate browser-local storage, checked by both the transcription selector and loader. Only qualified canonical family defaults appear; other tested variants do not replace them. No qualified default means the selector/action is disabled with Settings guidance. A self-test failure can remove a previously qualified choice. **Normal transcription evidence now feeds the existing eligibility bridge in .8.** Confirmed runtime faults require retest; unclear active-model incidents have persistent human reviews. Post-completion instability is observational only. See [failure/review contract](../../Whisper_Execution_Failure_Contract.md).
 
-See [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) for identity/selection and [file map](../filemap.md) for storage ownership. Never infer qualification from cache presence or the historical IndexedDB registry validation field.
+See [catalogue contract](Whisper_Catalogue_Resolver_Contract.md) for identity/selection and [file map](../../../filemap.md) for storage ownership. Never infer qualification from cache presence or the historical IndexedDB registry validation field.
 
 ## Diagnostics and iPhone instability
 
@@ -75,4 +78,4 @@ Before implementation: settle production-failure classification and automatic-re
 
 Worker provenance (.7) passed normal Mac/iPhone use. Candidate .8 now connects context-complete production evidence to the existing bridge, with persistent human review for uncertain active-model incidents and mandatory reference retest for confirmed runtime failure. Model completion is preserved across later faults; stability notes do not change qualification. Reference certificates and incident/decision history survive execution/self-test history clearing. Known non-model faults remain neutral, and ordinary production success cannot qualify a model.
 
-Required pre-model persistence now fails closed; late post-completion history failure remains separate from inference outcome. Review UI and safeguards are in [execution-failure contract](Whisper_Execution_Failure_Contract.md). The user reported normal use working and controlled reload reviews on both Mac/iPhone, then accepted saved-observation presentation and local .14 grouping. Final Pages/iPhone layout confirmation is pending; no further forced failures are needed. Candidate discovery, cooldown, source-folder diagnosis and automatic sequences remain separate.
+Required pre-model persistence now fails closed; late post-completion history failure remains separate from inference outcome. Review UI and safeguards are in [execution-failure contract](../../Whisper_Execution_Failure_Contract.md). The user reported normal use working and controlled reload reviews on both Mac/iPhone, then accepted saved-observation presentation and local .14 grouping. Final Pages/iPhone layout confirmation is pending; no further forced failures are needed. Candidate discovery, cooldown, source-folder diagnosis and automatic sequences remain separate.
