@@ -1,6 +1,16 @@
 # Memora — current status and resume instructions
 
 
+
+## Audio JSON retirement audit — 21 November 2026
+
+The requested [audio JSON audit](Audio_JSON_Retirement_Audit.md) is complete against checkout 736a292, build **2026-11-21.2**, schema **8**. Modern transcript/audio linking depends on Recording ID, not Audio Source ID. Production source preparation, transcription, shared playback inventory, iPhone export readiness and Settings still depend on audio-list session/recovery APIs; these need a coordinated replacement rather than simply deleting the JSON writer.
+
+Recommended direction: a metadata-only, rebuildable local inventory; cold identity reads, incremental warm reuse, automatic size/time invalidation, actual-file checks before inference/playback, and latest snapshots per established scope. Preserve the exact embedded/prefix ID rules, old random-ID associations needing migration, same-name folder separation, complete-folder reconciliation and Search embeddings. iPhone lacks persistent directory handles: folder names and metadata tuples alone cannot prove physical-folder identity. Cache association must stay conservative. Current recovery records are not yet the proposed incremental metadata cache, and transcriptCatalogue selection scopes are not durable physical-folder identities.
+
+Next proposed checkpoint: an independent read-only inventory/comparison adapter, reporting embedded, reproducible, legacy and unresolved counts before switching production. Later checkpoints cover persistent cache, consumer/save-gate replacement, Settings and device acceptance. Existing disk JSON stays untouched. This audit changes documentation only; no build/schema increment, user-data edits, runtime test results, commit or deployment.
+
+
 ## Durable cached copies and conditional transcription gate — 21 November 2026
 
 Build **2026-11-21.2**, database schema **8**. This update supersedes the earlier unconditional unused-return gate. Returning to untouched Transcribe shows **Enable Transcription** only when a transcript source/destination is selected; without one its controls remain visible. Settings navigation remains excluded. Direct destination selection prepares deferred recording rows when needed. The destination button always says **Browse for Another Folder**; the destination field displays the selected location.

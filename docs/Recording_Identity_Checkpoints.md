@@ -1,5 +1,8 @@
 # Recording identity and rebuildable audio lists
 
+Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
+
+
 ## TXT catalogue and explicit transcription candidate — 21 November 2026
 
 Build **2026-11-21.1**, schema **7**, implements the approved change: retire the external transcript JSON requirement, retain **memora-audio-source.json** and **search-embeddings.json**, and read identity/model/operation/audio metadata from TXT into a rebuildable local cache. Existing sidecars stay untouched. New empty destinations need no JSON; desktop creates a child, while iPhone names an intended folder for Save to Files. Source stays above and destination below. Enable Transcription guards untouched returns from Combine/Search while excluding Settings; recording defaults are unchecked. Save warnings distinguish pending from share-return verification; iPhone shares TXT only, with a prominent batch-bound destination. Settings exposes the bounded metadata cache; the schema upgrade preserves other stores. See [current implementation and device checklist](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Earlier proposals below are historical. The numbered audio-JSON replacement and hosted Mac picker reports remain unresolved/separate; no deployment or user-data modification.
