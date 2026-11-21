@@ -1,5 +1,5 @@
 import {directory,selections,calls,seedAudio} from './transcription-identity-fixtures.js';
-import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache} from '../js/transcriptCatalogue.js';
+import {readTranscriptFolder,openTranscriptCatalogue,clearTranscriptCatalogueCache,listTranscriptCatalogueCache,formatTranscriptMetadataCache} from '../js/transcriptCatalogue.js';
 import {createTranscriptionGate} from '../js/transcriptionGate.js';
 import {readTranscriptIdentity} from '../js/transcriptMetadata.js';
 import {openMemoraDatabase} from './source-database-adapter.js';
@@ -22,6 +22,14 @@ await test('Refreshing TXT metadata replaces stale local observations without bo
 });
 await test('Empty native and phone destinations need no JSON and receive a stable session UUID',async()=>{for(const source of [directory('Empty').root,{kind:'file-input',name:'New',files:[],selectionScope:'selection'}]){const first=await openTranscriptCatalogue(source),again=await openTranscriptCatalogue(source);assert(first.archiveUuid===again.archiveUuid&&first.snapshot.records.length===0);if(source.kind==='directory'){let count=0;for await(const _ of source.entries())count++;assert(count===0);}}});
 await test('Missing/conflicting TXT identities still block new writes; read-only mixed archives remain loadable',async()=>{const source={kind:'file-input',name:'Mixed',files:[new File([header()],'a.txt'),new File([header(f.OTHER,f.OTHER)],'b.txt')]};assert((await readTranscriptFolder(source)).records.length===2);let blocked=false;try{await openTranscriptCatalogue(source);}catch{blocked=true;}assert(blocked);});
+await test('Metadata cache groups matching parent labels while keeping different archive scopes separate',()=>{
+ const rows=[{id:'one',folderName:'transcription',updatedAt:2,records:[{filename:'a.txt',archiveUuid:UUID,originalAudioFolderName:'2018'}]}, {id:'two',folderName:'transcription',updatedAt:1,records:[{filename:'b.txt',archiveUuid:f.OTHER,originalAudioFolderName:'2018'}]}];
+ const text=formatTranscriptMetadataCache(rows);assert(text.startsWith('2018\n')&&text.includes(UUID)&&text.includes(f.OTHER));assert(text.split('transcription — 1 transcripts').length===3,'Separate same-name scopes were merged');assert(rows.length===2&&rows[0].id==='one');
+});
+await test('Metadata cache uses granted parent context for empty folders and labels unknown/mixed parents explicitly',()=>{
+ const text=formatTranscriptMetadataCache([{folderName:'empty',parentAudioFolderName:'Granted Audio',updatedAt:1,records:[]},{folderName:'unknown',updatedAt:1,records:[]},{folderName:'mixed',parentAudioFolderName:'Wrong Guess',updatedAt:1,records:[{originalAudioFolderName:'2016'},{originalAudioFolderName:'2017'}]}]);assert(text.includes('Granted Audio\n  empty')&&text.includes('Parent Audio Folder Unknown\n  unknown')&&text.includes('Multiple Audio Folders\n  mixed')&&!text.includes('Wrong Guess'));
+});
+await test('Metadata cache persists parent context when an empty granted child is loaded',async()=>{await readTranscriptFolder({kind:'file-input',name:'Empty child',parentAudioName:'Audio Parent',files:[]});assert((await listTranscriptCatalogueCache()).some(row=>row.folderName==='Empty child'&&row.parentAudioFolderName==='Audio Parent'));});
 await test('Session gate guards only untouched primary departures and resets per app session',()=>{const gate=createTranscriptionGate();assert(!gate.snapshot().guarded);gate.leave();assert(!gate.snapshot().guarded);gate.setTranscriptSource(true);assert(gate.snapshot().guarded);gate.activity();gate.leave();assert(!gate.snapshot().guarded&&gate.snapshot().enabled);assert(!createTranscriptionGate().snapshot().guarded);});
 await test('Actual page opens with source at top and destination below; Settings alone does not gate it',async()=>{
  const parsed=new DOMParser().parseFromString(await(await fetch('../index.html')).text(),'text/html');parsed.querySelectorAll('script').forEach(s=>s.remove());document.body.replaceChildren(...parsed.body.childNodes);await import('../js/app.js');await wait(()=>document.getElementById('modelSelect').value==='tiny');

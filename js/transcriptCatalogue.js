@@ -39,6 +39,7 @@ export async function clearTranscriptCatalogueCache() {
 export async function cacheTranscriptMetadata(source, records) {
     const entry = {
         id: scope(source), folderName: source.name, updatedAt: Date.now(),
+        parentAudioFolderName: source.parentAudioName || null,
         records: records.map(record => ({
             filename: record.filename, recordingId: record.recordingId,
             archiveUuid: record.archiveUuid, whisperModel: record.whisperModel,
@@ -118,4 +119,20 @@ export async function openTranscriptCatalogue(source) {
     if (!snapshot.records.length && !emptyCollections.has(source))
         emptyCollections.set(source, crypto.randomUUID());
     return {archiveUuid: snapshot.archiveUuid || emptyCollections.get(source), snapshot};
+}
+
+// Presentation grouping only: identical labels never merge scope records or IDs.
+export function formatTranscriptMetadataCache(rows) {
+    const groups=new Map();
+    for(const row of rows){
+        const names=[...new Set(row.records.map(record=>record.originalAudioFolderName).filter(Boolean))];
+        const parent=names.length===1?names[0]:names.length>1?'Multiple Audio Folders':row.parentAudioFolderName||'Parent Audio Folder Unknown';
+        if(!groups.has(parent))groups.set(parent,[]);groups.get(parent).push(row);
+    }
+    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([parent,entries])=>parent+'\n'+entries.sort((a,b)=>a.folderName.localeCompare(b.folderName)||b.updatedAt-a.updatedAt).map(row=>{
+        const archives=[...new Set(row.records.map(record=>record.archiveUuid).filter(Boolean))];
+        return '  '+row.folderName+' — '+row.records.length+' transcripts'+
+            (archives.length?'\n  Archive: '+archives.join(', '):'')+'\n'+
+            row.records.map(record=>'    '+record.filename+' · '+(record.whisperModel||'unknown model')+' · '+(record.operation||'')).join('\n');
+    }).join('\n\n')).join('\n\n');
 }

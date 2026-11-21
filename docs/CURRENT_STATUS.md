@@ -4,6 +4,18 @@
 
 
 
+
+## iPhone return/discovery lifecycle and parent-grouped metadata — 21 November 2026
+
+Build **2026-11-21.4**, database schema **8** unchanged. The user reported .3 had not resolved iPhone Enable Transcription or missing shared recording rows. Expanded tests now use production selectFolder/file-input handling instead of the synthetic folder-return shortcut. Two additional paths are handled: returning without a discovered transcript folder prepares the selected audio list while leaving setup open; child discovery finishing after return immediately refreshes the gate when shared selection commits. Selecting a new audio root clears stale rows before deferred rendering. A discovered/selected transcript folder still gates untouched Transcribe; Enable populates the selected audio unchecked. No automatic inference occurs. The hidden forwarded-save protection from .3 remains.
+
+Settings Transcript Metadata Cache is grouped by Original Audio Folder from TXT where consistent, with stored granted-parent context as fallback. Unknown parents and mixed-parent collections have explicit labels. Same-name groups are presentation only: cache scope records and Archive UUIDs remain distinct and no data is merged/deleted. Existing snapshots can be grouped from their stored TXT metadata without a schema migration. This is not persistent physical-folder deduplication, which remains part of the staged inventory work.
+
+**80 targeted groups passed**: 5 iPhone gate/actual-input/delayed-discovery, 21 catalogue/page/cache-grouping, 7 shared-folder and 47 audio persistence. Real iPhone confirmation remains pending; these synthetic checks do not prove the exact cause on the user's device. Refresh .4, open a parent in Combine, return to Transcribe, and verify either Enable then unchecked rows (transcript folder selected), or directly visible unchecked rows (no transcript folder). Settings-only visits remain excluded.
+
+The user has deleted existing JSON files. The standalone audio-inventory-test.html can reconstruct without them and reports an absent baseline; no recreation is required for that checkpoint. Production still uses its current audio-list create/save workflow until the staged retirement switch. Search embeddings are independent; the user did not specify which JSON filenames were deleted. No user files were inspected or changed by this fix.
+
+
 ## Audio inventory checkpoint 1 ready — 21 November 2026
 
 User confirmation: all four active archives are Apple Voice Memo recordings; the deliberately stripped test recording already reproduced its fallback ID. This is the modern prefix case, not an irreplaceable random legacy ID. Independent reconstruction and comparison are now implemented in [audioInventory.js](../js/audioInventory.js), with the standalone [audio-inventory-test.html](../audio-inventory-test.html) for MacBook/iPhone reports. It reads current audio, optionally compares the list, classifies differences/legacy mappings, and reports bounded requested reads and timing without writing files/caches. Report export alone saves a named TXT. Duplicate/unsupported/unreadable identity stays visible; complete-folder and partial reads remain distinct.

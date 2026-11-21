@@ -1,5 +1,8 @@
 # Production build identification
 
+21 November 2026: **2026-11-21.4**, schema **8** unchanged. Refresh the transcription gate after delayed folder discovery, prepare rows on visible returns without a transcript selection, clear stale source rows, and group transcript metadata by parent audio folder. 80 targeted checks passed; actual iPhone acceptance pending.
+
+
 21 November 2026: candidate **2026-11-21.3**, schema **8** unchanged. Fix hidden forwarded iPhone audio-list save clicks bypassing Enable Transcription; 28 targeted groups passed. Device acceptance pending.
 
 

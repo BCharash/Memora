@@ -1,5 +1,8 @@
 # Memora documentation
 
+Build .4 handles iPhone delayed folder discovery and visible Transcribe returns without a transcript child, and groups transcript metadata by parent audio folder. [Current status](CURRENT_STATUS.md) has the 80-group regression scope and device checklist. Earlier .3 notes describe the narrower forwarded-save fix.
+
+
 Audio inventory checkpoint 1 is ready: [standalone read-only comparison](../audio-inventory-test.html), [implementation and device checklist](Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026). Production audio JSON workflow is unchanged pending staged verification.
 
 
@@ -9,7 +12,7 @@ Latest fix: hidden forwarded audio-list save clicks from Combine/Search no longe
 Audio JSON retirement: [21 November audit and staged plan](Audio_JSON_Retirement_Audit.md). The user approved moving toward a local inventory, beginning with this completed audit. Production still uses the audio JSON; the next proposed implementation is a read-only comparison adapter. Search embeddings remain.
 
 
-Updated **21 November 2026** for candidate build **2026-11-21.3**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
+Updated **21 November 2026** for candidate build **2026-11-21.4**, database schema **8**. Start with [Current status](CURRENT_STATUS.md#implemented-candidate-txt-catalogue-and-explicit-transcription--21-november-2026). Historical notes below retain earlier behavior and acceptance boundaries.
 
 Current refinement: cached full-text transcripts use existing archive/recording identities, with a preserving schema-8 migration. Browse retains its label. Unused Transcribe returns are guarded only after a transcript folder is selected. See [current status](CURRENT_STATUS.md).
 

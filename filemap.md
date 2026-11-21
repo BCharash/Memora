@@ -17,7 +17,7 @@ Candidate **2026-11-20.3** connects [reproducibleRecordingIdentity.js](js/reprod
 
 ## The short answer about the number of files
 
-There are **62 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **49 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (54 total). Test files are separate from the normal application.
+There are **62 JavaScript files in `js/`**, including **19 whose names begin with `whisper`**. There are **50 top-level test/fixture JavaScript files under `tests/`** and **5 more in nested test folders** (55 total). Test files are separate from the normal application.
 
 **All 54 application files have a static dependency path from app.js, including lazy imports and worker-script references.** They support different features, not separate models. Model code and model weights are different things: importing a module does not mean loading all of its models.
 

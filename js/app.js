@@ -609,6 +609,15 @@ const transcriptionSetupVisible=()=>!transcriptionPanel.hidden&&!transcriptionWo
 transcriptionWorkspace.addEventListener('click',event=>{if(transcriptionSetupVisible()&&event.target.closest('button,input,select'))transcriptionGate.activity();});
 transcriptionWorkspace.addEventListener('change',event=>{if(transcriptionSetupVisible()&&!event.detail?.preserveExports)transcriptionGate.activity();});
 enableTranscriptionButton.addEventListener('click',async()=>{transcriptionGate.activity();renderTranscriptionGate();sourceSelectionRequested=true;updateSharedFolderControls();try{await prepareRecordingDisplay();}catch(error){audioInventoryStatus.textContent=error.message;}finally{sourceSelectionRequested=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}});
+// Returning while iPhone Files is still preparing a source can precede child
+// discovery. Refresh the gate when discovery commits, not only on tab clicks.
+async function resumeTranscriptionView(){
+    renderTranscriptionGate();
+    if(transcriptionPanel.hidden||transcriptionWorkspace.hidden||!sourceHandle||renderedAudioSource===sourceHandle||sourceSelectionRequested||sharedFolderOperation)return;
+    sourceSelectionRequested=true;updateSharedFolderControls();
+    try{await prepareRecordingDisplay();}catch(error){audioInventoryStatus.textContent=error.message;}
+    finally{sourceSelectionRequested=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}
+}
 let loadedSharedCombine=null,loadedSharedSearch=null;
 let transcribeDestinationSession=null;
 function updateSharedFolderControls(){
@@ -623,6 +632,7 @@ function applySharedTranscriptSelection(){
     document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
     const hasDefault=state.folders.some(folder=>folder.name.toLowerCase()==='transcription');
     transcriptionDestinationButton.textContent=hasDefault?'Use "transcription" Folder':'Create "transcription" Folder';
+    renderTranscriptionGate();
 }
 function clearSharedCombineRows(){
     const container=document.getElementById('transcripts');
@@ -778,8 +788,8 @@ async function loadAudioSource() {
         resetSharedConsumers();
         try{publishTranscribeDestination(await prepareTranscribeDestination(destinationHandle));}
         catch(error){transcribeDestinationSession={status:'blocked',error};document.getElementById('transcribeDestinationStatus').textContent=`Transcript destination needs attention: ${error.message}`;}
-        currentAudioFiles=files;renderedAudioSource=null;
-        if(transcriptionGate.snapshot().enabled)await prepareRecordingDisplay();
+        currentAudioFiles=files;renderedAudioSource=null;showEmptyMessage();
+        if(transcriptionGate.snapshot().enabled||(!transcriptionPanel.hidden&&!transcriptionWorkspace.hidden))await prepareRecordingDisplay();
         const summary=identityWorkflow.getInventorySummary();
         await identityWorkflow.activateSource();
         document.getElementById('recordingListSaveStatus').textContent=`Audio Recording List: ${summary.pendingSave?'Save required':summary.saveOutcome==='unchanged'?'Up to date':'Saved and verified'}. ${summary.checked} recordings.${summary.pendingSave?' Save '+summary.sourceFolder+' / memora-audio-source.json.':''}`;
@@ -1146,6 +1156,8 @@ if (
             config.tab.setAttribute("aria-selected", isActive ? "true" : "false");
             config.panel.hidden = !isActive;
         });
+
+        if(activeTab===transcriptionTab)resumeTranscriptionView();
 
         if (appIcon) {
             const activeConfig = Object.values(tabConfig).find(

@@ -1,5 +1,8 @@
 # Memora test guide
 
+Build **2026-11-21.4**: **80 groups passed** — 5 iPhone gate tests now exercise production file-input selection, an audio-only source return, and delayed identity reading with discovery finishing after return; 21 catalogue/page groups include parent-folder grouping without archive-scope merging; 7 shared-folder and 47 persistence groups remain green. New iphone-source-fixtures.js retains synthetic metadata/inference while forwarding selectFolder to the real implementation. Device confirmation remains pending.
+
+
 Audio inventory checkpoint 1: [inventory tests](audio-inventory.html) (16), [standalone page tests](audio-inventory-page.html) (3), existing reproducible identity (22) and iPhone gate (3) passed **44 groups**. Covers embedded/fallback rebuilding, optional corrupt/absent JSON, legacy classification, mismatch/rename/membership, duplicate/unreadable/cancel cases, read-only desktop access, immediate-only phone audio, and TXT-only report sharing. No persistence or production switch; real-device instructions are in the [audit](../docs/Audio_JSON_Retirement_Audit.md#checkpoint-1-implemented--21-november-2026).
 
 
