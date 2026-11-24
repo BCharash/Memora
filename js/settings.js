@@ -524,9 +524,11 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             const rtf = Number.isFinite(result.transcriptionMs) && result.transcriptionMs >= 0 &&
                 Number.isFinite(result.audioDurationMs) && result.audioDurationMs > 0
                 ? (result.transcriptionMs / result.audioDurationMs).toFixed(3) : "Unavailable";
+            const wer = Number.isFinite(result.wer) && result.wer >= 0
+                ? formatWhisperWer(result.wer) : "Unavailable";
             const load = Number.isFinite(result.loadMs) && result.loadMs >= 0
                 ? (result.loadMs / 1000).toFixed(2) : "Unavailable";
-            return [configuration.label ? formatSelfTestOption(configuration) : id || "Unknown model", rtf, load];
+            return [configuration.label ? formatSelfTestOption(configuration) : id || "Unknown model", rtf, wer, load];
         });
         // Use text nodes for all persisted labels and reuse the existing phone table containment.
         const scroll = document.createElement("div");
@@ -535,7 +537,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         const table = document.createElement("table");
         const caption = document.createElement("caption"); caption.textContent = "Latest saved passes"; table.append(caption);
         const head = document.createElement("thead"), header = document.createElement("tr");
-        for (const label of ["Model", "RTF", "Load (s)"]) {
+        for (const label of ["Model", "RTF", "WER", "Load (s)"]) {
             const th = document.createElement("th"); th.scope = "col"; th.textContent = label; header.append(th);
         }
         head.append(header); table.append(head);
@@ -547,7 +549,7 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         }
         table.append(body); scroll.append(table);
         const note = document.createElement("p");
-        note.textContent = "RTF = transcription time ÷ audio duration; lower is faster. 0.25 means 15 seconds per minute of audio, excluding loading. Short reference-test results; longer recordings may differ.";
+        note.textContent = "RTF = transcription time ÷ audio duration; lower is faster. 0.25 means 15 seconds per minute of audio, excluding loading. WER = word error rate; lower is better. Short reference-test results; longer recordings may differ.";
         if (document.getElementById("settingsWhisperSummary") === target) target.replaceChildren(scroll, note);
     }
 
