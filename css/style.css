@@ -1721,7 +1721,19 @@ button:disabled {
 }
 .settings-storage-category > span:nth-child(2) { text-align: center; overflow-wrap: anywhere; }
 #settingsStorage .settings-storage-category > button { width: 64px; justify-self: end; }
-.settings-selection-actions { margin: 10px 0; flex-wrap: wrap; }
+.action-row.settings-selection-actions { margin: 10px 0; }
+@media (max-width: 600px) {
+    .settings-selection-actions {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .settings-selection-actions > button {
+        width: auto;
+        padding: 6px 10px;
+    }
+}
 .settings-detail .settings-item-info { min-width: 0; overflow-wrap: anywhere; }
 .settings-cache-path { font-size: .8em; overflow-wrap: anywhere; }
 @media (max-width: 480px) {

@@ -8,7 +8,7 @@ import { createWhisperExecutionJournal } from "./whisperExecutions.js";
 // Shared selection controls for the two clearable histories. Selection starts
 // empty on every render; protected records cannot be selected by Select All.
 export function createWhisperHistorySelection(container, { label, onClear }) {
-    const controls = document.createElement("div"); controls.className = "whisper-report-actions";
+    const controls = document.createElement("div"); controls.className = "whisper-report-actions settings-selection-actions";
     const all = document.createElement("input");
     all.type = "checkbox"; all.dataset.historyCheckAll = "";
     const allLabel = document.createElement("label"); allLabel.className = "selection-action";
