@@ -8,6 +8,7 @@ Current source: **2026-11-21.11**, database schema **10**. JavaScript survey/che
 |---|---|
 | What works now, what needs testing, and what comes next? | [Current status and resume instructions](CURRENT_STATUS.md) |
 | Where should desktop Codex resume the iPhone 2017 audio-load investigation? | [Crash investigation handoff](iPhone_2017_Audio_Load_Investigation.md); observations, source findings and options, no code authorized |
+| Which iPhone save flows need better folder guidance? | [iPhone save flow audit](iPhone_Save_Flow_Audit.md) |
 | How do I run a relevant check safely? | [Test guide](../tests/README.md) |
 | Which modules own a feature? | [File map](../filemap.md) |
 | What did the JavaScript survey find, and what cleanup is proposed? | [Survey and staged checkpoint plan](JavaScript_Survey_and_Cleanup_Plan.md); assessment complete, implementation not authorized |
