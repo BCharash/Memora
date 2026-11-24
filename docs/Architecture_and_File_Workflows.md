@@ -1,6 +1,6 @@
 # Architecture and file workflows
 
-Current-source reference, **21 November 2026**, commit **95fe938**, application **2026-11-21.10**, database **10**. This consolidates file-access and runtime/workflow guidance; it is not a new implementation or device-acceptance result.
+File and editor workflows updated **24 November 2026** against source **06c4155**, application **2026-11-24.10**, database **10**.
 
 Use [current status](CURRENT_STATUS.md) for the resume boundary, [identity and storage](Recording_Identity_and_Storage.md) for exact data responsibilities, and [tests](../tests/README.md) for verification. Original guides remain in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026).
 
@@ -55,19 +55,24 @@ Native TXT writing and local text caching are distinct operations. Current saveP
 
 | Artifact | Desktop/native route | iPhone/file-input route |
 |---|---|---|
-| New transcripts | TXT in the granted destination; local cache is separate. | Named TXT batch via a files-only share payload, with intended location shown in the app. |
-| Edited transcript | Explicit save to the exact accessible target after the existing content-change checks. | Explicit replacement/export when native overwrite is unavailable; no silent original-folder write. |
-| Combined TXT/DOCX/HTML | Existing output/destination controls and document generators. | Format selection and explicit file sharing through Combine transport. |
-| Search embeddings archive | Existing independent index-save route. | Explicit index sharing and location guidance; no transcript/audio list accompanies it. |
-| Diagnostic reports | Existing download/copy controls where supported. | File sharing for supported report routes; route-specific copy/manual alternatives remain. |
+| New transcripts | TXT in the granted destination. The local cache is separate. | Named TXT batch with the intended folder, known parent and instructions for creating a newly named child. |
+| Edited transcript | Write to the original accessible target after the existing content-change checks. | Share a replacement with the original filename, show the known folder and ask the user to verify replacement. |
+| Combined TXT/DOCX/HTML | Use the output folder controls and selected document format. | Suggest the `combined` subfolder and allow another folder in Files. |
+| Search embeddings archive | Write the JSON to the transcript source. | Share `search-embeddings.json` beside the TXT files. The pending pulse stops after a successful share and the standard button supports repeat saves. |
+| Cached transcripts | Export selected cached TXT to a writable folder, skipping existing names. | Share to a recovery folder with file count and known archive context. |
+| Diagnostic reports | Download or copy where supported. | Share the named report and check it in the chosen folder. Copy or manual alternatives depend on the report. |
 
 Do not assume all delivery pathways have identical fallback policy. Preserve the existing generator/transport separation and user activation for pickers/sharing.
 
 Share success means the share flow returned, not independently verified Files placement, overwrite, sync or durable storage. Cancellation/error keeps pending artifacts available. Files-only transcript sharing avoids the extra text.txt attachment previously produced by title/text share fields. Pre-share pending messages and post-share verification messages represent different states.
 
+Some edited or generated files take longer to prepare than the share gesture remains active. When the browser reports an expired activation and destination guidance is available, the save dialog provides a fresh **Open Share Sheet** tap. [Share transport](../js/storage.js#L276) · [Save flow audit](iPhone_Save_Flow_Audit.md)
+
 ## Combine, Search and exported documents
 
 Combine folder loading replaces the current list; Search handoff supplies its selected subset. The origin box reports folder and All or Search description. Current selection/editing still includes filename-based operations. Durable cache identity does not implement multi-archive membership or retained per-source audio access.
+
+Both editors compare current text with the original before showing Save and any Files instructions. Cancel stays visible. Search focuses the first match and retains full text while editing. Both text boxes contain vertical scrolling at their edges. Shared playback only shows location guidance when manual selection is needed. [Search methodology](Search_Methodology.md#result-composition-and-highlighting)
 
 Search reads current TXT, chooses preferred model-family records, reconciles derived vectors and retains its independent index file. [Search methodology](Search_Methodology.md) details ranking, parsing and current performance limitations. [Paragraphing methodology](Paragraphing_Methodology.md) explains why existing paragraph structure is preserved.
 

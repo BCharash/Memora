@@ -33,10 +33,10 @@ All **35 HTML pages** below exist in tests/. The transcription-identity page is 
 | [archive-folder-access.html](archive-folder-access.html) | Parent-folder adapter/test UI, nested TXT discovery and identity-linked playback. |
 | [shared-folder-selection.html](shared-folder-selection.html) | Shared folder prototype controls, defaults/overrides and synthetic save/share behavior. |
 | [shared-folder-production.html](shared-folder-production.html) | Production child discovery, rebasing, source reset, ID-first lookup and picker branches. |
-| [audio-location.html](audio-location.html) | Shared playback guidance, actual inventory producer contract and scoped audio lookup. |
+| [audio-location.html](audio-location.html) | Automatic audio lookup, guidance only when manual selection is needed, identity checks and scoped playback reuse. |
 | [source-selection-performance.html](source-selection-performance.html) | Bounded metadata reads and controlled detail-reader concurrency; not provider/network timing. |
 | [transcript-cache-identity.html](transcript-cache-identity.html) | Durable full-text cache identity, same-name separation, selected export/deletion and migration rollback. |
-| [transcript-catalogue.html](transcript-catalogue.html) | Actual app with synthetic inference/files: TXT catalogue, Search-to-Combine scope, saving, gate, Settings, duplicate cache cleanup and narrow layout. |
+| [transcript-catalogue.html](transcript-catalogue.html) | Actual app with synthetic inference/files. Covers editor focus and match offsets, shared Save and Cancel behavior, iPhone index save and retry states, narrow layout, TXT catalogue, scope, gate and Settings. |
 | [transcription-identity.html](transcription-identity.html) | Alternate entry to the same catalogue/app suite; useful for the existing runner, not an additional suite. |
 | [iphone-transcription-gate.html](iphone-transcription-gate.html) | Actual folder-input app branch, audio-only/child-folder discovery and Enable Transcription. |
 
@@ -94,7 +94,7 @@ The independent whisper-registry-baseline-v2.json was captured before the old re
 
 ## Application acceptance on MacBook and iPhone
 
-Use [the current handoff checklist](../docs/CURRENT_STATUS.md#validation-and-acceptance). For .10 it covers parent-folder selection/audio playback, semicolon/comma Search handoff, All versus Search scope, latest cache entries and the existing Transcribe save/gate flow.
+Use the [current handoff checklist](../docs/CURRENT_STATUS.md#validation-and-acceptance) and the [iPhone editor and Files checklist](../docs/iPhone_Save_Flow_Audit.md#device-verification). The **2026-11-24.10** headless Edge run passed 35 catalogue/app checks with two baseline failures already present before the change. These concern the Search-to-Combine title expectation and transcription destination text size. The **2026-11-24.9** audio-location run passed all 11 checks.
 
 Use disposable copies when checking additions/removals or edits. On iPhone, verify the actual saved TXT/embedding file in Files; share-sheet completion alone does not prove destination, replacement or synchronization. Keep search-embeddings.json. Inventory sidecars are retired and need no creation/save test.
 

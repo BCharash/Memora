@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Reviewed **21 November 2026** against source commit **886ab1a**: candidate application **2026-11-21.11**, database schema **10**. The current task records a read-only JavaScript survey and proposed cleanup checkpoints; application behavior and the previous registry-cache repair are unchanged. Publication and actual .10 device acceptance are not established by this review.
+Save and editor workflows reviewed **24 November 2026** against source **06c4155**, application **2026-11-24.10**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -16,6 +16,8 @@ The source of truth is embedded/reproducible audio identity and the selected TXT
 
 Combine and Search use the selected audio inventory to resolve recordings by Recording ID, including renamed files. Actual-file identity checks remain part of supported playback/inference paths. Ambiguous duplicate recording identities are reported; a newer audio file is not silently chosen. The current shared selection retains one active audio source, not a multi-archive resolver.
 
+Both views try to resolve and verify the recording when Play is tapped. The audio location hint appears when manual selection is needed.
+
 Source preparation has activity/progress feedback. Browser/iCloud preparation may still delay delivery of files; bounded application reads do not prove bounded provider download time. Native directory picking avoids upload-style selection where the API exists; iPhone's folder-input confirmation is browser-controlled.
 
 ## Transcription and saving
@@ -24,15 +26,23 @@ Audio Source is at the top; Transcript Destination controls are below the transc
 
 Initial Transcribe setup is visible. After an untouched departure to Combine/Search, return is guarded by **Enable Transcription** only if a transcript source/destination has been selected. Settings alone does not trigger the gate. Shared audio-only selection can prepare visible unchecked recordings without inference. Enabling Transcription reuses available shared access; it does not automatically transcribe.
 
-Desktop writes TXT to its granted destination. iPhone prepares named TXT files and shares a files-only batch, with the intended batch destination shown in the app. It cannot force or verify the Files destination. Before any share attempt, pending warnings say transcripts await saving; after share returns, they ask the user to verify the save. Cancellation/failure retains the batch. There is no audio-list or transcript-list JSON save prerequisite.
+Desktop writes TXT to its granted destination. iPhone shares a files-only batch with the intended folder and its parent when known. A newly named child includes instructions to create it in Files if needed. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
 
 ## Combine and Search
 
 Combine reads selected-folder TXT metadata/text and displays its current list. The box below **Transcripts** shows the folder and **All** for a folder load, or **Search: description** for a Search handoff. Search handoff keeps the selected subset; tab returns preserve it, while selecting a transcript folder loads that folder and resets the origin to All. The selector remains Select Transcript Folder.
 
+When the list clears, the combined title returns to **Combined Transcription**. Unchecking every transcript hides DOCX/HTML options and preserves the current title. On iPhone, TXT, DOCX and HTML exports suggest the transcript source's `combined` subfolder and allow the user to choose another destination.
+
+Search and Combine show **Save** only after the text changes and hide it again if the original text is restored. **Cancel** remains visible with the same styling. The two actions sit below the textarea. The file-sharing routes show the original filename and destination so the user can replace it and verify the result.
+
+Search **Show transcript** displays the entire text with colored matches. **Edit** opens the entire text and focuses the first match. Previous and Next navigate matches across line breaks and repeated spaces. A preview shows the match when the box loses focus. On narrow screens, Edit, Show transcript and Hide result sit below the filename.
+
 Search terms are separated with **semicolons**; commas stay inside a term. Suggested document titles and Combine origin descriptions retain that delimiter. Each term participates in lexical and semantic retrieval. Qualifying lexical results precede semantic-only results; current semantic ranking uses sentence-heavy fusion and contextual representations. MiniLM remains the embedding model.
 
 Search reads current TXT snapshots and reconciles its derived embeddings; compatible unchanged vectors can be reused. Preserve the active embeddings file and hash-format compatibility. Updating local transcript metadata alone must not be treated as a reason to rebuild all embeddings.
+
+After a Search edit, verify the replacement TXT in Files before saving the refreshed `search-embeddings.json` beside it. On iPhone, **Update Search Index** pulses for a pending update. Successful sharing leaves a standard active button for repeat saves and asks the user to check the file in Files.
 
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 
@@ -61,11 +71,15 @@ Canonical Whisper definitions and family defaults remain the model-selection aut
 
 Settings shows selectable local metadata/cache entries with matching View/Hide controls. The self-test summary contains the latest retained successful measurement per family; it is not loaded status or current qualification. Settings Refresh Storage Information synchronizes model definitions before counting.
 
+On iPhone, cached transcript export prompts for a recovery folder, and Whisper JSON export asks the user to check the named report in the chosen folder. [Save flow details](iPhone_Save_Flow_Audit.md#memora-save-flows)
+
 Browser-version changes alone do not invalidate qualification within the same recognized browser family and matching execution context. Changed configurations/contexts and real failure holds still matter. Confirmed runtime failures require a qualifying reference retest; uncertain interruptions have the existing review path. Notes alone do not release holds. There are no automatic test sequences/retries, cooldowns or preferred-variant discovery.
 
 Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
 ## Validation and acceptance
+
+For **2026-11-24.10**, headless Edge passed **35** catalogue/app checks, including clean/changed/undone editor states on both source types and matching Cancel styles. The suite retained the two known baseline failures for the Search-to-Combine title expectation and transcription destination text sizing. The **.9** audio-location run passed **11** checks. Native Safari keyboard focus, first-swipe behavior and actual Files placement still need a device check. [Device checks](iPhone_Save_Flow_Audit.md#device-verification)
 
 The registry-cache fix passed **57 synthetic browser groups**: database integration 12, catalogue/app/Settings 33 and Whisper Settings 12. They include actual View/Hide, cancel/selected deletion, read-only reopening, explicit refresh restoration and empty/error/retry paths. Documentation consolidation ran no models, memory measurements or actual-device tests. [Recorded evidence and preserved source checkpoints](archive/Current_Guides_Preservation_2026-11-21.md) keep prior test results and device observations with their original limits; the [test guide](../tests/README.md) lists current runnable harnesses.
 
@@ -81,7 +95,7 @@ Earlier user-reported playback, identity reconstruction, report saving and Pages
 
 **24 November 2026 investigation handoff:** [iPhone Dreams/2017 audio-folder crash](iPhone_2017_Audio_Load_Investigation.md) records user observations, source findings and corrections for desktop continuation. Focus on early audio picker/identity inspection; Combine and Search still require initial transcript preparation. **No code yet:** investigation/documentation only, no fix or measured memory diagnosis. The cleanup proposal below remains separate.
 
-**Current authorized checkpoint:** document the [JavaScript survey and staged cleanup plan](JavaScript_Survey_and_Cleanup_Plan.md). Static assessment covers 57 modules, 54 production-referenced paths and three standalone diagnostic modules. No cleanup code, runner, worker, schema, model or memory instrumentation changed; no new runtime/device tests ran. The plan records preservation rules, scoped acceptance and stop points. It does not authorize implementation.
+The [JavaScript survey and staged cleanup plan](JavaScript_Survey_and_Cleanup_Plan.md) remains a proposal, with preservation rules, scoped acceptance and stop points. Its historical assessment covered 57 modules, 54 production-referenced paths and three standalone diagnostic modules.
 
 Recommended first implementation after review: checkpoint 1 (obsolete tooling/routes and carefully reviewed public exports), then a small naming batch. Shared hashing, playback/edit rules and source/session extraction follow separately. Multi-archive Combine remains future work after the relevant boundaries are safe; low-value cosmetic cleanup need not become a prerequisite. The user memory handoff remains unchanged for separate feasibility work.
 

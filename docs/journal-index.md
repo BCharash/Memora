@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Reviewed and synchronized **21 November 2026**, journal version **48**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units; they are not competing design specifications. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the audit scope and findings.
+Synchronized **24 November 2026**, journal version **49**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the earlier audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -24,6 +24,8 @@ The [Whisper overview](Whisper_Architecture_and_Qualification.md) consolidates f
 The [operations guide](build-versioning.md) now consolidates numbering, local/hosted verification and Pages recovery; both original documents remain archived in full. Section 62.41 records that documentation-only boundary.
 
 Section 62.42 records the [read-only JavaScript survey and proposed checkpoints](JavaScript_Survey_and_Cleanup_Plan.md). Code cleanup and memory instrumentation are not implemented or authorized by that planning document.
+
+Section [62.43](design-journal.md#6243-iphone-save-destinations-and-transcript-editors) records the iPhone save guidance, editor changes and verification through build **2026-11-24.10**.
 
 ## Recent material in Volume 5
 

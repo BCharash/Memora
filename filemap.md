@@ -1,6 +1,6 @@
 # Memora file map
 
-Current **2026-11-21.11**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter now consumes inventory.records, fixing the .6 automatic-playback regression. identityDialog.js provides shared prompts without the removed audio JSON workflow.
+Save and editor references updated for **2026-11-24.10**, schema **10**. Production audio inventory is owned by audioFolderCache.js, transcript identities/catalogues by transcriptMetadata.js and transcriptCatalogue.js, and shared source access by sharedFolderSelection.js. The latter consumes inventory.records for ID-first playback. identityDialog.js provides shared prompts. [Save flow audit](docs/iPhone_Save_Flow_Audit.md)
 
 The legacy audio source/manifest/recovery modules and unused sidecar helpers, writer APIs and obsolete tests/lab code are removed. Schema 10 drops only audioSourceRecovery. Existing disk JSON files remain untouched, while search-embeddings.json and every active cache/model/text/embedding store remain. [Current status](docs/CURRENT_STATUS.md#combine-and-search) governs current acceptance; dated historical notes below retain their context.
 
@@ -133,8 +133,8 @@ The tiny activity/report modules could be grouped differently later. They are no
 | File | Responsibility | Main callers |
 |---|---|---|
 | [combine.js](js/combine.js) | Parses transcript records, sorts them, selects preferred model versions and combines text. | App and Search |
-| [combineUI.js](js/combineUI.js) | Combine lists, selection, editing and associated controls. | App |
-| [combineShareExport.js](js/combineShareExport.js) | Controls the Combine share/export workflow. Actual output generation/saving remains connected through app callbacks. | App |
+| [combineUI.js](js/combineUI.js) | Combine lists and editing, including Save and destination guidance tied to changes in the text. | App |
+| [combineShareExport.js](js/combineShareExport.js) | Combine format and sharing controls, with named verification after sharing. Output generation and destination suggestions are connected through app callbacks. | App |
 | [html.js](js/html.js) | Generates standalone combined HTML documents, including their embedded functionality. | App exports |
 | [docx.js](js/docx.js) | Generates combined Word documents using an external document library. | App exports |
 
@@ -144,7 +144,7 @@ Standalone exported HTML has its own date/name/order and text-size controls plus
 
 | File | Responsibility | Main callers |
 |---|---|---|
-| [searchUI.js](js/searchUI.js) | Search controls/results, playback, editing and search-file workflows. | App |
+| [searchUI.js](js/searchUI.js) | Search results, shared playback fallback, full-transcript editing, match navigation and Search index saving. | App and Combine playback |
 | [search.js](js/search.js) | Search indexing/ranking, keyword and semantic searches, and embedding archive serialization. | App/Search UI callbacks |
 | [semantic.js](js/semantic.js) | Coordinates embedding requests and persistent semantic entries. | Search and Search UI |
 | [semantic-worker.js](js/semantic-worker.js) | Runs embedding models in the background. Supports MiniLM and multilingual E5 definitions. | `semantic.js` |
@@ -172,7 +172,7 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the old s
 | [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
 | [transcriptCatalogue.js](js/transcriptCatalogue.js) | TXT-only metadata inventory, bounded local cache, existing identity preservation and empty-collection session identity. | Transcribe, Combine, Search and Settings |
 | [transcriptionGate.js](js/transcriptionGate.js) | Session intent and untouched primary-tab departure state; Settings routing remains separate. | App Transcribe setup |
-| [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session audio/transcript selection, immediate child handles or rebased phone snapshots, default/reset rules and ID-first parent audio lookup. | App folder rows and shared Combine/Search playback |
+| [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session folder access, child discovery and rebasing, ID-first audio lookup and known-parent save guidance. | App, Search and Combine |
 | [transcriptionIdentity.js](js/transcriptionIdentity.js) | Coordinates current audio inventory, verified recording identity and TXT archive selection without sidecars. | App |
 
 
@@ -181,7 +181,7 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the old s
 | File | Responsibility | Main callers |
 |---|---|---|
 | [database.js](js/database.js) | Sole owner of the Memora IndexedDB schema/open/upgrade/validation behavior. Current schema version: 10; only legacy audio recovery is removed, while current caches and full-text identities are preserved. | Storage, storage reporting and semantic store |
-| [storage.js](js/storage.js) | File/folder reading/writing/sharing, transcript cache and legacy model-registry record access. | App and model manager |
+| [storage.js](js/storage.js) | File/folder reads and writes, file sharing with fresh user activation when needed, transcript cache and legacy model-registry record access. | App, Search, Combine, Settings and model manager |
 | [storageManager.js](js/storageManager.js) | Measures storage and handles the specific clear/delete actions exposed in Settings. | App-provided Settings service |
 | [settings.js](js/settings.js) | Settings content and actions: availability, testing, eligibility status, reports and storage controls. | App |
 | [domDiagnostics.js](js/domDiagnostics.js) | Snapshot of document/control counts and available browser metrics for troubleshooting. Not the persistent lifecycle log. | Settings |

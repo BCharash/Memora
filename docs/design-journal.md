@@ -1,7 +1,7 @@
 # Memora Design Journal
 
-**Version:** 48
-**Status:** Living document; current through section 62 (21 November 2026)
+**Version:** 49
+**Status:** Living document through section 62.43 (24 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
 
@@ -4902,3 +4902,14 @@ The user requested a read-only JavaScript survey, then documentation of its find
 The proposed order starts with scoped tooling/API cleanup and small naming changes, then shared hash compatibility, playback/edit invariants, source-session ownership, large controllers and optional storage/container work, with explicit stop points and preservation tests. Worker URLs/fingerprints, recording/TXT identity, embeddings, qualification, user data and the memory handoff are protected. Module count is not a performance or cleanup-success measure.
 
 File-map/source-reference errors and the Search default description are corrected in documentation: normal initialization is 70%; HTML/storage failure can retain 80%. No behavior/fallback policy changed. All implementation checkpoints remain proposed; no runtime/model/device tests, data changes, build/schema update, publication or commit by Codex. Whole/split journals remain synchronized.
+
+
+### 62.43 iPhone save destinations and transcript editors
+
+**24 November 2026** · Source through `06c4155`, build **2026-11-24.10**
+
+Build **.4** reset the combined document title when the transcript list cleared and hid DOCX/HTML options when nothing was checked. It preserved the title when the loaded list was temporarily unchecked. The [iPhone save flow audit](iPhone_Save_Flow_Audit.md) began against **.3**. Build **.5** added destination guidance and was reverted after iPhone testing exposed cramped Search index spacing and a persistent save pulse. Build **.6** restored guidance across save flows and separated the pending update pulse from the standard retry button. It also moved Search result controls below the filename at narrow widths and repaired match navigation by mapping matches back to the original text offsets.
+
+Build **.7** opened Search Edit with the keyboard closed and showed a match preview. It put the actions under the text box and revealed Save and its destination instructions after changes. Build **.8** restored first-match selection inside the focused text box, kept the preview for the unfocused state, contained vertical scrolling at the edges of both text boxes and applied dirty-only Save visibility to Combine. Build **.9** made the shared audio-location hint conditional on manual selection. Build **.10** applied the same Save visibility to native-directory Search and gave both editors matching Cancel styling.
+
+The **.10** headless Edge run passed 35 catalogue/app checks. The existing Search-to-Combine title expectation and transcription destination text size checks still failed. The **.9** audio-location suite passed all 11 checks. Narrow layout and simulated file sharing were covered. First-swipe behavior, keyboard positioning and actual Files placement require iPhone checks. [Current handoff](CURRENT_STATUS.md#validation-and-acceptance) · [Test guide](../tests/README.md)

@@ -1,6 +1,6 @@
 # Search methodology — current behavior and preserved decisions
 
-Reviewed **21 November 2026**, source **c4c3816**, application **2026-11-21.10**. This is a source-checked explanation, not a ranking/model change or new benchmark.
+Result presentation, editing and index saving updated **24 November 2026** against source **06c4155**, application **2026-11-24.10**. Ranking and benchmark evidence retain their dated sources below.
 
 **The complete [Search research record](archive/Search_Optimization_Research_Record.md) and [earlier governing strategy](search%20model%20optimization.md) remain intact at their existing paths.** Experiments, alternatives, numerical results, failed approaches, artifact names and uncertainty are not removed or shortened. This page separates current implementation from those dated observations and future proposals.
 
@@ -91,6 +91,10 @@ Current presentation groups passages by transcript. Lexical matching words are b
 
 Sentence-level matches suppress contextual chunks containing the same normalized sentence. A broader contextual chunk is also suppressed when it overlaps an accepted narrower chunk. Normalized sentence-text keys accommodate small whitespace/punctuation differences between indexing and display. The full renderer retains existing composition, excerpts, Show/Hide Result, Show/Hide Transcript, editing and selection controls.
 
+On narrow screens, Edit, Show transcript and Hide result sit below the filename. Show transcript displays the full transcript with its colored matches. Edit loads the full original text, focuses the textarea and selects the first match. Previous and Next select matches by original character offsets, so internal line breaks and repeated spaces are preserved. When the textarea loses focus, a match preview gives the selected sentence without reopening the keyboard. Hiding a result asks before discarding unsaved edits. [Search editor](../js/searchUI.js#L1147) · [Match offsets](../js/searchExportHighlights.js#L19)
+
+Save appears after a text change and hides when the text matches the original again. Cancel remains visible and restores the preceding view. The file-sharing path shows the folder and original filename while an edit is pending. Search and Combine share the Play control, which shows the location hint when manual audio selection is needed.
+
 Do not simplify overlap, grouping or highlighting as an incidental consequence of a ranking refactor. Any change needs its own concrete examples and approval. The historical “preserve presentation” requirement constrains ranking work; it does not forbid separately approved UI changes such as the current list-origin box.
 
 ## TXT selection, derived embeddings and current limits
@@ -102,6 +106,8 @@ Both inventory sidecars are retired. Current TXT metadata/text feeds the local f
 Compatible unchanged vectors can be reused from the archive/store after the current format/model/text/identity/item checks. Modified text must not silently reuse stale vectors. Preserve the intentional **audioSourceId:null** slot in serialized hashes: it maintains earlier keys and does not restore dependence on an audio JSON file.
 
 Index JSON contains derived sentence/context material and vectors, not merely a list of filenames. Its save/update state is independent of local transcript metadata. Clearing metadata observations must not force rebuilding every embedding.
+
+Editing refreshes the live Search index. On iPhone, verify the shared replacement TXT in Files, then save `search-embeddings.json` beside it. Update Search Index shows the selected transcript folder and its known parent. A pending update pulses, cancellation leaves the update pending, and successful sharing keeps a normal active button for repeat saves. [iPhone save flow audit](iPhone_Save_Flow_Audit.md#memora-save-flows)
 
 There are still implementation limits:
 - Source loading calls the shared TXT reader, but index preparation also parses the returned File objects. A single shared parse record throughout the entire pipeline is not established by the current source.
