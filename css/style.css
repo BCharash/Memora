@@ -1689,7 +1689,7 @@ button:disabled {
 .identity-save-controls { margin-block: .75rem; }
 
 #settingsWhisperSummary table { table-layout: fixed; width: 100%; }
-#settingsWhisperSummary th:first-child { width: 46%; }
+#settingsWhisperSummary th:first-child { width: 37%; }
 #settingsWhisperSummary th, #settingsWhisperSummary td { overflow-wrap: anywhere; }
 #settingsWhisperSummary th:not(:first-child), #settingsWhisperSummary td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 430px) {

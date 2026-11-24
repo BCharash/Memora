@@ -61,6 +61,7 @@ try {
                 environment: { operatingSystem: index === 0 ? "ios" : "macos" }, result: { results: [index === 2 ? {} : { loadMs: index === 0 ? 99000 : 1250, transcriptionMs: 2500, audioDurationMs: 10000 }] } };
             if (index === 3) record.result.results[0].loadMs = 88000;
             if (index === 4) record.configuration = { id: "legacy-tiny-wasm", label: "Tiny", configuration: { dtype: "q8" } };
+            if (index !== 2) record.result.results[0].wer = [0.12, 0.075, null, 0.13, 0][index];
             localStorage.setItem(key, JSON.stringify(record));
         }
         summaryToggle.click(); summaryToggle.click();
@@ -72,7 +73,9 @@ try {
         assert(!content.includes("99.00"), "older pass from another platform suppressed");
         assert(!content.includes("88.00"), "older Tiny with different ID and variant suppressed");
         assert([...summarySection.querySelectorAll("tbody tr")].filter(row => row.firstChild.textContent.startsWith("Tiny")).length === 1, "only latest Tiny across configuration IDs");
-        assert([...summarySection.querySelectorAll("th")].map(th => th.textContent).join("|") === "Model|RTF|Load (s)", "only three compact columns");
+        assert([...summarySection.querySelectorAll("th")].map(th => th.textContent).join("|") === "Model|RTF|WER|Load (s)", "WER appears between RTF and load");
+        const werCells = [...summarySection.querySelectorAll("tbody tr")].map(row => row.cells[2].textContent);
+        assert(werCells.join("|") === "0.00%|Unavailable|7.50%", "WER shows saved percentages, including zero and missing values");
         assert(!content.includes("Memory") && !content.includes("Historical pass"), "removed RAM and status");
         assert(document.getElementById("settingsWhisperAttemptHistory").textContent.includes("Passed · Platform: macOS · Summary model"), "platform beside each history status");
         const frame = document.createElement("iframe");
