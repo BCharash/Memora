@@ -1,5 +1,4 @@
 import {cachedTranscriptRecord,transcriptFilenameKey} from './transcriptCacheIdentity.js';
-import { askIdentity } from "./identityDialog.js";
 // --------------------------------------------------
 // Storage
 // --------------------------------------------------
@@ -273,7 +272,7 @@ export async function readTextFile(directoryHandle, filename) {
 }
 
 
-export async function shareFiles(files, guidance) {
+export async function shareFile(file) {
     if (!navigator.share) {
         throw new Error(
             "This browser cannot share files to the Files app."
@@ -282,30 +281,16 @@ export async function shareFiles(files, guidance) {
 
     if (
         navigator.canShare &&
-        !navigator.canShare({ files })
+        !navigator.canShare({ files: [file] })
     ) {
         throw new Error(
             "This browser cannot share this file to the Files app."
         );
     }
 
-    if (guidance && navigator.userActivation?.isActive === false) {
-        const answer = await askIdentity({
-            title: "Save to Files",
-            message: guidance,
-            choices: [
-                { action: "share", label: "Open Share Sheet", run: () => navigator.share({ files }) },
-                { action: "cancel", label: "Cancel" }
-            ]
-        });
-        if (answer.action !== "share") throw new DOMException("Save canceled.", "AbortError");
-        return;
-    }
-    await navigator.share({ files });
-}
-
-export function shareFile(file, guidance) {
-    return shareFiles([file], guidance);
+    await navigator.share({
+        files: [file]
+    });
 }
 
 

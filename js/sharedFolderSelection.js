@@ -1,24 +1,6 @@
 // Page-session access only. Folder identities describe granted access, not paths
 // that let a browser navigate to an unselected parent.
 const key = value => value.normalize('NFC').toLowerCase();
-export function transcriptSaveLocation(source, childFolder) {
-    const folder = [source.parentAudioName, source.name, childFolder].filter(Boolean).join(' / ');
-    return {
-        folder,
-        parentHint: source.parentAudioName ? '' : childFolder
-            ? ` Check the parent of “${source.name}” in Files.`
-            : ' Check that it is under the correct parent in Files.'
-    };
-}
-
-export function transcriptReplacementGuidance(source, filename) {
-    const { folder, parentHint } = transcriptSaveLocation(source);
-    return {
-        before: `In Save to Files, choose ${folder} and replace “${filename}”.${parentHint}`,
-        after: `Check in Files that “${filename}” was replaced in ${folder}.${parentHint}`
-    };
-}
-
 export function rebaseTranscriptFolder(root, name) {
     const prefix = `${root.name}/${name}/`;
     const files = root.files.filter(file => file.webkitRelativePath?.startsWith(prefix) &&

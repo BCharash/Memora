@@ -25,8 +25,7 @@ choose.onclick=async()=>{
 };
 save.onclick=async()=>{
  const file=new File([text],'memora-audio-inventory-report.txt',{type:'text/plain'});
- try{if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file]});status.textContent=`Shared. Check in Files for ${file.name} in the folder you chose.`;return;}
+ try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file]});return;}
  const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
- status.textContent=`Download requested for ${file.name}. Check Files or your browser downloads.`;
- }catch(error){status.textContent=error.name==='AbortError'?'Sharing canceled. The report is still available.':error.message;}
+ }catch(error){if(error.name!=='AbortError')status.textContent=error.message;}
 };

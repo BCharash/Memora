@@ -77,7 +77,7 @@
 <audio id="player" controls preload="none"></audio>
 </section>
 <section>
-<h2>Report</h2><p>Share the report as a text file, or download it and attach it to the conversation. If using the share sheet to keep a copy, choose Save to Files and pick a folder you can find again. The file includes every supplied path, browser details and check results, but no transcript text or audio contents.</p>
+<h2>Report</h2><p>Share the report as a text file, or download it and attach it to the conversation. The file includes every supplied path, browser details and check results, but no transcript text or audio contents.</p>
 <button id="share" type="button">Share Report</button><button id="download" type="button">Download Report</button><button id="copy" type="button">Copy Report</button><span id="copyStatus" role="status"></span>
 <label for="report">Test report</label><textarea id="report" readonly></textarea>
 <details><summary>All supplied file paths</summary><pre id="paths"></pre></details>
@@ -126,7 +126,7 @@ $('player').addEventListener('error',()=>{if(!objectURL)return;const message=`Au
 $('share').onclick=async()=>{
  const file=reportFile();
  if(!navigator.share||!navigator.canShare?.({files:[file]})){$('copyStatus').textContent='File sharing is unavailable. Use Download Report.';return;}
- try{await navigator.share({files:[file]});$('copyStatus').textContent=`Report shared. If you used Save to Files, look for ${file.name} in the folder you chose.`;}
+ try{await navigator.share({files:[file],title:'Memora folder-selection report'});$('copyStatus').textContent='Report shared. Attach the saved text file here.';}
  catch(error){$('copyStatus').textContent=error.name==='AbortError'?'Sharing cancelled. The report is still available.':'Sharing failed. Use Download Report.';}
 };
 $('download').onclick=()=>{const url=URL.createObjectURL(reportFile()),link=document.createElement('a');link.href=url;link.download='memora-folder-selection-report.txt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);$('copyStatus').textContent='Report download requested. Check Files or your browser downloads.';};
