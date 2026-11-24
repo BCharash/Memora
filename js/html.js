@@ -7,17 +7,21 @@
 // write files and does not access the UI.
 //
 
+import { defaultCombineMetadata, getCombinedMetadataFields } from "./combineMetadata.js";
+
 export function createCombinedHTML(
     records,
-    title = "Memora — Combined Transcription"
+    title = "Memora — Combined Transcription",
+    metadataOptions = defaultCombineMetadata
 ) {
 
     const defaultSort = inferDefaultSort(records);
+    const hasOmittedFields = Object.keys(defaultCombineMetadata).some(key => !metadataOptions[key]);
 
     const sections =
         records
             .map((record, index) =>
-                createTranscriptSection(record, index)
+                createTranscriptSection(record, index, metadataOptions)
             )
             .join("\n");
 
@@ -70,6 +74,12 @@ export function createCombinedHTML(
             font-size: 14px;
             line-height: 1.5;
             margin-bottom: 20px;
+        }
+
+        .transcript-separator {
+            border: 0;
+            border-top: 1px solid #E1E4E8;
+            margin: 16px 0;
         }
 
         .reader-controls {
@@ -208,6 +218,17 @@ export function createCombinedHTML(
             display: none !important;
         }
 
+        .metadata-display-options {
+            margin-top: 12px;
+        }
+
+        .metadata-display-fields:not([hidden]) {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+            margin-top: 6px;
+        }
+
         .reader-size-value {
             width: 42px;
             text-align: right;
@@ -322,11 +343,9 @@ export function createCombinedHTML(
 
         .record {
             padding: 28px 0;
-            border-top: 1px solid #E1E4E8;
         }
 
         .record:first-of-type {
-            border-top: none;
             padding-top: 0;
         }
 
@@ -416,6 +435,19 @@ export function createCombinedHTML(
                             </div>
                         </div>
                     </div>
+                    ${hasOmittedFields ? `
+                        <div class="metadata-display-options">
+                            <label>
+                                <input id="showMetadataOptions" type="checkbox" autocomplete="off" aria-controls="metadataDisplayFields">
+                                Metadata display options
+                            </label>
+                            <div class="metadata-display-fields" id="metadataDisplayFields" hidden>
+                                ${[["title", "Transcript title"], ...getCombinedMetadataFields({}), ["separator", "Separator"]].map(([key, label]) =>
+                                    `<label><input type="checkbox" value="${key}" autocomplete="off" ${metadataOptions[key] ? "checked" : ""}> ${label}</label>`
+                                ).join("\n")}
+                            </div>
+                        </div>
+                    ` : ""}
                 </div>
             </div>
 
@@ -434,6 +466,24 @@ export function createCombinedHTML(
     <script>
         document.querySelector(".js-controls").style.display = "grid";
         document.querySelector(".fallback").style.display = "none";
+
+        const showMetadataOptions = document.getElementById("showMetadataOptions");
+        if (showMetadataOptions) {
+            const fields = document.getElementById("metadataDisplayFields");
+            showMetadataOptions.addEventListener("change", () => {
+                fields.hidden = !showMetadataOptions.checked;
+            });
+            fields.querySelectorAll("input").forEach(input => {
+                input.addEventListener("change", () => {
+                    document.querySelectorAll('[data-metadata-field="' + input.value + '"]').forEach(element => {
+                        element.hidden = !input.checked;
+                    });
+                    document.querySelectorAll(".record .metadata").forEach(group => {
+                        group.hidden = !group.querySelector("[data-metadata-field]:not([hidden])");
+                    });
+                });
+            });
+        }
 
         const sortControls = document.querySelector(".sort-controls");
         const recordsContainer = document.querySelector(".records");
@@ -802,7 +852,7 @@ function inferDefaultSort(records) {
     return { type: "date", direction: "oldest" };
 }
 
-function createTranscriptSection(record, index) {
+function createTranscriptSection(record, index, metadataOptions) {
 
     const heading =
         record.recordingFilename ||
@@ -811,21 +861,8 @@ function createTranscriptSection(record, index) {
 
     const sortDate = getRecordingSortDate(record);
 
-    const recordingDate =
-        record.recordingDate ||
-        "Date unknown";
-
-    const duration =
-        record.duration ||
-        "Duration unknown";
-
-    const voiceMemoId =
-        record.recordingId || record.voiceMemoId ||
-        "Unknown";
-
-    const whisperModel =
-        record.whisperModel ||
-        "Unknown";
+    const metadataFields = getCombinedMetadataFields(record);
+    const hasVisibleMetadata = metadataFields.some(([key]) => metadataOptions[key]);
 
     const transcript =
         record.transcript ||
@@ -838,25 +875,17 @@ function createTranscriptSection(record, index) {
             data-sort-date="${sortDate === null ? "" : sortDate}"
             data-original-index="${index}"
         >
-            <h2>${escapeHTML(heading)}</h2>
+            <h2 data-metadata-field="title" ${metadataOptions.title ? "" : "hidden"}>${escapeHTML(heading)}</h2>
 
-            <div class="metadata">
-                Recording date:
-                ${escapeHTML(recordingDate)}
-                <br>
-                Duration:
-                ${escapeHTML(duration)}
-                <br>
-                Recording ID:
-                ${escapeHTML(voiceMemoId)}
-                <br>
-                Whisper model:
-                ${escapeHTML(whisperModel)}
+            <div class="metadata" ${hasVisibleMetadata ? "" : "hidden"}>
+                ${metadataFields.map(([key, label, value]) =>
+                    `<div data-metadata-field="${key}" ${metadataOptions[key] ? "" : "hidden"}>${label}: ${escapeHTML(value)}</div>`
+                ).join("\n")}
             </div>
 
             ${createAudioControl(record)}
-
             <div class="transcript">${escapeHTML(transcript)}</div>
+            <hr class="transcript-separator" data-metadata-field="separator" ${metadataOptions.separator ? "" : "hidden"}>
         </section>
     `;
 }
@@ -864,8 +893,11 @@ function createTranscriptSection(record, index) {
 
 function createAudioControl(record) {
 
+    const relativePath = record.playbackAudioPath === undefined
+        ? record.audioRelativePath
+        : record.playbackAudioPath;
     const audioPath =
-        record.audioRelativePath ||
+        relativePath ||
         record.recordingFilename ||
         "";
 

@@ -7,16 +7,20 @@
 // browser using the docx library loaded from a CDN.
 //
 
+import { defaultCombineMetadata, getCombinedMetadataFields } from "./combineMetadata.js";
+
 const DOCX_LIBRARY_URL =
     "https://cdn.jsdelivr.net/npm/docx@9.7.1/+esm";
 
 
 export async function createCombinedDOCX(
     records,
-    title = "Memora — Combined Transcription"
+    title = "Memora — Combined Transcription",
+    metadataOptions = defaultCombineMetadata
 ) {
 
     const {
+        BorderStyle,
         Document,
         Paragraph,
         TextRun,
@@ -69,6 +73,9 @@ export async function createCombinedDOCX(
 
         return new Paragraph({
             children,
+            border: metadataOptions.separator ? {
+                bottom: { style: BorderStyle.SINGLE, size: 6, space: 8, color: "E1E4E8" }
+            } : undefined,
             spacing: {
                 after: 360,
                 line: 360
@@ -90,47 +97,24 @@ export async function createCombinedDOCX(
 
         const record = records[index];
 
-        children.push(
-            new Paragraph({
-                text:
-                    record.recordingFilename ||
-                    record.filename ||
-                    "Untitled recording",
-                heading: HeadingLevel.HEADING_1,
-                spacing: {
-                    before: index === 0 ? 0 : 480,
-                    after: 120
-                }
-            })
-        );
+        if (metadataOptions.title) {
+            children.push(
+                new Paragraph({
+                    text: record.recordingFilename || record.filename || "Untitled recording",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: {
+                        before: index === 0 ? 0 : 480,
+                        after: 120
+                    }
+                })
+            );
+        }
 
-        children.push(
-            createMetadataParagraph(
-                "Recording date",
-                record.recordingDate || "Date unknown"
-            )
-        );
-
-        children.push(
-            createMetadataParagraph(
-                "Duration",
-                record.duration || "Duration unknown"
-            )
-        );
-
-        children.push(
-            createMetadataParagraph(
-                "Recording ID",
-                record.recordingId || record.voiceMemoId || "Unknown"
-            )
-        );
-
-        children.push(
-            createMetadataParagraph(
-                "Whisper model",
-                record.whisperModel || "Unknown"
-            )
-        );
+        for (const [key, label, value] of getCombinedMetadataFields(record)) {
+            if (metadataOptions[key]) {
+                children.push(createMetadataParagraph(label, value));
+            }
+        }
 
         children.push(
             new Paragraph({

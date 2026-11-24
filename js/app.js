@@ -1531,6 +1531,11 @@ async function combineSelectedFiles(
     const combineTitle =
         combineTitleInput?.value.trim() ||
         DEFAULT_COMBINE_TITLE;
+    const metadataOptions = Object.fromEntries(
+        Array.from(document.querySelectorAll("#combineMetadataOptions input"), input =>
+            [input.name, input.checked]
+        )
+    );
 
     const safeFilenameBase =
         combineTitle
@@ -1633,7 +1638,8 @@ async function combineSelectedFiles(
                 const combinedDOCX =
                     await docx.createCombinedDOCX(
                         outputRecords,
-                        combineTitle
+                        combineTitle,
+                        metadataOptions
                     );
 
                 const file =
@@ -1666,7 +1672,8 @@ async function combineSelectedFiles(
                 const combinedHTML =
                     html.createCombinedHTML(
                         htmlRecords,
-                        combineTitle
+                        combineTitle,
+                        metadataOptions
                     );
 
                 const file =
@@ -1729,7 +1736,8 @@ async function combineSelectedFiles(
             const combinedDOCX =
                 await docx.createCombinedDOCX(
                     outputRecords,
-                    combineTitle
+                    combineTitle,
+                    metadataOptions
                 );
 
             combineStatus.textContent =
@@ -1764,7 +1772,7 @@ async function combineSelectedFiles(
             const htmlRecords =
                 outputRecords.map(record => ({
                     ...record,
-                    audioRelativePath:
+                    playbackAudioPath:
                         record.audioRelativePath &&
                         htmlAudioPathPrefix !== null
                             ? htmlAudioPathPrefix +
@@ -1778,7 +1786,8 @@ async function combineSelectedFiles(
             const combinedHTML =
                 html.createCombinedHTML(
                     htmlRecords,
-                    combineTitle
+                    combineTitle,
+                    metadataOptions
                 );
 
             combineStatus.textContent =
