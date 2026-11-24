@@ -308,4 +308,52 @@ await test('iPhone Combine only offers Save and folder guidance for modified tex
  assert(!panel.hidden&&editor.value===original&&save.hidden&&hint.hidden,'Reopening after Cancel must begin clean');
  cancelButton.click();
 });
+await test('Desktop Search and Combine hide Save for clean text and use matching Cancel styles',async()=>{
+ const {openSearchSource}=await import('../js/searchUI.js');
+ click('searchTab');
+ await wait(()=>!document.getElementById('searchSourceButton').disabled);
+ sharedFolders.setTranscript(child,'Parent / transcription');
+ await openSearchSource(child);
+ const query=document.getElementById('searchQueryInput');
+ query.value='existing';query.dispatchEvent(new Event('input'));
+ click('searchButton');
+ await wait(()=>!document.getElementById('searchButton').disabled&&document.querySelector('.search-transcript-edit-button'));
+ document.querySelector('.search-transcript-edit-button').click();
+ const searchPanel=document.querySelector('.search-transcript-editor-panel');
+ assert(searchPanel.querySelector('.search-transcript-save-button').textContent==='Save and reindex','Search must use the native directory path');
+ const searchMarkup=checkCleanEditor(searchPanel,'.search-transcript-save-button','.search-transcript-cancel-button');
+
+ document.querySelector('.search-use-combine-button').click();
+ await wait(()=>!document.getElementById('combinePanel').hidden&&document.querySelector('#transcripts .combine-edit-toggle'));
+ document.querySelector('#transcripts .combine-edit-toggle').click();
+ const combinePanel=document.querySelector('#transcripts .combine-transcript-editor');
+ assert(combinePanel.querySelector('.combine-transcript-save-button').textContent==='Save changes','Combine must use the native directory path');
+ const combineMarkup=checkCleanEditor(combinePanel,'.combine-transcript-save-button','.combine-transcript-secondary-button');
+
+ const frame=document.createElement('iframe');
+ const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+ frame.srcdoc=`<!doctype html><link rel="stylesheet" href="${new URL('../css/style.css',location.href)}">${searchMarkup}${combineMarkup}`;
+ document.body.append(frame);await loaded;
+ try{
+  const style=selector=>frame.contentWindow.getComputedStyle(frame.contentDocument.querySelector(selector));
+  const searchCancel=style('.search-transcript-cancel-button'),combineCancel=style('.combine-transcript-secondary-button');
+  for(const property of ['background-color','color','border','border-radius','padding','font-size']){
+   assert(searchCancel.getPropertyValue(property)===combineCancel.getPropertyValue(property),`Cancel styling differs for ${property}`);
+  }
+  assert(style('.search-transcript-save-button').display==='none'&&style('.combine-transcript-save-button').display==='none','Both clean Save buttons must be visually hidden');
+ }finally{frame.remove();}
+
+ function checkCleanEditor(panel,saveSelector,cancelSelector){
+  const editor=panel.querySelector('textarea'),save=panel.querySelector(saveSelector),cancelEdit=panel.querySelector(cancelSelector);
+  const original=editor.value;
+  assert(save.hidden&&!cancelEdit.hidden,'Clean editor must only offer Cancel');
+  const markup=panel.outerHTML;
+  editor.value+=' Changed.';editor.dispatchEvent(new Event('input'));
+  assert(!save.hidden&&!cancelEdit.hidden,'Changing the text must show Save and keep Cancel visible');
+  editor.value=original;editor.dispatchEvent(new Event('input'));
+  assert(save.hidden&&!cancelEdit.hidden,'Undoing all changes must hide Save again');
+  cancelEdit.click();
+  return markup;
+ }
+});
 const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

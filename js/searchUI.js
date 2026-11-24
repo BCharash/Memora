@@ -1226,7 +1226,6 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     }
 
     function updateSaveControls() {
-        if (!usesMobileEditorControls) return;
         const dirty = textarea.value !== textarea.defaultValue;
         saveButton.hidden = !dirty;
         if (saveLocation) saveLocation.hidden = !dirty;
@@ -1420,12 +1419,9 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
         saveButton.addEventListener("click", async () => {
             const editedTranscript = textarea.value;
+            if (saveButton.disabled || editedTranscript === textarea.defaultValue) return;
             if (!editedTranscript.trim()) {
                 status.textContent = "The transcript cannot be empty.";
-                return;
-            }
-            if (editedTranscript === String(record.transcript || "")) {
-                status.textContent = "No changes to save.";
                 return;
             }
             saveButton.disabled = true;

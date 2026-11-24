@@ -1431,7 +1431,8 @@ button:disabled {
     display: none;
 }
 
-.combine-transcript-editor-actions {
+.combine-transcript-editor-actions,
+.search-transcript-editor-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -1444,14 +1445,8 @@ button:disabled {
     font-size: 14px;
 }
 
-.search-transcript-editor-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.combine-transcript-editor-actions .combine-transcript-secondary-button {
+.combine-transcript-editor-actions .combine-transcript-secondary-button,
+.search-transcript-editor-actions .search-transcript-cancel-button {
     background: var(--surface);
     color: var(--navy);
     border: 1px solid var(--border);
