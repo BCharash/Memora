@@ -15,10 +15,9 @@ let onSelectionChanged;
 let saveTranscriptEdits;
 let appendAudioControl;
 let getAudioSourceHandle;
-export async function displayTranscriptFiles(files) {
+export async function displayTranscriptFiles(files, emptyMessage = "No transcript files found.") {
 
     selectedTranscriptFiles = files;
-    onSelectionChanged();
 
     transcripts.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
     transcripts.innerHTML = "";
@@ -29,13 +28,11 @@ export async function displayTranscriptFiles(files) {
     }
 
     if (files.length === 0) {
-
-        transcripts.innerHTML = `
-            <p class="empty-message">
-                No transcript files found.
-            </p>
-        `;
-
+        const message = document.createElement("p");
+        message.className = "empty-message";
+        message.textContent = emptyMessage;
+        transcripts.appendChild(message);
+        onSelectionChanged();
         return;
     }
 
@@ -670,6 +667,7 @@ export async function displayTranscriptFiles(files) {
     }
 
     await render("date-desc");
+    onSelectionChanged();
 
     sortSelect.addEventListener(
         "change",

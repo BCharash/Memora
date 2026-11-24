@@ -307,6 +307,11 @@ button:disabled {
     border: 1px solid var(--border);
 }
 
+.combine-metadata-options[hidden],
+#combineSearchHighlightOption[hidden] {
+    display: none;
+}
+
 .combine-metadata-options label {
     display: inline-flex;
     align-items: center;

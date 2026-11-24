@@ -360,6 +360,7 @@
                     <input
                         id="combineTitleInput"
                         type="text"
+                        autocomplete="off"
                         value="Combined Transcription"
                         aria-label="Combined document title"
                     >
@@ -367,7 +368,7 @@
                 </div>
 
 
-                <fieldset id="combineMetadataOptions" class="combine-metadata-options">
+                <fieldset id="combineMetadataOptions" class="combine-metadata-options" hidden>
                     <legend>Include in DOCX and HTML</legend>
                     <label><input type="checkbox" name="title" checked> Transcript title</label>
                     <label><input type="checkbox" name="recordingDate" checked> Recording date</label>

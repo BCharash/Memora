@@ -241,9 +241,17 @@ let combineFolderSession = null;
 let combineListOrigin = null;
 const combineSearchHighlightOption = document.getElementById("combineSearchHighlightOption");
 const combineSearchHighlights = document.getElementById("combineSearchHighlights");
+const combineMetadataOptions = document.getElementById("combineMetadataOptions");
 const combineTranscriptListStatus=document.getElementById('combineTranscriptListStatus');
+function updateCombineOutputOptions() {
+    const hasSelection = getSelectedTranscriptFiles().length > 0;
+    combineMetadataOptions.hidden = !hasSelection;
+    combineSearchHighlightOption.hidden = !hasSelection || !combineListOrigin?.searchHighlights;
+    if (getTranscriptFileCount() === 0) {
+        combineTitleInput.value = DEFAULT_COMBINE_TITLE;
+    }
+}
 function renderCombineTranscriptList(){
-    combineSearchHighlightOption.hidden = !combineListOrigin?.searchHighlights;
     const box=document.getElementById('combineListOrigin');
     box.hidden=!combineListOrigin;
     if(combineListOrigin){
@@ -561,9 +569,7 @@ function applySharedTranscriptSelection(){
     renderTranscriptionGate();
 }
 function clearSharedCombineRows(){
-    const container=document.getElementById('transcripts');
-    container.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
-    container.innerHTML='<p class="empty-message">No transcript source opened.</p>';
+    return displayTranscriptFiles([], "No transcript source opened.");
 }
 function resetSharedConsumers(){
     loadedSharedCombine=loadedSharedSearch=null;
@@ -1514,7 +1520,10 @@ if (combineTitleInput) {
 
 initCombineUI({
     getCombineModule,
-    onSelectionChanged: combineShareExportUI.reset,
+    onSelectionChanged: () => {
+        updateCombineOutputOptions();
+        combineShareExportUI.reset();
+    },
     onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
     onSaveTranscriptEdits: async (record, updatedText) => {
@@ -1546,6 +1555,9 @@ initCombineUI({
         return updatedFile;
     }
 });
+
+updateCombineOutputOptions();
+window.addEventListener("pageshow", updateCombineOutputOptions);
 
 async function combineSelectedFiles(
     outputType
