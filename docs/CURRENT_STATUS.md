@@ -79,6 +79,8 @@ Earlier user-reported playback, identity reconstruction, report saving and Pages
 
 ## Next work
 
+**24 November 2026 investigation handoff:** [iPhone Dreams/2017 audio-folder crash](iPhone_2017_Audio_Load_Investigation.md) records user observations, source findings and corrections for desktop continuation. Focus on early audio picker/identity inspection; Combine and Search still require initial transcript preparation. **No code yet:** investigation/documentation only, no fix or measured memory diagnosis. The cleanup proposal below remains separate.
+
 **Current authorized checkpoint:** document the [JavaScript survey and staged cleanup plan](JavaScript_Survey_and_Cleanup_Plan.md). Static assessment covers 57 modules, 54 production-referenced paths and three standalone diagnostic modules. No cleanup code, runner, worker, schema, model or memory instrumentation changed; no new runtime/device tests ran. The plan records preservation rules, scoped acceptance and stop points. It does not authorize implementation.
 
 Recommended first implementation after review: checkpoint 1 (obsolete tooling/routes and carefully reviewed public exports), then a small naming batch. Shared hashing, playback/edit rules and source/session extraction follow separately. Multi-archive Combine remains future work after the relevant boundaries are safe; low-value cosmetic cleanup need not become a prerequisite. The user memory handoff remains unchanged for separate feasibility work.
