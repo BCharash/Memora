@@ -59,7 +59,7 @@ try {
 }
 applyTextSizePreference(savedTextSize);
 
-const DEFAULT_COMBINE_TITLE = "Memora — Combined Transcription";
+const DEFAULT_COMBINE_TITLE = "Combined Transcription";
 
 let storageModulePromise = import("./storage.js");
 let storageManagerModulePromise = import("./storageManager.js");
@@ -1321,6 +1321,20 @@ initSearchUI({
     onSelectTranscriptSource: ()=>chooseSharedTranscript('search')
 });
 
+function createFolderCombineTitle(source, records) {
+    const state = sharedFolders.snapshot();
+    const discoveredAudioName = state.folders.some(folder => folder.source === source)
+        ? state.audio?.name
+        : null;
+    const recordedAudioNames = new Set(
+        records.map(record => record.originalAudioFolderName).filter(Boolean)
+    );
+    const audioName = source.parentAudioName || discoveredAudioName ||
+        (recordedAudioNames.size === 1 ? [...recordedAudioNames][0] : null);
+    const folderTitle = source.name ? `Combined ${source.name}` : DEFAULT_COMBINE_TITLE;
+    return audioName ? `${audioName} - ${folderTitle}` : folderTitle;
+}
+
 async function openCombineSource(selectedSource) {
     combineStatus.textContent='Reading transcript files…';
     const snapshot=await readTranscriptFolder(selectedSource,{onProgress:({completed,total})=>{
@@ -1336,7 +1350,7 @@ async function openCombineSource(selectedSource) {
 
     if (combineTitleInput) {
         combineTitleInput.value =
-            DEFAULT_COMBINE_TITLE;
+            createFolderCombineTitle(selectedSource, snapshot.records);
     }
 
     combineDestinationHandle = null;
