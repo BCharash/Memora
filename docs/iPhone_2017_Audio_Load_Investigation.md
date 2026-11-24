@@ -87,4 +87,8 @@ This is source review plus user-reported observations, not a measured diagnosis.
 
 - [WebKit memory debugging](https://webkit.org/blog/6425/memory-debugging-with-web-inspector/): resource spikes can terminate pages on constrained platforms; does not diagnose this incident.
 - [W3C File API](https://www.w3.org/TR/FileAPI/): File/Blob and slice semantics; does not establish actual iPhone RAM cost of wrappers/provider reads.
+
+
 - Historical picker defects surfaced in web searches were not matched to this device/version and are not evidence of the cause.
+
+This is separate from the iPhone instability with multiple whisper model tests.
