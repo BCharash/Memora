@@ -1402,6 +1402,8 @@ button:disabled {
     font-size: var(--memora-search-body-size);
     line-height: 1.65;
     resize: vertical;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
 }
 
 .combine-transcript-editor-input:focus,
@@ -1424,7 +1426,8 @@ button:disabled {
     overflow-wrap: anywhere;
 }
 
-.search-transcript-save-button[hidden] {
+.search-transcript-save-button[hidden],
+.combine-transcript-save-button[hidden] {
     display: none;
 }
 

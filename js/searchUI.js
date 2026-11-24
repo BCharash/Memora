@@ -1146,7 +1146,7 @@ async function reindexEditedTranscript(updatedFile, oldRecord) {
 
 function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible) {
     const record = group.record;
-    const deferEditorFocus = isIOS || searchSourceHandle?.kind === "file-input";
+    const usesMobileEditorControls = isIOS || searchSourceHandle?.kind === "file-input";
     const editButton = makeSearchEditButton("Edit", "search-transcript-toggle combine-edit-toggle search-transcript-edit-button");
     editButton.title = "Edit transcript";
     editButton.setAttribute("aria-label", `Edit ${group.filename}`);
@@ -1206,7 +1206,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         const nextUnavailable = nextIndex < 0 || nextIndex >= markedTextRanges.length;
         if (matchPreview) {
             const selected = markedTextRanges[selectedMatchIndex()];
-            matchPreview.hidden = !selected;
+            matchPreview.hidden = !selected || document.activeElement === textarea;
             matchPreview.firstElementChild.textContent = selected
                 ? textarea.value.slice(selected.start, selected.end)
                 : "";
@@ -1226,7 +1226,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     }
 
     function updateSaveControls() {
-        if (!deferEditorFocus) return;
+        if (!usesMobileEditorControls) return;
         const dirty = textarea.value !== textarea.defaultValue;
         saveButton.hidden = !dirty;
         if (saveLocation) saveLocation.hidden = !dirty;
@@ -1287,7 +1287,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         }
 
         const target = markedTextRanges[targetIndex];
-        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
+        if (!usesMobileEditorControls) textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(target.start, target.end);
         scrollMarkedTextToCenter(target);
         updateMatchNavigationButtons();
@@ -1296,7 +1296,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     function clearMarkedTextSelection() {
         if (!textarea) return;
         const position = textarea.selectionEnd ?? 0;
-        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
+        if (!usesMobileEditorControls) textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(position, position);
         updateMatchNavigationButtons();
     }
@@ -1337,7 +1337,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             // Keep the insertion point and keyboard in place when navigating
             // from an already focused textarea on a touch device.
             button.addEventListener("pointerdown", event => {
-                if (deferEditorFocus && document.activeElement === textarea) event.preventDefault();
+                if (usesMobileEditorControls && document.activeElement === textarea) event.preventDefault();
             });
         });
         previousMatchButton.addEventListener("click", () => {
@@ -1372,7 +1372,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         }
         saveControls.append(actions, status);
         editorPanel.append(matchNavigation);
-        if (deferEditorFocus) {
+        if (usesMobileEditorControls) {
             matchPreview = document.createElement("p");
             matchPreview.className = "search-transcript-match-preview";
             matchPreview.setAttribute("role", "status");
@@ -1383,7 +1383,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         markedTextRanges = findMarkedTextRanges(textarea.value);
         updateMatchNavigationButtons();
         updateSaveControls();
-        ["click", "keyup", "select", "input"].forEach(eventName =>
+        ["click", "keyup", "select", "input", "focus", "blur"].forEach(eventName =>
             textarea.addEventListener(eventName, () => {
                 if (eventName === "input") {
                     markedTextRanges = findMarkedTextRanges(textarea.value);
@@ -1494,7 +1494,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         ensureEditorCreated();
         if (!editorPanel.hidden) {
             if (transcriptElement.hidden) transcriptToggle.click();
-            if (!deferEditorFocus) textarea.focus({ preventScroll: true });
+            if (!usesMobileEditorControls) textarea.focus({ preventScroll: true });
             return;
         }
         stateBeforeEdit = {
@@ -1522,8 +1522,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         editButton.style.fontWeight = "bold";
         // Keep the button enabled so its selected state can be shown in bold,
         // rather than using the browser's greyed-out disabled appearance.
-        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
-        // Track the first match without moving keyboard focus on iPhone.
+        // Focus during the Edit tap so iPhone can display the native selection.
+        textarea.focus({ preventScroll: true });
         const firstMarkedText = markedTextRanges[0] || null;
         if (firstMarkedText) {
             textarea.setSelectionRange(firstMarkedText.start, firstMarkedText.end);

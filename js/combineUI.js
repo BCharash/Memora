@@ -389,6 +389,13 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             let editor = null;
             let cancelEdit = null;
             let saveEdit = null;
+            let saveLocation = null;
+
+            function updateSaveControls() {
+                const dirty = editor.value !== editor.defaultValue;
+                saveEdit.hidden = !dirty;
+                if (saveLocation) saveLocation.hidden = !dirty;
+            }
 
             function ensureEditPanel() {
                 if (editPanel) return;
@@ -412,6 +419,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
                 saveEdit = document.createElement("button");
                 saveEdit.type = "button";
+                saveEdit.className = "combine-transcript-save-button";
                 saveEdit.textContent = "Save changes";
 
                 const source = getAudioSourceHandle();
@@ -420,10 +428,10 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     : null;
                 const saveStatus = document.createElement("p");
                 if (guidance) {
-                    const location = document.createElement("p");
-                    location.className = "settings-note";
-                    location.textContent = guidance.before;
-                    editPanel.append(editor, location, editActions);
+                    saveLocation = document.createElement("p");
+                    saveLocation.className = "settings-note";
+                    saveLocation.textContent = guidance.before;
+                    editPanel.append(editor, saveLocation, editActions);
                     saveEdit.textContent = "Save replacement to Files";
                     saveStatus.className = "settings-note";
                     saveStatus.setAttribute("role", "status");
@@ -435,6 +443,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 editActions.appendChild(saveEdit);
                 content.appendChild(editPanel);
                 if (guidance) content.appendChild(saveStatus);
+                editor.addEventListener("input", updateSaveControls);
 
                 cancelEdit.addEventListener("click", () => {
                     editPanel.hidden = true;
@@ -448,10 +457,11 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     editToggle.hidden = false;
                     editor.value = String(record.transcript || "");
                     editor.defaultValue = editor.value;
+                    updateSaveControls();
                 });
 
                 saveEdit.addEventListener("click", async () => {
-                    if (saveEdit.disabled) return;
+                    if (saveEdit.disabled || editor.value === editor.defaultValue) return;
                     saveEdit.disabled = true;
                     cancelEdit.disabled = true;
                     editToggle.disabled = true;
@@ -589,6 +599,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     audioContainer.hidden = false;
                     editor.value = String(record.transcript || "");
                     editor.defaultValue = editor.value;
+                    updateSaveControls();
                     editPanel.hidden = false;
                     transcriptContent.hidden = true;
                     transcriptToggle.textContent = "Show transcript";
@@ -612,6 +623,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     audioContainer.hidden = transcriptContent.hidden;
                     editor.value = String(record.transcript || "");
                     editor.defaultValue = editor.value;
+                    updateSaveControls();
                 }
             });
 

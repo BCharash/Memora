@@ -187,7 +187,9 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  const {openSearchSource}=await import('../js/searchUI.js');
  click('searchTab');
  const file=new File([header().replace('This is an existing transcript.',searchEditorFixture.body)],searchEditorFixture.filename);
- await openSearchSource({kind:'file-input',name:'transcription',parentAudioName:'2018',files:[file]});
+ const source={kind:'file-input',name:'transcription',parentAudioName:'2018',files:[file]};
+ sharedFolders.setTranscript(source,'2018 / transcription');
+ await openSearchSource(source);
  const query=document.getElementById('searchQueryInput');query.value='match';query.dispatchEvent(new Event('input'));
  click('searchButton');
  await wait(()=>document.querySelector('.search-result-file'));
@@ -205,17 +207,17 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  const saveHint=result.querySelector('.search-transcript-save-controls .settings-note');
  const cancelEdit=result.querySelector('.search-transcript-cancel-button');
  assert(editor.value===searchEditorFixture.body,'Editor must retain the exact full text');
- assert(document.activeElement!==editor,'Opening Edit must leave the keyboard closed');
+ assert(document.activeElement===editor,'Opening Edit must focus the textarea');
  assert(selection()==='The first match crosses a\nline break.','Edit must select the first match across the line break');
- assert(!preview.hidden&&preview.textContent===selection(),'The first match must be visible without focus');
+ assert(preview.hidden,'The native selection must be the highlight while focused');
  assert(save.hidden&&saveHint.hidden&&!cancelEdit.hidden,'A clean editor must only offer Cancel');
  assert(previous.getAttribute('aria-disabled')==='true');
  next.click();assert(selection()==='The second match contains   extra spaces.','Next must select the original text with its repeated spaces');
- assert(document.activeElement!==editor&&preview.textContent===selection(),'Navigating without focus must update the preview without opening the keyboard');
+ assert(document.activeElement===editor&&preview.hidden,'Navigating while focused must keep the native selection');
  assert(save.hidden&&saveHint.hidden,'Navigating must not count as an edit');
  assert(next.getAttribute('aria-disabled')==='true');
- editor.focus();previous.click();
- assert(document.activeElement===editor&&selection().includes('\n'),'Previous must select the first match while editing');
+ editor.blur();previous.click();
+ assert(document.activeElement!==editor&&selection().includes('\n')&&!preview.hidden&&preview.textContent===selection(),'Previous must show the first match without taking focus back');
  editor.setSelectionRange(editor.value.length,editor.value.length);
  editor.dispatchEvent(new Event('select'));
  previous.click();assert(selection()==='The second match contains   extra spaces.','Previous must also work from after the last match');
@@ -226,6 +228,8 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  try{
   const doc=iframe.contentDocument;
   const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
+  const editorStyle=iframe.contentWindow.getComputedStyle(doc.querySelector('textarea'));
+  assert(editorStyle.overflowY==='auto'&&editorStyle.overscrollBehaviorY==='contain','Search textarea must contain vertical scroll at its edges');
   assert(rect('.combine-transcript-actions').top>=rect('.search-result-file-name').bottom,'Result controls must sit below the filename');
   assert(rect('.search-transcript-editor-actions').top>=rect('textarea').bottom,'Save and Cancel must sit below the textarea');
   assert(iframe.contentWindow.getComputedStyle(doc.querySelector('.search-transcript-save-button')).display==='none','Save must be visually hidden until the text changes');
@@ -279,5 +283,29 @@ await test('iPhone Search index save cancellation retains the pulse and a succes
   if(activation)Object.defineProperty(navigator,'userActivation',activation);
   else delete navigator.userActivation;
  }
+});
+await test('iPhone Combine only offers Save and folder guidance for modified text',async()=>{
+ document.querySelector('.search-use-combine-button').click();
+ await wait(()=>!document.getElementById('combinePanel').hidden&&document.querySelector('#transcripts .combine-edit-toggle'));
+ const edit=document.querySelector('#transcripts .combine-edit-toggle');
+ edit.click();
+ const panel=document.querySelector('#transcripts .combine-transcript-editor');
+ const editor=panel.querySelector('textarea'),save=panel.querySelector('.combine-transcript-save-button');
+ const hint=panel.querySelector('.settings-note'),cancelButton=panel.querySelector('.combine-transcript-secondary-button');
+ assert(!panel.hidden&&!cancelButton.hidden&&save.hidden&&hint.hidden,'Clean Combine editor must only offer Cancel');
+ const original=editor.value;
+ editor.dispatchEvent(new Event('scroll'));
+ assert(save.hidden&&hint.hidden,'Scrolling must not reveal Save');
+ editor.value+=' Changed.';
+ editor.dispatchEvent(new Event('input'));
+ assert(!save.hidden&&!hint.hidden,'Changed transcript must show Save and the folder prompt');
+ assert(hint.textContent.includes('2018 / transcription'),'Combine must use the Search source and its known parent');
+ editor.value=original;
+ editor.dispatchEvent(new Event('input'));
+ assert(save.hidden&&hint.hidden,'Undoing all changes must hide Save and the folder hint again');
+ cancelButton.click();
+ edit.click();
+ assert(!panel.hidden&&editor.value===original&&save.hidden&&hint.hidden,'Reopening after Cancel must begin clean');
+ cancelButton.click();
 });
 const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});
