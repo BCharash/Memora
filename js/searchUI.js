@@ -892,6 +892,7 @@ export function appendSearchAudioControl(section, group, sourceHandleOverride = 
     const locationNote=document.createElement('p');
     locationNote.className='search-audio-location-note';
     locationNote.textContent=guidance;
+    locationNote.hidden=isIOS;
     const playButton = document.createElement("button");
     playButton.type = "button";
     playButton.className = "search-audio-play";
@@ -1145,6 +1146,7 @@ async function reindexEditedTranscript(updatedFile, oldRecord) {
 
 function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible) {
     const record = group.record;
+    const deferEditorFocus = isIOS || searchSourceHandle?.kind === "file-input";
     const editButton = makeSearchEditButton("Edit", "search-transcript-toggle combine-edit-toggle search-transcript-edit-button");
     editButton.title = "Edit transcript";
     editButton.setAttribute("aria-label", `Edit ${group.filename}`);
@@ -1168,6 +1170,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     let matchNavigation = null;
     let previousMatchButton = null;
     let nextMatchButton = null;
+    let matchPreview = null;
+    let saveLocation = null;
     let markedTextRanges = [];
 
     function findMarkedTextRanges(text) {
@@ -1180,10 +1184,15 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             .map(({ offsets }) => ({ start: offsets[0], end: offsets.at(-1) }));
     }
 
+    function selectedMatchIndex() {
+        return markedTextRanges.findIndex(range =>
+            range.start === textarea.selectionStart && range.end === textarea.selectionEnd
+        );
+    }
+
     function adjacentMatchIndex(direction) {
         const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selected = markedTextRanges.findIndex(range => range.start === start && range.end === end);
+        const selected = selectedMatchIndex();
         if (selected >= 0) return selected + direction;
         const next = markedTextRanges.findIndex(range => range.start >= start);
         if (direction > 0) return next;
@@ -1195,6 +1204,13 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         const previousUnavailable = adjacentMatchIndex(-1) < 0;
         const nextIndex = adjacentMatchIndex(1);
         const nextUnavailable = nextIndex < 0 || nextIndex >= markedTextRanges.length;
+        if (matchPreview) {
+            const selected = markedTextRanges[selectedMatchIndex()];
+            matchPreview.hidden = !selected;
+            matchPreview.firstElementChild.textContent = selected
+                ? textarea.value.slice(selected.start, selected.end)
+                : "";
+        }
 
         // Do not use the native disabled property here. Clicking a disabled
         // button can still move focus away from the textarea, hiding its blue
@@ -1207,6 +1223,14 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 button.style.opacity = unavailable ? "0.45" : "1";
                 button.style.cursor = unavailable ? "default" : "pointer";
             });
+    }
+
+    function updateSaveControls() {
+        if (!deferEditorFocus) return;
+        const dirty = textarea.value !== textarea.defaultValue;
+        saveButton.hidden = !dirty;
+        if (saveLocation) saveLocation.hidden = !dirty;
+        if (!dirty) status.textContent = "";
     }
 
     function scrollMarkedTextToCenter(target) {
@@ -1263,7 +1287,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         }
 
         const target = markedTextRanges[targetIndex];
-        textarea.focus({ preventScroll: true });
+        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(target.start, target.end);
         scrollMarkedTextToCenter(target);
         updateMatchNavigationButtons();
@@ -1272,7 +1296,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     function clearMarkedTextSelection() {
         if (!textarea) return;
         const position = textarea.selectionEnd ?? 0;
-        textarea.focus({ preventScroll: true });
+        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(position, position);
         updateMatchNavigationButtons();
     }
@@ -1308,8 +1332,13 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         // Prevent mouse clicks on the navigation controls from blurring the
         // textarea. This keeps the selected text visibly highlighted, including
         // when a greyed-out control is clicked at either end of the match list.
-        [previousMatchButton, nextMatchButton].forEach(button => {
+        [previousMatchButton, clearMatchButton, nextMatchButton].forEach(button => {
             button.addEventListener("mousedown", event => event.preventDefault());
+            // Keep the insertion point and keyboard in place when navigating
+            // from an already focused textarea on a touch device.
+            button.addEventListener("pointerdown", event => {
+                if (deferEditorFocus && document.activeElement === textarea) event.preventDefault();
+            });
         });
         previousMatchButton.addEventListener("click", () => {
             if (previousMatchButton.getAttribute("aria-disabled") === "true") return;
@@ -1336,18 +1365,30 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         const saveControls = document.createElement("div");
         saveControls.className = "search-transcript-save-controls";
         if (guidance) {
-            const location = document.createElement("p");
-            location.className = "settings-note";
-            location.textContent = guidance.before;
-            saveControls.append(location);
+            saveLocation = document.createElement("p");
+            saveLocation.className = "settings-note";
+            saveLocation.textContent = guidance.before;
+            saveControls.append(saveLocation);
         }
         saveControls.append(actions, status);
-        editorPanel.append(matchNavigation, textarea, saveControls);
+        editorPanel.append(matchNavigation);
+        if (deferEditorFocus) {
+            matchPreview = document.createElement("p");
+            matchPreview.className = "search-transcript-match-preview";
+            matchPreview.setAttribute("role", "status");
+            matchPreview.append(document.createElement("mark"));
+            editorPanel.append(matchPreview);
+        }
+        editorPanel.append(textarea, saveControls);
         markedTextRanges = findMarkedTextRanges(textarea.value);
         updateMatchNavigationButtons();
+        updateSaveControls();
         ["click", "keyup", "select", "input"].forEach(eventName =>
             textarea.addEventListener(eventName, () => {
-                if (eventName === "input") markedTextRanges = findMarkedTextRanges(textarea.value);
+                if (eventName === "input") {
+                    markedTextRanges = findMarkedTextRanges(textarea.value);
+                    updateSaveControls();
+                }
                 updateMatchNavigationButtons();
             })
         );
@@ -1374,6 +1415,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             status.textContent = "";
             textarea.value = String(record.transcript || "");
             textarea.defaultValue = textarea.value;
+            updateSaveControls();
         });
 
         saveButton.addEventListener("click", async () => {
@@ -1452,7 +1494,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         ensureEditorCreated();
         if (!editorPanel.hidden) {
             if (transcriptElement.hidden) transcriptToggle.click();
-            textarea.focus({ preventScroll: true });
+            if (!deferEditorFocus) textarea.focus({ preventScroll: true });
             return;
         }
         stateBeforeEdit = {
@@ -1467,7 +1509,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         textarea.value = String(record.transcript || "");
         textarea.defaultValue = textarea.value;
         markedTextRanges = findMarkedTextRanges(textarea.value);
-        updateMatchNavigationButtons();
+        updateSaveControls();
         editorPanel.hidden = false;
         transcriptElement.hidden = false;
         setResultVisible(false);
@@ -1480,10 +1522,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         editButton.style.fontWeight = "bold";
         // Keep the button enabled so its selected state can be shown in bold,
         // rather than using the browser's greyed-out disabled appearance.
-        textarea.focus({ preventScroll: true });
-        // Select the first marked sentence as soon as Edit opens, rather than
-        // leaving the caret at the start until the user presses Next match.
-        // This makes the first semantic/lexical match immediately visible.
+        if (!deferEditorFocus) textarea.focus({ preventScroll: true });
+        // Track the first match without moving keyboard focus on iPhone.
         const firstMarkedText = markedTextRanges[0] || null;
         if (firstMarkedText) {
             textarea.setSelectionRange(firstMarkedText.start, firstMarkedText.end);
@@ -1498,7 +1538,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         // sentence into view inside the textarea.
         requestAnimationFrame(() => {
             if (window.matchMedia("(max-width: 600px)").matches) {
-                editorPanel.querySelector(".search-transcript-save-controls").scrollIntoView({ block: "nearest" });
+                matchNavigation.scrollIntoView({ block: "nearest" });
             } else {
                 const editorTop = textarea.getBoundingClientRect().top + window.scrollY;
                 const targetScrollY = editorTop - (window.innerHeight / 2);

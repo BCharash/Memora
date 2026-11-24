@@ -1419,6 +1419,15 @@ button:disabled {
     display: none !important;
 }
 
+.search-transcript-match-preview {
+    margin: 0 0 8px;
+    overflow-wrap: anywhere;
+}
+
+.search-transcript-save-button[hidden] {
+    display: none;
+}
+
 .combine-transcript-editor-actions {
     display: flex;
     justify-content: flex-end;
@@ -1489,10 +1498,6 @@ button:disabled {
     .search-transcript-editor-panel {
         display: flex;
         flex-direction: column;
-    }
-
-    .search-transcript-save-controls {
-        order: -1;
     }
 
     .search-transcript-editor-actions,

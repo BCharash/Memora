@@ -200,12 +200,22 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  result.querySelector('.search-transcript-edit-button').click();
  const editor=result.querySelector('textarea'),selection=()=>editor.value.slice(editor.selectionStart,editor.selectionEnd);
  const previous=result.querySelector('.search-transcript-previous-match'),next=result.querySelector('.search-transcript-next-match');
+ const preview=result.querySelector('.search-transcript-match-preview');
+ const save=result.querySelector('.search-transcript-save-button');
+ const saveHint=result.querySelector('.search-transcript-save-controls .settings-note');
+ const cancelEdit=result.querySelector('.search-transcript-cancel-button');
  assert(editor.value===searchEditorFixture.body,'Editor must retain the exact full text');
+ assert(document.activeElement!==editor,'Opening Edit must leave the keyboard closed');
  assert(selection()==='The first match crosses a\nline break.','Edit must select the first match across the line break');
+ assert(!preview.hidden&&preview.textContent===selection(),'The first match must be visible without focus');
+ assert(save.hidden&&saveHint.hidden&&!cancelEdit.hidden,'A clean editor must only offer Cancel');
  assert(previous.getAttribute('aria-disabled')==='true');
  next.click();assert(selection()==='The second match contains   extra spaces.','Next must select the original text with its repeated spaces');
+ assert(document.activeElement!==editor&&preview.textContent===selection(),'Navigating without focus must update the preview without opening the keyboard');
+ assert(save.hidden&&saveHint.hidden,'Navigating must not count as an edit');
  assert(next.getAttribute('aria-disabled')==='true');
- previous.click();assert(selection().includes('\n'),'Previous must return to the first match');
+ editor.focus();previous.click();
+ assert(document.activeElement===editor&&selection().includes('\n'),'Previous must select the first match while editing');
  editor.setSelectionRange(editor.value.length,editor.value.length);
  editor.dispatchEvent(new Event('select'));
  previous.click();assert(selection()==='The second match contains   extra spaces.','Previous must also work from after the last match');
@@ -217,9 +227,17 @@ await test('iPhone Search preserves the entire transcript and moves selection be
   const doc=iframe.contentDocument;
   const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
   assert(rect('.combine-transcript-actions').top>=rect('.search-result-file-name').bottom,'Result controls must sit below the filename');
-  assert(rect('.search-transcript-editor-actions').bottom<=rect('textarea').top,'Save and Cancel must sit above the textarea');
+  assert(rect('.search-transcript-editor-actions').top>=rect('textarea').bottom,'Save and Cancel must sit below the textarea');
+  assert(iframe.contentWindow.getComputedStyle(doc.querySelector('.search-transcript-save-button')).display==='none','Save must be visually hidden until the text changes');
  }finally{iframe.remove();}
  editor.value+=' Unsaved change.';
+ editor.dispatchEvent(new Event('input'));
+ assert(!save.hidden&&!saveHint.hidden,'Text changes must reveal Save and the destination hint');
+ editor.value=searchEditorFixture.body;
+ editor.dispatchEvent(new Event('input'));
+ assert(save.hidden&&saveHint.hidden,'Undoing all changes must hide Save and the destination hint');
+ editor.value+=' Unsaved change.';
+ editor.dispatchEvent(new Event('input'));
  const resultToggle=result.querySelector('.search-result-toggle');
  resultToggle.click();
  const confirm=window.confirm;
@@ -234,7 +252,8 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  result.querySelector('.search-transcript-cancel-button').click();
  assert(full.hidden&&!result.querySelector('.search-result-excerpt').hidden,'Cancel from the excerpt must restore the excerpt');
  transcriptToggle.click();
- assert(!full.hidden&&!full.querySelector('.search-transcript-text').hidden&&full.querySelectorAll('mark').length===2,'Show transcript after Cancel must still display the complete highlighted transcript');
+ const reader=full.querySelector('.search-transcript-text');
+ assert(!full.hidden&&!reader.hidden&&reader.querySelectorAll('mark').length===2,'Show transcript after Cancel must still display the complete highlighted transcript');
 });
 await test('iPhone Search index save cancellation retains the pulse and a successful share leaves a normal retry button',async()=>{
  const button=document.getElementById('searchIndexUpdateButton');
