@@ -473,6 +473,10 @@ button:disabled {
     margin-bottom: 0;
 }
 
+.combine-transcript-text .search-full-transcript-paragraph {
+    white-space: pre-wrap;
+}
+
 /* Align labels and selectors independently of the model notes below them. */
 .transcription-controls {
     display: flex;

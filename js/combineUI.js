@@ -366,7 +366,7 @@ export async function displayTranscriptFiles(files) {
             const transcriptContent =
                 document.createElement("div");
 
-            transcriptContent.className = "search-transcript-text";
+            transcriptContent.className = "search-transcript-text combine-transcript-text";
             transcriptContent.hidden = true;
 
             const editToggle = document.createElement("button");
