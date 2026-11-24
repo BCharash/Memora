@@ -2098,11 +2098,16 @@ function renderSearchResults(payload) {
     groupCheckboxes.forEach(checkbox => { checkbox.onchange = updateSelectionUI; });
 
     useButton.onclick = async () => {
-        const selected = groupCheckboxes
+        const selectedRecords = groupCheckboxes
             .filter(checkbox => checkbox.checked)
-            .map(checkbox => groups.find(group => group.filename === checkbox.dataset.filename)?.record.file)
-            .filter(Boolean);
-        await combineSelectionHandler(selected, searchQueryInput?.value.trim() || "", searchSourceHandle);
+            .map(checkbox => groups.find(group => group.filename === checkbox.dataset.filename)?.record)
+            .filter(record => record?.file);
+        await combineSelectionHandler(
+            selectedRecords.map(record => record.file),
+            searchQueryInput?.value.trim() || "",
+            searchSourceHandle,
+            selectedRecords
+        );
     };
 
     updateSelectionUI();

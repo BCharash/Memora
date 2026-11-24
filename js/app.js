@@ -1173,7 +1173,7 @@ textSizeSlider?.addEventListener("input", () => {
 function createSearchCombineTitle(query) {
     const terms=[...new Set(String(query||'').split(';').map(term=>term.trim()).filter(Boolean))]
         .map(createSearchTermTitle).filter(Boolean);
-    return terms.length?`Memora — Search: ${terms.join('; ')}`:DEFAULT_COMBINE_TITLE;
+    return terms.length ? `Search: ${terms.join("; ")}` : "";
 }
 
 function createSearchTermTitle(query) {
@@ -1247,7 +1247,7 @@ function createSearchTermTitle(query) {
 }
 
 
-async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandle) {
+async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandle, records = []) {
 
     if (!files.length) {
         return;
@@ -1256,15 +1256,17 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     if(!await retainPendingCombineList())return;
     combineFolderSession=null;
     textSourceHandle = searchSourceHandle;
-    combineListOrigin={source:searchSourceHandle,searchTitle:createSearchCombineTitle(searchQuery).replace(/^Memora\s*[—-]\s*/, '')};
+    const searchTitle = createSearchCombineTitle(searchQuery);
+    combineListOrigin={source:searchSourceHandle,searchTitle};
     renderCombineTranscriptList();
 
     combineDestinationHandle = null;
     setActiveCombineDestinationButton(null);
 
     if (combineTitleInput) {
-        combineTitleInput.value =
-            createSearchCombineTitle(searchQuery);
+        const audioName = getCombineAudioSourceName(searchSourceHandle, records);
+        const title = searchTitle || DEFAULT_COMBINE_TITLE;
+        combineTitleInput.value = audioName ? `${audioName} - ${title}` : title;
     }
 
     if (textSourceHandle) {
@@ -1321,7 +1323,7 @@ initSearchUI({
     onSelectTranscriptSource: ()=>chooseSharedTranscript('search')
 });
 
-function createFolderCombineTitle(source, records) {
+function getCombineAudioSourceName(source, records) {
     const state = sharedFolders.snapshot();
     const discoveredAudioName = state.folders.some(folder => folder.source === source)
         ? state.audio?.name
@@ -1329,8 +1331,12 @@ function createFolderCombineTitle(source, records) {
     const recordedAudioNames = new Set(
         records.map(record => record.originalAudioFolderName).filter(Boolean)
     );
-    const audioName = source.parentAudioName || discoveredAudioName ||
+    return source?.parentAudioName || discoveredAudioName ||
         (recordedAudioNames.size === 1 ? [...recordedAudioNames][0] : null);
+}
+
+function createFolderCombineTitle(source, records) {
+    const audioName = getCombineAudioSourceName(source, records);
     const folderTitle = source.name ? `Combined ${source.name}` : DEFAULT_COMBINE_TITLE;
     return audioName ? `${audioName} - ${folderTitle}` : folderTitle;
 }
