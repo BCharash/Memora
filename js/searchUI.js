@@ -1,4 +1,5 @@
 import {readTranscriptFolder} from './transcriptCatalogue.js';
+import { searchHighlightColors, splitHighlightSentences } from "./searchExportHighlights.js";
 import {sharedFolders} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
@@ -401,6 +402,31 @@ function searchPositionKey(filename, paragraphIndex, sentenceIndex) {
     return `position:${filename}|${paragraphIndex}|${sentenceIndex}`;
 }
 
+function getSentenceColorAssignment(group, paragraphIndex, sentenceIndex, sentence) {
+    const normalized = normalizeSentenceMatchKey(sentence);
+    if (group.yellowSentences?.has(normalized)) return { color: "yellow", priority: 0 };
+    const position = group.sentenceColors.get(searchPositionKey(group.filename, paragraphIndex, sentenceIndex));
+    const text = group.sentenceColors.get(`text:${group.filename}|${normalized}`);
+    if (!position) return text || null;
+    return text && text.priority < position.priority ? text : position;
+}
+
+function captureSearchHighlights(group) {
+    const text = group.record.transcript || "";
+    const sentences = splitHighlightSentences(text).map(
+        ({key, offsets, searchText, searchOffsets, paragraphIndex, sentenceIndex}) => ({
+            key, offsets,
+            color: getSentenceColorAssignment(group, paragraphIndex, sentenceIndex, searchText)?.color,
+            bold: (group.lexicalMatchesBySentence?.get(normalizeSentenceMatchKey(searchText)) || [])
+                .filter(({start, end}) => Number.isInteger(start) && Number.isInteger(end) &&
+                    start >= 0 && end > start && end <= searchText.length)
+                .map(({start, end}) => ({start: searchOffsets[start], end: searchOffsets[end]}))
+                .sort((a, b) => a.start - b.start || a.end - b.end)
+        })
+    );
+    return {text, sentences};
+}
+
 function splitTranscriptSentences(text) {
     let normalized = String(text || "")
         .replace(/\n+/g, " ")
@@ -562,45 +588,13 @@ function appendColoredTranscript(container, group, { showMatchIndicators = false
         .map(paragraph => paragraph.trim())
         .filter(Boolean);
 
-    const colors = {
-        yellow: "#FFFF00",
-        blue: "#C8E7FF",
-        orange: "#FFD2B3",
-        green: "#D8EBCB"
-    };
-
-    // Yellow is priority 0, then blue, orange and green. Resolve positional
-    // and text-fallback assignments together so a mismatched position cannot
-    // mask a yellow sentence match.
-    const getAssignment = (paragraphIndex, sentenceIndex, sentence) => {
-        const normalizedText = normalizeSentenceMatchKey(sentence);
-
-        // Direct sentence matches are tracked separately from contextual colors.
-        // This gives yellow first priority even if position keys or contextual
-        // sentence references do not line up exactly.
-        if (group.yellowSentences?.has(normalizedText)) {
-            return { color: "yellow", priority: 0 };
-        }
-
-        const positionKey = searchPositionKey(group.filename, paragraphIndex, sentenceIndex);
-        const textKey = `text:${group.filename}|${normalizeSentenceMatchKey(sentence)}`;
-        const positionAssignment = group.sentenceColors.get(positionKey);
-        const textAssignment = group.sentenceColors.get(textKey);
-
-        if (!positionAssignment) return textAssignment || null;
-        if (!textAssignment) return positionAssignment;
-        return textAssignment.priority < positionAssignment.priority
-            ? textAssignment
-            : positionAssignment;
-    };
-
     paragraphs.forEach((paragraph, paragraphIndex) => {
         const paragraphElement = document.createElement("p");
         paragraphElement.className = "search-full-transcript-paragraph";
         const sentences = splitTranscriptSentences(paragraph);
         const pieces = sentences.map((sentence, sentenceIndex) => ({
             sentence,
-            assignment: getAssignment(paragraphIndex, sentenceIndex, sentence)
+            assignment: getSentenceColorAssignment(group, paragraphIndex, sentenceIndex, sentence)
         }));
 
         // Adjacent sentences of the same color are emitted as one continuous
@@ -612,7 +606,7 @@ function appendColoredTranscript(container, group, { showMatchIndicators = false
             // yellow match visually distinct from contextual highlight spans.
             const mark = document.createElement(run.color === "yellow" ? "mark" : "span");
             mark.className = `search-transcript-highlight search-highlight-${run.color}`;
-            mark.style.setProperty("background-color", colors[run.color], "important");
+            mark.style.setProperty("background-color", searchHighlightColors[run.color], "important");
             mark.style.setProperty("color", "inherit", "important");
             mark.style.setProperty("-webkit-box-decoration-break", "clone");
             mark.style.setProperty("box-decoration-break", "clone");
@@ -2100,8 +2094,9 @@ function renderSearchResults(payload) {
     useButton.onclick = async () => {
         const selectedRecords = groupCheckboxes
             .filter(checkbox => checkbox.checked)
-            .map(checkbox => groups.find(group => group.filename === checkbox.dataset.filename)?.record)
-            .filter(record => record?.file);
+            .map(checkbox => groups.find(group => group.filename === checkbox.dataset.filename))
+            .filter(group => group?.record.file)
+            .map(group => ({...group.record, searchHighlights: captureSearchHighlights(group)}));
         await combineSelectionHandler(
             selectedRecords.map(record => record.file),
             searchQueryInput?.value.trim() || "",

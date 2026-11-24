@@ -4,6 +4,7 @@ import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 
 import {readTranscriptFolder} from "./transcriptCatalogue.js";
 import { readTranscriptSourceText } from "./combine.js";
+import { resolveSearchHighlights } from "./searchExportHighlights.js";
 import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
 import { askIdentity } from "./identityDialog.js";
 import { renderWhisperExecutionReport, renderWhisperReviewNotice } from "./whisperExecutionReports.js";
@@ -238,8 +239,11 @@ async function confirmPendingDiscard() {
 let textSourceHandle = null;
 let combineFolderSession = null;
 let combineListOrigin = null;
+const combineSearchHighlightOption = document.getElementById("combineSearchHighlightOption");
+const combineSearchHighlights = document.getElementById("combineSearchHighlights");
 const combineTranscriptListStatus=document.getElementById('combineTranscriptListStatus');
 function renderCombineTranscriptList(){
+    combineSearchHighlightOption.hidden = !combineListOrigin?.searchHighlights;
     const box=document.getElementById('combineListOrigin');
     box.hidden=!combineListOrigin;
     if(combineListOrigin){
@@ -1257,7 +1261,12 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     combineFolderSession=null;
     textSourceHandle = searchSourceHandle;
     const searchTitle = createSearchCombineTitle(searchQuery);
-    combineListOrigin={source:searchSourceHandle,searchTitle};
+    combineListOrigin = {
+        source: searchSourceHandle,
+        searchTitle,
+        searchHighlights: new Map(records.map(record => [record.file.name, record.searchHighlights]))
+    };
+    combineSearchHighlights.checked = false;
     renderCombineTranscriptList();
 
     combineDestinationHandle = null;
@@ -1556,6 +1565,9 @@ async function combineSelectedFiles(
             [input.name, input.checked]
         )
     );
+    const searchHighlights = outputType !== "text" && combineSearchHighlights.checked
+        ? combineListOrigin?.searchHighlights
+        : null;
 
     const safeFilenameBase =
         combineTitle
@@ -1622,7 +1634,10 @@ async function combineSelectedFiles(
             `Preparing ${selectedRecords.length} transcript${selectedRecords.length === 1 ? "" : "s"}…`;
 
         // Combine preserves the paragraphs in the selected transcripts.
-        const outputRecords = selectedRecords;
+        const outputRecords = searchHighlights ? selectedRecords.map(record => ({
+            ...record,
+            searchHighlights: resolveSearchHighlights(searchHighlights.get(record.filename), record.transcript)
+        })) : selectedRecords;
 
         // iPhone: generate exactly one selected format in memory, then
         // hand that file to the iOS share sheet. The same generated file

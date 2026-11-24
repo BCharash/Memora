@@ -8,6 +8,7 @@
 //
 
 import { defaultCombineMetadata, getCombinedMetadataFields } from "./combineMetadata.js";
+import { searchHighlightColors, transcriptHighlightRuns } from "./searchExportHighlights.js";
 
 const DOCX_LIBRARY_URL =
     "https://cdn.jsdelivr.net/npm/docx@9.7.1/+esm";
@@ -49,27 +50,23 @@ export async function createCombinedDOCX(
         });
     }
 
-    function createTranscriptParagraph(text) {
-        const lines = String(text).split(/\r?\n/);
+    function createTranscriptParagraph(text, highlights) {
         const children = [];
 
-        lines.forEach((line, index) => {
-            if (index > 0) {
-                children.push(
-                    new TextRun({
-                        break: 1,
-                        size: 24
-                    })
-                );
-            }
-
-            children.push(
-                new TextRun({
-                    text: line,
-                    size: 24
-                })
-            );
-        });
+        for (const run of transcriptHighlightRuns(text, highlights)) {
+            const fill = searchHighlightColors[run.color]?.slice(1);
+            run.text.split(/\r?\n/).forEach((line, index) => {
+                if (index > 0) children.push(new TextRun({break: 1, size: 24}));
+                if (line) {
+                    children.push(new TextRun({
+                        text: line,
+                        size: 24,
+                        bold: run.bold,
+                        shading: fill ? {type: "clear", fill} : undefined
+                    }));
+                }
+            });
+        }
 
         return new Paragraph({
             children,
@@ -127,7 +124,8 @@ export async function createCombinedDOCX(
 
         children.push(
             createTranscriptParagraph(
-                record.transcript || ""
+                record.transcript || "",
+                record.searchHighlights
             )
         );
     }

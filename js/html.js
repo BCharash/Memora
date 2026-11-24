@@ -8,6 +8,7 @@
 //
 
 import { defaultCombineMetadata, getCombinedMetadataFields } from "./combineMetadata.js";
+import { searchHighlightColors, transcriptHighlightRuns } from "./searchExportHighlights.js";
 
 export function createCombinedHTML(
     records,
@@ -17,6 +18,7 @@ export function createCombinedHTML(
 
     const defaultSort = inferDefaultSort(records);
     const hasOmittedFields = Object.keys(defaultCombineMetadata).some(key => !metadataOptions[key]);
+    const hasSearchHighlights = records.some(record => record.searchHighlights?.length);
 
     const sections =
         records
@@ -220,6 +222,26 @@ export function createCombinedHTML(
 
         .metadata-display-options {
             margin-top: 12px;
+        }
+
+        .search-highlight-option {
+            display: inline-block;
+            margin-top: 12px;
+        }
+
+        .search-highlight {
+            background-color: var(--search-highlight-color, transparent);
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+        }
+
+        .search-highlight-bold {
+            font-weight: bold;
+        }
+
+        .hide-search-highlights .search-highlight {
+            background-color: transparent;
+            font-weight: inherit;
         }
 
         .metadata-display-fields:not([hidden]) {
@@ -448,6 +470,12 @@ export function createCombinedHTML(
                             </div>
                         </div>
                     ` : ""}
+                    ${hasSearchHighlights ? `
+                        <label class="search-highlight-option">
+                            <input id="showSearchHighlights" type="checkbox" checked autocomplete="off">
+                            Show search highlights
+                        </label>
+                    ` : ""}
                 </div>
             </div>
 
@@ -487,6 +515,10 @@ export function createCombinedHTML(
 
         const sortControls = document.querySelector(".sort-controls");
         const recordsContainer = document.querySelector(".records");
+        const showSearchHighlights = document.getElementById("showSearchHighlights");
+        showSearchHighlights?.addEventListener("change", () => {
+            recordsContainer.classList.toggle("hide-search-highlights", !showSearchHighlights.checked);
+        });
         const sortByInputs = document.querySelectorAll('input[name="sortBy"]');
         const dateOrderOptions = document.getElementById("dateOrderOptions");
         const alphaOrderOptions = document.getElementById("alphaOrderOptions");
@@ -884,7 +916,12 @@ function createTranscriptSection(record, index, metadataOptions) {
             </div>
 
             ${createAudioControl(record)}
-            <div class="transcript">${escapeHTML(transcript)}</div>
+            <div class="transcript">${transcriptHighlightRuns(transcript, record.searchHighlights).map(run => {
+                const text = escapeHTML(run.text);
+                if (!run.color && !run.bold) return text;
+                const color = searchHighlightColors[run.color];
+                return `<span class="search-highlight${run.bold ? " search-highlight-bold" : ""}"${color ? ` style="--search-highlight-color:${color}"` : ""}>${text}</span>`;
+            }).join("")}</div>
             <hr class="transcript-separator" data-metadata-field="separator" ${metadataOptions.separator ? "" : "hidden"}>
         </section>
     `;

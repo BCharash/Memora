@@ -313,6 +313,10 @@ button:disabled {
     gap: 4px;
 }
 
+#combineSearchHighlightOption {
+    margin-bottom: 16px;
+}
+
 .combine-actions {
     display: flex;
     gap: 10px;
