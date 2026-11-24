@@ -4,6 +4,7 @@ import { createWhisperEvidenceBridge, getWhisperEligibilityContext } from "./whi
 import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { presentWhisperAttempt, renderWhisperAttemptContext } from "./whisperAttemptReport.js";
 import { createWhisperAttemptJournal, visibleWhisperAttempts } from "./whisperAttempts.js";
+import { askIdentity } from "./identityDialog.js";
 // --------------------------------------------------
 // Memora Settings UI
 // --------------------------------------------------
@@ -1266,7 +1267,19 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
             alert("This browser cannot save cached transcripts through the Files app.");
             return;
         }
-        await navigator.share({files});
+        const archiveNames = [...new Set(exports.map(record => record.originalAudioFolderName).filter(Boolean))];
+        const archiveHint = archiveNames.length ? ` Original audio folders in the cache include ${archiveNames.join(", ")}.` : "";
+        const answer = await askIdentity({
+            title: "Save cached transcripts",
+            message: `Choose a recovery folder in Save to Files for ${files.length} cached transcript${files.length === 1 ? "" : "s"}.${archiveHint} To restore files to different archives, select and save one archive at a time.`,
+            choices: [
+                { action: "share", label: "Open Share Sheet", run: () => storageModule.shareFiles(files) },
+                { action: "cancel", label: "Cancel" }
+            ]
+        });
+        if (answer.action === "share") {
+            alert("Shared. Check in Files that the cached transcripts are in the recovery folder you chose.");
+        }
     }
 
     async function refresh({initializeRegistry=true}={}) {

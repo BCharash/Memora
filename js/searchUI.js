@@ -1,6 +1,6 @@
 import {readTranscriptFolder} from './transcriptCatalogue.js';
 import { searchHighlightColors, splitHighlightSentences } from "./searchExportHighlights.js";
-import {sharedFolders} from './sharedFolderSelection.js';
+import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
@@ -14,6 +14,8 @@ let getSearchModule;
 
 const searchSourceButton = document.getElementById("searchSourceButton");
 const searchIndexUpdateButton = document.getElementById("searchIndexUpdateButton");
+const searchIndexSaveLocation = document.getElementById("searchIndexSaveLocation");
+const SEARCH_INDEX_FILENAME = "search-embeddings.json";
 const searchQueryInput = document.getElementById("searchQueryInput");
 const clearSearchButton = document.getElementById("clearSearchButton");
 const lexicalFuzzySlider = document.getElementById("lexicalFuzzySlider");
@@ -176,6 +178,15 @@ function setSearchIndexUpdateAvailable(available) {
     if (!searchIndexUpdateButton) return;
     searchIndexUpdateButton.hidden = !available;
     searchIndexUpdateButton.disabled = !available;
+    searchIndexUpdateButton.classList.toggle("has-pending-index-update",
+        available && hasPendingSearchIndexUpdate());
+    if (searchIndexSaveLocation) {
+        searchIndexSaveLocation.hidden = !available || searchSourceHandle?.kind !== "file-input";
+        if (!searchIndexSaveLocation.hidden) {
+            const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
+            searchIndexSaveLocation.textContent = `In Save to Files, put “${SEARCH_INDEX_FILENAME}” in ${folder} beside the transcripts. Replace the older index there if present.${parentHint}`;
+        }
+    }
 }
 
 
@@ -355,15 +366,20 @@ async function updateSearchIndexArchive() {
         const file =
             new File(
                 [archiveText],
-                "search-embeddings.json",
+                SEARCH_INDEX_FILENAME,
                 { type: "application/json" }
             );
 
-        await storage.shareFile(file);
+        await storage.shareFile(file, searchIndexSaveLocation?.textContent);
+        const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
+        currentSearchIndex.archiveNeedsUpdate = false;
+        setSearchIndexUpdateAvailable(true);
+        setSearchIndexStatus(`Shared. Check in Files that “${SEARCH_INDEX_FILENAME}” is in ${folder}.${parentHint} Use Update Search Index again if you need to retry.`);
+        return;
     } else {
         await storage.writeTextFile(
             searchSourceHandle,
-            "search-embeddings.json",
+            SEARCH_INDEX_FILENAME,
             archiveText
         );
     }
@@ -1127,7 +1143,7 @@ async function reindexEditedTranscript(updatedFile, oldRecord) {
     }
 }
 
-function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle) {
+function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible) {
     const record = group.record;
     const editButton = makeSearchEditButton("Edit", "search-transcript-toggle combine-edit-toggle search-transcript-edit-button");
     editButton.title = "Edit transcript";
@@ -1155,64 +1171,30 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     let markedTextRanges = [];
 
     function findMarkedTextRanges(text) {
-        const ranges = [];
-        const source = String(text || "");
-        const paragraphPattern = /\\r?\\n\\s*\\r?\\n+/g;
-        let segmentStart = 0;
-        const segments = [];
-        let separator;
-        while ((separator = paragraphPattern.exec(source)) !== null) {
-            segments.push({ start: segmentStart, end: separator.index });
-            segmentStart = separator.index + separator[0].length;
-        }
-        segments.push({ start: segmentStart, end: source.length });
+        return splitHighlightSentences(text)
+            .filter(({ searchText, paragraphIndex, sentenceIndex }) => {
+                const key = normalizeSentenceMatchKey(searchText);
+                return getSentenceColorAssignment(group, paragraphIndex, sentenceIndex, searchText) ||
+                    group.lexicalMatchesBySentence?.get(key)?.length;
+            })
+            .map(({ offsets }) => ({ start: offsets[0], end: offsets.at(-1) }));
+    }
 
-        segments.forEach((segment, paragraphIndex) => {
-            const rawParagraph = source.slice(segment.start, segment.end);
-            const leadingWhitespace = rawParagraph.match(/^\\s*/)?.[0].length || 0;
-            const paragraph = rawParagraph.trim();
-            if (!paragraph) return;
-            const paragraphStart = segment.start + leadingWhitespace;
-            let sentenceCursor = 0;
-
-            splitTranscriptSentences(paragraph).forEach((sentence, sentenceIndex) => {
-                let sentenceStart = paragraph.indexOf(sentence, sentenceCursor);
-                if (sentenceStart < 0) sentenceStart = paragraph.indexOf(sentence);
-                if (sentenceStart < 0) return;
-                const normalized = normalizeSentenceMatchKey(sentence);
-                const positionAssignment = group.sentenceColors?.get(
-                    searchPositionKey(group.filename, paragraphIndex, sentenceIndex)
-                );
-                const textAssignment = group.sentenceColors?.get(`text:${group.filename}|${normalized}`);
-                const assignment = group.yellowSentences?.has(normalized)
-                    ? true
-                    : Boolean(positionAssignment || textAssignment);
-                const lexical = group.lexicalMatchesBySentence?.get(normalized);
-                if (assignment || lexical?.length) {
-                    ranges.push({
-                        start: paragraphStart + sentenceStart,
-                        end: paragraphStart + sentenceStart + sentence.length
-                    });
-                }
-                sentenceCursor = sentenceStart + sentence.length;
-            });
-        });
-
-        return ranges.sort((a, b) => a.start - b.start);
+    function adjacentMatchIndex(direction) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = markedTextRanges.findIndex(range => range.start === start && range.end === end);
+        if (selected >= 0) return selected + direction;
+        const next = markedTextRanges.findIndex(range => range.start >= start);
+        if (direction > 0) return next;
+        return (next < 0 ? markedTextRanges.length : next) - 1;
     }
 
     function updateMatchNavigationButtons() {
         if (!textarea || !previousMatchButton || !nextMatchButton) return;
-        const position = textarea.selectionStart ?? 0;
-        const selectedRange = markedTextRanges.find(range =>
-            range.start === textarea.selectionStart && range.end === textarea.selectionEnd
-        );
-        const currentIndex = selectedRange
-            ? markedTextRanges.indexOf(selectedRange)
-            : markedTextRanges.findIndex(range => range.start >= position);
-        const previousUnavailable = markedTextRanges.length === 0 || currentIndex <= 0;
-        const nextUnavailable = markedTextRanges.length === 0 ||
-            (currentIndex >= 0 && currentIndex >= markedTextRanges.length - 1);
+        const previousUnavailable = adjacentMatchIndex(-1) < 0;
+        const nextIndex = adjacentMatchIndex(1);
+        const nextUnavailable = nextIndex < 0 || nextIndex >= markedTextRanges.length;
 
         // Do not use the native disabled property here. Clicking a disabled
         // button can still move focus away from the textarea, hiding its blue
@@ -1272,28 +1254,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     function navigateMarkedText(direction) {
         if (!textarea || !markedTextRanges.length) return;
 
-        const selectionStart = textarea.selectionStart ?? 0;
-        const selectionEnd = textarea.selectionEnd ?? selectionStart;
-        const exactSelectedIndex = markedTextRanges.findIndex(range =>
-            range.start === selectionStart && range.end === selectionEnd
-        );
-
-        let targetIndex;
-        if (exactSelectedIndex >= 0) {
-            targetIndex = exactSelectedIndex + direction;
-        } else if (direction > 0) {
-            // Include a match that begins at the caret, especially when the
-            // first marked sentence starts at offset zero.
-            targetIndex = markedTextRanges.findIndex(range => range.start >= selectionStart);
-        } else {
-            targetIndex = -1;
-            for (let i = markedTextRanges.length - 1; i >= 0; i--) {
-                if (markedTextRanges[i].start < selectionStart) {
-                    targetIndex = i;
-                    break;
-                }
-            }
-        }
+        const targetIndex = adjacentMatchIndex(direction);
 
         // At either end, leave the current selection untouched.
         if (targetIndex < 0 || targetIndex >= markedTextRanges.length) {
@@ -1363,13 +1324,25 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
         const actions = document.createElement("div");
         actions.className = "search-transcript-editor-actions";
-        saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
+        const guidance = searchSourceHandle?.kind === "file-input"
+            ? transcriptReplacementGuidance(searchSourceHandle, record.filename)
+            : null;
+        saveButton = makeSearchEditButton(guidance ? "Save replacement to Files" : "Save and reindex", "search-transcript-save-button");
         cancelButton = makeSearchEditButton("Cancel", "search-transcript-cancel-button");
         status = document.createElement("p");
         status.className = "search-transcript-editor-status";
         status.setAttribute("role", "status");
         actions.append(saveButton, cancelButton);
-        editorPanel.append(matchNavigation, textarea, actions, status);
+        const saveControls = document.createElement("div");
+        saveControls.className = "search-transcript-save-controls";
+        if (guidance) {
+            const location = document.createElement("p");
+            location.className = "settings-note";
+            location.textContent = guidance.before;
+            saveControls.append(location);
+        }
+        saveControls.append(actions, status);
+        editorPanel.append(matchNavigation, textarea, saveControls);
         markedTextRanges = findMarkedTextRanges(textarea.value);
         updateMatchNavigationButtons();
         ["click", "keyup", "select", "input"].forEach(eventName =>
@@ -1386,17 +1359,15 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             editorPanel.hidden = true;
             const previousState = stateBeforeEdit;
             stateBeforeEdit = null;
+            transcriptTextElement.hidden = false;
             if (previousState) {
+                setResultVisible(previousState.resultVisible);
                 transcriptElement.hidden = !previousState.transcriptVisible;
-                transcriptTextElement.hidden = !previousState.transcriptVisible;
                 transcriptToggle.hidden = previousState.toggleHidden;
                 transcriptToggle.textContent = previousState.toggleText;
                 transcriptToggle.title = previousState.toggleTitle;
                 transcriptToggle.setAttribute("aria-label", previousState.toggleAriaLabel);
                 transcriptToggle.setAttribute("aria-expanded", previousState.toggleExpanded);
-            } else {
-                // Defensive fallback for an editor opened without a saved state.
-                transcriptTextElement.hidden = false;
             }
             editButton.classList.remove("is-editing");
             editButton.style.fontWeight = "";
@@ -1426,7 +1397,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                     // iPhone/iPad folder selection is read-only. Share an updated
                     // replacement file instead of claiming the original was overwritten.
                     updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                    await storage.shareFile(updatedFile);
+                    await storage.shareFile(updatedFile, guidance.before);
                     const currentFiles = Array.from(searchSourceHandle.files || []);
                     const idx = currentFiles.findIndex(file => file.name === record.filename);
                     if (idx >= 0) currentFiles[idx] = updatedFile;
@@ -1457,11 +1428,17 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 // The index archive is separate from the live in-memory index.
                 // Keep the existing top-of-page Update Search Index control as the
                 // single way to persist the refreshed archive.
-                const reminder = "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
+                const reminder = guidance
+                    ? `${guidance.after} Then use Update Search Index to save the refreshed index.`
+                    : "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
                 setSearchIndexStatus(reminder);
                 status.textContent = reminder;
                 window.scrollTo(0, 0);
             } catch (error) {
+                if (error?.name === "AbortError") {
+                    status.textContent = "Save canceled. Your edits are still available.";
+                    return;
+                }
                 console.error("Search transcript edit failed:", error);
                 status.textContent = error.message || "Unable to save or reindex this transcript.";
             } finally {
@@ -1474,10 +1451,12 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     editButton.addEventListener("click", () => {
         ensureEditorCreated();
         if (!editorPanel.hidden) {
+            if (transcriptElement.hidden) transcriptToggle.click();
             textarea.focus({ preventScroll: true });
             return;
         }
         stateBeforeEdit = {
+            resultVisible: !section.querySelector(".search-result-excerpt").hidden,
             transcriptVisible: !transcriptElement.hidden,
             toggleHidden: transcriptToggle.hidden,
             toggleText: transcriptToggle.textContent,
@@ -1491,6 +1470,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         updateMatchNavigationButtons();
         editorPanel.hidden = false;
         transcriptElement.hidden = false;
+        setResultVisible(false);
         transcriptToggle.textContent = "Hide transcript";
         transcriptToggle.title = "Hide transcript";
         transcriptToggle.setAttribute("aria-label", "Hide transcript");
@@ -1511,14 +1491,19 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             textarea.setSelectionRange(0, 0);
             textarea.scrollTop = 0;
         }
+        updateMatchNavigationButtons();
 
         // Once the newly revealed editor has been laid out, center the editing
         // area in the viewport and, when present, scroll the first marked
         // sentence into view inside the textarea.
         requestAnimationFrame(() => {
-            const editorTop = textarea.getBoundingClientRect().top + window.scrollY;
-            const targetScrollY = editorTop - (window.innerHeight / 2);
-            window.scrollTo({ top: Math.max(0, targetScrollY), left: window.scrollX, behavior: "instant" });
+            if (window.matchMedia("(max-width: 600px)").matches) {
+                editorPanel.querySelector(".search-transcript-save-controls").scrollIntoView({ block: "nearest" });
+            } else {
+                const editorTop = textarea.getBoundingClientRect().top + window.scrollY;
+                const targetScrollY = editorTop - (window.innerHeight / 2);
+                window.scrollTo({ top: Math.max(0, targetScrollY), left: window.scrollX, behavior: "instant" });
+            }
             if (firstMarkedText) {
                 scrollMarkedTextToCenter(firstMarkedText);
             }
@@ -1877,6 +1862,7 @@ function renderSearchResults(payload) {
         groupCheckboxes.push(checkbox);
 
         const fileText = document.createElement("div");
+        fileText.className = "search-result-file-label";
         const fileName = document.createElement("div");
         fileName.className = "search-result-file-name";
         fileName.textContent = group.filename;
@@ -1906,6 +1892,13 @@ function renderSearchResults(payload) {
 
         const resultElement = document.createElement("div");
         resultElement.className = "search-result-excerpt";
+        function setResultVisible(visible) {
+            resultElement.hidden = !visible;
+            resultToggle.textContent = visible ? "Hide result" : "Show result";
+            resultToggle.title = visible ? "Hide search result" : "Show search result";
+            resultToggle.setAttribute("aria-label", resultToggle.title);
+            resultToggle.setAttribute("aria-expanded", String(visible));
+        }
         appendColoredTranscript(resultElement, createSearchResultExcerptGroup(group));
         section.appendChild(header);
         section.appendChild(resultElement);
@@ -1920,7 +1913,7 @@ function renderSearchResults(payload) {
         appendColoredTranscript(transcriptTextElement, group);
         transcriptElement.appendChild(transcriptTextElement);
         section.appendChild(transcriptElement);
-        addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle);
+        addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible);
 
         // Preserve button order: Edit is added first by addTranscriptEditor,
         // then Show/Hide transcript, then Show/Hide result.
@@ -1928,29 +1921,26 @@ function renderSearchResults(payload) {
         transcriptActions.appendChild(resultToggle);
 
         transcriptToggle.addEventListener("click", () => {
+            if (section.querySelector(".search-transcript-save-button:disabled")) return;
             const willShow = transcriptElement.hidden;
             transcriptElement.hidden = !willShow;
             // The full transcript replaces the excerpt while visible. The audio
             // control stays inside transcriptElement, so it is shown only with
             // the full transcript rather than with the search-result excerpt.
-            resultElement.hidden = willShow;
+            setResultVisible(!willShow);
             transcriptToggle.textContent = willShow ? "Hide transcript" : "Show transcript";
             transcriptToggle.title = transcriptToggle.textContent;
             transcriptToggle.setAttribute("aria-label", transcriptToggle.title);
             transcriptToggle.setAttribute("aria-expanded", String(willShow));
-            resultToggle.textContent = willShow ? "Show result" : "Hide result";
-            resultToggle.title = willShow ? "Show search result" : "Hide search result";
-            resultToggle.setAttribute("aria-label", resultToggle.title);
-            resultToggle.setAttribute("aria-expanded", String(!willShow));
         });
 
         resultToggle.addEventListener("click", () => {
             const willShow = resultElement.hidden;
-            resultElement.hidden = !willShow;
-            resultToggle.textContent = willShow ? "Hide result" : "Show result";
-            resultToggle.title = willShow ? "Hide search result" : "Show search result";
-            resultToggle.setAttribute("aria-label", resultToggle.title);
-            resultToggle.setAttribute("aria-expanded", String(willShow));
+            if (section.querySelector(".search-transcript-save-button:disabled")) return;
+            const editor = section.querySelector(".search-transcript-editor-panel:not([hidden]) textarea");
+            if (!willShow && editor && editor.value !== editor.defaultValue &&
+                !window.confirm("Discard unsaved transcript changes and hide this result?")) return;
+            setResultVisible(willShow);
             if (!willShow) {
                 transcriptElement.hidden = true;
                 // If the result is hidden while editing, close the editor and
@@ -1971,16 +1961,6 @@ function renderSearchResults(payload) {
                 transcriptToggle.setAttribute("aria-expanded", "false");
             } else {
                 transcriptToggle.hidden = false;
-                // Explicitly restore Edit when the result is redisplayed. The
-                // editor is closed above when hiding a result, so this control
-                // must be available again when the result returns.
-                const editButton = section.querySelector(".search-transcript-edit-button");
-                if (editButton) {
-                    editButton.hidden = false;
-                    editButton.disabled = false;
-                    editButton.classList.remove("is-editing");
-                    editButton.style.fontWeight = "";
-                }
             }
         });
 
@@ -2556,12 +2536,16 @@ export function initSearchUI({
                     setSearchBusy(true);
                     await updateSearchIndexArchive();
                 } catch (error) {
+                    setSearchIndexUpdateAvailable(true);
+                    if (error?.name === "AbortError") {
+                        setSearchIndexStatus("Save canceled. The Search index is still available to share.");
+                        return;
+                    }
                     console.error(
                         "Search Index update error:",
                         error
                     );
 
-                    setSearchIndexUpdateAvailable(true);
                     setSearchIndexStatus(
                         error.message ||
                         "Unable to update the Search Index."

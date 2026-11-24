@@ -182,4 +182,83 @@ await test('Local metadata retention is bounded and keeps the latest distinct fo
  for(let index=0;index<18;index++)await readTranscriptFolder({kind:'file-input',name:'Bounded '+index,files:[new File([header()],'a.txt')]});const rows=await listTranscriptCatalogueCache();assert(rows.length<=16&&rows.some(row=>row.folderName==='Bounded 17'));assert(rows.every(row=>!row.records.some(record=>'transcript' in record)));
 });
 await test('Local metadata clearing changes no audio, TXT, source JSON or identities',async()=>{await clearTranscriptCatalogueCache();assert((await openTranscriptCatalogue({kind:'file-input',name:'Rebuilt',files:[new File([header()],'a.txt')]})).archiveUuid===UUID);assert(root.state.jsonWrites===0&&(await(await(await root.root.getFileHandle('memora-audio-source.json')).getFile()).text())==='KEEP OLD AUDIO JSON','Existing audio JSON was touched');assert(await(await(await child.getFileHandle('memora-transcript-archive.json')).getFile()).text()==='DO NOT READ OR CHANGE');});
+await test('iPhone Search preserves the entire transcript and moves selection between highlighted matches',async()=>{
+ const {searchEditorFixture}=await import('./shared-production-search-fixtures.js');
+ const {openSearchSource}=await import('../js/searchUI.js');
+ click('searchTab');
+ const file=new File([header().replace('This is an existing transcript.',searchEditorFixture.body)],searchEditorFixture.filename);
+ await openSearchSource({kind:'file-input',name:'transcription',parentAudioName:'2018',files:[file]});
+ const query=document.getElementById('searchQueryInput');query.value='match';query.dispatchEvent(new Event('input'));
+ click('searchButton');
+ await wait(()=>document.querySelector('.search-result-file'));
+ const result=document.querySelector('.search-result-file');
+ const full=result.querySelector('.search-result-full-transcript');
+ const transcriptToggle=result.querySelector('button[aria-label="Show transcript"]');
+ transcriptToggle.click();
+ assert(!full.hidden&&full.textContent.includes('Opening paragraph.')&&full.textContent.includes('Closing paragraph.'),'Reader must show both ends of the transcript');
+ assert(full.querySelectorAll('mark').length===2,'Reader must retain both colored matches');
+ result.querySelector('.search-transcript-edit-button').click();
+ const editor=result.querySelector('textarea'),selection=()=>editor.value.slice(editor.selectionStart,editor.selectionEnd);
+ const previous=result.querySelector('.search-transcript-previous-match'),next=result.querySelector('.search-transcript-next-match');
+ assert(editor.value===searchEditorFixture.body,'Editor must retain the exact full text');
+ assert(selection()==='The first match crosses a\nline break.','Edit must select the first match across the line break');
+ assert(previous.getAttribute('aria-disabled')==='true');
+ next.click();assert(selection()==='The second match contains   extra spaces.','Next must select the original text with its repeated spaces');
+ assert(next.getAttribute('aria-disabled')==='true');
+ previous.click();assert(selection().includes('\n'),'Previous must return to the first match');
+ editor.setSelectionRange(editor.value.length,editor.value.length);
+ editor.dispatchEvent(new Event('select'));
+ previous.click();assert(selection()==='The second match contains   extra spaces.','Previous must also work from after the last match');
+ const iframe=document.createElement('iframe');iframe.style.width='390px';
+ const loaded=new Promise(resolve=>iframe.addEventListener('load',resolve,{once:true}));
+ iframe.srcdoc=`<!doctype html><link rel="stylesheet" href="${new URL('../css/style.css',location.href)}">${result.outerHTML}`;
+ document.body.append(iframe);await loaded;
+ try{
+  const doc=iframe.contentDocument;
+  const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
+  assert(rect('.combine-transcript-actions').top>=rect('.search-result-file-name').bottom,'Result controls must sit below the filename');
+  assert(rect('.search-transcript-editor-actions').bottom<=rect('textarea').top,'Save and Cancel must sit above the textarea');
+ }finally{iframe.remove();}
+ editor.value+=' Unsaved change.';
+ const resultToggle=result.querySelector('.search-result-toggle');
+ resultToggle.click();
+ const confirm=window.confirm;
+ let prompted=false;
+ window.confirm=()=>{prompted=true;return false;};
+ try{resultToggle.click();}finally{window.confirm=confirm;}
+ assert(prompted&&!editor.closest('.search-transcript-editor-panel').hidden&&editor.value.endsWith('Unsaved change.'),'Hiding a result must let the user keep editing');
+ result.querySelector('.search-transcript-cancel-button').click();
+ assert(!full.hidden&&!full.querySelector('.search-transcript-text').hidden,'Cancel must restore the full highlighted reader');
+ transcriptToggle.click();
+ result.querySelector('.search-transcript-edit-button').click();
+ result.querySelector('.search-transcript-cancel-button').click();
+ assert(full.hidden&&!result.querySelector('.search-result-excerpt').hidden,'Cancel from the excerpt must restore the excerpt');
+ transcriptToggle.click();
+ assert(!full.hidden&&!full.querySelector('.search-transcript-text').hidden&&full.querySelectorAll('mark').length===2,'Show transcript after Cancel must still display the complete highlighted transcript');
+});
+await test('iPhone Search index save cancellation retains the pulse and a successful share leaves a normal retry button',async()=>{
+ const button=document.getElementById('searchIndexUpdateButton');
+ const guidance=document.getElementById('searchIndexSaveLocation');
+ const status=document.getElementById('searchIndexStatus');
+ assert(!guidance.hidden&&guidance.textContent.includes('2018 / transcription'),'Search index guidance must show the known parent');
+ assert(parseFloat(getComputedStyle(guidance).marginBottom)>=12,'Destination guidance needs space above the save button');
+ assert(button.classList.contains('has-pending-index-update'),'Unsaved update must pulse');
+ const activation=Object.getOwnPropertyDescriptor(navigator,'userActivation');
+ Object.defineProperty(navigator,'userActivation',{configurable:true,value:{isActive:true}});
+ const initialShares=shared.length;
+ try{
+  cancel=true;
+  button.click();await wait(()=>!button.disabled&&status.textContent.includes('Save canceled'));
+  assert(button.classList.contains('has-pending-index-update'),'Canceled first save must retain the pulse');
+  cancel=false;
+  button.click();await wait(()=>!button.disabled&&status.textContent.includes('Check in Files'));
+  assert(!button.hidden&&!button.classList.contains('has-pending-index-update'),'Successful share must keep a standard active retry button');
+  button.click();await wait(()=>!button.disabled&&shared.length===initialShares+2);
+  assert(shared.at(-1)[0].name==='search-embeddings.json'&&!button.classList.contains('has-pending-index-update'),'The standard button must still share the index again');
+ }finally{
+  cancel=false;
+  if(activation)Object.defineProperty(navigator,'userActivation',activation);
+  else delete navigator.userActivation;
+ }
+});
 const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

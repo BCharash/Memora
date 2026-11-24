@@ -1,3 +1,5 @@
+import { shareFile } from "./storage.js";
+
 export function initCombineShareExportUI({
     getTranscriptFileCount,
     onExportRequested
@@ -54,7 +56,7 @@ export function initCombineShareExportUI({
         updateButton();
     }
 
-    async function exportFile(file) {
+    async function exportFile(file, guidance) {
         if (!file) {
             return;
         }
@@ -81,10 +83,10 @@ export function initCombineShareExportUI({
         }
 
         try {
-            await navigator.share(shareData);
+            await shareFile(file, guidance);
 
             if (exportStatus) {
-                exportStatus.textContent = `${formatLabel} shared`;
+                exportStatus.textContent = `Shared. Check in Files that “${file.name}” is in the folder you chose.`;
             }
 
             updateButton();
@@ -92,7 +94,7 @@ export function initCombineShareExportUI({
             if (error.name === "AbortError") {
                 if (exportStatus) {
                     exportStatus.textContent =
-                        `${formatLabel} ready to save`;
+                        `Save canceled. ${formatLabel} is still available to export.`;
                 }
 
                 updateButton();

@@ -1464,10 +1464,52 @@ button:disabled {
     flex-shrink: 0;
 }
 
+#searchIndexSaveLocation {
+    margin-bottom: 16px;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+    .search-result-file-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .search-result-file-label {
+        overflow-wrap: anywhere;
+    }
+
+    .search-result-file-header .combine-transcript-actions {
+        grid-column: 2;
+        margin-left: 0;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .search-transcript-editor-panel {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-transcript-save-controls {
+        order: -1;
+    }
+
+    .search-transcript-editor-actions,
+    .search-transcript-match-navigation {
+        flex-wrap: wrap;
+    }
+
+    .search-transcript-editor {
+        min-height: 140px;
+        height: clamp(140px, 34dvh, 260px);
+    }
+}
+
 
 /* Keep Search Index updates, pending archive lists and iPhone transcript exports conspicuous.
    The blue glow pulses independently from a separate thin black outline. */
-:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled) {
+:is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled) {
     position: relative;
     isolation: isolate;
     background: #0878F9;
@@ -1478,7 +1520,7 @@ button:disabled {
     animation: search-index-blue-halo 2.4s ease-in-out infinite;
 }
 
-:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled)::after {
+:is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled)::after {
     content: "";
     position: absolute;
     inset: -6px;
@@ -1488,13 +1530,13 @@ button:disabled {
     animation: search-index-black-outline 2.4s ease-in-out infinite;
 }
 
-:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled):hover {
+:is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled):hover {
     background: #0067E8;
     border-color: #004FAF;
     opacity: 1;
 }
 
-:is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled):focus-visible {
+:is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled):focus-visible {
     outline: 3px solid #003F91;
     outline-offset: 9px;
 }
@@ -1522,8 +1564,8 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    :is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled),
-    :is(#searchIndexUpdateButton, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled)::after {
+    :is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled),
+    :is(#searchIndexUpdateButton.has-pending-index-update, #iphoneExportButton.has-pending-exports, .has-pending-archive-save):not(:disabled)::after {
         animation: none;
     }
 }

@@ -250,6 +250,7 @@
                     >
 
                         <p id="iphoneExportLocation" class="export-location" hidden></p>
+                        <p id="iphoneExportFolderHelp" class="settings-note" hidden></p>
                         <button
                             id="iphoneExportButton"
                             type="button"
@@ -430,6 +431,7 @@
                         <option value="html">HTML</option>
                     </select>
 
+                    <p id="iphoneCombineExportLocation" class="settings-note" hidden></p>
                     <div class="combine-actions">
 
                         <button
@@ -445,6 +447,7 @@
                     <div
                         id="iphoneCombineExportStatus"
                         class="transcription-status"
+                        role="status"
                     >
                         No combined file shared yet.
                     </div>
@@ -504,9 +507,8 @@
                             Select Transcript Folder
                         </button></div>
 
+                    <p id="searchIndexSaveLocation" class="settings-note" hidden></p>
                     <div class="action-row">
-
-
                         <button
                             id="searchIndexUpdateButton"
                             type="button"
