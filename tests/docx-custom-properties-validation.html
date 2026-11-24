@@ -1,5 +1,6 @@
 <!doctype html><meta charset="utf-8"><title>Isolated Memora DOCX validation</title>
 <h1>Memora DOCX metadata validation</h1><p>Isolated validation only. No archive, IndexedDB or production application writes. Run from HTTPS or localhost for browser SHA-256 access. Downloads docx 9.7.1 and JSZip 3.10.1 for this test only.</p><p>Tests 1, 100, 1,000 and 5,000 synthetic references; large tests may take time. Results appear below. Save fixture files using the links after completion, open/resave in Word, then use the file picker to verify the saved metadata.</p><input id="resaved" type="file" accept=".docx"><pre id="reimport"></pre><div id="downloads"></div><pre id="results">RUNNING</pre>
+<p>On iPhone, look for the fixture in your browser downloads or the Downloads folder in Files.</p>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script><script>// --------------------------------------------------
 // DOCX output
 // --------------------------------------------------

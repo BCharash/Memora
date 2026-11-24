@@ -1,6 +1,6 @@
 import {readTranscriptFolder} from './transcriptCatalogue.js';
 import { searchHighlightColors, splitHighlightSentences } from "./searchExportHighlights.js";
-import {sharedFolders} from './sharedFolderSelection.js';
+import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
@@ -14,6 +14,8 @@ let getSearchModule;
 
 const searchSourceButton = document.getElementById("searchSourceButton");
 const searchIndexUpdateButton = document.getElementById("searchIndexUpdateButton");
+const searchIndexSaveLocation = document.getElementById("searchIndexSaveLocation");
+const SEARCH_INDEX_FILENAME = "search-embeddings.json";
 const searchQueryInput = document.getElementById("searchQueryInput");
 const clearSearchButton = document.getElementById("clearSearchButton");
 const lexicalFuzzySlider = document.getElementById("lexicalFuzzySlider");
@@ -176,6 +178,13 @@ function setSearchIndexUpdateAvailable(available) {
     if (!searchIndexUpdateButton) return;
     searchIndexUpdateButton.hidden = !available;
     searchIndexUpdateButton.disabled = !available;
+    if (searchIndexSaveLocation) {
+        searchIndexSaveLocation.hidden = !available || searchSourceHandle?.kind !== "file-input";
+        if (!searchIndexSaveLocation.hidden) {
+            const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
+            searchIndexSaveLocation.textContent = `In Save to Files, put “${SEARCH_INDEX_FILENAME}” in ${folder} beside the transcripts. Replace the older index there if present.${parentHint}`;
+        }
+    }
 }
 
 
@@ -355,15 +364,20 @@ async function updateSearchIndexArchive() {
         const file =
             new File(
                 [archiveText],
-                "search-embeddings.json",
+                SEARCH_INDEX_FILENAME,
                 { type: "application/json" }
             );
 
-        await storage.shareFile(file);
+        await storage.shareFile(file, searchIndexSaveLocation?.textContent);
+        const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
+        currentSearchIndex.archiveNeedsUpdate = false;
+        setSearchIndexUpdateAvailable(true);
+        setSearchIndexStatus(`Shared. Check in Files that “${SEARCH_INDEX_FILENAME}” is in ${folder}.${parentHint} Use Update Search Index again if you need to retry.`);
+        return;
     } else {
         await storage.writeTextFile(
             searchSourceHandle,
-            "search-embeddings.json",
+            SEARCH_INDEX_FILENAME,
             archiveText
         );
     }
@@ -1363,13 +1377,23 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
         const actions = document.createElement("div");
         actions.className = "search-transcript-editor-actions";
-        saveButton = makeSearchEditButton("Save and reindex", "search-transcript-save-button");
+        const guidance = searchSourceHandle?.kind === "file-input"
+            ? transcriptReplacementGuidance(searchSourceHandle, record.filename)
+            : null;
+        saveButton = makeSearchEditButton(guidance ? "Save replacement to Files" : "Save and reindex", "search-transcript-save-button");
         cancelButton = makeSearchEditButton("Cancel", "search-transcript-cancel-button");
         status = document.createElement("p");
         status.className = "search-transcript-editor-status";
         status.setAttribute("role", "status");
         actions.append(saveButton, cancelButton);
-        editorPanel.append(matchNavigation, textarea, actions, status);
+        editorPanel.append(matchNavigation, textarea);
+        if (guidance) {
+            const location = document.createElement("p");
+            location.className = "settings-note";
+            location.textContent = guidance.before;
+            editorPanel.append(location);
+        }
+        editorPanel.append(actions, status);
         markedTextRanges = findMarkedTextRanges(textarea.value);
         updateMatchNavigationButtons();
         ["click", "keyup", "select", "input"].forEach(eventName =>
@@ -1426,7 +1450,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                     // iPhone/iPad folder selection is read-only. Share an updated
                     // replacement file instead of claiming the original was overwritten.
                     updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                    await storage.shareFile(updatedFile);
+                    await storage.shareFile(updatedFile, guidance.before);
                     const currentFiles = Array.from(searchSourceHandle.files || []);
                     const idx = currentFiles.findIndex(file => file.name === record.filename);
                     if (idx >= 0) currentFiles[idx] = updatedFile;
@@ -1457,11 +1481,17 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 // The index archive is separate from the live in-memory index.
                 // Keep the existing top-of-page Update Search Index control as the
                 // single way to persist the refreshed archive.
-                const reminder = "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
+                const reminder = guidance
+                    ? `${guidance.after} Then use Update Search Index to save the refreshed index.`
+                    : "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
                 setSearchIndexStatus(reminder);
                 status.textContent = reminder;
                 window.scrollTo(0, 0);
             } catch (error) {
+                if (error?.name === "AbortError") {
+                    status.textContent = "Save canceled. Your edits are still available.";
+                    return;
+                }
                 console.error("Search transcript edit failed:", error);
                 status.textContent = error.message || "Unable to save or reindex this transcript.";
             } finally {
@@ -2556,12 +2586,16 @@ export function initSearchUI({
                     setSearchBusy(true);
                     await updateSearchIndexArchive();
                 } catch (error) {
+                    setSearchIndexUpdateAvailable(true);
+                    if (error?.name === "AbortError") {
+                        setSearchIndexStatus("Save canceled. The Search index is still available to share.");
+                        return;
+                    }
                     console.error(
                         "Search Index update error:",
                         error
                     );
 
-                    setSearchIndexUpdateAvailable(true);
                     setSearchIndexStatus(
                         error.message ||
                         "Unable to update the Search Index."

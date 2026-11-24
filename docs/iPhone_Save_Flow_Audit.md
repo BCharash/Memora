@@ -1,6 +1,6 @@
 # iPhone save flow audit
 
-Source review completed on **24 November 2026** against commit **f3fc698**, build **2026-11-24.3**. The review traced Files sharing, browser downloads and writable-folder calls back to their user-facing controls. The inventory is complete for this source snapshot. The guidance gaps below are open, and iPhone behavior still needs device verification.
+Source review completed on **24 November 2026** against commit **f3fc698**, build **2026-11-24.3**. The tables describe that baseline. Build **2026-11-24.5** adds the folder guidance and verification reminders described below. iPhone behavior still needs device verification.
 
 ## Memora save flows
 

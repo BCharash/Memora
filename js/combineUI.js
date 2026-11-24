@@ -1,5 +1,6 @@
 import { replaceTranscriptBody } from "./transcriptMetadata.js";
 import { readTranscriptSourceText } from "./combine.js";
+import { transcriptReplacementGuidance } from "./sharedFolderSelection.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -413,11 +414,27 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 saveEdit.type = "button";
                 saveEdit.textContent = "Save changes";
 
+                const source = getAudioSourceHandle();
+                const guidance = source?.kind === "file-input"
+                    ? transcriptReplacementGuidance(source, record.filename)
+                    : null;
+                const saveStatus = document.createElement("p");
+                if (guidance) {
+                    const location = document.createElement("p");
+                    location.className = "settings-note";
+                    location.textContent = guidance.before;
+                    editPanel.append(editor, location, editActions);
+                    saveEdit.textContent = "Save replacement to Files";
+                    saveStatus.className = "settings-note";
+                    saveStatus.setAttribute("role", "status");
+                    saveStatus.hidden = true;
+                } else {
+                    editPanel.append(editor, editActions);
+                }
                 editActions.appendChild(cancelEdit);
                 editActions.appendChild(saveEdit);
-                editPanel.appendChild(editor);
-                editPanel.appendChild(editActions);
                 content.appendChild(editPanel);
+                if (guidance) content.appendChild(saveStatus);
 
                 cancelEdit.addEventListener("click", () => {
                     editPanel.hidden = true;
@@ -460,6 +477,10 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
                         renderTranscriptText();
 
+                        if (guidance) {
+                            saveStatus.textContent = guidance.after;
+                            saveStatus.hidden = false;
+                        }
                         editPanel.hidden = true;
                         audioContainer.hidden = false;
                         editToggle.textContent = "Edit";
@@ -471,12 +492,12 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                         editToggle.hidden = false;
                     } catch (error) {
                         console.error("Unable to save transcript edits:", error);
-                        alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
+                        if (error?.name !== "AbortError") alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
                     } finally {
                         saveEdit.disabled = false;
                         cancelEdit.disabled = false;
                         editToggle.disabled = false;
-                        saveEdit.textContent = "Save changes";
+                        saveEdit.textContent = guidance ? "Save replacement to Files" : "Save changes";
                     }
                 });
             }

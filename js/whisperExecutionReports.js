@@ -78,6 +78,12 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
         syncView();
     };
     syncView(); actions.append(view);
+    if (isIOS) {
+        const location = document.createElement("p");
+        location.className = "settings-note";
+        location.textContent = "To keep a JSON report, choose Save to Files and pick a folder you can find again.";
+        actions.append(location);
+    }
     for (const label of ["Copy report", "Download report"]) {
         const button = document.createElement("button"); button.type = "button";
         button.textContent = label === "Download report" && isIOS ? "Save report" : label;
@@ -98,9 +104,9 @@ export function renderWhisperExecutionReport(container, id, { journal = createWh
                         if (!navigator.share || (navigator.canShare && !navigator.canShare({ files }))) {
                             throw new Error("Report file sharing is unavailable here. Use Copy report instead.");
                         }
-                        feedback.textContent = " Choose Save to Files in the share sheet.";
+                        feedback.textContent = ` In Save to Files, choose a folder for “${filename}”.`;
                         await navigator.share({ files });
-                        feedback.textContent = " Report shared.";
+                        feedback.textContent = ` Report shared. Check in Files for “${filename}” in the folder you chose.`;
                         return;
                     }
                     url = URL.createObjectURL(new Blob([body.textContent], { type: "application/json" }));
