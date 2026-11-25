@@ -79,9 +79,9 @@ Successful production execution history expires after 24 hours; failures/interru
 
 ## Validation and acceptance
 
-For **2026-11-25.3**, headless Edge passed **38** catalogue/app checks, including separate TXT and JSON sharing from iPhone-style editor flows. The two baseline failures recorded below remain. Whether iPhone Files offers Replace for each single-file share needs a device check.
+For **2026-11-25.3**, headless Edge passed **38** catalogue/app checks, including separate TXT and JSON sharing from iPhone-style editor flows. The two baseline failures recorded below remain. The user confirmed on iPhone that separating the saves corrected the silent duplication seen with the combined TXT and JSON share. Keep one file per share for replacement. Files behavior for multiple TXT files with name collisions remains untested. [iPhone overwrite rule](iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)
 
-For **2026-11-25.1**, headless Edge passed **37** catalogue/app checks. Coverage includes iPhone-style transcription before folder selection, cancellation and retry of two-file edit sharing, folder-wide indexing from Combine, the Search result refresh and the separate desktop JSON write. The two baseline failures recorded below still apply. Actual placement and replacement of both files in the iPhone Files app need device verification.
+Earlier headless runs passed **37** checks in **2026-11-25.1** and **38** in **.2**, covering optional destination selection, Search refresh, the separate desktop index write and starting iPhone transcription beside a mixed collection. The combined iPhone edit and index share was replaced in **.3** after device testing.
 
 For **2026-11-24.10**, headless Edge passed **35** catalogue/app checks, including clean/changed/undone editor states on both source types and matching Cancel styles. The suite retained the two known baseline failures for the Search-to-Combine title expectation and transcription destination text sizing. The **.9** audio-location run passed **11** checks. Native Safari keyboard focus, first-swipe behavior and actual Files placement still need a device check. [Device checks](iPhone_Save_Flow_Audit.md#device-verification)
 

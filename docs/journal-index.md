@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Synchronized **24 November 2026**, journal version **49**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the earlier audit scope and findings.
+Synchronized **25 November 2026**, journal version **50**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the earlier audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -26,6 +26,8 @@ The [operations guide](build-versioning.md) now consolidates numbering, local/ho
 Section 62.42 records the [read-only JavaScript survey and proposed checkpoints](JavaScript_Survey_and_Cleanup_Plan.md). Code cleanup and memory instrumentation are not implemented or authorized by that planning document.
 
 Section [62.43](design-journal.md#6243-iphone-save-destinations-and-transcript-editors) records the iPhone save guidance, editor changes and verification through build **2026-11-24.10**.
+
+Section [62.44](design-journal.md#6244-iphone-overwrite-behavior-and-separate-saves) records the 25 November destination behavior, archive identity findings, duplicate files and confirmed single-file overwrite correction through **2026-11-25.3**.
 
 ## Recent material in Volume 5
 

@@ -94,6 +94,8 @@ The independent whisper-registry-baseline-v2.json was captured before the old re
 
 ## Application acceptance on MacBook and iPhone
 
+The user confirmed on iPhone that single-file sharing corrected the silent duplicates from the combined TXT and JSON share. For replacement checks, save the TXT alone and check its exact name and contents, then repeat for the JSON alone. Keep mixed-file and multiple-TXT collision cases distinct. The multiple-TXT case remains untested. Headless Edge passed 38 catalogue/app checks for **2026-11-25.3**, with the two existing baseline failures described below. [iPhone overwrite evidence](../docs/iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)
+
 Use the [current handoff checklist](../docs/CURRENT_STATUS.md#validation-and-acceptance) and the [iPhone editor and Files checklist](../docs/iPhone_Save_Flow_Audit.md#device-verification). The **2026-11-24.10** headless Edge run passed 35 catalogue/app checks with two baseline failures already present before the change. These concern the Search-to-Combine title expectation and transcription destination text size. The **2026-11-24.9** audio-location run passed all 11 checks.
 
 Use disposable copies when checking additions/removals or edits. On iPhone, verify the actual saved TXT/embedding file in Files; share-sheet completion alone does not prove destination, replacement or synchronization. Keep search-embeddings.json. Inventory sidecars are retired and need no creation/save test.

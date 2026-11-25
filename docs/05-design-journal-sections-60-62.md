@@ -1,4 +1,4 @@
-> **Volume 5 of 5 — sections 60–62.** Synchronized against the whole journal on 24 November 2026. These entries retain their historical dates and decisions. The current handoff governs implementation status.
+> **Volume 5 of 5 — sections 60–62.** Synchronized against the whole journal on 25 November 2026. These entries retain their historical dates and decisions. The current handoff governs implementation status.
 >
 > [Whole journal](design-journal.md) · [Journal index](journal-index.md) · [Current status](CURRENT_STATUS.md) · [Previous volume](04-design-journal-sections-49-51.md)
 
@@ -775,3 +775,16 @@ Build **.4** reset the combined document title when the transcript list cleared 
 Build **.7** opened Search Edit with the keyboard closed and showed a match preview. It put the actions under the text box and revealed Save and its destination instructions after changes. Build **.8** restored first-match selection inside the focused text box, kept the preview for the unfocused state, contained vertical scrolling at the edges of both text boxes and applied dirty-only Save visibility to Combine. Build **.9** made the shared audio-location hint conditional on manual selection. Build **.10** applied the same Save visibility to native-directory Search and gave both editors matching Cancel styling.
 
 The **.10** headless Edge run passed 35 catalogue/app checks. The existing Search-to-Combine title expectation and transcription destination text size checks still failed. The **.9** audio-location suite passed all 11 checks. Narrow layout and simulated file sharing were covered. First-swipe behavior, keyboard positioning and actual Files placement require iPhone checks. [Current handoff](CURRENT_STATUS.md#validation-and-acceptance) · [Test guide](../tests/README.md)
+
+
+### 62.44 iPhone overwrite behavior and separate saves
+
+**25 November 2026** · Source through `44d555f`, build **2026-11-25.3**
+
+Build **.1** removed the required destination choice before iPhone transcription and suggested the known or default `transcription` folder when saving. It enlarged the destination on a separate bold line. Search kept the same query, reran it after editing and returned to the top so changes in ranking could be reviewed without missing a result. Desktop kept the separate index update. iPhone initially sent the edited TXT and regenerated folder-wide index in one share.
+
+Build **.2** added an alternate suggested folder for a selected collection with mixed or missing archive IDs. A read-only ZIP inspection confirmed that one physical `transcription` folder held two TXT files with different archive IDs and an index listing both. The ZIP could not establish when those IDs were assigned or whether iCloud sync affected which files came together. The user reiterated the preferred layout of TXT and `search-embeddings.json` in `audio source / transcription`, with `combined` beneath it and another location available by choice. The alternate suggestion remains implemented for that conflict.
+
+The user reported that the mixed TXT and JSON share silently kept numbered copies without offering Replace. Inspection found four distinct TXT bodies for the same recording, archive and model, and three index filenames. One numbered TXT predated this test. Search picks the first tie within the same model family and reads only the exact index filename, so numbered copies can hide the intended edit. Reselecting the folder after deletion excludes missing TXT files. The next successful index replacement drops stale entries, although deletion alone may leave the update button hidden.
+
+Build **.3** separated the two actions and explained Replace and numbered copies beside the intended filenames. The user confirmed on iPhone that the split corrected the problem. **Keep one file per share when a duplicate warning and Replace are needed.** Sharing multiple TXT files with name collisions remains untested. The headless suite passed 38 checks with two pre-existing failures. [Save flow and device evidence](iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)

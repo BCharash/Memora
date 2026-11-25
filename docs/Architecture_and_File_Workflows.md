@@ -66,6 +66,8 @@ Do not assume all delivery pathways have identical fallback policy. Preserve the
 
 Share success means the share flow returned, not independently verified Files placement, overwrite, sync or durable storage. Cancellation/error keeps pending artifacts available. Files-only transcript sharing avoids the extra text.txt attachment previously produced by title/text share fields. Pre-share pending messages and post-share verification messages represent different states.
 
+Use one file per iPhone share when replacement is expected. A combined TXT and JSON share silently created numbered copies in the 25 November iPhone test. The user confirmed that separate shares restored the expected behavior. A share of multiple TXT files with name collisions is still untested. [Device evidence](iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)
+
 Some edited or generated files take longer to prepare than the share gesture remains active. When the browser reports an expired activation and destination guidance is available, the save dialog provides a fresh **Open Share Sheet** tap. [Share transport](../js/storage.js#L276) · [Save flow audit](iPhone_Save_Flow_Audit.md)
 
 ## Combine, Search and exported documents
