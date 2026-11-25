@@ -187,7 +187,7 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  const {openSearchSource}=await import('../js/searchUI.js');
  click('searchTab');
  const file=new File([header().replace('This is an existing transcript.',searchEditorFixture.body)],searchEditorFixture.filename);
- const source={kind:'file-input',name:'transcription',parentAudioName:'2018',files:[file]};
+ const source={kind:'file-input',name:'transcription',parentAudioName:'2018',files:[file,new File([header(f.OTHER)],'unselected.txt')]};
  sharedFolders.setTranscript(source,'2018 / transcription');
  await openSearchSource(source);
  const query=document.getElementById('searchQueryInput');query.value='match';query.dispatchEvent(new Event('input'));
@@ -230,6 +230,10 @@ await test('iPhone Search preserves the entire transcript and moves selection be
   const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
   const editorStyle=iframe.contentWindow.getComputedStyle(doc.querySelector('textarea'));
   assert(editorStyle.overflowY==='auto'&&editorStyle.overscrollBehaviorY==='contain','Search textarea must contain vertical scroll at its edges');
+  const prompt=doc.querySelector('.search-transcript-save-controls .settings-note');
+  const promptStyle=iframe.contentWindow.getComputedStyle(prompt);
+  const pathStyle=iframe.contentWindow.getComputedStyle(prompt.querySelector('.save-destination-path'));
+  assert(parseFloat(pathStyle.fontSize)===parseFloat(promptStyle.fontSize)+2&&pathStyle.whiteSpace==='nowrap'&&pathStyle.fontWeight==='700','The destination must be 2 px larger, bold and one line');
   assert(rect('.combine-transcript-actions').top>=rect('.search-result-file-name').bottom,'Result controls must sit below the filename');
   assert(rect('.search-transcript-editor-actions').top>=rect('textarea').bottom,'Save and Cancel must sit below the textarea');
   assert(iframe.contentWindow.getComputedStyle(doc.querySelector('.search-transcript-save-button')).display==='none','Save must be visually hidden until the text changes');
@@ -264,6 +268,7 @@ await test('iPhone Search index save cancellation retains the pulse and a succes
  const guidance=document.getElementById('searchIndexSaveLocation');
  const status=document.getElementById('searchIndexStatus');
  assert(!guidance.hidden&&guidance.textContent.includes('2018 / transcription'),'Search index guidance must show the known parent');
+ assert(guidance.querySelector('strong.save-destination-path')?.textContent==='2018 / transcription','Search index path must have its own bold line');
  assert(parseFloat(getComputedStyle(guidance).marginBottom)>=12,'Destination guidance needs space above the save button');
  assert(button.classList.contains('has-pending-index-update'),'Unsaved update must pulse');
  const activation=Object.getOwnPropertyDescriptor(navigator,'userActivation');
@@ -283,6 +288,36 @@ await test('iPhone Search index save cancellation retains the pulse and a succes
   if(activation)Object.defineProperty(navigator,'userActivation',activation);
   else delete navigator.userActivation;
  }
+});
+async function withActiveShare(work){
+ const activation=Object.getOwnPropertyDescriptor(navigator,'userActivation');
+ Object.defineProperty(navigator,'userActivation',{configurable:true,value:{isActive:true}});
+ try{await work();}finally{
+  cancel=false;
+  if(activation)Object.defineProperty(navigator,'userActivation',activation);
+  else delete navigator.userActivation;
+ }
+}
+await test('iPhone Search edits share the replacement and folder-wide index in one action and rerun the query',async()=>{
+ const oldResult=document.querySelector('.search-result-file');
+ oldResult.querySelector('.search-transcript-edit-button').click();
+ const panel=oldResult.querySelector('.search-transcript-editor-panel');
+ const editor=panel.querySelector('textarea');
+ const save=panel.querySelector('.search-transcript-save-button');
+ const source=sharedFolders.snapshot().transcript.source;
+ const before=source.files;
+ editor.value+=' Edited in Search.';editor.dispatchEvent(new Event('input'));
+ await withActiveShare(async()=>{
+  const count=shared.length;
+  cancel=true;save.click();await wait(()=>!save.disabled&&panel.textContent.includes('Save canceled'));
+  assert(source.files===before&&oldResult.isConnected&&!panel.hidden,'Canceled share must preserve the original source and editor');
+  cancel=false;save.click();
+  await wait(()=>shared.length===count+1&&document.getElementById('searchIndexStatus').textContent.includes('may be in a different order'));
+  const [txt,index]=shared.at(-1);
+  assert(txt.name===before[0].name&&(await txt.text()).includes('Edited in Search.')&&index.name==='search-embeddings.json');
+  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'Index must cover the entire folder');
+  assert(!oldResult.isConnected&&document.getElementById('searchQueryInput').value==='match','Refresh must keep the query and rebuild the results');
+ });
 });
 await test('iPhone Combine only offers Save and folder guidance for modified text',async()=>{
  document.querySelector('.search-use-combine-button').click();
@@ -306,7 +341,15 @@ await test('iPhone Combine only offers Save and folder guidance for modified tex
  cancelButton.click();
  edit.click();
  assert(!panel.hidden&&editor.value===original&&save.hidden&&hint.hidden,'Reopening after Cancel must begin clean');
- cancelButton.click();
+ editor.value+=' Edited in Combine.';editor.dispatchEvent(new Event('input'));
+ assert(hint.querySelector('strong.save-destination-path')?.textContent==='2018 / transcription');
+ await withActiveShare(async()=>{
+  const count=shared.length;
+  save.click();await wait(()=>panel.hidden&&shared.length===count+1);
+  const [txt,index]=shared.at(-1);
+  assert((await txt.text()).includes('Edited in Combine.')&&index.name==='search-embeddings.json');
+  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'Combine must index files outside its selected subset');
+ });
 });
 await test('Desktop Search and Combine hide Save for clean text and use matching Cancel styles',async()=>{
  const {openSearchSource}=await import('../js/searchUI.js');
@@ -343,6 +386,22 @@ await test('Desktop Search and Combine hide Save for clean text and use matching
   assert(style('.search-transcript-save-button').display==='none'&&style('.combine-transcript-save-button').display==='none','Both clean Save buttons must be visually hidden');
  }finally{frame.remove();}
 
+ const jsonBefore=await(await(await child.getFileHandle('search-embeddings.json')).getFile()).text();
+ click('searchTab');
+ await wait(()=>!document.getElementById('searchButton').disabled&&document.querySelector('.search-transcript-edit-button'));
+ document.querySelector('.search-transcript-edit-button').click();
+ const desktopEditor=document.querySelector('.search-transcript-editor-panel:not([hidden]) textarea');
+ desktopEditor.value+=' Edited on desktop.';desktopEditor.dispatchEvent(new Event('input'));
+ const initialShares=shared.length;
+ document.querySelector('.search-transcript-editor-panel:not([hidden]) .search-transcript-save-button').click();
+ await wait(()=>document.getElementById('searchIndexStatus').textContent.includes('may be in a different order'));
+ assert(shared.length===initialShares&&await(await(await child.getFileHandle('search-embeddings.json')).getFile()).text()===jsonBefore,'Desktop edit must leave the JSON alone');
+ const indexButton=document.getElementById('searchIndexUpdateButton');
+ assert(indexButton.classList.contains('has-pending-index-update'),'Desktop must still prompt for the separate index update');
+ indexButton.click();
+ await wait(()=>document.getElementById('searchIndexStatus').textContent==='Search Index updated.');
+ assert(await(await(await child.getFileHandle('search-embeddings.json')).getFile()).text()!==jsonBefore,'The index must write only after the separate button press');
+
  function checkCleanEditor(panel,saveSelector,cancelSelector){
   const editor=panel.querySelector('textarea'),save=panel.querySelector(saveSelector),cancelEdit=panel.querySelector(cancelSelector);
   const original=editor.value;
@@ -355,5 +414,19 @@ await test('Desktop Search and Combine hide Save for clean text and use matching
   cancelEdit.click();
   return markup;
  }
+});
+await test('iPhone transcription starts without a selected destination and suggests the default child at save time',async()=>{
+ const source={...phone,name:'Phone Without Destination'};
+ selections.push(source);
+ click('transcriptionTab');click('sourceButton');
+ await choose('Discard pending transcripts');
+ await wait(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().audio===source);
+ assert(!sharedFolders.snapshot().transcript,'Fixture must have no destination');
+ const before=calls.length;
+ document.querySelector('#recordings .recording-checkbox').checked=true;
+ click('transcribeButton');
+ await wait(()=>calls.length>before&&!document.getElementById('iphoneExportButton').disabled);
+ assert(document.getElementById('iphoneExportLocation').textContent.includes('Phone Without Destination / transcription'));
+ assert(document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
 });
 const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

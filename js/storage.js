@@ -250,7 +250,8 @@ export async function readTextFile(directoryHandle, filename) {
     if (directoryHandle?.kind === "file-input") {
         const file =
             directoryHandle.files.find(
-                candidate => candidate.name === filename
+                candidate => candidate.name === filename &&
+                    (!candidate.webkitRelativePath || candidate.webkitRelativePath === `${directoryHandle.name}/${filename}`)
             );
 
         return file ? await file.text() : null;

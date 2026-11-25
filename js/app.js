@@ -1,5 +1,5 @@
 import {createTranscriptionGate} from './transcriptionGate.js';
-import {sharedFolders,discoverTranscriptFolders,transcriptSaveLocation,transcriptReplacementGuidance} from './sharedFolderSelection.js';
+import {sharedFolders,discoverTranscriptFolders,transcriptSaveLocation} from './sharedFolderSelection.js';
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 
 import {readTranscriptFolder} from "./transcriptCatalogue.js";
@@ -22,7 +22,7 @@ import {
     initCombineUI
 } from "./combineUI.js";
 import { displayFiles, getSelectedFiles, showEmptyMessage } from "./transcriptionUI.js";
-import { appendSearchAudioControl, initSearchUI, invalidateSearchAfterTranscriptEdit, openSearchSource, resetSharedSearchSource, isSearchSourceBusy, hasPendingSearchIndexUpdate } from "./searchUI.js";
+import { appendSearchAudioControl, initSearchUI, shareEditedTranscript, refreshSearchAfterCombineEdit, openSearchSource, resetSharedSearchSource, isSearchSourceBusy, hasPendingSearchIndexUpdate } from "./searchUI.js";
 import { initCombineShareExportUI } from "./combineShareExport.js";
 import { initSettingsUI } from "./settings.js";
 
@@ -211,6 +211,7 @@ let destinationHandle = null;
 
 let pendingIPhoneExports = [];
 let exportBatchLocation=null,exportBatchState="unattempted";
+let exportBatchDestination=null, implicitIPhoneDestination=null;
 const pendingTranscriptSaves = [];
 
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
@@ -567,6 +568,8 @@ function applySharedTranscriptSelection(){
     const state=sharedFolders.snapshot();
     destinationHandle=state.transcript?.source||null;
     destinationButton.textContent='Browse for Another Folder';
+    const chooseDestination=document.querySelector('[data-select-transcript="transcribe"]');
+    chooseDestination.textContent=state.audio?.kind==='file-input' ? 'Choose Optional Destination' : 'Select Transcript Destination';
     document.querySelectorAll('[data-audio-folder]').forEach(node=>node.textContent=sharedFolders.audioLabel());
     document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
     renderCombineTranscriptList();
@@ -605,7 +608,8 @@ async function prepareTranscribeDestination(source){
 }
 function publishTranscribeDestination(snapshot){
     transcribeDestinationSession=snapshot;identityWorkflow.invalidateDestination();
-    document.getElementById('transcribeDestinationStatus').textContent=snapshot?`Transcripts: ${snapshot.records.length} loaded.${snapshot.cacheError?' Local metadata cache unavailable.':''}`:'Transcripts: Select a destination.';
+    document.getElementById('transcribeDestinationStatus').textContent=snapshot?`Transcripts: ${snapshot.records.length} loaded.${snapshot.cacheError?' Local metadata cache unavailable.':''}`:
+        sourceHandle?.kind==='file-input'?'Choose where to save in Files after transcription.':'Transcripts: Select a destination.';
 }
 async function chooseSharedTranscript(view,{browse=false,source:chosenSource=null,label:chosenLabel=null}={}){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;
@@ -715,6 +719,7 @@ async function loadAudioSource() {
         identityWorkflow.reset();identityWorkflow=selectedIdentityWorkflow;
         sourceHandle=selectedSource;
         destinationHandle=null;
+        implicitIPhoneDestination=null;
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
         setActiveDestinationButton(null);
@@ -837,7 +842,7 @@ transcribeButton.addEventListener(
         const isIPhoneSource =
             sourceHandle?.kind === "file-input";
 
-        if (!destinationHandle) {
+        if (!destinationHandle && !isIPhoneSource) {
 
             alert(
                 "Please select a destination folder first."
@@ -857,8 +862,16 @@ transcribeButton.addEventListener(
         // using the recordings selected at that moment.
         if (isIPhoneSource) {
             resetIPhoneExportState();
+            if (!destinationHandle) {
+                implicitIPhoneDestination ??= {
+                    kind: 'file-input', selectionScope: 'selection', files: [],
+                    name: 'transcription', parentAudioName: sourceHandle.name, intended: true
+                };
+            }
+            exportBatchDestination = destinationHandle || implicitIPhoneDestination;
+            exportBatchLocation = transcriptSaveLocation(exportBatchDestination).folder;
         }
-        if(destinationHandle)identityWorkflow.invalidateDestination();
+        identityWorkflow.invalidateDestination();
 
         try {
 
@@ -883,8 +896,7 @@ transcribeButton.addEventListener(
                     ? null
                     : destinationHandle;
 
-            await identityWorkflow.begin(sourceHandle,destinationHandle);
-            exportBatchLocation=sharedFolders.transcriptLabel();
+            await identityWorkflow.begin(sourceHandle, isIPhoneSource ? exportBatchDestination : destinationHandle);
 
             for (
                 let i = 0;
@@ -1545,19 +1557,23 @@ initCombineUI({
             lastModified: Date.now()
         });
 
+        let prepared;
         if (sourceHandle.kind === "file-input") {
-            // iPhone/iPad cannot write into the selected File object. Hand the
-            // edited transcript to the existing Files Share Sheet workflow.
-            await storage.shareFile(updatedFile, transcriptReplacementGuidance(sourceHandle, record.filename).before);
+            combineStatus.textContent = "Preparing the transcript and Search Index…";
+            try {
+                prepared = await shareEditedTranscript(sourceHandle, updatedFile, message => { combineStatus.textContent = message; });
+            } catch (error) {
+                combineStatus.textContent = error.name === "AbortError" ? "Save canceled. Your edits are still available." : error.message;
+                throw error;
+            }
+            combineStatus.textContent = "Transcript and Search Index shared. Verify both replacements in Files.";
         } else {
             if (await storage.readTextFile(sourceHandle, record.filename) !== await readTranscriptSourceText(record.file)) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);
+            combineStatus.textContent = "Transcript saved. Use Update Search Index in Search to save the JSON.";
         }
 
-        // A saved edit invalidates the active Search index. The next Search
-        // session must select its source again and read current file contents.
-        loadedSharedSearch=null;
-        invalidateSearchAfterTranscriptEdit();
+        await refreshSearchAfterCombineEdit(sourceHandle, updatedFile, prepared);
         return updatedFile;
     }
 });
@@ -2079,14 +2095,14 @@ function updateIPhoneExportButton(){
     location.hidden=!count;
     help.hidden=!count;
     if(count){
-        const source=destinationHandle;
+        const source=exportBatchDestination;
         const parentHint=source?.kind==='file-input' ? transcriptSaveLocation(source).parentHint : '';
         const createHint=source?.intended ? ` Create “${source.name}” under “${source.parentAudioName}” in Files if it does not exist.` : '';
         location.textContent=`Save in: ${exportBatchLocation||sharedFolders.transcriptLabel()}`;
         help.textContent=`Choose this folder in Save to Files.${parentHint}${createHint}`;
     }
 }
-function resetIPhoneExportState(){pendingIPhoneExports=[];exportBatchLocation=null;exportBatchState='unattempted';iphoneExportStatus.textContent='';updateIPhoneExportButton();}
+function resetIPhoneExportState(){pendingIPhoneExports=[];exportBatchDestination=null;exportBatchLocation=null;exportBatchState='unattempted';iphoneExportStatus.textContent='';updateIPhoneExportButton();}
 async function exportIPhoneTranscripts(){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||!pendingIPhoneExports.length)return;
     const files=[...pendingIPhoneExports];
@@ -2095,11 +2111,12 @@ async function exportIPhoneTranscripts(){
     try{
         await navigator.share({files});exportBatchState='shared';
         iphoneExportStatus.textContent='Shared. Please verify your transcripts were saved in this folder.';
-        if(destinationHandle?.kind==='file-input'){
+        const destination=exportBatchDestination;
+        if(destination?.kind==='file-input'){
             const names=new Set(files.map(file=>file.name));
-            destinationHandle.files=[...destinationHandle.files.filter(file=>!names.has(file.name)),...files.map(file=>{
-                const snapshot=new File([file],file.name,{type:file.type,lastModified:file.lastModified});Object.defineProperty(snapshot,'webkitRelativePath',{value:`${destinationHandle.name}/${file.name}`});return snapshot;
-            })];destinationHandle.selectionScope='selection';loadedSharedCombine=loadedSharedSearch=null;
+            destination.files=[...destination.files.filter(file=>!names.has(file.name)),...files.map(file=>{
+                const snapshot=new File([file],file.name,{type:file.type,lastModified:file.lastModified});Object.defineProperty(snapshot,'webkitRelativePath',{value:`${destination.name}/${file.name}`});return snapshot;
+            })];destination.selectionScope='selection';loadedSharedCombine=loadedSharedSearch=null;
         }
     }catch(error){exportBatchState=error.name==='AbortError'?'cancelled':'failed';iphoneExportStatus.textContent=error.name==='AbortError'?'Save canceled. Transcripts are still available.':`Save failed: ${error.message}`;}
     finally{sharedFolderOperation=false;updateSharedFolderControls();updateIPhoneExportButton();}

@@ -1,6 +1,6 @@
 import { replaceTranscriptBody } from "./transcriptMetadata.js";
 import { readTranscriptSourceText } from "./combine.js";
-import { transcriptReplacementGuidance } from "./sharedFolderSelection.js";
+import { renderSaveDestination, transcriptReplacementGuidance } from "./sharedFolderSelection.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -430,7 +430,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 if (guidance) {
                     saveLocation = document.createElement("p");
                     saveLocation.className = "settings-note";
-                    saveLocation.textContent = guidance.before;
+                    renderSaveDestination(saveLocation, guidance);
                     editPanel.append(editor, saveLocation, editActions);
                     saveEdit.textContent = "Save replacement to Files";
                     saveStatus.className = "settings-note";

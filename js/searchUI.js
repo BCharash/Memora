@@ -1,6 +1,6 @@
 import {readTranscriptFolder} from './transcriptCatalogue.js';
 import { searchHighlightColors, splitHighlightSentences } from "./searchExportHighlights.js";
-import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance} from './sharedFolderSelection.js';
+import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance, renderSaveDestination} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
@@ -174,6 +174,13 @@ async function getSearchSourceFiles(handle){const snapshot=await readTranscriptF
 
 
 // Keep the save action visible only while an index update is available.
+function searchIndexSaveGuidance(source) {
+    return {
+        ...transcriptSaveLocation(source),
+        before: `In Save to Files, save “${SEARCH_INDEX_FILENAME}” beside the transcripts. Replace the older index if prompted.`
+    };
+}
+
 function setSearchIndexUpdateAvailable(available) {
     if (!searchIndexUpdateButton) return;
     searchIndexUpdateButton.hidden = !available;
@@ -183,8 +190,7 @@ function setSearchIndexUpdateAvailable(available) {
     if (searchIndexSaveLocation) {
         searchIndexSaveLocation.hidden = !available || searchSourceHandle?.kind !== "file-input";
         if (!searchIndexSaveLocation.hidden) {
-            const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
-            searchIndexSaveLocation.textContent = `In Save to Files, put “${SEARCH_INDEX_FILENAME}” in ${folder} beside the transcripts. Replace the older index there if present.${parentHint}`;
+            renderSaveDestination(searchIndexSaveLocation, searchIndexSaveGuidance(searchSourceHandle));
         }
     }
 }
@@ -370,7 +376,7 @@ async function updateSearchIndexArchive() {
                 { type: "application/json" }
             );
 
-        await storage.shareFile(file, searchIndexSaveLocation?.textContent);
+        await storage.shareFile(file, searchIndexSaveGuidance(searchSourceHandle));
         const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
         currentSearchIndex.archiveNeedsUpdate = false;
         setSearchIndexUpdateAvailable(true);
@@ -1084,64 +1090,93 @@ function getTranscriptFileContent(file, editedTranscript) {
     return file.text().then(originalText => replaceTranscriptBody(originalText, String(editedTranscript ?? "")));
 }
 
-async function reindexEditedTranscript(updatedFile, oldRecord) {
-    if (!currentSearchIndex || !searchIndexReady) {
-        throw new Error("Search is not ready to reindex this transcript. Please rebuild the Search Index first.");
-    }
+async function prepareEditedSearchIndex(source, editedFile, onProgress) {
     const search = await getSearchModule();
-    const semantic = await import("./semantic.js");
-    const oldArchive = JSON.parse(search.serializeSearchEmbeddingsArchive(currentSearchIndex));
-    const files = currentSearchIndex.records.map(record =>
-        record.filename === updatedFile.name ? updatedFile : record.file
-    ).filter(Boolean);
-    if (!files.some(file => file.name === updatedFile.name)) {
-        throw new Error("The edited transcript is not part of the current Search Index.");
-    }
-
-    const previousIndex = currentSearchIndex;
-    const previousReady = searchIndexReady;
-    searchIndexReady = false;
-    if (searchButton) searchButton.disabled = true;
-    if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
-    setSearchIndexStatus("Reindexing the edited transcript and reusing unchanged embeddings…", true);
-
-    try {
-        const replacementIndex = await search.buildSearchIndex(
-            files,
-            message => setSearchIndexStatus(message, true),
-            oldArchive
-        );
-        if (!replacementIndex || !replacementIndex.sentences) {
-            throw new Error("The edited transcript did not produce a searchable index.");
-        }
-        currentSearchIndex = replacementIndex;
-        searchIndexReady = true;
-
-        // Clean only the old hash version. New embeddings have a different hash,
-        // even though they retain the same source key.
+    const storage = await getStorageModule();
+    const files = await getSearchSourceFiles(source);
+    const original = files.find(file => file.name === editedFile.name);
+    if (!original) throw new Error("The transcript is no longer in the selected folder.");
+    let archive = null;
+    let previousRecord;
+    if (source === searchSourceHandle && currentSearchIndex) {
+        archive = search.createSearchEmbeddingsArchive(currentSearchIndex);
+        previousRecord = currentSearchIndex.records.find(record => record.filename === editedFile.name);
+    } else {
         try {
-            await semantic.removeSemanticEntriesForTranscript(oldRecord.sourceKey, oldRecord.transcriptHash);
-        } catch (cleanupError) {
-            console.warn("Old semantic cache entries could not be cleaned up:", cleanupError);
-        }
-
-        if (searchIndexUpdateButton) {
-            setSearchIndexUpdateAvailable(replacementIndex.archiveNeedsUpdate);
-        }
-        setSearchIndexStatus("Transcript updated and reindexed. Search Index has unsaved changes.");
-    } catch (error) {
-        currentSearchIndex = previousIndex;
-        searchIndexReady = false; // Prevent new queries from silently using stale index data.
-        if (searchButton) searchButton.disabled = true;
-        if (searchIndexUpdateButton) setSearchIndexUpdateAvailable(false);
-        setSearchIndexStatus(`Transcript file saved, but reindexing failed: ${error.message || String(error)}. Rebuild the Search Index before searching again.`);
-        throw error;
-    } finally {
-        if (searchButton) searchButton.disabled = !searchIndexReady;
-        if (!searchIndexReady && previousReady) {
-            // Current result DOM remains visible, but new queries are blocked until recovery.
+            const text = await storage.readTextFile(source, SEARCH_INDEX_FILENAME);
+            if (text) archive = JSON.parse(text);
+        } catch (error) {
+            console.warn("The old Search index could not be read.", error);
         }
     }
+    const index = await search.buildSearchIndex(
+        files.map(file => file === original ? editedFile : file), onProgress, archive, { activate: false }
+    );
+    return { index, search, original, previousRecord };
+}
+
+export async function shareEditedTranscript(source, editedFile, onProgress) {
+    const prepared = await prepareEditedSearchIndex(source, editedFile, onProgress);
+    const { index, search, original } = prepared;
+    const archiveFile = new File([search.serializeSearchEmbeddingsArchive(index)], SEARCH_INDEX_FILENAME, { type: "application/json" });
+    const storage = await getStorageModule();
+    if (original.webkitRelativePath) {
+        Object.defineProperty(editedFile, "webkitRelativePath", { value: original.webkitRelativePath });
+    }
+    await storage.shareFiles([editedFile, archiveFile], transcriptReplacementGuidance(source, editedFile.name));
+
+    // Update the in-session folder only after the share completes.
+    source.files = source.files.filter(file => file.name !== SEARCH_INDEX_FILENAME ||
+        (file.webkitRelativePath && file.webkitRelativePath !== `${source.name}/${SEARCH_INDEX_FILENAME}`))
+        .map(file => file === original ? editedFile : file);
+    source.files.push(archiveFile);
+    index.archiveNeedsUpdate = false;
+    return prepared;
+}
+
+async function applyEditedSearchIndex({ index, search, previousRecord }, shared) {
+    index.archiveNeedsUpdate = !shared;
+    search.activateSearchIndex(index);
+    currentSearchIndex = index;
+    searchIndexReady = index.sentences > 0;
+    if (previousRecord?.sourceKey && previousRecord.transcriptHash &&
+        !index.records.some(record => record.sourceKey === previousRecord.sourceKey && record.transcriptHash === previousRecord.transcriptHash)) {
+        try {
+            const { removeSemanticEntriesForTranscript } = await import("./semantic.js");
+            await removeSemanticEntriesForTranscript(previousRecord.sourceKey, previousRecord.transcriptHash);
+        } catch (error) {
+            console.warn("Old semantic cache entries could not be cleaned up:", error);
+        }
+    }
+    setSearchIndexUpdateAvailable(shared || index.archiveNeedsUpdate);
+    if (searchIndexReady && searchQueryInput.value.trim()) await runSearchQuery();
+    else if (searchResults) {
+        renderSearchResults({ results: [] });
+        setSearchQueryStatus("No searchable sentences remain.");
+    }
+    if (!document.getElementById("searchPanel")?.hidden) window.scrollTo(0, 0);
+}
+
+export async function refreshSearchAfterCombineEdit(source, editedFile, prepared) {
+    const active = searchSourceHandle;
+    if (!active) return false;
+    if (active !== source && !(source.kind === "directory" && active.kind === "directory" &&
+        await source.isSameEntry?.(active).catch(() => false))) return false;
+    setSearchBusy(true);
+    try {
+        const staged = prepared || await prepareEditedSearchIndex(active, editedFile, message => setSearchIndexStatus(message, true));
+        await applyEditedSearchIndex(staged, !!prepared);
+        setSearchIndexStatus(prepared
+            ? transcriptReplacementGuidance(source, editedFile.name).after + " Search results refreshed and may be in a different order."
+            : "Transcript saved. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON.");
+    } catch (error) {
+        searchIndexReady = false;
+        setSearchIndexUpdateAvailable(false);
+        setSearchIndexStatus(`Transcript saved, but Search could not refresh. Reopen the transcript source. ${error.message}`);
+    } finally {
+        setSearchBusy(false);
+    }
+    return true;
 }
 
 function addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible) {
@@ -1366,7 +1401,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         if (guidance) {
             saveLocation = document.createElement("p");
             saveLocation.className = "settings-note";
-            saveLocation.textContent = guidance.before;
+            renderSaveDestination(saveLocation, guidance);
             saveControls.append(saveLocation);
         }
         saveControls.append(actions, status);
@@ -1426,32 +1461,28 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             }
             saveButton.disabled = true;
             cancelButton.disabled = true;
+            searchQueryToken++;
+            setSearchBusy(true);
             status.textContent = "Saving transcript…";
+            let savedFile = null;
             try {
                 const storage = await getStorageModule();
+                const source = searchSourceHandle;
                 const fullText = await getTranscriptFileContent(record.file, editedTranscript);
-                let updatedFile;
-                if (searchSourceHandle?.kind === "file-input") {
-                    // iPhone/iPad folder selection is read-only. Share an updated
-                    // replacement file instead of claiming the original was overwritten.
-                    updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                    await storage.shareFile(updatedFile, guidance.before);
-                    const currentFiles = Array.from(searchSourceHandle.files || []);
-                    const idx = currentFiles.findIndex(file => file.name === record.filename);
-                    if (idx >= 0) currentFiles[idx] = updatedFile;
-                    else currentFiles.push(updatedFile);
-                    searchSourceHandle.files = currentFiles;
-                    status.textContent = "Updated transcript shared. Reindexing this session…";
+                const updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
+                const report = message => { status.textContent = message; };
+                let prepared;
+                if (source.kind === "file-input") {
+                    report("Preparing the transcript and Search Index…");
+                    prepared = await shareEditedTranscript(source, updatedFile, report);
                 } else {
-                    const fileHandle = await searchSourceHandle.getFileHandle(record.filename, { create: false });
+                    const fileHandle = await source.getFileHandle(record.filename, { create: false });
                     if (await (await fileHandle.getFile()).text() !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
-                    await storage.writeTextFile(searchSourceHandle, record.filename, fullText);
-                    updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
-                    status.textContent = "Transcript saved. Reindexing…";
+                    await storage.writeTextFile(source, record.filename, fullText);
+                    savedFile = updatedFile;
+                    prepared = await prepareEditedSearchIndex(source, updatedFile, report);
                 }
 
-                const oldRecord = { ...record };
-                await reindexEditedTranscript(updatedFile, oldRecord);
                 record.transcript = editedTranscript;
                 record.file = updatedFile;
                 // Close the editor before refreshing results. Re-running the same
@@ -1462,17 +1493,24 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 editButton.classList.remove("is-editing");
                 editButton.style.fontWeight = "";
                 status.textContent = "Transcript updated. Refreshing search results…";
-                await runSearchQuery();
-                // The index archive is separate from the live in-memory index.
-                // Keep the existing top-of-page Update Search Index control as the
-                // single way to persist the refreshed archive.
+                await applyEditedSearchIndex(prepared, !!guidance);
                 const reminder = guidance
-                    ? `${guidance.after} Then use Update Search Index to save the refreshed index.`
-                    : "Search results refreshed with the edited transcript. Remember to click Update Search Index above to save the index changes.";
+                    ? `${guidance.after} Search results refreshed and may be in a different order.`
+                    : "Transcript saved. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON.";
                 setSearchIndexStatus(reminder);
                 status.textContent = reminder;
-                window.scrollTo(0, 0);
             } catch (error) {
+                if (savedFile) {
+                    record.transcript = editedTranscript;
+                    record.file = savedFile;
+                    textarea.defaultValue = editedTranscript;
+                    updateSaveControls();
+                    searchIndexReady = false;
+                    setSearchIndexUpdateAvailable(false);
+                    setSearchIndexStatus(`Transcript saved, but Search could not refresh. Reopen the transcript source. ${error.message}`);
+                    status.textContent = "Transcript saved. Reopen the transcript source to refresh Search.";
+                    return;
+                }
                 if (error?.name === "AbortError") {
                     status.textContent = "Save canceled. Your edits are still available.";
                     return;
@@ -1482,6 +1520,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             } finally {
                 saveButton.disabled = false;
                 cancelButton.disabled = false;
+                setSearchBusy(false);
             }
         });
     }

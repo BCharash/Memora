@@ -1476,6 +1476,16 @@ button:disabled {
     overflow-wrap: anywhere;
 }
 
+.save-destination-path {
+    display: block;
+    max-width: 100%;
+    margin-block: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: calc(1em + 2px);
+    font-weight: 700;
+}
+
 @media (max-width: 600px) {
     .search-result-file-header {
         display: grid;

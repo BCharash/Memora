@@ -1,14 +1,14 @@
 # iPhone save flow audit
 
-The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through commit **06c4155**, build **2026-11-24.10**.
+The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.1**.
 
 ## Memora save flows
 
 | Flow | Destination and confirmation |
 |---|---|
-| [Transcribe batch TXT](../js/app.js#L2072) | Shows the intended destination and its known parent. A newly named child includes instructions to create it in Files if needed. Cancellation or failure leaves the batch available. After sharing, check the TXT files in the specified folder. |
-| [Edit/Combine transcript replacement](../js/combineUI.js#L386) | Cancel is always available and Save appears only after the transcript changes. The file-sharing path names the original TXT and folder, explains replacing it and asks the user to verify the replacement after sharing. |
-| [Search transcript replacement](../js/searchUI.js#L1147) | Uses the same Save visibility, Cancel appearance and destination guidance as Combine. After sharing, Search reindexes the edited snapshot for the current session. Verify the TXT replacement in Files, then use Update Search Index to save the refreshed index separately. |
+| [Transcribe batch TXT](../js/app.js) | An audio folder is enough to begin transcription. At export, a selected transcript folder takes precedence, otherwise Memora suggests the `transcription` child of the audio folder and explains how to create it in Files. Cancellation or failure leaves the batch available. |
+| [Edit/Combine transcript replacement](../js/combineUI.js#L386) | Save prepares the edited TXT and rebuilt folder-wide Search index, then sends both to one share sheet. The folder path is on its own bold line. Verify both files in Files. |
+| [Search transcript replacement](../js/searchUI.js) | Uses the same two-file share. After sharing, Search reruns the current query and returns to the top because the rankings may have changed. |
 | [Search index archive](../js/searchUI.js#L348) | Save `search-embeddings.json` beside the TXT files in the selected transcript folder and replace the older index there if present. Verify placement in Files. A pending update pulses. Canceling the first attempt keeps it pending. A successful share leaves the normal active button available for repeat saves. |
 | [Combine TXT, DOCX and HTML](../js/combineShareExport.js) | Suggests the `combined` subfolder of the transcript source. The user can create the subfolder in Files or choose a different destination. The share status names the generated file to check. The same controls handle Search selections passed to Combine. |
 | [Settings cached TXT recovery](../js/settings.js#L1232) | Shows a file count and known original audio-folder names before offering the share sheet. Choose a recovery folder. When restoring multiple original archives, select one archive at a time. Cache provenance is historical context and cannot establish the current transcript location. |

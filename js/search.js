@@ -165,7 +165,7 @@ export function createSearchEmbeddingsArchive(index) {
         byRecord.set(record, transcript);
     }
 
-    const addRepresentation = (items, embeddings, key) => {
+    const addRepresentation = (items = [], embeddings = [], key) => {
         const target = key === "sentence"
             ? "sentences"
             : null;
@@ -215,7 +215,7 @@ export function createSearchEmbeddingsArchive(index) {
         )
     );
 
-    for (const contextual of index.contextualRepresentations) {
+    for (const contextual of index.contextualRepresentations || []) {
         addRepresentation(
             contextual.items,
             contextual.embeddings,
@@ -442,7 +442,8 @@ function cosine(a, b) {
 export async function buildSearchIndex(
     files,
     statusCallback,
-    archive = null
+    archive = null,
+    { activate = true } = {}
 ) {
 
     const modelId = SEARCH_MODEL_ID;
@@ -502,7 +503,7 @@ export async function buildSearchIndex(
             durationMs: performance.now() - startTime
         };
 
-        currentIndex = emptyIndex;
+        if (activate) currentIndex = emptyIndex;
 
         return emptyIndex;
     }
@@ -778,7 +779,7 @@ export async function buildSearchIndex(
         durationMs: performance.now() - startTime
     };
 
-    currentIndex = index;
+    if (activate) currentIndex = index;
 
     return index;
 }
@@ -1302,4 +1303,8 @@ export function getSearchIndexRecords() {
 
 export function clearSearchIndex() {
     currentIndex = null;
+}
+
+export function activateSearchIndex(index) {
+    currentIndex = index;
 }

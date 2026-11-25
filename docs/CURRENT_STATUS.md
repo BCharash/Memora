@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows reviewed **24 November 2026** against source **06c4155**, application **2026-11-24.10**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save and editor workflows updated **25 November 2026** for application **2026-11-25.1**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -26,7 +26,7 @@ Audio Source is at the top; Transcript Destination controls are below the transc
 
 Initial Transcribe setup is visible. After an untouched departure to Combine/Search, return is guarded by **Enable Transcription** only if a transcript source/destination has been selected. Settings alone does not trigger the gate. Shared audio-only selection can prepare visible unchecked recordings without inference. Enabling Transcription reuses available shared access; it does not automatically transcribe.
 
-Desktop writes TXT to its granted destination. iPhone shares a files-only batch with the intended folder and its parent when known. A newly named child includes instructions to create it in Files if needed. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
+Desktop writes TXT to its granted destination. iPhone can begin without choosing a transcript destination. The export uses a known or optional selected folder when available, otherwise it suggests `transcription` under the audio folder and explains how to create it in Files. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
 
 ## Combine and Search
 
@@ -42,7 +42,7 @@ Search terms are separated with **semicolons**; commas stay inside a term. Sugge
 
 Search reads current TXT snapshots and reconciles its derived embeddings; compatible unchanged vectors can be reused. Preserve the active embeddings file and hash-format compatibility. Updating local transcript metadata alone must not be treated as a reason to rebuild all embeddings.
 
-After a Search edit, verify the replacement TXT in Files before saving the refreshed `search-embeddings.json` beside it. On iPhone, **Update Search Index** pulses for a pending update. Successful sharing leaves a standard active button for repeat saves and asks the user to check the file in Files.
+An iPhone edit in Search or Combine sends the replacement TXT and the folder-wide `search-embeddings.json` together through one share sheet. Verify both files in Files. Desktop writes the TXT and keeps **Update Search Index** separate. Search reruns the same query after an edit and returns to the top because rankings can change. The standalone index button pulses for pending work and stays active for repeat sharing without pulsing after success.
 
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 
@@ -78,6 +78,8 @@ Browser-version changes alone do not invalidate qualification within the same re
 Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
 ## Validation and acceptance
+
+For **2026-11-25.1**, headless Edge passed **37** catalogue/app checks. Coverage includes iPhone-style transcription before folder selection, cancellation and retry of two-file edit sharing, folder-wide indexing from Combine, the Search result refresh and the separate desktop JSON write. The two baseline failures recorded below still apply. Actual placement and replacement of both files in the iPhone Files app need device verification.
 
 For **2026-11-24.10**, headless Edge passed **35** catalogue/app checks, including clean/changed/undone editor states on both source types and matching Cancel styles. The suite retained the two known baseline failures for the Search-to-Combine title expectation and transcription destination text sizing. The **.9** audio-location run passed **11** checks. Native Safari keyboard focus, first-swipe behavior and actual Files placement still need a device check. [Device checks](iPhone_Save_Flow_Audit.md#device-verification)
 

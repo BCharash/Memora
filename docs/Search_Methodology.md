@@ -107,7 +107,7 @@ Compatible unchanged vectors can be reused from the archive/store after the curr
 
 Index JSON contains derived sentence/context material and vectors, not merely a list of filenames. Its save/update state is independent of local transcript metadata. Clearing metadata observations must not force rebuilding every embedding.
 
-Editing refreshes the live Search index. On iPhone, verify the shared replacement TXT in Files, then save `search-embeddings.json` beside it. Update Search Index shows the selected transcript folder and its known parent. A pending update pulses, cancellation leaves the update pending, and successful sharing keeps a normal active button for repeat saves. [iPhone save flow audit](iPhone_Save_Flow_Audit.md#memora-save-flows)
+Editing refreshes the live Search index. Search reruns the current query and returns to the top so changed rankings can be reviewed from the start. On iPhone, edited TXT and folder-wide `search-embeddings.json` are shared together. On desktop, **Update Search Index** is a separate action. The standalone save shows the selected folder and known parent on their own bold line. A pending update pulses, cancellation leaves it pending, and successful sharing keeps a normal active button for repeat saves. [iPhone save flow audit](iPhone_Save_Flow_Audit.md#memora-save-flows)
 
 There are still implementation limits:
 - Source loading calls the shared TXT reader, but index preparation also parses the returned File objects. A single shared parse record throughout the entire pipeline is not established by the current source.

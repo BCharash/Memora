@@ -13,10 +13,19 @@ export function transcriptSaveLocation(source, childFolder) {
 
 export function transcriptReplacementGuidance(source, filename) {
     const { folder, parentHint } = transcriptSaveLocation(source);
+    const files = `“${filename}” and “search-embeddings.json”`;
     return {
-        before: `In Save to Files, choose ${folder} and replace “${filename}”.${parentHint}`,
-        after: `Check in Files that “${filename}” was replaced in ${folder}.${parentHint}`
+        folder, parentHint,
+        before: `In Save to Files, save ${files} together. Replace the existing files if prompted.`,
+        after: `Check in Files that ${files} are in ${folder}.${parentHint}`
     };
+}
+
+export function renderSaveDestination(container, { before, folder, parentHint }) {
+    const path = document.createElement('strong');
+    path.className = 'save-destination-path';
+    path.textContent = folder;
+    container.replaceChildren(before, path, parentHint.trim());
 }
 
 export function rebaseTranscriptFolder(root, name) {
