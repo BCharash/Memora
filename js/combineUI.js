@@ -506,6 +506,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 editor.addEventListener("input", updateSaveControls);
 
                 cancelEdit.addEventListener("click", () => {
+                    editor.blur();
                     editPanel.hidden = true;
                     editToggle.textContent = "Edit";
                     audioContainer.hidden = false;
@@ -519,6 +520,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     editor.defaultValue = editor.value;
                     updateSaveControls();
                     refreshPendingPreferredRows();
+                    header.scrollIntoView({block: "start", behavior: "instant"});
                 });
 
                 saveEdit.addEventListener("click", async () => {
@@ -533,22 +535,9 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                         const originalText = await readTranscriptSourceText(record.file);
                         const editedBody = editor.value;
                         const updatedText = replaceTranscriptBody(originalText, editedBody, {filename: record.filename});
-                        const updatedFile = await saveTranscriptEdits(record, updatedText, startedAt, verification => {
-                            const instructions = document.createElement("p");
-                            instructions.textContent = guidance.after + " Verify the TXT before saving the Search index.";
-                            saveStatus.replaceChildren(instructions);
-                            attachSaveVerification(saveStatus, {...verification, onVerified: async file => {
-                                await verification.onVerified?.(file);
-                                record.memoraEdit = (await readTranscriptFile(record.file)).memoraEdit;
-                                renderChoices();
-                            }}, () => instructions.remove());
-                            saveStatus.hidden = false;
-                        });
+                        const {updatedFile, verification} = await saveTranscriptEdits(record, updatedText, startedAt);
 
-                        record.file = updatedFile || new File([updatedText], record.filename, {
-                            type: "text/plain",
-                            lastModified: Date.now()
-                        });
+                        record.file = updatedFile;
                         record.transcript = editedBody;
                         const selectedIndex = selectedTranscriptFiles.findIndex(
                             file => file.name === record.filename
@@ -560,16 +549,24 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                         record.memoraEdit = (await readTranscriptFile(record.file)).memoraEdit;
                         renderChoices();
                         renderTranscriptText();
+                        editor.blur();
+                        showTranscript();
 
-                        editPanel.hidden = true;
-                        audioContainer.hidden = false;
-                        editToggle.textContent = "Edit";
-                        transcriptContent.hidden = false;
-                        transcriptToggle.textContent = "Hide transcript";
-                        transcriptToggle.title = "Hide transcript";
-                        transcriptToggle.setAttribute("aria-label", "Hide transcript");
-                        transcriptToggle.setAttribute("aria-expanded", "true");
-                        editToggle.hidden = false;
+                        if (verification) {
+                            const instructions = document.createElement("p");
+                            instructions.textContent = guidance.after + " Verify the TXT before saving the Search index.";
+                            saveStatus.replaceChildren(instructions);
+                            attachSaveVerification(saveStatus, {...verification, onVerified: async file => {
+                                await verification.onVerified?.(file);
+                                record.memoraEdit = (await readTranscriptFile(record.file)).memoraEdit;
+                                renderChoices();
+                            }}, () => {
+                                instructions.remove();
+                                saveStatus.scrollIntoView({block: "nearest", behavior: "instant"});
+                            });
+                            saveStatus.hidden = false;
+                        }
+                        (verification ? saveStatus : transcriptContent).scrollIntoView({block: "end", behavior: "instant"});
                     } catch (error) {
                         console.error("Unable to save transcript edits:", error);
                         if (error?.name !== "AbortError") alert(`Unable to save this transcript. ${error?.message || "Please try again."}`);
@@ -654,6 +651,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             if (priorStatus) content.appendChild(priorStatus);
 
             transcriptToggle.addEventListener("click", () => {
+                if (saveEdit?.disabled) return;
                 if (transcriptContent.hidden) {
                     showTranscript();
                 } else {

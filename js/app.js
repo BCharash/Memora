@@ -1578,7 +1578,7 @@ initCombineUI({
     },
     onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
-    onSaveTranscriptEdits: async (record, updatedText, startedAt, onShared) => {
+    onSaveTranscriptEdits: async (record, updatedText, startedAt) => {
         const storage = await getStorageModule();
         const sourceHandle = textSourceHandle;
         if (!sourceHandle) {
@@ -1591,11 +1591,11 @@ initCombineUI({
             lastModified: Date.now()
         });
 
+        let verification = null;
         if (sourceHandle.kind === "file-input") {
             combineStatus.textContent = "Preparing the transcript…";
             try {
-                const verification = await shareEditedTranscript(sourceHandle, updatedFile, startedAt);
-                onShared(verification);
+                verification = await shareEditedTranscript(sourceHandle, updatedFile, startedAt);
             } catch (error) {
                 combineStatus.textContent = error.name === "AbortError" ? "Save canceled. Your edits are still available." : error.message;
                 throw error;
@@ -1608,7 +1608,7 @@ initCombineUI({
         }
 
         await refreshSearchAfterCombineEdit(sourceHandle, updatedFile);
-        return updatedFile;
+        return {updatedFile, verification};
     }
 });
 

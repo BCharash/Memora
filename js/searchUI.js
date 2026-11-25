@@ -187,9 +187,11 @@ function rememberSearchEditVerification(verification) {
     attachSaveVerification(node, verification, () => {
         label.textContent = searchRerunAdvice;
         node.append(label);
+        node.scrollIntoView({block: "nearest", behavior: "instant"});
     });
     searchEditVerifications.set(filename, node);
     placeSearchEditVerifications();
+    return node;
 }
 
 function clearSearchSaveVerifications() {
@@ -266,16 +268,16 @@ function describeSearchIndexUpdate(index) {
         : "Update Search Index to save the rebuilt embeddings for this folder.";
 }
 
-function setSearchIndexUpdateAvailable(available) {
+function setSearchIndexUpdateAvailable(available, {verified = false} = {}) {
     if (!searchIndexUpdateButton) return;
     searchIndexUpdateButton.hidden = !available;
-    searchIndexUpdateButton.disabled = !available;
+    searchIndexUpdateButton.disabled = !available || verified;
     searchIndexUpdateButton.classList.toggle("has-pending-index-update",
         available && hasPendingSearchIndexUpdate());
     if (searchIndexSaveLocation) {
         const pending = hasPendingSearchIndexUpdate();
         const share = searchSourceHandle?.kind === "file-input";
-        searchIndexSaveLocation.hidden = !available || (!share && !pending);
+        searchIndexSaveLocation.hidden = !available || verified || (!share && !pending);
         searchIndexSaveLocation.replaceChildren();
         if (!searchIndexSaveLocation.hidden) {
             if (pending) {
@@ -501,7 +503,7 @@ async function updateSearchIndexArchive() {
         attachSaveVerification(searchIndexVerification, verification, () => {
             if (searchSourceHandle === source) {
                 const savedCurrent = markMatchingIndexSaved();
-                if (savedCurrent) setSearchIndexUpdateAvailable(true);
+                if (savedCurrent) setSearchIndexUpdateAvailable(true, {verified: true});
                 setSearchIndexStatus(savedCurrent
                     ? "Search Index verified in Files."
                     : "Saved index verified in Files. Use Update Search Index to save newer changes.");
@@ -1596,6 +1598,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         (transcriptBody || section).appendChild(editorPanel);
 
         cancelButton.addEventListener("click", () => {
+            textarea.blur();
             editorPanel.hidden = true;
             const previousState = stateBeforeEdit;
             stateBeforeEdit = null;
@@ -1615,6 +1618,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             textarea.value = String(record.transcript || "");
             textarea.defaultValue = textarea.value;
             updateSaveControls();
+            header.scrollIntoView({block: "start", behavior: "instant"});
             if (preferenceRefreshPending) queueMicrotask(refreshSearchPreference);
         });
 
@@ -1632,6 +1636,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             setSearchBusy(true);
             status.textContent = "Saving transcript…";
             let savedFile = null;
+            let verification = null;
             try {
                 const storage = await getStorageModule();
                 const source = searchSourceHandle;
@@ -1639,21 +1644,15 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 const updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
                 const report = message => { status.textContent = message; };
                 if (source.kind === "file-input") {
-                    rememberSearchEditVerification(await shareEditedTranscript(source, updatedFile, startedAt));
+                    verification = await shareEditedTranscript(source, updatedFile, startedAt);
                 } else {
                     const fileHandle = await source.getFileHandle(record.filename, { create: false });
                     if (await (await fileHandle.getFile()).text() !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
                     await storage.writeTextFile(source, record.filename, fullText);
                 }
                 savedFile = updatedFile;
-                const prepared = await prepareEditedSearchIndex(source, updatedFile, report);
-
                 await refreshDisplayedTranscript(updatedFile);
-                transcriptTextElement.hidden = false;
-                editorPanel.hidden = true;
-                editButton.classList.remove("is-editing");
-                editButton.style.fontWeight = "";
-                status.textContent = "Transcript updated. Refreshing search results…";
+                const prepared = await prepareEditedSearchIndex(source, updatedFile, report);
                 await applyEditedSearchIndex(prepared);
                 const reminder = guidance
                     ? "Transcript shared. After verifying the TXT, use Update Search Index to save the JSON separately."
@@ -1683,6 +1682,16 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 saveButton.disabled = false;
                 cancelButton.disabled = false;
                 setSearchBusy(false);
+                if (savedFile) {
+                    textarea.blur();
+                    stateBeforeEdit = null;
+                    transcriptTextElement.hidden = false;
+                    editorPanel.hidden = true;
+                    editButton.classList.remove("is-editing");
+                    editButton.style.fontWeight = "";
+                    const receipt = verification && rememberSearchEditVerification(verification);
+                    (receipt || transcriptTextElement).scrollIntoView({block: "end", behavior: "instant"});
+                }
             }
         });
     }

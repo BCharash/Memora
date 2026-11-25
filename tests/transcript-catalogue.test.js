@@ -320,7 +320,7 @@ await test('iPhone Search shares the edited TXT first and saves the folder-wide 
   assert(!(await readTranscriptFile(txt)).memoraEdit.confirmed,'Share completion alone must not confirm the edit');
   const receiptSlot=[...document.querySelectorAll('[data-edit-verification-for]')].find(slot=>slot.dataset.editVerificationFor===txt.name);
   let receiptStatus=receiptSlot?.querySelector('.save-verification');
-  assert(oldResult.contains(receiptStatus)&&receiptStatus.querySelector('.verify-files-button'),'Edit verification must stay in the original result row');
+  assert(panel.hidden&&oldResult.contains(receiptStatus)&&receiptStatus.querySelector('.verify-files-button'),'Edit verification must appear in the original result row after the editor closes');
   assert(oldResult.querySelector('.search-transcript-text').textContent.includes('Edited in Search.'),'The retained row must show the saved full transcript');
   const saved=new File([txt],txt.name,{lastModified:Date.now()});
   Object.defineProperty(saved,'webkitRelativePath',{value:`2018/${source.name}/${saved.name}`});
@@ -359,7 +359,7 @@ await test('iPhone Search shares the edited TXT first and saves the folder-wide 
   selections.push({kind:'file-input',name:source.name,files:[new File([latestIndex],latestIndex.name)]});
   indexVerification.querySelector('.verify-files-button').click();
   await wait(()=>!indexVerification.querySelector('.verify-files-button')&&document.getElementById('searchIndexStatus').textContent==='Search Index verified in Files.');
-  assert(!indexButton.disabled&&!indexButton.classList.contains('has-pending-index-update'),'A verified current index must remain available without pulsing');
+  assert(indexButton.disabled&&!indexButton.hidden&&!indexButton.classList.contains('has-pending-index-update'),'A verified current index must show a disabled button without pulsing');
   assert(oldResult.isConnected&&document.getElementById('searchQueryInput').value==='match','Save and verification must preserve the result row and query');
   click('clearSearchButton');
   assert(document.getElementById('searchEditVerificationFallback').contains(receiptStatus),'Verification must stay accessible when its result is absent');
@@ -408,7 +408,7 @@ await test('iPhone Combine only offers Save and folder guidance for modified tex
   assert(!panel.parentElement.textContent.includes('Run Search again'),'Combine verification must stay focused on the file save');
   assert(searchResult.isConnected&&searchResult.querySelector('.search-transcript-text').textContent.includes('Edited in Combine.'),'A Combine edit must update the full transcript without rebuilding the Search results');
   const indexButton=document.getElementById('searchIndexUpdateButton');
-  assert(indexButton.classList.contains('has-pending-index-update'),'Combine must keep the separate Search index update pending');
+  assert(!indexButton.disabled&&indexButton.classList.contains('has-pending-index-update'),'A new Combine edit must re-enable the verified Search index button');
   indexButton.click();await wait(()=>shared.length===count+2&&!indexButton.disabled);
   const [index]=shared.at(-1);
   assert(shared.at(-1).length===1&&index.name==='search-embeddings.json');
