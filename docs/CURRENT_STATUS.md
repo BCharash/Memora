@@ -42,7 +42,7 @@ Search terms are separated with **semicolons**; commas stay inside a term. Sugge
 
 Search reads current TXT snapshots and reconciles its derived embeddings; compatible unchanged vectors can be reused. Preserve the active embeddings file and hash-format compatibility. Updating local transcript metadata alone must not be treated as a reason to rebuild all embeddings.
 
-Both desktop and iPhone keep **Update Search Index** separate from the transcript edit. On iPhone, share the TXT by itself, verify its exact name and edited contents in Files, then share `search-embeddings.json` on its own. Search reruns the same query after an edit and returns to the top because rankings can change. The index button pulses for pending work and stays active for repeat sharing without pulsing after success.
+Both desktop and iPhone keep **Update Search Index** separate from the transcript edit. On iPhone, share the TXT by itself, verify its exact name and edited contents in Files, then share `search-embeddings.json` on its own. Edits refresh the live index and keep the displayed results in place. Search advises rerunning the query after verifying an iPhone TXT or saving a desktop edit because matches and rankings can change. The index button pulses for pending work and stays active for repeat sharing without pulsing after success.
 
 The optional **Verify in Files** action checks contents and modification time. A confirmed edit becomes the default across Search and Combine even when a higher model exists. Alternative versions can be compared, and Combine can use the alternate in the current output. Index update guidance explains why the save is pending, including when deleting an indexed TXT is the only change.
 

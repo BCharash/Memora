@@ -18,7 +18,11 @@ export async function buildSearchIndex(files,onProgress,archive,{activate=true}=
  return {records,versionChoices,sentences:records.length,chunkCount:records.length,durationMs:1,readDurationMs:0,sentenceProcessingDurationMs:0,chunkProcessingDurationMs:0,embeddingDurationMs:0,archiveNeedsUpdate:records.some(record=>record.filename===editorFixtureName)};
 }
 
-export function createSearchEmbeddingsArchive(index){return {fixture:true,files:index.records.map(record=>record.filename)};}
+export function createSearchEmbeddingsArchive(index){return {
+ fixture:true,
+ files:index.records.map(record=>record.filename),
+ bodies:index.records.map(record=>record.transcript)
+};}
 export function serializeSearchEmbeddingsArchive(index){return JSON.stringify(createSearchEmbeddingsArchive(index));}
 export function activateSearchIndex(index){currentRecords=index.records;}
 export function getSearchIndexRecords(){return currentRecords;}

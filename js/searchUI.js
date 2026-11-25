@@ -3,6 +3,7 @@ import { searchHighlightColors, splitHighlightSentences } from "./searchExportHi
 import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance, renderSaveDestination} from './sharedFolderSelection.js';
 import { replaceTranscriptBody, isRecordingUuid, setMemoraEditPending } from "./transcriptMetadata.js";
 import { attachSaveVerification } from "./fileSaveVerification.js";
+import { readTranscriptFile } from "./combine.js";
 import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
 import { readTranscriptPreferences, transcriptPreferenceKey, transcriptPreferencesChanged } from "./transcriptPreferences.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
@@ -165,6 +166,14 @@ function placeSearchEditVerifications() {
     }
 }
 
+const searchRerunAdvice = "This edit may change which transcripts match and how they rank. Run Search again to refresh the results.";
+const displayedTranscriptUpdates = new Map();
+
+async function refreshDisplayedTranscript(file) {
+    const update = displayedTranscriptUpdates.get(file.name);
+    if (update) update(await readTranscriptFile(file));
+}
+
 function rememberSearchEditVerification(verification) {
     const filename = verification.file.name;
     searchEditVerifications.get(filename)?.remove();
@@ -175,12 +184,16 @@ function rememberSearchEditVerification(verification) {
     label.textContent = transcriptReplacementGuidance(verification.source, filename).after +
         " Verify the TXT before saving the Search index.";
     node.append(label);
-    attachSaveVerification(node, verification, () => label.remove());
+    attachSaveVerification(node, verification, () => {
+        label.textContent = searchRerunAdvice;
+        node.append(label);
+    });
     searchEditVerifications.set(filename, node);
     placeSearchEditVerifications();
 }
 
 function clearSearchSaveVerifications() {
+    displayedTranscriptUpdates.clear();
     for (const node of searchEditVerifications.values()) node.remove();
     searchEditVerifications.clear();
     searchIndexVerification?.replaceChildren();
@@ -440,8 +453,9 @@ async function buildSearchIndexForSource(files) {
 
 async function updateSearchIndexArchive() {
     const startedAt = Date.now();
-
-    if (!currentSearchIndex || !searchSourceHandle) {
+    const source = searchSourceHandle;
+    const index = currentSearchIndex;
+    if (!index || !source) {
         return;
     }
 
@@ -453,10 +467,10 @@ async function updateSearchIndexArchive() {
 
     const archiveText =
         search.serializeSearchEmbeddingsArchive(
-            currentSearchIndex
+            index
         );
 
-    if (searchSourceHandle.kind === "file-input") {
+    if (source.kind === "file-input") {
         const file =
             new File(
                 [archiveText],
@@ -464,36 +478,47 @@ async function updateSearchIndexArchive() {
                 { type: "application/json" }
             );
 
-        const source = searchSourceHandle;
-        const index = currentSearchIndex;
         await storage.shareFile(file, searchIndexSaveGuidance(source));
+        index.archiveNeedsUpdate = false;
+        if (searchSourceHandle !== source) return;
+        const markMatchingIndexSaved = () => {
+            if (!currentSearchIndex || searchSourceHandle !== source) return false;
+            if (currentSearchIndex !== index &&
+                search.serializeSearchEmbeddingsArchive(currentSearchIndex) !== archiveText) return false;
+            currentSearchIndex.archiveNeedsUpdate = false;
+            return true;
+        };
         const verification = {source, file, startedAt, returnedAt: Date.now(), selectFolder: storage.selectFolder,
             onVerified: verified => {
-                if (currentSearchIndex !== index) return;
                 source.files = source.files.filter(candidate => candidate.name !== file.name ||
                     (candidate.webkitRelativePath && candidate.webkitRelativePath !== `${source.name}/${file.name}`));
                 source.files.push(new File([verified], verified.name, {type: verified.type, lastModified: verified.lastModified}));
             }};
-        const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
-        currentSearchIndex.archiveNeedsUpdate = false;
+        const { folder, parentHint } = transcriptSaveLocation(source);
+        markMatchingIndexSaved();
         setSearchIndexUpdateAvailable(true);
         searchIndexVerification?.replaceChildren();
         attachSaveVerification(searchIndexVerification, verification, () => {
-            if (searchSourceHandle === source && currentSearchIndex === index) {
-                setSearchIndexStatus("Search Index verified in Files.");
+            if (searchSourceHandle === source) {
+                const savedCurrent = markMatchingIndexSaved();
+                if (savedCurrent) setSearchIndexUpdateAvailable(true);
+                setSearchIndexStatus(savedCurrent
+                    ? "Search Index verified in Files."
+                    : "Saved index verified in Files. Use Update Search Index to save newer changes.");
             }
         });
         setSearchIndexStatus(`Index shared. Check in Files that “${SEARCH_INDEX_FILENAME}” in ${folder} was replaced. Search ignores numbered copies.${parentHint} Use Update Search Index again if you need to retry.`);
         return;
     } else {
         await storage.writeTextFile(
-            searchSourceHandle,
+            source,
             SEARCH_INDEX_FILENAME,
             archiveText
         );
     }
 
-    currentSearchIndex.archiveNeedsUpdate = false;
+    index.archiveNeedsUpdate = false;
+    if (searchSourceHandle !== source || currentSearchIndex !== index) return;
 
     if (searchIndexUpdateButton) {
         setSearchIndexUpdateAvailable(false);
@@ -1245,10 +1270,19 @@ export async function shareEditedTranscript(source, editedFile, startedAt) {
                 if (relativePath) Object.defineProperty(verified, "webkitRelativePath", { value: relativePath });
             }
             source.files = source.files.map(file => file === editedFile ? verified : file);
-            if (searchSourceHandle !== source || searchBusy) return;
+            if (searchSourceHandle !== source || !currentSearchIndex) return;
+            const record = currentSearchIndex.records.find(record => record.file === editedFile);
+            if (record) {
+                const { memoraEdit } = await readTranscriptFile(verified);
+                Object.assign(record, {file: verified, memoraEdit});
+                await refreshDisplayedTranscript(verified);
+                return;
+            }
+            if (searchBusy) return;
             setSearchBusy(true);
             try {
-                await applyEditedSearchIndex(await prepareEditedSearchIndex(source, verified), {scroll: false});
+                await applyEditedSearchIndex(await prepareEditedSearchIndex(source, verified), {edit: false});
+                await refreshDisplayedTranscript(verified);
             } finally {
                 setSearchBusy(false);
             }
@@ -1256,9 +1290,10 @@ export async function shareEditedTranscript(source, editedFile, startedAt) {
     };
 }
 
-async function applyEditedSearchIndex({ index, search, previousRecord }, {scroll = true} = {}) {
-    index.archiveNeedsUpdate = true;
-    index.editPending = true;
+async function applyEditedSearchIndex({ index, search, previousRecord }, {edit = true} = {}) {
+    index.archiveNeedsUpdate = edit || index.archiveNeedsUpdate || currentSearchIndex?.archiveNeedsUpdate;
+    index.editPending = edit || currentSearchIndex?.editPending;
+    searchQueryToken++;
     search.activateSearchIndex(index);
     currentSearchIndex = index;
     searchIndexReady = index.sentences > 0;
@@ -1272,13 +1307,6 @@ async function applyEditedSearchIndex({ index, search, previousRecord }, {scroll
         }
     }
     setSearchIndexUpdateAvailable(true);
-    if (searchIndexReady && searchQueryInput.value.trim()) await runSearchQuery();
-    else if (searchResults) {
-        renderSearchResults({ results: [] });
-        placeSearchEditVerifications();
-        setSearchQueryStatus("No searchable sentences remain.");
-    }
-    if (scroll && !document.getElementById("searchPanel")?.hidden) window.scrollTo(0, 0);
 }
 
 export async function refreshSearchAfterCombineEdit(source, editedFile) {
@@ -1290,9 +1318,10 @@ export async function refreshSearchAfterCombineEdit(source, editedFile) {
     try {
         const staged = await prepareEditedSearchIndex(active, editedFile, message => setSearchIndexStatus(message, true));
         await applyEditedSearchIndex(staged);
+        await refreshDisplayedTranscript(editedFile);
         setSearchIndexStatus(source.kind === "file-input"
-            ? transcriptReplacementGuidance(source, editedFile.name).after + " Results may be in a different order. After verifying the TXT, use Update Search Index to save the JSON separately."
-            : "Transcript saved. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON.");
+            ? transcriptReplacementGuidance(source, editedFile.name).after + " After verifying the TXT, use Update Search Index to save the JSON separately."
+            : `Transcript saved. ${searchRerunAdvice} Use Update Search Index to save the JSON.`);
     } catch (error) {
         searchIndexReady = false;
         setSearchIndexUpdateAvailable(false);
@@ -1333,6 +1362,17 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
     let matchPreview = null;
     let saveLocation = null;
     let markedTextRanges = [];
+    displayedTranscriptUpdates.set(record.filename, updated => {
+        if (!section.isConnected) return;
+        const bodyChanged = record.transcript !== updated.transcript;
+        Object.assign(record, updated);
+        if (!bodyChanged) return;
+        group.sentenceColors = new Map();
+        group.lexicalMatchesBySentence = new Map();
+        group.yellowSentences = new Set();
+        transcriptTextElement.replaceChildren();
+        appendColoredTranscript(transcriptTextElement, group);
+    });
 
     function findMarkedTextRanges(text) {
         return splitHighlightSentences(text)
@@ -1608,18 +1648,16 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 savedFile = updatedFile;
                 const prepared = await prepareEditedSearchIndex(source, updatedFile, report);
 
-                record.transcript = editedTranscript;
-                record.file = updatedFile;
-                // Close the editor before refreshing results. Re-running the same
-                // query rebuilds the result DOM from the edited transcript and
-                // refreshed in-memory index, so stale text/highlighting disappears.
+                await refreshDisplayedTranscript(updatedFile);
                 transcriptTextElement.hidden = false;
                 editorPanel.hidden = true;
                 editButton.classList.remove("is-editing");
                 editButton.style.fontWeight = "";
                 status.textContent = "Transcript updated. Refreshing search results…";
                 await applyEditedSearchIndex(prepared);
-                const reminder = `${guidance ? "Transcript shared" : "Transcript saved"}. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON separately.`;
+                const reminder = guidance
+                    ? "Transcript shared. After verifying the TXT, use Update Search Index to save the JSON separately."
+                    : `Transcript saved. ${searchRerunAdvice} Use Update Search Index to save the JSON separately.`;
                 setSearchIndexStatus(reminder);
                 status.textContent = reminder;
             } catch (error) {
@@ -1838,6 +1876,7 @@ function renderSearchResults(payload) {
         return { files: [], displayedChunkCount: 0 };
     }
 
+    displayedTranscriptUpdates.clear();
     // Release object URLs belonging to players from the previous result set.
     searchResults.querySelectorAll("audio[data-object-url]").forEach(audio => {
         try { URL.revokeObjectURL(audio.dataset.objectUrl); } catch (_) {}
@@ -2313,6 +2352,7 @@ function updateClearSearchButton() {
 function clearSearchQueryAndResults() {
     // Invalidate any search still in progress so it cannot repopulate cleared results.
     searchQueryToken++;
+    displayedTranscriptUpdates.clear();
 
     if (searchQueryInput) {
         searchQueryInput.value = "";
