@@ -1,7 +1,8 @@
 import { replaceTranscriptBody } from "./transcriptMetadata.js";
-import { readTranscriptSourceText } from "./combine.js";
+import { readTranscriptFile, readTranscriptSourceText } from "./combine.js";
 import { renderSaveDestination, transcriptReplacementGuidance } from "./sharedFolderSelection.js";
 import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
+import { attachSaveVerification } from "./fileSaveVerification.js";
 import {observeTranscriptPreferences, readTranscriptPreferences, transcriptPreferenceKey, transcriptPreferencesChanged} from "./transcriptPreferences.js";
 // --------------------------------------------------
 // Combine UI
@@ -19,12 +20,18 @@ let saveTranscriptEdits;
 let appendAudioControl;
 let getAudioSourceHandle;
 let refreshVersionChoices;
+let refreshPreferredRows;
+let visibleTranscriptFileCount = 0;
+let displayRun = 0;
 const oneTimeVersions = new Map();
 export async function displayTranscriptFiles(files, emptyMessage = "No transcript files found.", {complete = false} = {}) {
 
+    const display = ++displayRun;
     selectedTranscriptFiles = files;
     oneTimeVersions.clear();
     refreshVersionChoices = null;
+    refreshPreferredRows = null;
+    visibleTranscriptFileCount = 0;
 
     transcripts.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
     transcripts.innerHTML = "";
@@ -169,7 +176,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
     // Preserve each file's selection across list rebuilds caused by sorting.
     // The first render defaults to selecting every file.
     let hasRenderedTranscriptList = false;
-    let selectedFilenames = new Set();
+    let selectedRecordingKeys = new Set();
 
     const collapseCheckboxBottom =
         document.createElement("input");
@@ -271,8 +278,17 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
         }
     };
 
+    let renderSequence = 0;
+    let preferredRowsPending = false;
+    function refreshPendingPreferredRows() {
+        if (!preferredRowsPending || transcripts.querySelector(".combine-transcript-editor:not([hidden])")) return;
+        preferredRowsPending = false;
+        render(sortSelect.value).catch(error => console.error("Unable to refresh preferred transcripts:", error));
+    }
+
     async function render(sortOrder) {
 
+        const run = ++renderSequence;
         combineSortOrder = sortOrder;
 
         const combineModule =
@@ -285,6 +301,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             await combineModule.readTranscriptFiles(
                 selectedTranscriptFiles
             );
+        if (display !== displayRun || run !== renderSequence) return;
 
         const sorted =
             combineModule.sortTranscriptRecords(
@@ -292,24 +309,24 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 sortOrder
             );
         if (complete) observeTranscriptPreferences(sorted);
-        const recordingKeys = new Map(sorted.map(record => [record.filename, combineModule.getRecordingKey(record)]));
+        const preferred = new Set(combineModule.selectHighestModelRecords(records));
+        const displayed = sorted.filter(record => preferred.has(record));
+        const recordingKeys = new Map(sorted.map(record => [record.filename, combineModule.getRecordingKey(record) || `file:${record.filename}`]));
         const versionSlots = new Map();
+        const previousSaveStatuses = new Map([...transcripts.querySelectorAll("[data-combine-save-for]")]
+            .map(status => [status.dataset.combineSaveFor, status]));
         function renderChoices() {
-            const preferred = combineModule.selectHighestModelRecords(sorted);
-            const choices = combineModule.getEditedTranscriptChoices(sorted, preferred);
-            const defaults = new Set(preferred.map(record => record.filename));
+            const choices = combineModule.getEditedTranscriptChoices(sorted, displayed);
             const preferences = readTranscriptPreferences();
-            for (const record of sorted) {
+            for (const record of displayed) {
                 const slot = versionSlots.get(record.filename);
                 slot.replaceChildren();
-                if (defaults.has(record.filename)) {
-                    showTranscriptVersionChoices(slot, record, choices.get(record.filename), useVersion, preferences);
-                }
+                showTranscriptVersionChoices(slot, record, choices.get(record.filename), useVersion, preferences);
                 const once = oneTimeVersions.get(recordingKeys.get(record.filename));
-                if (once?.filename === record.filename) {
+                if (once) {
                     const note = document.createElement("p");
                     note.className = "settings-note";
-                    note.textContent = "Selected for the next Combine export.";
+                    note.textContent = `Next export will use “${once.filename}”.`;
                     slot.append(note);
                 }
             }
@@ -330,26 +347,25 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
         function useVersion(version) {
             const key = recordingKeys.get(version.filename);
-            const filenames = new Set(sorted.filter(record => recordingKeys.get(record.filename) === key).map(record => record.filename));
-            oneTimeVersions.set(key, { filename: version.filename, filenames, preferenceKey: transcriptPreferenceKey(version) });
+            oneTimeVersions.set(key, { filename: version.filename, preferenceKey: transcriptPreferenceKey(version) });
             renderChoices();
             updateSelection();
         }
 
         // Capture the current selections before rebuilding the list.
-        // On the initial render, selectedFilenames is intentionally empty
+        // On the initial render, selectedRecordingKeys is intentionally empty
         // and every checkbox defaults to checked.
         if (hasRenderedTranscriptList) {
-            selectedFilenames = new Set(
+            selectedRecordingKeys = new Set(
                 Array.from(
                     transcripts.querySelectorAll(".recording-checkbox")
                 )
                     .filter(checkbox => checkbox.checked)
-                    .map(checkbox => checkbox.dataset.filename)
+                    .map(checkbox => checkbox.dataset.recordingKey)
             );
         }
 
-        for (const record of sorted) {
+        for (const record of displayed) {
 
             const item =
                 document.createElement("div");
@@ -362,11 +378,12 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
             checkbox.type = "checkbox";
             checkbox.checked = !hasRenderedTranscriptList ||
-                selectedFilenames.has(record.filename);
+                selectedRecordingKeys.has(recordingKeys.get(record.filename));
             checkbox.className =
                 "recording-checkbox";
             checkbox.dataset.filename =
                 record.filename;
+            checkbox.dataset.recordingKey = recordingKeys.get(record.filename);
 
             checkboxes.push(
                 checkbox
@@ -468,7 +485,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 const guidance = source?.kind === "file-input"
                     ? transcriptReplacementGuidance(source, record.filename)
                     : null;
-                const saveStatus = document.createElement("p");
+                const saveStatus = previousSaveStatuses.get(record.filename) || document.createElement("div");
                 if (guidance) {
                     saveLocation = document.createElement("p");
                     saveLocation.className = "settings-note";
@@ -477,7 +494,8 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     saveEdit.textContent = "Save replacement to Files";
                     saveStatus.className = "settings-note";
                     saveStatus.setAttribute("role", "status");
-                    saveStatus.hidden = true;
+                    saveStatus.dataset.combineSaveFor = record.filename;
+                    if (!previousSaveStatuses.has(record.filename)) saveStatus.hidden = true;
                 } else {
                     editPanel.append(editor, editActions);
                 }
@@ -500,6 +518,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     editor.value = String(record.transcript || "");
                     editor.defaultValue = editor.value;
                     updateSaveControls();
+                    refreshPendingPreferredRows();
                 });
 
                 saveEdit.addEventListener("click", async () => {
@@ -514,7 +533,17 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                         const originalText = await readTranscriptSourceText(record.file);
                         const editedBody = editor.value;
                         const updatedText = replaceTranscriptBody(originalText, editedBody, {filename: record.filename});
-                        const updatedFile = await saveTranscriptEdits(record, updatedText, startedAt);
+                        const updatedFile = await saveTranscriptEdits(record, updatedText, startedAt, verification => {
+                            const instructions = document.createElement("p");
+                            instructions.textContent = guidance.after + " Verify the TXT before saving the Search index.";
+                            saveStatus.replaceChildren(instructions);
+                            attachSaveVerification(saveStatus, {...verification, onVerified: async file => {
+                                await verification.onVerified?.(file);
+                                record.memoraEdit = (await readTranscriptFile(record.file)).memoraEdit;
+                                renderChoices();
+                            }}, () => instructions.remove());
+                            saveStatus.hidden = false;
+                        });
 
                         record.file = updatedFile || new File([updatedText], record.filename, {
                             type: "text/plain",
@@ -528,12 +557,10 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                             selectedTranscriptFiles[selectedIndex] = record.file;
                         }
 
+                        record.memoraEdit = (await readTranscriptFile(record.file)).memoraEdit;
+                        renderChoices();
                         renderTranscriptText();
 
-                        if (guidance) {
-                            saveStatus.textContent = guidance.after;
-                            saveStatus.hidden = false;
-                        }
                         editPanel.hidden = true;
                         audioContainer.hidden = false;
                         editToggle.textContent = "Edit";
@@ -551,6 +578,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                         cancelEdit.disabled = false;
                         editToggle.disabled = false;
                         saveEdit.textContent = guidance ? "Save replacement to Files" : "Save changes";
+                        refreshPendingPreferredRows();
                     }
                 });
             }
@@ -622,6 +650,8 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             content.appendChild(versionSlot);
             content.appendChild(audioContainer);
             content.appendChild(transcriptContent);
+            const priorStatus = previousSaveStatuses.get(record.filename);
+            if (priorStatus) content.appendChild(priorStatus);
 
             transcriptToggle.addEventListener("click", () => {
                 if (transcriptContent.hidden) {
@@ -635,6 +665,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     transcriptToggle.setAttribute("aria-expanded", "false");
                     editToggle.hidden = true;
                     if (editPanel) editPanel.hidden = true;
+                    refreshPendingPreferredRows();
                 }
             });
 
@@ -670,6 +701,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     editor.value = String(record.transcript || "");
                     editor.defaultValue = editor.value;
                     updateSaveControls();
+                    refreshPendingPreferredRows();
                 }
             });
 
@@ -679,6 +711,11 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             transcriptListItems.appendChild(item);
         }
 
+        transcripts.querySelectorAll('audio[data-object-url]').forEach(audio => {
+            URL.revokeObjectURL(audio.dataset.objectUrl);
+            audio.removeAttribute('src');
+            audio.load();
+        });
         transcripts.innerHTML = "";
 
         transcripts.appendChild(
@@ -703,6 +740,12 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             transcriptListItems
         );
         refreshVersionChoices = renderChoices;
+        refreshPreferredRows = key => {
+            if (!records.some(record => transcriptPreferenceKey(record) === key)) return;
+            preferredRowsPending = true;
+            refreshPendingPreferredRows();
+        };
+        visibleTranscriptFileCount = displayed.length;
         renderChoices();
 
         selectAllCheckbox.indeterminate = checkboxes.some(item => item.checked) && !checkboxes.every(item => item.checked);
@@ -739,9 +782,11 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
         );
 
         updateTranscriptCollapseUI();
+        onSelectionChanged({preserveShareStatus: true});
     }
 
     await render("date-desc");
+    if (display !== displayRun) return;
     onSelectionChanged();
 
     sortSelect.addEventListener(
@@ -763,25 +808,12 @@ export function getSelectedTranscriptFiles() {
             )
         );
 
-    const once = new Map();
-    for (const choice of oneTimeVersions.values()) {
-        for (const filename of choice.filenames) once.set(filename, filename === choice.filename);
+    const filenames = new Set();
+    for (const checkbox of checkboxes) {
+        const once = oneTimeVersions.get(checkbox.dataset.recordingKey);
+        if (once || checkbox.checked) filenames.add(once?.filename || checkbox.dataset.filename);
     }
-    return selectedTranscriptFiles.filter(
-        file => {
-            if (once.has(file.name)) return once.get(file.name);
-
-            const checkbox =
-                checkboxes.find(
-                    item =>
-                        item.dataset.filename ===
-                        file.name
-                );
-
-            return checkbox &&
-                checkbox.checked;
-        }
-    );
+    return selectedTranscriptFiles.filter(file => filenames.has(file.name));
 }
 
 export function captureCombineVersionChoices() {
@@ -803,7 +835,7 @@ export function consumeCombineVersionChoices(captured) {
 
 
 export function getTranscriptFileCount() {
-    return selectedTranscriptFiles.length;
+    return visibleTranscriptFileCount;
 }
 
 export function getCombineSortOrder() {
@@ -826,7 +858,6 @@ export function initCombineUI({
         for (const [key, choice] of oneTimeVersions) {
             if (choice.preferenceKey === event.detail) oneTimeVersions.delete(key);
         }
-        refreshVersionChoices?.();
-        onSelectionChanged({preserveShareStatus: true});
+        refreshPreferredRows?.(event.detail);
     });
 }

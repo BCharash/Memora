@@ -1,6 +1,6 @@
 import {createTranscriptionGate} from './transcriptionGate.js';
 import {sharedFolders,discoverTranscriptFolders,transcriptSaveLocation} from './sharedFolderSelection.js';
-import {attachSaveVerification} from "./fileSaveVerification.js";
+import {checkFileSaves, fileSaveTimestamp} from "./fileSaveVerification.js";
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 
 import {readTranscriptFolder, TranscriptCollectionError} from "./transcriptCatalogue.js";
@@ -215,6 +215,10 @@ let destinationHandle = null;
 let pendingIPhoneExports = [];
 let exportBatchLocation=null,exportBatchState="unattempted";
 let exportBatchDestination=null, implicitIPhoneDestination=null, alternateIPhoneDestination=null;
+const batchSaveReceipts = new Map();
+let batchSaveChecks = new Map();
+const batchVerifyButton = document.getElementById("iphoneExportVerifyButton");
+const batchVerificationStatus = document.getElementById("iphoneExportVerificationStatus");
 const pendingTranscriptSaves = [];
 
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
@@ -234,6 +238,11 @@ async function confirmPendingDiscard() {
         return true;
     }
     const wasShared=exportBatchState==='shared';
+    if (wasShared && !pendingTranscriptSaves.length &&
+        pendingIPhoneExports.every(file => batchSaveChecks.get(file)?.exact)) {
+        resetIPhoneExportState();
+        return true;
+    }
     const answer = await askIdentity({title:wasShared?'Verify saved transcripts':'Keep the pending transcripts?',message:wasShared?`Please verify that your transcripts were saved in ${exportBatchLocation||'the intended folder'} before continuing.`:'There are transcripts waiting to be saved. Keep them and finish saving, or explicitly discard them before starting a new source or batch.', choices:[{action:"cancel",label:"Keep pending transcripts"},{action:"discard",label:"Discard pending transcripts"}]});
     if (answer.action !== "discard") return false;
     pendingTranscriptSaves.length = 0; updatePendingSaveButton(); resetIPhoneExportState(); return true;
@@ -754,8 +763,9 @@ async function loadAudioSource() {
 
 
 if (iphoneExportButton) {
-    iphoneExportButton.addEventListener("click", exportIPhoneTranscripts);
+    iphoneExportButton.addEventListener("click", () => exportIPhoneTranscripts());
 }
+batchVerifyButton.addEventListener("click", verifyIPhoneTranscripts);
 
 
 sourceDestinationButton.addEventListener('click',async()=>{
@@ -1362,8 +1372,9 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
 
     await displayTranscriptFiles(files);
 
+    const selectedCount = records.length || files.length;
     combineStatus.textContent =
-        `${files.length} transcript${files.length === 1 ? "" : "s"} selected from Search.`;
+        `${selectedCount} transcript${selectedCount === 1 ? "" : "s"} selected from Search.`;
 
     loadedSharedCombine=searchSourceHandle;
     combineTab.click();
@@ -1567,7 +1578,7 @@ initCombineUI({
     },
     onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
-    onSaveTranscriptEdits: async (record, updatedText, startedAt) => {
+    onSaveTranscriptEdits: async (record, updatedText, startedAt, onShared) => {
         const storage = await getStorageModule();
         const sourceHandle = textSourceHandle;
         if (!sourceHandle) {
@@ -1582,15 +1593,14 @@ initCombineUI({
 
         if (sourceHandle.kind === "file-input") {
             combineStatus.textContent = "Preparing the transcript…";
-            let verification;
             try {
-                verification = await shareEditedTranscript(sourceHandle, updatedFile, startedAt);
+                const verification = await shareEditedTranscript(sourceHandle, updatedFile, startedAt);
+                onShared(verification);
             } catch (error) {
                 combineStatus.textContent = error.name === "AbortError" ? "Save canceled. Your edits are still available." : error.message;
                 throw error;
             }
-            combineStatus.textContent = "Verify the transcript replacement in Files, then use Update Search Index in Search to save the JSON separately.";
-            attachSaveVerification(combineStatus, verification);
+            combineStatus.textContent = "Transcript shared. Use Update Search Index in Search to save the JSON separately.";
         } else {
             if (await storage.readTextFile(sourceHandle, record.filename) !== await readTranscriptSourceText(record.file)) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);
@@ -2114,7 +2124,10 @@ retryTranscriptSaveButton?.addEventListener("click", async () => {
 function updateIPhoneExportButton(){
     const count=pendingIPhoneExports.length;
     iphoneExportButton.textContent=`Save ${count} Transcription${count===1?'':'s'} to Files`;
-    iphoneExportButton.disabled=!count;
+    iphoneExportButton.disabled=!count || sharedFolderOperation;
+    batchVerifyButton.hidden=!batchSaveReceipts.size ||
+        [...batchSaveReceipts.keys()].every(file => batchSaveChecks.get(file)?.exact);
+    batchVerifyButton.disabled=sharedFolderOperation;
     iphoneExportButton.classList.toggle('has-pending-exports',count>0&&exportBatchState!=='shared');
     const location=document.getElementById('iphoneExportLocation');
     const help=document.getElementById('iphoneExportFolderHelp');
@@ -2129,15 +2142,89 @@ function updateIPhoneExportButton(){
         help.textContent=`${collectionHint}Choose this folder in Save to Files.${parentHint}${createHint}`;
     }
 }
-function resetIPhoneExportState(){pendingIPhoneExports=[];exportBatchDestination=null;exportBatchLocation=null;exportBatchState='unattempted';iphoneExportStatus.textContent='';updateIPhoneExportButton();}
-async function exportIPhoneTranscripts(){
+function resetIPhoneExportState(){
+    pendingIPhoneExports=[];exportBatchDestination=null;exportBatchLocation=null;exportBatchState='unattempted';
+    batchSaveReceipts.clear();
+    batchSaveChecks = new Map();
+    batchVerificationStatus.replaceChildren();
+    iphoneExportStatus.textContent='';updateIPhoneExportButton();
+}
+
+function renderBatchSaveChecks() {
+    batchVerificationStatus.replaceChildren();
+    if (!batchSaveChecks.size) return;
+    const checked = [...batchSaveChecks];
+    const verified = checked.filter(([, result]) => result.exact);
+    const recent = verified.filter(([, result]) => result.recent).length;
+    const duplicates = checked.filter(([, result]) => result.duplicate).length;
+    const summary = document.createElement("p");
+    summary.setAttribute("role", "status");
+    summary.textContent = `${verified.length} of ${batchSaveReceipts.size} verified. ${recent} modified around the save attempt.` +
+        (duplicates ? ` ${duplicates} saved as a numbered copy.` : "");
+    batchVerificationStatus.append(summary);
+    const list = document.createElement("ul");
+    for (const [file, result] of checked) {
+        if (result.exact) continue;
+        const item = document.createElement("li");
+        const message = result.duplicate ? `Saved as “${result.duplicate.name}”.`
+            : result.observed ? "The contents do not match." : "File missing.";
+        item.textContent = `“${file.name}” — ${message}${fileSaveTimestamp(result)} `;
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "Retry this file";
+        retry.setAttribute("aria-label", `Retry ${file.name}`);
+        retry.addEventListener("click", () => exportIPhoneTranscripts(file));
+        item.append(retry);
+        list.append(item);
+    }
+    if (list.childElementCount) batchVerificationStatus.append(list);
+}
+
+async function verifyIPhoneTranscripts() {
+    if (sharedFolderOperation || sourceSelectionRequested || transcriptionBatchActive || !batchSaveReceipts.size) return;
+    sharedFolderOperation=true;updateSharedFolderControls();updateIPhoneExportButton();
+    try {
+        const storage = await getStorageModule();
+        const selection = await storage.selectFolder();
+        iphoneExportStatus.textContent = "Checking the transcript filenames and contents…";
+        const receipts = [...batchSaveReceipts.values()];
+        const outcomes = await checkFileSaves(selection, exportBatchDestination, receipts);
+        batchSaveChecks = new Map(receipts.map((receipt, index) => [receipt.file, outcomes[index]]));
+        renderBatchSaveChecks();
+        iphoneExportStatus.textContent = outcomes.every(result => result.exact)
+            ? "Batch verified in Files."
+            : "Some transcripts need attention. Retry an individual file below.";
+    } catch (error) {
+        if (error.name !== "AbortError") iphoneExportStatus.textContent = error.message;
+    } finally {
+        sharedFolderOperation=false;updateSharedFolderControls();updateIPhoneExportButton();
+    }
+}
+
+async function exportIPhoneTranscripts(retryFile){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||!pendingIPhoneExports.length)return;
-    const files=[...pendingIPhoneExports];
+    const files=retryFile?[retryFile]:[...pendingIPhoneExports];
     if(!navigator.share||navigator.canShare&&!navigator.canShare({files})){alert('File sharing is unavailable.');return;}
-    sharedFolderOperation=true;updateSharedFolderControls();iphoneExportButton.disabled=true;exportBatchState='sharing';
+    const previousState=exportBatchState;
+    sharedFolderOperation=true;updateSharedFolderControls();exportBatchState='sharing';updateIPhoneExportButton();
+    const startedAt=Date.now();
     try{
-        await navigator.share({files});exportBatchState='shared';
-        iphoneExportStatus.textContent='Shared. Please verify your transcripts were saved in this folder.';
+        if (retryFile) {
+            const storage = await getStorageModule();
+            await storage.shareFile(retryFile, {
+                ...transcriptSaveLocation(exportBatchDestination),
+                before: `Save “${retryFile.name}” and choose Replace if offered.`
+            });
+        } else await navigator.share({files});
+        exportBatchState='shared';
+        const returnedAt=Date.now();
+        for (const file of files) {
+            batchSaveReceipts.set(file, {file, startedAt, returnedAt});
+            batchSaveChecks.delete(file);
+        }
+        renderBatchSaveChecks();
+        iphoneExportStatus.textContent=retryFile?'Retry shared. Use Verify in Files again to check the replacement.':
+            'Shared. Use Verify in Files to check the transcripts in this folder.';
         const destination=exportBatchDestination;
         if(destination?.kind==='file-input'){
             const names=new Set(files.map(file=>file.name));
@@ -2145,7 +2232,7 @@ async function exportIPhoneTranscripts(){
                 const snapshot=new File([file],file.name,{type:file.type,lastModified:file.lastModified});Object.defineProperty(snapshot,'webkitRelativePath',{value:`${destination.name}/${file.name}`});return snapshot;
             })];destination.selectionScope='selection';loadedSharedCombine=loadedSharedSearch=null;
         }
-    }catch(error){exportBatchState=error.name==='AbortError'?'cancelled':'failed';iphoneExportStatus.textContent=error.name==='AbortError'?'Save canceled. Transcripts are still available.':`Save failed: ${error.message}`;}
+    }catch(error){exportBatchState=previousState==='shared'?'shared':error.name==='AbortError'?'cancelled':'failed';iphoneExportStatus.textContent=error.name==='AbortError'?'Save canceled. Transcripts are still available.':`Save failed: ${error.message}`;}
     finally{sharedFolderOperation=false;updateSharedFolderControls();updateIPhoneExportButton();}
 }
 

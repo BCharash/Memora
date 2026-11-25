@@ -31,6 +31,9 @@ const LEXICAL_FUZZY_STEP = 5;
 const SEARCH_RESULTS_PAGE_SIZE = 20;
 const searchButton = document.getElementById("searchButton");
 const searchIndexStatus = document.getElementById("searchIndexStatus");
+const searchIndexVerification = document.getElementById("searchIndexVerification");
+const searchEditVerificationFallback = document.getElementById("searchEditVerificationFallback");
+const searchEditVerifications = new Map();
 const searchQueryStatus = document.getElementById("searchQueryStatus");
 const searchResults = document.getElementById("searchResults");
 
@@ -119,7 +122,7 @@ async function refreshSearchPreference() {
 }
 
 
-function setSearchIndexStatus(message, busy = false, verification = null) {
+function setSearchIndexStatus(message, busy = false) {
 
     if (!searchIndexStatus) {
         return;
@@ -149,9 +152,39 @@ function setSearchIndexStatus(message, busy = false, verification = null) {
     text.textContent = message;
 
     searchIndexStatus.appendChild(text);
-    attachSaveVerification(searchIndexStatus, verification);
 }
 
+function placeSearchEditVerifications() {
+    const slots = new Map([...(searchResults?.querySelectorAll("[data-edit-verification-for]") || [])]
+        .filter(slot => !slot.closest(".search-result-file").hidden)
+        .map(slot => [slot.dataset.editVerificationFor, slot]));
+    for (const [filename, node] of searchEditVerifications) {
+        const slot = slots.get(filename);
+        const destination = slot || searchEditVerificationFallback;
+        if (destination && node.parentElement !== destination) destination.append(node);
+    }
+}
+
+function rememberSearchEditVerification(verification) {
+    const filename = verification.file.name;
+    searchEditVerifications.get(filename)?.remove();
+    const node = document.createElement("div");
+    node.className = "save-verification";
+    const label = document.createElement("p");
+    label.className = "settings-note";
+    label.textContent = transcriptReplacementGuidance(verification.source, filename).after +
+        " Verify the TXT before saving the Search index.";
+    node.append(label);
+    attachSaveVerification(node, verification, () => label.remove());
+    searchEditVerifications.set(filename, node);
+    placeSearchEditVerifications();
+}
+
+function clearSearchSaveVerifications() {
+    for (const node of searchEditVerifications.values()) node.remove();
+    searchEditVerifications.clear();
+    searchIndexVerification?.replaceChildren();
+}
 
 function setSearchQueryStatus(message, busy = false) {
 
@@ -444,7 +477,13 @@ async function updateSearchIndexArchive() {
         const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
         currentSearchIndex.archiveNeedsUpdate = false;
         setSearchIndexUpdateAvailable(true);
-        setSearchIndexStatus(`Index shared. Check in Files that “${SEARCH_INDEX_FILENAME}” in ${folder} was replaced. Search ignores numbered copies.${parentHint} Use Update Search Index again if you need to retry.`, false, verification);
+        searchIndexVerification?.replaceChildren();
+        attachSaveVerification(searchIndexVerification, verification, () => {
+            if (searchSourceHandle === source && currentSearchIndex === index) {
+                setSearchIndexStatus("Search Index verified in Files.");
+            }
+        });
+        setSearchIndexStatus(`Index shared. Check in Files that “${SEARCH_INDEX_FILENAME}” in ${folder} was replaced. Search ignores numbered copies.${parentHint} Use Update Search Index again if you need to retry.`);
         return;
     } else {
         await storage.writeTextFile(
@@ -1236,6 +1275,7 @@ async function applyEditedSearchIndex({ index, search, previousRecord }, {scroll
     if (searchIndexReady && searchQueryInput.value.trim()) await runSearchQuery();
     else if (searchResults) {
         renderSearchResults({ results: [] });
+        placeSearchEditVerifications();
         setSearchQueryStatus("No searchable sentences remain.");
     }
     if (scroll && !document.getElementById("searchPanel")?.hidden) window.scrollTo(0, 0);
@@ -1552,7 +1592,6 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             setSearchBusy(true);
             status.textContent = "Saving transcript…";
             let savedFile = null;
-            let verification = null;
             try {
                 const storage = await getStorageModule();
                 const source = searchSourceHandle;
@@ -1560,7 +1599,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 const updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
                 const report = message => { status.textContent = message; };
                 if (source.kind === "file-input") {
-                    verification = await shareEditedTranscript(source, updatedFile, startedAt);
+                    rememberSearchEditVerification(await shareEditedTranscript(source, updatedFile, startedAt));
                 } else {
                     const fileHandle = await source.getFileHandle(record.filename, { create: false });
                     if (await (await fileHandle.getFile()).text() !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
@@ -1580,10 +1619,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 editButton.style.fontWeight = "";
                 status.textContent = "Transcript updated. Refreshing search results…";
                 await applyEditedSearchIndex(prepared);
-                const reminder = guidance
-                    ? `${guidance.after} Search results refreshed and may be in a different order. After verifying the TXT, use Update Search Index to save the JSON separately.`
-                    : "Transcript saved. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON.";
-                setSearchIndexStatus(reminder, false, verification);
+                const reminder = `${guidance ? "Transcript shared" : "Transcript saved"}. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON separately.`;
+                setSearchIndexStatus(reminder);
                 status.textContent = reminder;
             } catch (error) {
                 if (savedFile) {
@@ -1593,8 +1630,8 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                     updateSaveControls();
                     searchIndexReady = false;
                     setSearchIndexUpdateAvailable(false);
-                    const action = guidance ? guidance.after : "Transcript saved.";
-                    setSearchIndexStatus(`${action} Search could not refresh. Reopen the transcript source. ${error.message}`, false, verification);
+                    const action = guidance ? "Transcript shared." : "Transcript saved.";
+                    setSearchIndexStatus(`${action} Search could not refresh. Reopen the transcript source. ${error.message}`);
                     status.textContent = `${action} Reopen the transcript source to refresh Search.`;
                     return;
                 }
@@ -2078,6 +2115,9 @@ function renderSearchResults(payload) {
         transcriptElement.appendChild(transcriptTextElement);
         section.appendChild(transcriptElement);
         addTranscriptEditor(section, group, transcriptTextElement, header, transcriptElement, transcriptToggle, setResultVisible);
+        const verificationSlot = document.createElement("div");
+        verificationSlot.dataset.editVerificationFor = group.filename;
+        section.append(verificationSlot);
 
         // Preserve button order: Edit is added first by addTranscriptEditor,
         // then Show/Hide transcript, then Show/Hide result.
@@ -2159,6 +2199,7 @@ function renderSearchResults(payload) {
                 section.dataset.paginationHidden = "false";
                 section.hidden = searchResultsCollapsed;
             }
+            placeSearchEditVerifications();
 
             loadedGroupCount = nextLoadedCount;
             updateResultSummary();
@@ -2195,6 +2236,7 @@ function renderSearchResults(payload) {
         searchResultListItems.forEach(section => {
             section.hidden = searchResultsCollapsed || section.dataset.paginationHidden === "true";
         });
+        placeSearchEditVerifications();
     }
 
     function toggleSearchCollapse() {
@@ -2242,7 +2284,10 @@ function renderSearchResults(payload) {
             .filter(group => group?.record.file)
             .map(group => ({...group.record, searchHighlights: captureSearchHighlights(group)}));
         await combineSelectionHandler(
-            selectedRecords.map(record => record.file),
+            [...new Set(selectedRecords.flatMap(record => [
+                record.file,
+                ...(currentSearchIndex?.versionChoices?.get(record.filename) || []).map(version => version.file)
+            ]))].filter(Boolean),
             searchQueryInput?.value.trim() || "",
             searchSourceHandle,
             selectedRecords
@@ -2284,6 +2329,7 @@ function clearSearchQueryAndResults() {
         });
         searchResults.innerHTML = "";
     }
+    placeSearchEditVerifications();
 
     if (searchQueryStatus) {
         searchQueryStatus.hidden = true;
@@ -2588,6 +2634,7 @@ async function runSearchQuery() {
         };
 
         const displaySummary = renderSearchResults(payload);
+        placeSearchEditVerifications();
 
         setSearchQueryStatus(
             `${lexicalResults.length} lexical sentence match${lexicalResults.length === 1 ? "" : "es"}` +
@@ -2612,6 +2659,7 @@ async function runSearchQuery() {
 // A transcript edit makes the current Search session potentially stale.
 // Require a fresh source selection so files are reread before the next index build.
 export function invalidateSearchAfterTranscriptEdit() {
+    clearSearchSaveVerifications();
     searchIndexBuildToken++;
     searchQueryToken++;
     searchSourceHandle = null;
@@ -2650,6 +2698,7 @@ export function resetSharedSearchSource(){
 }
 export async function openSearchSource(handle){
     const files=await getSearchSourceFiles(handle);
+    if (handle !== searchSourceHandle) clearSearchSaveVerifications();
     searchSourceHandle=handle;
     searchIndexReady=false;
     setSearchBusy(true);

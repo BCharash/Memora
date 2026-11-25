@@ -251,13 +251,12 @@
 
                         <p id="iphoneExportLocation" class="export-location" hidden></p>
                         <p id="iphoneExportFolderHelp" class="settings-note" hidden></p>
-                        <button
-                            id="iphoneExportButton"
-                            type="button"
-                            disabled
-                        >
-                            Save 0 Transcriptions to Files
-                        </button>
+                        <div class="action-row">
+                            <button id="iphoneExportButton" type="button" disabled>
+                                Save 0 Transcriptions to Files
+                            </button>
+                            <button id="iphoneExportVerifyButton" type="button" hidden>Verify in Files</button>
+                        </div>
 
                         <div
                             id="iphoneExportStatus"
@@ -265,6 +264,7 @@
                         >
                             No transcripts saved.
                         </div>
+                        <div id="iphoneExportVerificationStatus" class="file-verification-status"></div>
 
 
                     </div>
@@ -377,6 +377,7 @@
                     <label><input type="checkbox" name="whisperModel"> Whisper model</label>
                     <label><input type="checkbox" name="audioRelativePath"> Audio Relative Path</label>
                     <label><input type="checkbox" name="recordingId"> Recording ID</label>
+                    <label><input type="checkbox" name="editedInMemora"> Edited in Memora</label>
                     <label><input type="checkbox" name="separator" checked> Separator</label>
                 </fieldset>
 
@@ -517,6 +518,7 @@
                         >
                             Update Search Index
                         </button>
+                        <div id="searchIndexVerification" class="save-verification"></div>
                     </div>
 
                     <div
@@ -525,6 +527,7 @@
                     >
                         No search source selected.
                     </div>
+                    <div id="searchEditVerificationFallback"></div>
 
                 </div>
 

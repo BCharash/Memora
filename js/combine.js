@@ -1,5 +1,6 @@
 import { isMemoraEditConfirmed, readMemoraEdit, readTranscriptIdentity, transcriptHeader } from "./transcriptMetadata.js";
 import { readTranscriptPreferences, transcriptPreferenceKey } from "./transcriptPreferences.js";
+import { unnumberedFileName } from "./fileVersionName.js";
 // --------------------------------------------------
 // Combine transcript files
 // --------------------------------------------------
@@ -387,8 +388,18 @@ export function getEditedTranscriptChoices(records, preferred) {
     const choices = new Map();
     for (const record of preferred) {
         const group = groups.get(getRecordingKey(record));
-        if (!group) continue;
-        const alternatives = group.filter(copy => copy !== record);
+        if (!group || group.length < 2) continue;
+        const highestRank = group.reduce((rank, copy) => Math.max(rank, getModelRank(copy.whisperModel)), 0);
+        const highest = group.filter(copy => getModelRank(copy.whisperModel) === highestRank);
+        const filenameCounts = new Map();
+        for (const copy of highest) {
+            const name = unnumberedFileName(copy.filename).normalize("NFC").toLowerCase();
+            filenameCounts.set(name, (filenameCounts.get(name) || 0) + 1);
+        }
+        const hasEdit = group.some(copy => copy.memoraEdit);
+        const eligibleHighest = new Set(highest.filter(copy => hasEdit ||
+            filenameCounts.get(unnumberedFileName(copy.filename).normalize("NFC").toLowerCase()) > 1));
+        const alternatives = group.filter(copy => copy !== record && (copy.memoraEdit || eligibleHighest.has(copy)));
         if (alternatives.length) choices.set(record.filename, alternatives);
     }
     return choices;

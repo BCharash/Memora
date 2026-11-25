@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows updated **25 November 2026** for application **2026-11-25.5**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save and editor workflows updated **25 November 2026** for application **2026-11-25.9**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -46,7 +46,13 @@ Both desktop and iPhone keep **Update Search Index** separate from the transcrip
 
 The optional **Verify in Files** action checks contents and modification time. A confirmed edit becomes the default across Search and Combine even when a higher model exists. Alternative versions can be compared, and Combine can use the alternate in the current output. Index update guidance explains why the save is pending, including when deleting an indexed TXT is the only change.
 
+Verification appears beside each save after sharing. Edited TXT verification stays with the transcript, with a Search status fallback if its result is absent. Transcribe checks an entire batch with one folder selection and offers single-file retries for any unresolved files. A successful check clears the instructions and Verify action and leaves a confirmation. A partial batch keeps the action available.
+
 **Use once** overrides a version for the next successful Combine export and survives a canceled or failed attempt. **Make default** remembers an explicit version for Search and Combine in this browser, scoped to the archive, recording and operation. **Reset to automatic** or removal from **Settings → Preferred transcript versions** restores automatic selection. Settings lists explicitly saved preferences only.
+
+The comparison appears when there is an edited version to compare or when the highest model has numbered duplicates. Unedited lower-model copies are excluded from comparison prompts.
+
+Combine lists one default transcript per recording and operation. Eligible alternatives remain in the version selector, including after a Search handoff. **Edited in Memora** is unchecked by default and adds only the confirmed edit date to DOCX and HTML.
 
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 
@@ -82,6 +88,8 @@ Browser-version changes alone do not invalidate qualification within the same re
 Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
 ## Validation and acceptance
+
+For **2026-11-25.9**, headless Edge passed **45** catalogue/app checks, including one visible Combine row, one-time and persistent choices, optional edit date export, and the iPhone batch and individual save verification flows. The two baseline failures remain. Actual iPhone verification still needs a device check.
 
 For **2026-11-25.4**, headless Edge passed **41** catalogue/app checks, including verification of exact filenames, edited-copy priority, alternatives and deletion-only index updates. The same two baseline failures remain. Verify in Files still needs an iPhone device check.
 

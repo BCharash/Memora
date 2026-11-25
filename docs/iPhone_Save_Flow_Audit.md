@@ -1,6 +1,6 @@
 # iPhone save flow audit
 
-The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.4**.
+The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.9**.
 
 ## iPhone overwrite rule
 
@@ -9,6 +9,10 @@ The source audit began on **24 November 2026** at commit **f3fc698**, build **20
 Choose **Replace** when offered. After sharing, check the original TXT filename and its edited text before sharing the index. Check the exact name `search-embeddings.json` afterward. Memora cannot verify that the Files app replaced either file from the share result alone.
 
 **Verify in Files** is optional and opens a fresh folder selection. It compares the intended filename and contents for the TXT or JSON. It reports a same-content numbered copy separately and shows the observed modification time, including whether it falls near the save attempt. The timestamp is supporting evidence. Filename and content determine verification.
+
+Verify appears next to Update Search Index and next to the Transcribe batch save after sharing. For an edit, Verify stays at the transcript's editor location after the editor closes. Search moves it with the result and keeps it in the Search status area if the result is absent. A batch needs one folder selection, reports how many transcripts match and names any missing, mismatched or numbered files. Retry shares only the chosen file. A canceled retry keeps the existing report.
+
+Once the file or whole batch is verified, the instructions and Verify action disappear. The confirmation stays visible. An unresolved file or partial batch keeps verification available.
 
 ## Memora save flows
 

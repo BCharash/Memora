@@ -99,9 +99,11 @@ Do not simplify overlap, grouping or highlighting as an incidental consequence o
 
 ## TXT selection, derived embeddings and current limits
 
-Search reads selected TXT before indexing. Archive UUID, Recording ID and operation participate in recording grouping. A confirmed Memora edit takes precedence over an unedited copy, including a higher model. Search offers a read-only comparison when a higher model or competing edit exists. Combine can use a different version in the current output. For unedited copies, the highest model wins and equal-model copies keep the first encountered order. Filename suffixes and timestamps do not decide that tie.
+Search reads selected TXT before indexing. Archive UUID, Recording ID and operation participate in recording grouping. A confirmed Memora edit takes precedence over an unedited copy, including a higher model. Search offers a read-only comparison for edited versions or numbered copies of the highest model. Unedited lower-model copies do not trigger a comparison notice. Combine can use a different version in the current output. Among unedited copies, the highest model wins and equal-model copies keep the first encountered order.
 
 An explicit **Make default** preference takes priority over the automatic rules while the selected filename is available. The preference uses local browser storage and the Archive UUID, Recording ID and operation, so older transcripts without the required identities can still use the automatic rules. Remove the preference with **Reset to automatic** or through Settings. A missing preferred filename falls back to the automatic choice. **Use once** in Combine applies to a single successful output and leaves the Search preference alone.
+
+Combine displays the same single default per recording and operation. A Search handoff carries eligible alternatives to the selector on that row. The optional **Edited in Memora** metadata in DOCX and HTML displays the confirmed edit date.
 
 Both inventory sidecars are retired. Current TXT metadata/text feeds the local folder metadata cache, while **search-embeddings.json remains the external derived Search index**. The semantic store is separate from ranking strategy so representations can be reused across experiments.
 

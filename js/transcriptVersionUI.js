@@ -27,6 +27,21 @@ export function showTranscriptVersionChoices(container, record, alternatives, on
                 : "Other versions of this recording are available.";
     container.append(note);
 
+    const feedback = document.createElement("p");
+    feedback.className = "settings-note";
+    feedback.setAttribute("role", "status");
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.textContent = "Reset to automatic";
+    reset.addEventListener("click", () => {
+        try { removeTranscriptPreference(key); }
+        catch (error) { feedback.textContent = error.message; }
+    });
+    if (!alternatives?.length) {
+        if (preference) container.append(reset, feedback);
+        return;
+    }
+
     const details = document.createElement("details");
     const summary = document.createElement("summary");
     summary.textContent = "Compare transcript versions";
@@ -46,9 +61,6 @@ export function showTranscriptVersionChoices(container, record, alternatives, on
     details.addEventListener("toggle", showVersion);
     selector.addEventListener("change", showVersion);
     details.append(summary, selector, text);
-    const feedback = document.createElement("p");
-    feedback.className = "settings-note";
-    feedback.setAttribute("role", "status");
     const actions = document.createElement("div");
     actions.className = "action-row";
     if (onUseOnce && versions.length > 1) {
@@ -68,16 +80,7 @@ export function showTranscriptVersionChoices(container, record, alternatives, on
         });
         actions.append(makeDefault);
     }
-    if (preference) {
-        const reset = document.createElement("button");
-        reset.type = "button";
-        reset.textContent = "Reset to automatic";
-        reset.addEventListener("click", () => {
-            try { removeTranscriptPreference(key); }
-            catch (error) { feedback.textContent = error.message; }
-        });
-        actions.append(reset);
-    }
+    if (preference) actions.append(reset);
     details.append(actions, feedback);
     container.append(details);
 }

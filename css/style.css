@@ -1496,6 +1496,23 @@ button:disabled {
     margin-inline-start: 8px;
 }
 
+.save-verification:empty,
+#iphoneExportVerifyButton[hidden] {
+    display: none;
+}
+
+#searchIndexUpdateButton {
+    align-self: flex-start;
+}
+
+#searchIndexVerification .verify-files-button {
+    margin-inline-start: 0;
+}
+
+[data-edit-verification-for]:not(:empty) {
+    margin-top: 10px;
+}
+
 .transcript-version-preview {
     max-height: 18rem;
     overflow-y: auto;
