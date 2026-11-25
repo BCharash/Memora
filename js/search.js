@@ -21,6 +21,7 @@ import {
     getStoredSemanticEntries,
     persistSemanticEmbeddings
 } from "./semantic.js";
+import { observeTranscriptPreferences } from "./transcriptPreferences.js";
 
 const SEARCH_MODEL_ID = "minilm";
 
@@ -464,6 +465,7 @@ export async function buildSearchIndex(
 
     const allRecords =
         await readTranscriptFiles(files);
+    if (complete) observeTranscriptPreferences(allRecords);
 
     const readDurationMs =
         performance.now() - readStart;

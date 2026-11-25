@@ -2,6 +2,7 @@ import { replaceTranscriptBody } from "./transcriptMetadata.js";
 import { readTranscriptSourceText } from "./combine.js";
 import { renderSaveDestination, transcriptReplacementGuidance } from "./sharedFolderSelection.js";
 import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
+import {observeTranscriptPreferences, readTranscriptPreferences, transcriptPreferenceKey, transcriptPreferencesChanged} from "./transcriptPreferences.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -17,9 +18,13 @@ let onSelectionChanged;
 let saveTranscriptEdits;
 let appendAudioControl;
 let getAudioSourceHandle;
-export async function displayTranscriptFiles(files, emptyMessage = "No transcript files found.") {
+let refreshVersionChoices;
+const oneTimeVersions = new Map();
+export async function displayTranscriptFiles(files, emptyMessage = "No transcript files found.", {complete = false} = {}) {
 
     selectedTranscriptFiles = files;
+    oneTimeVersions.clear();
+    refreshVersionChoices = null;
 
     transcripts.querySelectorAll('audio[data-object-url]').forEach(audio=>{URL.revokeObjectURL(audio.dataset.objectUrl);audio.removeAttribute('src');audio.load();});
     transcripts.innerHTML = "";
@@ -286,9 +291,29 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 records,
                 sortOrder
             );
-        const preferred = combineModule.selectHighestModelRecords(sorted);
-        const choices = combineModule.getEditedTranscriptChoices(sorted, preferred);
+        if (complete) observeTranscriptPreferences(sorted);
         const recordingKeys = new Map(sorted.map(record => [record.filename, combineModule.getRecordingKey(record)]));
+        const versionSlots = new Map();
+        function renderChoices() {
+            const preferred = combineModule.selectHighestModelRecords(sorted);
+            const choices = combineModule.getEditedTranscriptChoices(sorted, preferred);
+            const defaults = new Set(preferred.map(record => record.filename));
+            const preferences = readTranscriptPreferences();
+            for (const record of sorted) {
+                const slot = versionSlots.get(record.filename);
+                slot.replaceChildren();
+                if (defaults.has(record.filename)) {
+                    showTranscriptVersionChoices(slot, record, choices.get(record.filename), useVersion, preferences);
+                }
+                const once = oneTimeVersions.get(recordingKeys.get(record.filename));
+                if (once?.filename === record.filename) {
+                    const note = document.createElement("p");
+                    note.className = "settings-note";
+                    note.textContent = "Selected for the next Combine export.";
+                    slot.append(note);
+                }
+            }
+        }
 
         transcriptListItems =
             document.createElement("div");
@@ -305,11 +330,9 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
         function useVersion(version) {
             const key = recordingKeys.get(version.filename);
-            for (const checkbox of checkboxes) {
-                if (recordingKeys.get(checkbox.dataset.filename) === key) {
-                    checkbox.checked = checkbox.dataset.filename === version.filename;
-                }
-            }
+            const filenames = new Set(sorted.filter(record => recordingKeys.get(record.filename) === key).map(record => record.filename));
+            oneTimeVersions.set(key, { filename: version.filename, filenames, preferenceKey: transcriptPreferenceKey(version) });
+            renderChoices();
             updateSelection();
         }
 
@@ -594,7 +617,9 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             header.appendChild(name);
             header.appendChild(transcriptActions);
             content.appendChild(header);
-            showTranscriptVersionChoices(content, record, choices.get(record.filename), useVersion);
+            const versionSlot = document.createElement("div");
+            versionSlots.set(record.filename, versionSlot);
+            content.appendChild(versionSlot);
             content.appendChild(audioContainer);
             content.appendChild(transcriptContent);
 
@@ -677,6 +702,8 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
         transcripts.appendChild(
             transcriptListItems
         );
+        refreshVersionChoices = renderChoices;
+        renderChoices();
 
         selectAllCheckbox.indeterminate = checkboxes.some(item => item.checked) && !checkboxes.every(item => item.checked);
         selectAllCheckbox.checked =
@@ -687,6 +714,8 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
         selectAllCheckbox.onchange =
             () => {
+                oneTimeVersions.clear();
+                renderChoices();
                 selectAllCheckbox.indeterminate = false;
 
                 checkboxes.forEach(
@@ -702,7 +731,10 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
         checkboxes.forEach(
             checkbox => {
 
-                checkbox.onchange = updateSelection;
+                checkbox.onchange = () => {
+                    if (oneTimeVersions.delete(recordingKeys.get(checkbox.dataset.filename))) renderChoices();
+                    updateSelection();
+                };
             }
         );
 
@@ -731,8 +763,13 @@ export function getSelectedTranscriptFiles() {
             )
         );
 
+    const once = new Map();
+    for (const choice of oneTimeVersions.values()) {
+        for (const filename of choice.filenames) once.set(filename, filename === choice.filename);
+    }
     return selectedTranscriptFiles.filter(
         file => {
+            if (once.has(file.name)) return once.get(file.name);
 
             const checkbox =
                 checkboxes.find(
@@ -747,6 +784,22 @@ export function getSelectedTranscriptFiles() {
     );
 }
 
+export function captureCombineVersionChoices() {
+    return new Map(oneTimeVersions);
+}
+
+export function consumeCombineVersionChoices(captured) {
+    let changed = false;
+    for (const [key, choice] of captured) {
+        if (oneTimeVersions.get(key) !== choice) continue;
+        oneTimeVersions.delete(key);
+        changed = true;
+    }
+    if (changed) {
+        refreshVersionChoices?.();
+        onSelectionChanged({preserveShareStatus: true});
+    }
+}
 
 
 export function getTranscriptFileCount() {
@@ -769,4 +822,11 @@ export function initCombineUI({
     saveTranscriptEdits = onSaveTranscriptEdits;
     appendAudioControl = onAppendAudioControl;
     getAudioSourceHandle = readAudioSourceHandle;
+    window.addEventListener(transcriptPreferencesChanged, event => {
+        for (const [key, choice] of oneTimeVersions) {
+            if (choice.preferenceKey === event.detail) oneTimeVersions.delete(key);
+        }
+        refreshVersionChoices?.();
+        onSelectionChanged({preserveShareStatus: true});
+    });
 }

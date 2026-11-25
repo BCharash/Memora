@@ -1,4 +1,5 @@
-import {readTranscriptFile} from '../js/combine.js';
+import {getEditedTranscriptChoices,readTranscriptFile,selectHighestModelRecords} from '../js/combine.js';
+import {readTranscriptPreferences} from '../js/transcriptPreferences.js';
 let currentRecords=[];
 const editorFixtureName='Long filename for narrow screen Search editor verification.txt';
 export const searchEditorFixture={
@@ -10,8 +11,11 @@ export const sharedSearchArchives=[];
 export async function buildSearchIndex(files,onProgress,archive,{activate=true}={}){
  sharedSearchArchives.push(archive);
  sharedSearchBuilds.push(files.map(file=>file.name));
- const records=await Promise.all(files.map(readTranscriptFile));if(activate)currentRecords=records;
- return {records,sentences:records.length,chunkCount:records.length,durationMs:1,readDurationMs:0,sentenceProcessingDurationMs:0,chunkProcessingDurationMs:0,embeddingDurationMs:0,archiveNeedsUpdate:records.some(record=>record.filename===editorFixtureName)};
+ const available=await Promise.all(files.map(readTranscriptFile));
+ const records=readTranscriptPreferences().size?selectHighestModelRecords(available):available;
+ if(activate)currentRecords=records;
+ const versionChoices=getEditedTranscriptChoices(available,selectHighestModelRecords(available));
+ return {records,versionChoices,sentences:records.length,chunkCount:records.length,durationMs:1,readDurationMs:0,sentenceProcessingDurationMs:0,chunkProcessingDurationMs:0,embeddingDurationMs:0,archiveNeedsUpdate:records.some(record=>record.filename===editorFixtureName)};
 }
 
 export function createSearchEmbeddingsArchive(index){return {fixture:true,files:index.records.map(record=>record.filename)};}

@@ -5,6 +5,7 @@ import { getWhisperConfigurationDefinitions } from "./whisperConfigurations.js";
 import { presentWhisperAttempt, renderWhisperAttemptContext } from "./whisperAttemptReport.js";
 import { createWhisperAttemptJournal, visibleWhisperAttempts } from "./whisperAttempts.js";
 import { askIdentity } from "./identityDialog.js";
+import { listTranscriptPreferences, removeTranscriptPreference } from "./transcriptPreferences.js";
 // --------------------------------------------------
 // Memora Settings UI
 // --------------------------------------------------
@@ -158,6 +159,14 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
                 ${button("View", "toggle-transcripts")}
             </div>
             <div id="settingsTranscriptsDetail" class="settings-detail" hidden></div>
+
+            <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
+            <div class="settings-disclosure settings-storage-category">
+                <span class="settings-disclosure-title">Preferred transcript versions</span>
+                <span id="settingsTranscriptPreferenceCount">${listTranscriptPreferences().length} saved</span>
+                ${button("View", "toggle-transcript-preferences")}
+            </div>
+            <div id="settingsTranscriptPreferences" class="settings-detail" hidden></div>
 
 
             <div class="settings-section-divider" style="border-top:1px solid currentColor; opacity:.15; margin:12px 0;"></div>
@@ -1138,11 +1147,40 @@ export function initSettingsUI({ getStorageManager, getStorage }) {
         detail.insertBefore(detail.querySelector('.settings-selection-actions'),detail.querySelector('.settings-cache-parent'));
     }
 
+    function renderTranscriptPreferences() {
+        const detail = document.getElementById("settingsTranscriptPreferences");
+        const items = listTranscriptPreferences();
+        document.getElementById("settingsTranscriptPreferenceCount").textContent = `${items.length} saved`;
+        detail.innerHTML = items.length ? items.map((item, index) => `
+            <div class="settings-item">
+                <div class="settings-item-info">
+                    <div class="settings-item-name">${escapeHtml(item.recording)}</div>
+                    <div class="settings-item-detail">${escapeHtml(item.archive)} · ${escapeHtml(item.operation)} · ${escapeHtml(item.filename)}${item.available === false ? " · Unavailable" : ""}</div>
+                </div>
+                <button type="button" data-settings-action="remove-transcript-preference" data-preference-index="${index}">Remove</button>
+            </div>`).join("") : '<p class="settings-note">No preferred versions saved.</p>';
+        detail._items = items;
+    }
+
     async function handleAction(event) {
         const target = event.target.closest("[data-settings-action]");
         if (!target) return;
         const action = target.dataset.settingsAction;
         try {
+            if (action === "toggle-transcript-preferences") {
+                const detail = document.getElementById("settingsTranscriptPreferences");
+                detail.hidden = !detail.hidden;
+                target.textContent = detail.hidden ? "View" : "Hide";
+                if (!detail.hidden) renderTranscriptPreferences();
+                return;
+            }
+            if (action === "remove-transcript-preference") {
+                const detail = document.getElementById("settingsTranscriptPreferences");
+                const item = detail._items[Number(target.dataset.preferenceIndex)];
+                if (item) removeTranscriptPreference(item.key);
+                renderTranscriptPreferences();
+                return;
+            }
             if (action === "cancel-whisper-self-test") { selfTestController?.abort(); return; }
             const historySection = { "toggle-self-test-summary": "settingsWhisperSummarySection", "toggle-self-test-history": "settingsWhisperHistorySection", "toggle-execution-history": "settingsWhisperExecutionHistorySection", "toggle-model-reviews": "settingsWhisperEligibilityReviewsSection", "toggle-stability-observations": "settingsWhisperStabilitySection" }[action];
             if (historySection) return await setHistorySection(historySection, document.getElementById(historySection).hidden);

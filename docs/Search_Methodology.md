@@ -101,6 +101,8 @@ Do not simplify overlap, grouping or highlighting as an incidental consequence o
 
 Search reads selected TXT before indexing. Archive UUID, Recording ID and operation participate in recording grouping. A confirmed Memora edit takes precedence over an unedited copy, including a higher model. Search offers a read-only comparison when a higher model or competing edit exists. Combine can use a different version in the current output. For unedited copies, the highest model wins and equal-model copies keep the first encountered order. Filename suffixes and timestamps do not decide that tie.
 
+An explicit **Make default** preference takes priority over the automatic rules while the selected filename is available. The preference uses local browser storage and the Archive UUID, Recording ID and operation, so older transcripts without the required identities can still use the automatic rules. Remove the preference with **Reset to automatic** or through Settings. A missing preferred filename falls back to the automatic choice. **Use once** in Combine applies to a single successful output and leaves the Search preference alone.
+
 Both inventory sidecars are retired. Current TXT metadata/text feeds the local folder metadata cache, while **search-embeddings.json remains the external derived Search index**. The semantic store is separate from ranking strategy so representations can be reused across experiments.
 
 Compatible unchanged vectors can be reused from the archive/store after the current format/model/text/identity/item checks. Modified text must not silently reuse stale vectors. Preserve the intentional **audioSourceId:null** slot in serialized hashes: it maintains earlier keys and does not restore dependence on an audio JSON file.

@@ -90,6 +90,7 @@ export function initCombineShareExportUI({
             }
 
             updateButton();
+            return true;
         } catch (error) {
             if (error.name === "AbortError") {
                 if (exportStatus) {

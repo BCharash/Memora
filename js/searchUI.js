@@ -4,6 +4,7 @@ import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance, re
 import { replaceTranscriptBody, isRecordingUuid, setMemoraEditPending } from "./transcriptMetadata.js";
 import { attachSaveVerification } from "./fileSaveVerification.js";
 import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
+import { readTranscriptPreferences, transcriptPreferenceKey, transcriptPreferencesChanged } from "./transcriptPreferences.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
 // --------------------------------------------------
@@ -40,6 +41,7 @@ let combineSelectionHandler = null;
 let currentSearchIndex = null;
 let sourceSelectionHandler = null;
 let searchBusy = false;
+let preferenceRefreshPending = false;
 export const isSearchSourceBusy = () => searchBusy;
 export const hasPendingSearchIndexUpdate = () => !!currentSearchIndex?.archiveNeedsUpdate;
 let searchQueryToken = 0;
@@ -93,6 +95,27 @@ function setSearchBusy(busy) {
         searchButton.disabled = busy || !searchIndexReady;
     }
     document.dispatchEvent(new CustomEvent("memora-search-busy",{detail:busy}));
+    if (!busy && preferenceRefreshPending) queueMicrotask(refreshSearchPreference);
+}
+
+async function refreshSearchPreference() {
+    if (!preferenceRefreshPending || searchBusy) return;
+    if ([...(searchResults?.querySelectorAll(".search-transcript-editor-panel:not([hidden]) textarea") || [])]
+        .some(editor => editor.value !== editor.defaultValue)) return;
+    preferenceRefreshPending = false;
+    const source = searchSourceHandle;
+    if (!source) return;
+    setSearchBusy(true);
+    try {
+        const files = await getSearchSourceFiles(source);
+        if (source !== searchSourceHandle) return;
+        await buildSearchIndexForSource(files);
+        if (source === searchSourceHandle && searchIndexReady && searchQueryInput?.value.trim()) await runSearchQuery();
+    } catch (error) {
+        setSearchIndexStatus(`Could not refresh the preferred version. ${error.message}`);
+    } finally {
+        setSearchBusy(false);
+    }
 }
 
 
@@ -1512,6 +1535,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             textarea.value = String(record.transcript || "");
             textarea.defaultValue = textarea.value;
             updateSaveControls();
+            if (preferenceRefreshPending) queueMicrotask(refreshSearchPreference);
         });
 
         saveButton.addEventListener("click", async () => {
@@ -1980,6 +2004,7 @@ function renderSearchResults(payload) {
 
     const groupCheckboxes = [];
     const searchResultListItems = [];
+    const transcriptPreferences = readTranscriptPreferences();
     let searchResultsCollapsed = false;
 
     for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
@@ -2039,7 +2064,7 @@ function renderSearchResults(payload) {
         }
         appendColoredTranscript(resultElement, createSearchResultExcerptGroup(group));
         section.appendChild(header);
-        showTranscriptVersionChoices(section, group.record, currentSearchIndex?.versionChoices?.get(group.filename));
+        showTranscriptVersionChoices(section, group.record, currentSearchIndex?.versionChoices?.get(group.filename), undefined, transcriptPreferences);
         section.appendChild(resultElement);
 
         const transcriptElement = document.createElement("div");
@@ -2591,6 +2616,7 @@ export function invalidateSearchAfterTranscriptEdit() {
     searchQueryToken++;
     searchSourceHandle = null;
     currentSearchIndex = null;
+    preferenceRefreshPending = false;
     searchIndexReady = false;
 
     if (searchQueryInput) searchQueryInput.value = "";
@@ -2645,6 +2671,12 @@ export function initSearchUI({
     combineSelectionHandler = onUseSelectionInCombine;
 
     sourceSelectionHandler=onSelectTranscriptSource;
+    window.addEventListener(transcriptPreferencesChanged, event => {
+        if (!searchSourceHandle || (currentSearchIndex && !currentSearchIndex.records.some(record =>
+            transcriptPreferenceKey(record) === event.detail))) return;
+        preferenceRefreshPending = true;
+        queueMicrotask(refreshSearchPreference);
+    });
     if(searchSourceButton)searchSourceButton.addEventListener('click',async()=>{
         if(sourceSelectionHandler){await sourceSelectionHandler();return;}
         try{const storage=await getStorageModule();await openSearchSource(await storage.selectFolder());}

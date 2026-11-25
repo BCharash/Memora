@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows updated **25 November 2026** for application **2026-11-25.4**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save and editor workflows updated **25 November 2026** for application **2026-11-25.5**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -45,6 +45,8 @@ Search reads current TXT snapshots and reconciles its derived embeddings; compat
 Both desktop and iPhone keep **Update Search Index** separate from the transcript edit. On iPhone, share the TXT by itself, verify its exact name and edited contents in Files, then share `search-embeddings.json` on its own. Search reruns the same query after an edit and returns to the top because rankings can change. The index button pulses for pending work and stays active for repeat sharing without pulsing after success.
 
 The optional **Verify in Files** action checks contents and modification time. A confirmed edit becomes the default across Search and Combine even when a higher model exists. Alternative versions can be compared, and Combine can use the alternate in the current output. Index update guidance explains why the save is pending, including when deleting an indexed TXT is the only change.
+
+**Use once** overrides a version for the next successful Combine export and survives a canceled or failed attempt. **Make default** remembers an explicit version for Search and Combine in this browser, scoped to the archive, recording and operation. **Reset to automatic** or removal from **Settings → Preferred transcript versions** restores automatic selection. Settings lists explicitly saved preferences only.
 
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 

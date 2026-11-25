@@ -1,4 +1,5 @@
 import { isMemoraEditConfirmed, readMemoraEdit, readTranscriptIdentity, transcriptHeader } from "./transcriptMetadata.js";
+import { readTranscriptPreferences, transcriptPreferenceKey } from "./transcriptPreferences.js";
 // --------------------------------------------------
 // Combine transcript files
 // --------------------------------------------------
@@ -306,6 +307,7 @@ export function getModelRank(model) {
 
 export function selectHighestModelRecords(records) {
 
+    const preferences = readTranscriptPreferences();
     const bestByKey = new Map();
     const ungrouped = new Set();
 
@@ -333,7 +335,9 @@ export function selectHighestModelRecords(records) {
 
         const edited = !!record.memoraEdit?.confirmed;
         const existingEdited = !!existing.memoraEdit?.confirmed;
-        if ((edited && !existingEdited) || (!edited && !existingEdited && newRank > existingRank)) {
+        const preferred = preferences.get(transcriptPreferenceKey(record))?.filename;
+        if (record.filename === preferred || (existing.filename !== preferred &&
+            ((edited && !existingEdited) || (!edited && !existingEdited && newRank > existingRank)))) {
             bestByKey.set(key, record);
         }
     }
@@ -383,9 +387,8 @@ export function getEditedTranscriptChoices(records, preferred) {
     const choices = new Map();
     for (const record of preferred) {
         const group = groups.get(getRecordingKey(record));
-        if (!group?.some(copy => copy.memoraEdit)) continue;
-        const alternatives = group.filter(copy => copy !== record &&
-            (copy.memoraEdit || (record.memoraEdit?.confirmed && getModelRank(copy.whisperModel) > getModelRank(record.whisperModel))));
+        if (!group) continue;
+        const alternatives = group.filter(copy => copy !== record);
         if (alternatives.length) choices.set(record.filename, alternatives);
     }
     return choices;

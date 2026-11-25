@@ -19,6 +19,8 @@ import {
     displayTranscriptFiles,
     getCombineSortOrder,
     getSelectedTranscriptFiles,
+    captureCombineVersionChoices,
+    consumeCombineVersionChoices,
     getTranscriptFileCount,
     initCombineUI
 } from "./combineUI.js";
@@ -1417,7 +1419,7 @@ async function openCombineSource(selectedSource) {
     if(textSourceHandle.kind==='directory')await updateCombineFolderButton();
 
     await displayTranscriptFiles(
-        files
+        files, undefined, {complete: snapshot.complete}
     );
 
     textSourceButton.textContent = 'Select Transcript Folder';
@@ -1558,9 +1560,10 @@ if (combineTitleInput) {
 
 initCombineUI({
     getCombineModule,
-    onSelectionChanged: () => {
+    onSelectionChanged: ({preserveShareStatus = false} = {}) => {
         updateCombineOutputOptions();
-        combineShareExportUI.reset();
+        if (preserveShareStatus) combineShareExportUI.updateButton();
+        else combineShareExportUI.reset();
     },
     onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
@@ -1612,6 +1615,7 @@ async function combineSelectedFiles(
 
     const files =
         getSelectedTranscriptFiles();
+    const oneTimeChoices = captureCombineVersionChoices();
 
     const combineTitle =
         combineTitleInput?.value.trim() ||
@@ -1718,7 +1722,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined TXT…";
 
-                await combineShareExportUI.exportFile(file, exportGuidance);
+                if (await combineShareExportUI.exportFile(file, exportGuidance)) consumeCombineVersionChoices(oneTimeChoices);
                 combineStatus.textContent = "";
 
             } else if (outputType === "docx") {
@@ -1746,7 +1750,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined DOCX…";
 
-                await combineShareExportUI.exportFile(file, exportGuidance);
+                if (await combineShareExportUI.exportFile(file, exportGuidance)) consumeCombineVersionChoices(oneTimeChoices);
                 combineStatus.textContent = "";
 
             } else {
@@ -1777,7 +1781,7 @@ async function combineSelectedFiles(
                 combineStatus.textContent =
                     "Creating combined HTML…";
 
-                await combineShareExportUI.exportFile(file, exportGuidance);
+                if (await combineShareExportUI.exportFile(file, exportGuidance)) consumeCombineVersionChoices(oneTimeChoices);
                 combineStatus.textContent = "";
             }
 
@@ -1893,6 +1897,7 @@ async function combineSelectedFiles(
             combineStatus.textContent =
                 "Combined HTML created.";
         }
+        consumeCombineVersionChoices(oneTimeChoices);
 
     } catch (error) {
 
