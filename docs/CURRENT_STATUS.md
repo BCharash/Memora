@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows updated **25 November 2026** for application **2026-11-25.3**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save and editor workflows updated **25 November 2026** for application **2026-11-25.4**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -44,6 +44,8 @@ Search reads current TXT snapshots and reconciles its derived embeddings; compat
 
 Both desktop and iPhone keep **Update Search Index** separate from the transcript edit. On iPhone, share the TXT by itself, verify its exact name and edited contents in Files, then share `search-embeddings.json` on its own. Search reruns the same query after an edit and returns to the top because rankings can change. The index button pulses for pending work and stays active for repeat sharing without pulsing after success.
 
+The optional **Verify in Files** action checks contents and modification time. A confirmed edit becomes the default across Search and Combine even when a higher model exists. Alternative versions can be compared, and Combine can use the alternate in the current output. Index update guidance explains why the save is pending, including when deleting an indexed TXT is the only change.
+
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 
 ## Identities and local data
@@ -79,6 +81,8 @@ Successful production execution history expires after 24 hours; failures/interru
 
 ## Validation and acceptance
 
+For **2026-11-25.4**, headless Edge passed **41** catalogue/app checks, including verification of exact filenames, edited-copy priority, alternatives and deletion-only index updates. The same two baseline failures remain. Verify in Files still needs an iPhone device check.
+
 For **2026-11-25.3**, headless Edge passed **38** catalogue/app checks, including separate TXT and JSON sharing from iPhone-style editor flows. The two baseline failures recorded below remain. The user confirmed on iPhone that separating the saves corrected the silent duplication seen with the combined TXT and JSON share. Keep one file per share for replacement. Files behavior for multiple TXT files with name collisions remains untested. [iPhone overwrite rule](iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)
 
 Earlier headless runs passed **37** checks in **2026-11-25.1** and **38** in **.2**, covering optional destination selection, Search refresh, the separate desktop index write and starting iPhone transcription beside a mixed collection. The combined iPhone edit and index share was replaced in **.3** after device testing.
@@ -103,7 +107,7 @@ The [JavaScript survey and staged cleanup plan](JavaScript_Survey_and_Cleanup_Pl
 
 Recommended first implementation after review: checkpoint 1 (obsolete tooling/routes and carefully reviewed public exports), then a small naming batch. Shared hashing, playback/edit rules and source/session extraction follow separately. Multi-archive Combine remains future work after the relevant boundaries are safe; low-value cosmetic cleanup need not become a prerequisite. The user memory handoff remains unchanged for separate feasibility work.
 
-Other deferred work stays separate: equal-model filename-counter priority; portable collection imports/metadata and DOCX/HTML output controls; query-only Search history; broader recursive library ownership; offline Tiny/release conversion; variant comparison/discovery; iMuse convergence. Older plans may contain superseded prerequisites and are not today's implementation instructions.
+Other deferred work includes portable collection imports/metadata and DOCX/HTML output controls, query-only Search history, broader recursive library ownership, offline Tiny/release conversion, model variant comparison/discovery and iMuse convergence. Equal-model unedited copies keep first-encountered order.
 
 ## Resume references
 

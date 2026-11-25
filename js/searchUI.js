@@ -1,7 +1,9 @@
 import {readTranscriptFolder} from './transcriptCatalogue.js';
 import { searchHighlightColors, splitHighlightSentences } from "./searchExportHighlights.js";
 import {sharedFolders, transcriptSaveLocation, transcriptReplacementGuidance, renderSaveDestination} from './sharedFolderSelection.js';
-import { replaceTranscriptBody, isRecordingUuid } from "./transcriptMetadata.js";
+import { replaceTranscriptBody, isRecordingUuid, setMemoraEditPending } from "./transcriptMetadata.js";
+import { attachSaveVerification } from "./fileSaveVerification.js";
+import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
 import { readEmbeddedRecordingIdentity } from "./recordingIdentity.js";
 import {createReproducibleRecordingIdentityResolver, RECORDING_SAMPLE_METHOD} from "./reproducibleRecordingIdentity.js";
 // --------------------------------------------------
@@ -94,7 +96,7 @@ function setSearchBusy(busy) {
 }
 
 
-function setSearchIndexStatus(message, busy = false) {
+function setSearchIndexStatus(message, busy = false, verification = null) {
 
     if (!searchIndexStatus) {
         return;
@@ -124,6 +126,7 @@ function setSearchIndexStatus(message, busy = false) {
     text.textContent = message;
 
     searchIndexStatus.appendChild(text);
+    attachSaveVerification(searchIndexStatus, verification);
 }
 
 
@@ -181,6 +184,19 @@ function searchIndexSaveGuidance(source) {
     };
 }
 
+function describeSearchIndexUpdate(index) {
+    const { removed, excluded, added, changed } = index?.archiveChanges || {};
+    const parts = [
+        removed && `${removed} deleted transcript${removed === 1 ? "" : "s"} to remove`,
+        excluded && `${excluded} superseded version${excluded === 1 ? "" : "s"} to remove`,
+        added && `${added} new transcript${added === 1 ? "" : "s"} to add`,
+        changed && `${changed} changed transcript${changed === 1 ? "" : "s"} to refresh`
+    ].filter(Boolean);
+    return parts.length ? `Update Search Index for ${parts.join(", ")}.`
+        : index?.editPending ? "Update Search Index to include the edited transcript."
+        : "Update Search Index to save the rebuilt embeddings for this folder.";
+}
+
 function setSearchIndexUpdateAvailable(available) {
     if (!searchIndexUpdateButton) return;
     searchIndexUpdateButton.hidden = !available;
@@ -188,9 +204,23 @@ function setSearchIndexUpdateAvailable(available) {
     searchIndexUpdateButton.classList.toggle("has-pending-index-update",
         available && hasPendingSearchIndexUpdate());
     if (searchIndexSaveLocation) {
-        searchIndexSaveLocation.hidden = !available || searchSourceHandle?.kind !== "file-input";
+        const pending = hasPendingSearchIndexUpdate();
+        const share = searchSourceHandle?.kind === "file-input";
+        searchIndexSaveLocation.hidden = !available || (!share && !pending);
+        searchIndexSaveLocation.replaceChildren();
         if (!searchIndexSaveLocation.hidden) {
-            renderSaveDestination(searchIndexSaveLocation, searchIndexSaveGuidance(searchSourceHandle));
+            if (pending) {
+                const reason = document.createElement("span");
+                reason.className = "search-index-update-reason";
+                reason.textContent = describeSearchIndexUpdate(currentSearchIndex);
+                searchIndexSaveLocation.append(reason);
+            }
+            if (share) {
+                const destination = document.createElement("span");
+                destination.className = "search-index-save-destination";
+                renderSaveDestination(destination, searchIndexSaveGuidance(searchSourceHandle));
+                searchIndexSaveLocation.append(destination);
+            }
         }
     }
 }
@@ -269,7 +299,8 @@ async function buildSearchIndexForSource(files) {
                         true
                     );
                 },
-                archive
+                archive,
+                { complete: searchSourceHandle.selectionScope !== "selection" }
             );
 
         if (token !== searchIndexBuildToken) {
@@ -303,9 +334,9 @@ async function buildSearchIndexForSource(files) {
                     `(${timingDetails})${archiveMessage}.`
                 );
             } else {
-                setSearchIndexStatus(
-                    "No searchable sentences were found in the selected transcripts."
-                );
+                setSearchIndexStatus(files.length
+                    ? "No searchable sentences were found in the selected transcripts."
+                    : "No transcript files found in the selected folder.");
             }
         }
 
@@ -352,6 +383,7 @@ async function buildSearchIndexForSource(files) {
 
 
 async function updateSearchIndexArchive() {
+    const startedAt = Date.now();
 
     if (!currentSearchIndex || !searchSourceHandle) {
         return;
@@ -376,11 +408,20 @@ async function updateSearchIndexArchive() {
                 { type: "application/json" }
             );
 
-        await storage.shareFile(file, searchIndexSaveGuidance(searchSourceHandle));
+        const source = searchSourceHandle;
+        const index = currentSearchIndex;
+        await storage.shareFile(file, searchIndexSaveGuidance(source));
+        const verification = {source, file, startedAt, returnedAt: Date.now(), selectFolder: storage.selectFolder,
+            onVerified: verified => {
+                if (currentSearchIndex !== index) return;
+                source.files = source.files.filter(candidate => candidate.name !== file.name ||
+                    (candidate.webkitRelativePath && candidate.webkitRelativePath !== `${source.name}/${file.name}`));
+                source.files.push(new File([verified], verified.name, {type: verified.type, lastModified: verified.lastModified}));
+            }};
         const { folder, parentHint } = transcriptSaveLocation(searchSourceHandle);
         currentSearchIndex.archiveNeedsUpdate = false;
         setSearchIndexUpdateAvailable(true);
-        setSearchIndexStatus(`Index shared. Check in Files that “${SEARCH_INDEX_FILENAME}” in ${folder} was replaced. Search ignores numbered copies.${parentHint} Use Update Search Index again if you need to retry.`);
+        setSearchIndexStatus(`Index shared. Check in Files that “${SEARCH_INDEX_FILENAME}” in ${folder} was replaced. Search ignores numbered copies.${parentHint} Use Update Search Index again if you need to retry.`, false, verification);
         return;
     } else {
         await storage.writeTextFile(
@@ -1087,7 +1128,7 @@ function makeSearchEditButton(label, className) {
 }
 
 function getTranscriptFileContent(file, editedTranscript) {
-    return file.text().then(originalText => replaceTranscriptBody(originalText, String(editedTranscript ?? "")));
+    return file.text().then(originalText => replaceTranscriptBody(originalText, String(editedTranscript ?? ""), {filename: file.name}));
 }
 
 async function prepareEditedSearchIndex(source, editedFile, onProgress) {
@@ -1110,12 +1151,13 @@ async function prepareEditedSearchIndex(source, editedFile, onProgress) {
         }
     }
     const index = await search.buildSearchIndex(
-        files.map(file => file === original ? editedFile : file), onProgress, archive, { activate: false }
+        files.map(file => file === original ? editedFile : file), onProgress, archive,
+        { activate: false, complete: source.selectionScope !== "selection" }
     );
     return { index, search, previousRecord };
 }
 
-export async function shareEditedTranscript(source, editedFile) {
+export async function shareEditedTranscript(source, editedFile, startedAt) {
     const original = source.files.find(file => file.name === editedFile.name &&
         (!file.webkitRelativePath || file.webkitRelativePath === `${source.name}/${file.name}`));
     if (!original) throw new Error("The transcript is no longer in the selected folder.");
@@ -1124,13 +1166,37 @@ export async function shareEditedTranscript(source, editedFile) {
         Object.defineProperty(editedFile, "webkitRelativePath", { value: original.webkitRelativePath });
     }
     await storage.shareFile(editedFile, transcriptReplacementGuidance(source, editedFile.name));
+    const returnedAt = Date.now();
 
     // Keep the edit in this session. Only Files can confirm the replacement.
+    setMemoraEditPending(editedFile, true);
     source.files = source.files.map(file => file === original ? editedFile : file);
+    return {
+        source, file: editedFile, startedAt, returnedAt, selectFolder: storage.selectFolder,
+        onVerified: async verified => {
+            if (!source.files.includes(editedFile)) return;
+            setMemoraEditPending(editedFile, false);
+            const relativePath = original.webkitRelativePath || "";
+            if (verified.webkitRelativePath !== relativePath) {
+                // The verifier can open the selected child directly or via its parent.
+                verified = new File([verified], verified.name, {type: verified.type, lastModified: verified.lastModified});
+                if (relativePath) Object.defineProperty(verified, "webkitRelativePath", { value: relativePath });
+            }
+            source.files = source.files.map(file => file === editedFile ? verified : file);
+            if (searchSourceHandle !== source || searchBusy) return;
+            setSearchBusy(true);
+            try {
+                await applyEditedSearchIndex(await prepareEditedSearchIndex(source, verified), {scroll: false});
+            } finally {
+                setSearchBusy(false);
+            }
+        }
+    };
 }
 
-async function applyEditedSearchIndex({ index, search, previousRecord }) {
+async function applyEditedSearchIndex({ index, search, previousRecord }, {scroll = true} = {}) {
     index.archiveNeedsUpdate = true;
+    index.editPending = true;
     search.activateSearchIndex(index);
     currentSearchIndex = index;
     searchIndexReady = index.sentences > 0;
@@ -1149,7 +1215,7 @@ async function applyEditedSearchIndex({ index, search, previousRecord }) {
         renderSearchResults({ results: [] });
         setSearchQueryStatus("No searchable sentences remain.");
     }
-    if (!document.getElementById("searchPanel")?.hidden) window.scrollTo(0, 0);
+    if (scroll && !document.getElementById("searchPanel")?.hidden) window.scrollTo(0, 0);
 }
 
 export async function refreshSearchAfterCombineEdit(source, editedFile) {
@@ -1451,6 +1517,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         saveButton.addEventListener("click", async () => {
             const editedTranscript = textarea.value;
             if (saveButton.disabled || editedTranscript === textarea.defaultValue) return;
+            const startedAt = Date.now();
             if (!editedTranscript.trim()) {
                 status.textContent = "The transcript cannot be empty.";
                 return;
@@ -1461,6 +1528,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             setSearchBusy(true);
             status.textContent = "Saving transcript…";
             let savedFile = null;
+            let verification = null;
             try {
                 const storage = await getStorageModule();
                 const source = searchSourceHandle;
@@ -1468,7 +1536,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 const updatedFile = new File([fullText], record.filename, { type: "text/plain", lastModified: Date.now() });
                 const report = message => { status.textContent = message; };
                 if (source.kind === "file-input") {
-                    await shareEditedTranscript(source, updatedFile);
+                    verification = await shareEditedTranscript(source, updatedFile, startedAt);
                 } else {
                     const fileHandle = await source.getFileHandle(record.filename, { create: false });
                     if (await (await fileHandle.getFile()).text() !== await record.file.text()) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
@@ -1491,7 +1559,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                 const reminder = guidance
                     ? `${guidance.after} Search results refreshed and may be in a different order. After verifying the TXT, use Update Search Index to save the JSON separately.`
                     : "Transcript saved. Search results refreshed and may be in a different order. Use Update Search Index to save the JSON.";
-                setSearchIndexStatus(reminder);
+                setSearchIndexStatus(reminder, false, verification);
                 status.textContent = reminder;
             } catch (error) {
                 if (savedFile) {
@@ -1502,7 +1570,7 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
                     searchIndexReady = false;
                     setSearchIndexUpdateAvailable(false);
                     const action = guidance ? guidance.after : "Transcript saved.";
-                    setSearchIndexStatus(`${action} Search could not refresh. Reopen the transcript source. ${error.message}`);
+                    setSearchIndexStatus(`${action} Search could not refresh. Reopen the transcript source. ${error.message}`, false, verification);
                     status.textContent = `${action} Reopen the transcript source to refresh Search.`;
                     return;
                 }
@@ -1971,6 +2039,7 @@ function renderSearchResults(payload) {
         }
         appendColoredTranscript(resultElement, createSearchResultExcerptGroup(group));
         section.appendChild(header);
+        showTranscriptVersionChoices(section, group.record, currentSearchIndex?.versionChoices?.get(group.filename));
         section.appendChild(resultElement);
 
         const transcriptElement = document.createElement("div");
@@ -2562,11 +2631,6 @@ export async function openSearchSource(handle){
     if(searchQueryInput)searchQueryInput.value='';
     updateClearSearchButton();
     if(searchSourceButton)searchSourceButton.textContent='Select Transcript Folder';
-    if(!files.length){
-        setSearchIndexStatus('No transcript files found in the selected folder.');
-        if(searchResults)searchResults.innerHTML='<p class="empty-message">No transcript files found.</p>';
-        setSearchBusy(false);return;
-    }
     try{await buildSearchIndexForSource(files);}finally{setSearchBusy(false);}
 }
 

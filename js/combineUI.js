@@ -1,6 +1,7 @@
 import { replaceTranscriptBody } from "./transcriptMetadata.js";
 import { readTranscriptSourceText } from "./combine.js";
 import { renderSaveDestination, transcriptReplacementGuidance } from "./sharedFolderSelection.js";
+import { showTranscriptVersionChoices } from "./transcriptVersionUI.js";
 // --------------------------------------------------
 // Combine UI
 // --------------------------------------------------
@@ -285,6 +286,9 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                 records,
                 sortOrder
             );
+        const preferred = combineModule.selectHighestModelRecords(sorted);
+        const choices = combineModule.getEditedTranscriptChoices(sorted, preferred);
+        const recordingKeys = new Map(sorted.map(record => [record.filename, combineModule.getRecordingKey(record)]));
 
         transcriptListItems =
             document.createElement("div");
@@ -293,6 +297,21 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             "recording-list-items";
 
         const checkboxes = [];
+        function updateSelection() {
+            selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.every(item => item.checked);
+            selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && checkboxes.some(item => item.checked);
+            onSelectionChanged();
+        }
+
+        function useVersion(version) {
+            const key = recordingKeys.get(version.filename);
+            for (const checkbox of checkboxes) {
+                if (recordingKeys.get(checkbox.dataset.filename) === key) {
+                    checkbox.checked = checkbox.dataset.filename === version.filename;
+                }
+            }
+            updateSelection();
+        }
 
         // Capture the current selections before rebuilding the list.
         // On the initial render, selectedFilenames is intentionally empty
@@ -462,6 +481,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
 
                 saveEdit.addEventListener("click", async () => {
                     if (saveEdit.disabled || editor.value === editor.defaultValue) return;
+                    const startedAt = Date.now();
                     saveEdit.disabled = true;
                     cancelEdit.disabled = true;
                     editToggle.disabled = true;
@@ -470,8 +490,8 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
                     try {
                         const originalText = await readTranscriptSourceText(record.file);
                         const editedBody = editor.value;
-                        const updatedText = replaceTranscriptBody(originalText, editedBody);
-                        const updatedFile = await saveTranscriptEdits(record, updatedText);
+                        const updatedText = replaceTranscriptBody(originalText, editedBody, {filename: record.filename});
+                        const updatedFile = await saveTranscriptEdits(record, updatedText, startedAt);
 
                         record.file = updatedFile || new File([updatedText], record.filename, {
                             type: "text/plain",
@@ -574,6 +594,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
             header.appendChild(name);
             header.appendChild(transcriptActions);
             content.appendChild(header);
+            showTranscriptVersionChoices(content, record, choices.get(record.filename), useVersion);
             content.appendChild(audioContainer);
             content.appendChild(transcriptContent);
 
@@ -681,18 +702,7 @@ export async function displayTranscriptFiles(files, emptyMessage = "No transcrip
         checkboxes.forEach(
             checkbox => {
 
-                checkbox.onchange =
-                    () => {
-
-                        selectAllCheckbox.indeterminate = checkboxes.some(item => item.checked) && !checkboxes.every(item => item.checked);
-                        selectAllCheckbox.checked =
-                            checkboxes.every(
-                                item =>
-                                    item.checked
-                            );
-
-                        onSelectionChanged();
-                    };
+                checkbox.onchange = updateSelection;
             }
         );
 

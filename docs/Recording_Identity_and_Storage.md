@@ -54,7 +54,7 @@ Existing transcripts are not automatically backfilled with repository/precision/
 
 The TXT catalogue reads the currently selected folder, including the immediate files supplied by a complete file-input folder selection. Conflicts/read failures stay explicit. Empty new destinations need no sidecar; stable session collection identity permits their first generated TXT.
 
-Current highest-family selection is shared by Search and Combine. Same-family filename-counter priority remains agreed but unimplemented; equal ranks currently keep the first encountered candidate. Complete cache snapshot replacement is a different rule and cannot select the newest actual transcript version.
+Search and Combine prefer a confirmed Memora edit within the same recording and operation. Edits add `Memora edited at` (UTC) and `Memora edit target` (the intended filename) to the TXT header. Other identity fields are retained. An iPhone share remains tentative until verified in the live session. On folder reload, the marker qualifies only at its intended filename. A numbered copy with a mismatched name does not qualify as a confirmed edit. Among unedited candidates, higher model family wins and equal ranks keep the first encountered candidate.
 
 A read-only mixed collection may be displayed, but adding new transcripts to an ambiguous/missing-identity collection is blocked rather than silently assigning historical membership. Actual loaded TXT content remains the authority over old cache observations.
 

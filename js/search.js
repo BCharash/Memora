@@ -11,6 +11,7 @@
 // --------------------------------------------------
 
 import {
+    getEditedTranscriptChoices,
     readTranscriptFiles,
     selectHighestModelRecords
 } from "./combine.js";
@@ -443,7 +444,7 @@ export async function buildSearchIndex(
     files,
     statusCallback,
     archive = null,
-    { activate = true } = {}
+    { activate = true, complete = true } = {}
 ) {
 
     const modelId = SEARCH_MODEL_ID;
@@ -452,18 +453,7 @@ export async function buildSearchIndex(
 
     const readStart = performance.now();
 
-    if (!Array.isArray(files) || files.length === 0) {
-        return {
-            modelId,
-            records: [],
-            entries: [],
-            sentences: 0,
-            readDurationMs: 0,
-            sentenceProcessingDurationMs: 0,
-            embeddingDurationMs: 0,
-            durationMs: performance.now() - startTime
-        };
-    }
+    files = Array.isArray(files) ? files : [];
 
     if (statusCallback) {
         statusCallback(
@@ -480,6 +470,7 @@ export async function buildSearchIndex(
 
     const records =
         selectHighestModelRecords(allRecords);
+    const versionChoices = getEditedTranscriptChoices(allRecords, records);
 
     const sentenceStart = performance.now();
 
@@ -490,6 +481,7 @@ export async function buildSearchIndex(
         performance.now() - sentenceStart;
 
     if (entries.length === 0) {
+        const archiveChanges = compareSearchArchive(records, allRecords, archive, complete);
         const emptyIndex = {
             modelId,
             records,
@@ -497,6 +489,9 @@ export async function buildSearchIndex(
             chunks: [],
             sentences: 0,
             chunkCount: 0,
+            versionChoices,
+            archiveChanges,
+            archiveNeedsUpdate: Object.values(archiveChanges).some(Boolean),
             readDurationMs,
             sentenceProcessingDurationMs,
             embeddingDurationMs: 0,
@@ -755,6 +750,7 @@ export async function buildSearchIndex(
         chunks[i].embedding = chunkEmbeddings[i];
     }
 
+    const archiveChanges = compareSearchArchive(records, allRecords, archive, complete);
     const index = {
         modelId,
         records,
@@ -767,8 +763,10 @@ export async function buildSearchIndex(
         chunkItems,
         chunkEmbeddings,
         contextualRepresentations,
+        versionChoices,
+        archiveChanges,
         archiveMissingCount,
-        archiveNeedsUpdate: archiveMissingCount > 0 ||
+        archiveNeedsUpdate: Object.values(archiveChanges).some(Boolean) || archiveMissingCount > 0 ||
             !archive ||
             archive.format !== SEARCH_ARCHIVE_FORMAT ||
             archive.version !== SEARCH_ARCHIVE_VERSION,
@@ -1307,4 +1305,19 @@ export function clearSearchIndex() {
 
 export function activateSearchIndex(index) {
     currentIndex = index;
+}
+
+export function compareSearchArchive(records, available, archive, complete = true) {
+    const archived = Array.isArray(archive?.transcripts) ? archive.transcripts : [];
+    if (!archive) return records.length ? { added: records.length } : {};
+    const activeNames = new Set(records.map(record => record.filename));
+    const availableNames = new Set(available.map(record => record.filename));
+    const archivedByName = new Map(archived.filter(record => typeof record?.filename === "string")
+        .map(record => [record.filename, record]));
+    const removed = complete ? [...archivedByName.keys()].filter(name => !availableNames.has(name)).length : 0;
+    const excluded = [...archivedByName.keys()].filter(name => availableNames.has(name) && !activeNames.has(name)).length;
+    const added = records.filter(record => !archivedByName.has(record.filename)).length;
+    const changed = records.filter(record => archivedByName.has(record.filename) &&
+        archivedByName.get(record.filename).transcriptHash !== record.transcriptHash).length;
+    return { removed, excluded, added, changed };
 }

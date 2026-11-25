@@ -99,7 +99,7 @@ Do not simplify overlap, grouping or highlighting as an incidental consequence o
 
 ## TXT selection, derived embeddings and current limits
 
-Search reads selected TXT and uses shared model-family preference before indexing. Archive UUID, Recording ID and operation participate in recording grouping when available. Higher model-family rank wins; **same-family filename-counter/newest-version priority is not implemented**. Do not infer it from cache snapshot replacement.
+Search reads selected TXT before indexing. Archive UUID, Recording ID and operation participate in recording grouping. A confirmed Memora edit takes precedence over an unedited copy, including a higher model. Search offers a read-only comparison when a higher model or competing edit exists. Combine can use a different version in the current output. For unedited copies, the highest model wins and equal-model copies keep the first encountered order. Filename suffixes and timestamps do not decide that tie.
 
 Both inventory sidecars are retired. Current TXT metadata/text feeds the local folder metadata cache, while **search-embeddings.json remains the external derived Search index**. The semantic store is separate from ranking strategy so representations can be reused across experiments.
 
@@ -109,7 +109,7 @@ Index JSON contains derived sentence/context material and vectors, not merely a 
 
 Editing refreshes the live Search index. Search reruns the current query and returns to the top so changed rankings can be reviewed from the start. **Update Search Index** is a separate action on desktop and iPhone. On iPhone, verify the TXT replacement before sharing the index. Both prompts show the intended folder and known parent on their own bold line. A pending update pulses, cancellation leaves it pending, and successful sharing keeps a normal active button for repeat saves. [iPhone save flow audit](iPhone_Save_Flow_Audit.md#memora-save-flows)
 
-Reselect the transcript folder after deleting files in Files. Search reuses entries from the exact file `search-embeddings.json` for current TXT files. Missing TXT files cannot appear in the rebuilt results. A successful index replacement serializes only current records, but deleting a TXT may leave the update button hidden if the remaining embeddings can all be reused. Numbered index files are ignored. [Index build and serialization](../js/search.js)
+Reselect the transcript folder after deleting files in Files. Search reuses entries from the exact file `search-embeddings.json` for current TXT files. Missing TXT files cannot appear in rebuilt results. A deleted or superseded index entry alone marks the archive for updating, even when all remaining embeddings can be reused. The reason beside **Update Search Index** explains deletions, changed or new transcripts, or superseded versions. A successful index replacement contains only current indexed records. Numbered index files are ignored. [Index build and serialization](../js/search.js)
 
 There are still implementation limits:
 - Source loading calls the shared TXT reader, but index preparation also parses the returned File objects. A single shared parse record throughout the entire pipeline is not established by the current source.

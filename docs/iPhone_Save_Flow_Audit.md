@@ -1,12 +1,14 @@
 # iPhone save flow audit
 
-The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.3**.
+The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.4**.
 
 ## iPhone overwrite rule
 
 **Share one file at a time whenever the user needs Files to offer Replace.** Save the edited TXT first, then use **Update Search Index** to share `search-embeddings.json` separately. In the 25 November iPhone test, the combined TXT and JSON share kept numbered copies without offering Replace. The user confirmed that separating the saves corrected the problem. Sharing multiple files with the same `.txt` extension has not been tested for name collisions. The existing new-transcript batch export still shares multiple TXT files.
 
 Choose **Replace** when offered. After sharing, check the original TXT filename and its edited text before sharing the index. Check the exact name `search-embeddings.json` afterward. Memora cannot verify that the Files app replaced either file from the share result alone.
+
+**Verify in Files** is optional and opens a fresh folder selection. It compares the intended filename and contents for the TXT or JSON. It reports a same-content numbered copy separately and shows the observed modification time, including whether it falls near the save attempt. The timestamp is supporting evidence. Filename and content determine verification.
 
 ## Memora save flows
 
@@ -44,7 +46,8 @@ Build **.5** introduced the folder guidance and was reverted after iPhone testin
 - **2026-11-25.1** removed the mandatory iPhone destination choice, kept existing folder selection optional and put the destination on its own bold line 2 px larger than the instructions. It bundled the edited TXT and index on iPhone while keeping desktop saves separate. After a Search edit, Memora reruns the same query and returns to the top so rankings can be reviewed from the start. A Combine edit refreshes an active Search session for the same folder.
 - **2026-11-25.2** allowed transcription to proceed when the destination has mixed or missing archive identities. Inspection confirmed a single physical `transcription` folder with two differently tagged TXT files and an index listing both. The preferred layout remains `audio source / transcription / combined`, with the index beside the TXT files. Suggesting a new sibling on identity conflict is still the fallback in this build. Keeping the existing folder as the suggested destination in that case remains open.
 - **2026-11-25.3** restored separate shares with filenames and replacement instructions. The affected folder contained four different TXT bodies with the same recording and archive IDs and model. It also contained numbered JSON copies. Search picks the first same-model copy it encounters and reads only the exact filename `search-embeddings.json`. A newer timestamp or higher suffix cannot show which edit the user intended to keep.
-- After deleting TXT copies, reselect the transcript folder. Search builds results from the remaining TXT files and ignores index entries for missing transcripts. The next successful JSON replacement omits those entries. Deletion alone may leave the update button hidden if the remaining embeddings are reusable. [Index construction and update detection](../js/search.js)
+- After deleting TXT copies, reselect the transcript folder. Search builds results from the remaining TXT files. In **2026-11-25.4**, a deleted or superseded entry alone makes the index update available. The reason beside the button explains what changed. The next successful JSON replacement omits stale entries. [Index construction and update detection](../js/search.js)
+- **2026-11-25.4** adds optional save verification and records future Memora edits in the TXT header. A verified edited transcript takes precedence over a higher-model unedited copy. Search offers a comparison and Combine can use an alternative in the current output. Numbered copies whose names differ from the recorded edit target cannot take precedence on the strength of the edit marker. [Transcript selection](Search_Methodology.md#txt-selection-derived-embeddings-and-current-limits)
 
 ## Device verification
 

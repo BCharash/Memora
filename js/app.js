@@ -1,5 +1,6 @@
 import {createTranscriptionGate} from './transcriptionGate.js';
 import {sharedFolders,discoverTranscriptFolders,transcriptSaveLocation} from './sharedFolderSelection.js';
+import {attachSaveVerification} from "./fileSaveVerification.js";
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 
 import {readTranscriptFolder, TranscriptCollectionError} from "./transcriptCatalogue.js";
@@ -1563,7 +1564,7 @@ initCombineUI({
     },
     onAppendAudioControl: (section,group,source)=>appendSearchAudioControl(section,{...group,archiveName:combineFolderSession?.archiveName},source),
     getAudioSourceHandle: () => textSourceHandle,
-    onSaveTranscriptEdits: async (record, updatedText) => {
+    onSaveTranscriptEdits: async (record, updatedText, startedAt) => {
         const storage = await getStorageModule();
         const sourceHandle = textSourceHandle;
         if (!sourceHandle) {
@@ -1578,13 +1579,15 @@ initCombineUI({
 
         if (sourceHandle.kind === "file-input") {
             combineStatus.textContent = "Preparing the transcript…";
+            let verification;
             try {
-                await shareEditedTranscript(sourceHandle, updatedFile);
+                verification = await shareEditedTranscript(sourceHandle, updatedFile, startedAt);
             } catch (error) {
                 combineStatus.textContent = error.name === "AbortError" ? "Save canceled. Your edits are still available." : error.message;
                 throw error;
             }
             combineStatus.textContent = "Verify the transcript replacement in Files, then use Update Search Index in Search to save the JSON separately.";
+            attachSaveVerification(combineStatus, verification);
         } else {
             if (await storage.readTextFile(sourceHandle, record.filename) !== await readTranscriptSourceText(record.file)) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);

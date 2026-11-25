@@ -1486,6 +1486,23 @@ button:disabled {
     font-weight: 700;
 }
 
+.search-index-update-reason,
+.search-index-save-destination,
+.file-verification-status {
+    display: block;
+}
+
+.verify-files-button {
+    margin-inline-start: 8px;
+}
+
+.transcript-version-preview {
+    max-height: 18rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 600px) {
     .search-result-file-header {
         display: grid;

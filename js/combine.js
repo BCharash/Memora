@@ -1,4 +1,4 @@
-import { readTranscriptIdentity } from "./transcriptMetadata.js";
+import { isMemoraEditConfirmed, readMemoraEdit, readTranscriptIdentity, transcriptHeader } from "./transcriptMetadata.js";
 // --------------------------------------------------
 // Combine transcript files
 // --------------------------------------------------
@@ -76,6 +76,7 @@ export function parseTranscriptFile(file, text) {
     return {
         file,
         filename,
+        memoraEdit: readMemoraEdit(transcriptHeader(text).text, file),
         recordingFilename,
         ...identity,
         recordingDate,
@@ -148,7 +149,14 @@ function transcriptSnapshot(file) {
 export async function readTranscriptFile(file) {
     // Editors may mutate their working records. Keep the cached snapshot
     // independent so another consumer of the same File still sees its bytes.
-    return { ...(await transcriptSnapshot(file)).record };
+    const {record} = await transcriptSnapshot(file);
+    return {
+        ...record,
+        memoraEdit: record.memoraEdit && {
+            ...record.memoraEdit,
+            confirmed: isMemoraEditConfirmed(file, record.memoraEdit.target)
+        }
+    };
 }
 export async function readTranscriptSourceText(file) {
     return (await transcriptSnapshot(file)).text;
@@ -323,7 +331,9 @@ export function selectHighestModelRecords(records) {
         const newRank =
             getModelRank(record.whisperModel);
 
-        if (newRank > existingRank) {
+        const edited = !!record.memoraEdit?.confirmed;
+        const existingEdited = !!existing.memoraEdit?.confirmed;
+        if ((edited && !existingEdited) || (!edited && !existingEdited && newRank > existingRank)) {
             bestByKey.set(key, record);
         }
     }
@@ -362,8 +372,27 @@ export function selectHighestModelRecords(records) {
     return result;
 }
 
+export function getEditedTranscriptChoices(records, preferred) {
+    const groups = new Map();
+    for (const record of records) {
+        const key = getRecordingKey(record);
+        if (!key) continue;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(record);
+    }
+    const choices = new Map();
+    for (const record of preferred) {
+        const group = groups.get(getRecordingKey(record));
+        if (!group?.some(copy => copy.memoraEdit)) continue;
+        const alternatives = group.filter(copy => copy !== record &&
+            (copy.memoraEdit || (record.memoraEdit?.confirmed && getModelRank(copy.whisperModel) > getModelRank(record.whisperModel))));
+        if (alternatives.length) choices.set(record.filename, alternatives);
+    }
+    return choices;
+}
 
-function getRecordingKey(record) {
+
+export function getRecordingKey(record) {
 
     const operation =
         record.operation === "translate"

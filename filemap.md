@@ -169,7 +169,8 @@ Current inventory uses audioFolderCache.js and transcriptCatalogue.js; the old s
 | [reproducibleRecordingIdentity.js](js/reproducibleRecordingIdentity.js) | Embedded identity first, fixed prefix/size fallback, immutable-snapshot reuse. | Inventory, playback and tests |
 | [transcriptCacheIdentity.js](js/transcriptCacheIdentity.js) | Durable full-text cache keys from existing TXT identities. | Database migration and storage |
 | [recordingIdentity.js](js/recordingIdentity.js) | Bounded read-only Apple/iMuse embedded ID and provenance inspection. | Reproducible resolver, playback and tests |
-| [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and byte-preserving header retention during body edits. | App, Combine, Search and editing |
+| [transcriptMetadata.js](js/transcriptMetadata.js) | Universal/legacy header validation and Memora edit metadata. Retains unrelated header bytes during body edits. | App, Combine, Search and editing |
+| [fileSaveVerification.js](js/fileSaveVerification.js) | Optional iPhone save verification by expected filename, contents and modification time. | Search and Combine |
 | [transcriptCatalogue.js](js/transcriptCatalogue.js) | TXT-only metadata inventory, bounded local cache, existing identity preservation and empty-collection session identity. | Transcribe, Combine, Search and Settings |
 | [transcriptionGate.js](js/transcriptionGate.js) | Session intent and untouched primary-tab departure state; Settings routing remains separate. | App Transcribe setup |
 | [sharedFolderSelection.js](js/sharedFolderSelection.js) | Page-session folder access, child discovery and rebasing, ID-first audio lookup and known-parent save guidance. | App, Search and Combine |
