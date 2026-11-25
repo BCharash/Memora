@@ -429,4 +429,27 @@ await test('iPhone transcription starts without a selected destination and sugge
  assert(document.getElementById('iphoneExportLocation').textContent.includes('Phone Without Destination / transcription'));
  assert(document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
 });
+await test('iPhone can transcribe beside a mixed collection without adopting either archive identity',async()=>{
+ const name='Phone Mixed Collections';
+ const source={...phone,name,files:[...phone.files]};
+ for(const [folder,filename,uuid] of [['transcription','one.txt',UUID],['transcription','two.txt',f.OTHER],['transcription - new','existing.txt',UUID]]){
+  const file=new File([header(ID,uuid)],filename);
+  Object.defineProperty(file,'webkitRelativePath',{value:`${name}/${folder}/${filename}`});
+  source.files.push(file);
+ }
+ selections.push(source);click('sourceButton');await choose('Discard pending transcripts');
+ await wait(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().audio===source);
+ const destination=sharedFolders.snapshot().transcript.source;
+ assert(destination.name==='transcription'&&destination.files.length===2,'Mixed folder must be the discovered default');
+ const before=calls.length;
+ document.querySelector('#recordings .recording-checkbox').checked=true;
+ click('transcribeButton');
+ await wait(()=>calls.length>before&&!document.getElementById('iphoneExportButton').disabled);
+ assert(document.getElementById('iphoneExportLocation').textContent.includes(`${name} / transcription - new 2`),'The alternate must avoid existing sibling names');
+ const shareCount=shared.length;click('iphoneExportButton');
+ await wait(()=>shared.length===shareCount+1&&!document.getElementById('iphoneExportButton').disabled);
+ const exported=readTranscriptIdentity(await shared.at(-1)[0].text());
+ assert(exported.archiveUuid&&exported.archiveUuid!==UUID&&exported.archiveUuid!==f.OTHER,'The new TXT must carry a fresh archive identity');
+ assert(destination.files.length===2,'The original folder snapshot must stay intact');
+});
 const result={viewport:window.innerWidth,passed:lines.length-failed.length,failed,output:lines.join('\n')};const out=document.createElement('pre');out.textContent=result.output;document.body.prepend(out);if(location.search.includes('report=1'))await fetch('/_identity-test-result',{method:'POST',body:JSON.stringify(result)});

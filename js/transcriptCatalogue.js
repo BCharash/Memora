@@ -180,13 +180,15 @@ export async function readTranscriptFolder(source, {onProgress, signal} = {}) {
         complete: source.kind === 'directory' || source.selectionScope === 'folder'};
 }
 
+export class TranscriptCollectionError extends Error {}
+
 export async function openTranscriptCatalogue(source) {
     const snapshot = await readTranscriptFolder(source);
     if (snapshot.issues.length) throw Error(snapshot.issues.join(' '));
     const ids = new Set(snapshot.records.map(record => record.archiveUuid?.toLowerCase()).filter(Boolean));
-    if (ids.size > 1) throw Error('Choose one transcript collection before adding new transcripts.');
+    if (ids.size > 1) throw new TranscriptCollectionError('Choose one transcript collection before adding new transcripts.');
     if (snapshot.records.some(record => !record.archiveUuid || !record.recordingId))
-        throw Error('Existing transcripts need Recording ID and Archive UUID metadata before adding to this collection.');
+        throw new TranscriptCollectionError('Existing transcripts need Recording ID and Archive UUID metadata before adding to this collection.');
     // Empty collections get a session identity here, written into their first TXT.
     // Clearing the metadata cache does not change the active collection identity.
     if (!snapshot.records.length && !emptyCollections.has(source))

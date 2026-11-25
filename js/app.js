@@ -2,7 +2,7 @@ import {createTranscriptionGate} from './transcriptionGate.js';
 import {sharedFolders,discoverTranscriptFolders,transcriptSaveLocation} from './sharedFolderSelection.js';
 import { createTranscriptionIdentity } from "./transcriptionIdentity.js";
 
-import {readTranscriptFolder} from "./transcriptCatalogue.js";
+import {readTranscriptFolder, TranscriptCollectionError} from "./transcriptCatalogue.js";
 import { readTranscriptSourceText } from "./combine.js";
 import { resolveSearchHighlights } from "./searchExportHighlights.js";
 import { recordingIdentityLines, readTranscriptIdentity } from "./transcriptMetadata.js";
@@ -211,7 +211,7 @@ let destinationHandle = null;
 
 let pendingIPhoneExports = [];
 let exportBatchLocation=null,exportBatchState="unattempted";
-let exportBatchDestination=null, implicitIPhoneDestination=null;
+let exportBatchDestination=null, implicitIPhoneDestination=null, alternateIPhoneDestination=null;
 const pendingTranscriptSaves = [];
 
 const retryTranscriptSaveButton = document.getElementById("retryTranscriptSaveButton");
@@ -720,6 +720,7 @@ async function loadAudioSource() {
         sourceHandle=selectedSource;
         destinationHandle=null;
         implicitIPhoneDestination=null;
+        alternateIPhoneDestination=null;
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
         setActiveDestinationButton(null);
@@ -896,7 +897,25 @@ transcribeButton.addEventListener(
                     ? null
                     : destinationHandle;
 
-            await identityWorkflow.begin(sourceHandle, isIPhoneSource ? exportBatchDestination : destinationHandle);
+            try {
+                await identityWorkflow.begin(sourceHandle, isIPhoneSource ? exportBatchDestination : destinationHandle);
+            } catch (error) {
+                if (!isIPhoneSource || !(error instanceof TranscriptCollectionError)) throw error;
+                if (!alternateIPhoneDestination) {
+                    const names = new Set(sharedFolders.snapshot().folders.map(folder => folder.name.normalize('NFC').toLowerCase()));
+                    names.add(exportBatchDestination.name.normalize('NFC').toLowerCase());
+                    const stem = 'transcription - new';
+                    let name = stem;
+                    for (let number = 2; names.has(name); number++) name = `${stem} ${number}`;
+                    alternateIPhoneDestination = {
+                        kind: 'file-input', selectionScope: 'selection', files: [],
+                        name, parentAudioName: sourceHandle.name, intended: true
+                    };
+                }
+                exportBatchDestination = alternateIPhoneDestination;
+                exportBatchLocation = transcriptSaveLocation(exportBatchDestination).folder;
+                await identityWorkflow.begin(sourceHandle, exportBatchDestination);
+            }
 
             for (
                 let i = 0;
@@ -2099,7 +2118,8 @@ function updateIPhoneExportButton(){
         const parentHint=source?.kind==='file-input' ? transcriptSaveLocation(source).parentHint : '';
         const createHint=source?.intended ? ` Create “${source.name}” under “${source.parentAudioName}” in Files if it does not exist.` : '';
         location.textContent=`Save in: ${exportBatchLocation||sharedFolders.transcriptLabel()}`;
-        help.textContent=`Choose this folder in Save to Files.${parentHint}${createHint}`;
+        const collectionHint=source===alternateIPhoneDestination ? 'The selected folder cannot be used as a single transcript collection. Save this batch in the separate folder shown above. ' : '';
+        help.textContent=`${collectionHint}Choose this folder in Save to Files.${parentHint}${createHint}`;
     }
 }
 function resetIPhoneExportState(){pendingIPhoneExports=[];exportBatchDestination=null;exportBatchLocation=null;exportBatchState='unattempted';iphoneExportStatus.textContent='';updateIPhoneExportButton();}

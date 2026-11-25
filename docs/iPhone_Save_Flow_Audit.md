@@ -1,12 +1,12 @@
 # iPhone save flow audit
 
-The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.1**.
+The source audit began on **24 November 2026** at commit **f3fc698**, build **2026-11-24.3**. This reference describes the implemented behavior through build **2026-11-25.2**.
 
 ## Memora save flows
 
 | Flow | Destination and confirmation |
 |---|---|
-| [Transcribe batch TXT](../js/app.js) | An audio folder is enough to begin transcription. At export, a selected transcript folder takes precedence, otherwise Memora suggests the `transcription` child of the audio folder and explains how to create it in Files. Cancellation or failure leaves the batch available. |
+| [Transcribe batch TXT](../js/app.js) | An audio folder is enough to begin transcription. At export, a selected transcript folder takes precedence, otherwise Memora suggests the `transcription` child of the audio folder. If the folder contains mixed or missing archive identities, Memora prepares a fresh archive and suggests a separate `transcription - new` folder, adding a number to avoid known siblings. Files shows where to create the new child. Cancellation or failure leaves the batch available. |
 | [Edit/Combine transcript replacement](../js/combineUI.js#L386) | Save prepares the edited TXT and rebuilt folder-wide Search index, then sends both to one share sheet. The folder path is on its own bold line. Verify both files in Files. |
 | [Search transcript replacement](../js/searchUI.js) | Uses the same two-file share. After sharing, Search reruns the current query and returns to the top because the rankings may have changed. |
 | [Search index archive](../js/searchUI.js#L348) | Save `search-embeddings.json` beside the TXT files in the selected transcript folder and replace the older index there if present. Verify placement in Files. A pending update pulses. Canceling the first attempt keeps it pending. A successful share leaves the normal active button available for repeat saves. |
