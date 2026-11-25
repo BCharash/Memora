@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows updated **25 November 2026** for application **2026-11-25.1**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save and editor workflows updated **25 November 2026** for application **2026-11-25.3**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -42,7 +42,7 @@ Search terms are separated with **semicolons**; commas stay inside a term. Sugge
 
 Search reads current TXT snapshots and reconciles its derived embeddings; compatible unchanged vectors can be reused. Preserve the active embeddings file and hash-format compatibility. Updating local transcript metadata alone must not be treated as a reason to rebuild all embeddings.
 
-An iPhone edit in Search or Combine sends the replacement TXT and the folder-wide `search-embeddings.json` together through one share sheet. Verify both files in Files. Desktop writes the TXT and keeps **Update Search Index** separate. Search reruns the same query after an edit and returns to the top because rankings can change. The standalone index button pulses for pending work and stays active for repeat sharing without pulsing after success.
+Both desktop and iPhone keep **Update Search Index** separate from the transcript edit. On iPhone, share the TXT by itself, verify its exact name and edited contents in Files, then share `search-embeddings.json` on its own. Search reruns the same query after an edit and returns to the top because rankings can change. The index button pulses for pending work and stays active for repeat sharing without pulsing after success.
 
 Production paragraphing uses R4/MiniLM and inserts paragraph breaks rather than rewriting words. Existing blank-line paragraphing is preserved. Combine has no paragraphing selector. The current [paragraphing methodology](Paragraphing_Methodology.md) and [Search methodology](Search_Methodology.md) explain source behavior and limitations. The full [paragraphing comparison](archive/Memora_Revision4_vs_Revision5_Complete_Analysis.md) and [Search research](archive/Search_Optimization_Research_Record.md) remain intact protected evidence.
 
@@ -78,6 +78,8 @@ Browser-version changes alone do not invalidate qualification within the same re
 Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
 ## Validation and acceptance
+
+For **2026-11-25.3**, headless Edge passed **38** catalogue/app checks, including separate TXT and JSON sharing from iPhone-style editor flows. The two baseline failures recorded below remain. Whether iPhone Files offers Replace for each single-file share needs a device check.
 
 For **2026-11-25.1**, headless Edge passed **37** catalogue/app checks. Coverage includes iPhone-style transcription before folder selection, cancellation and retry of two-file edit sharing, folder-wide indexing from Combine, the Search result refresh and the separate desktop JSON write. The two baseline failures recorded below still apply. Actual placement and replacement of both files in the iPhone Files app need device verification.
 

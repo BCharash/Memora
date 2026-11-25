@@ -56,7 +56,7 @@ Native TXT writing and local text caching are distinct operations. Current saveP
 | Artifact | Desktop/native route | iPhone/file-input route |
 |---|---|---|
 | New transcripts | TXT in the granted destination. The local cache is separate. | Named TXT batch with the intended folder, known parent and instructions for creating a newly named child. |
-| Edited transcript | Write to the original accessible target after the existing content-change checks. Save the Search index with a separate action. | Build a folder-wide Search index and share it with the replacement TXT in a single files-only payload. Verify both files in the intended folder. |
+| Edited transcript | Write to the original accessible target after the existing content-change checks. Save the Search index with a separate action. | Share the replacement TXT by itself. Check its exact filename and edited contents in Files, then use Update Search Index to share the JSON separately. |
 | Combined TXT/DOCX/HTML | Use the output folder controls and selected document format. | Suggest the `combined` subfolder and allow another folder in Files. |
 | Search embeddings archive | Write the JSON to the transcript source. | Share `search-embeddings.json` beside the TXT files. The pending pulse stops after a successful share and the standard button supports repeat saves. |
 | Cached transcripts | Export selected cached TXT to a writable folder, skipping existing names. | Share to a recovery folder with file count and known archive context. |

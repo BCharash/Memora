@@ -1576,23 +1576,22 @@ initCombineUI({
             lastModified: Date.now()
         });
 
-        let prepared;
         if (sourceHandle.kind === "file-input") {
-            combineStatus.textContent = "Preparing the transcript and Search Index…";
+            combineStatus.textContent = "Preparing the transcript…";
             try {
-                prepared = await shareEditedTranscript(sourceHandle, updatedFile, message => { combineStatus.textContent = message; });
+                await shareEditedTranscript(sourceHandle, updatedFile);
             } catch (error) {
                 combineStatus.textContent = error.name === "AbortError" ? "Save canceled. Your edits are still available." : error.message;
                 throw error;
             }
-            combineStatus.textContent = "Transcript and Search Index shared. Verify both replacements in Files.";
+            combineStatus.textContent = "Verify the transcript replacement in Files, then use Update Search Index in Search to save the JSON separately.";
         } else {
             if (await storage.readTextFile(sourceHandle, record.filename) !== await readTranscriptSourceText(record.file)) throw new Error("This transcript changed outside Memora. Reload it before saving your edits.");
             await storage.writeTextFile(sourceHandle, record.filename, updatedText);
             combineStatus.textContent = "Transcript saved. Use Update Search Index in Search to save the JSON.";
         }
 
-        await refreshSearchAfterCombineEdit(sourceHandle, updatedFile, prepared);
+        await refreshSearchAfterCombineEdit(sourceHandle, updatedFile);
         return updatedFile;
     }
 });

@@ -298,7 +298,7 @@ async function withActiveShare(work){
   else delete navigator.userActivation;
  }
 }
-await test('iPhone Search edits share the replacement and folder-wide index in one action and rerun the query',async()=>{
+await test('iPhone Search shares the edited TXT first and saves the folder-wide index separately',async()=>{
  const oldResult=document.querySelector('.search-result-file');
  oldResult.querySelector('.search-transcript-edit-button').click();
  const panel=oldResult.querySelector('.search-transcript-editor-panel');
@@ -313,9 +313,14 @@ await test('iPhone Search edits share the replacement and folder-wide index in o
   assert(source.files===before&&oldResult.isConnected&&!panel.hidden,'Canceled share must preserve the original source and editor');
   cancel=false;save.click();
   await wait(()=>shared.length===count+1&&document.getElementById('searchIndexStatus').textContent.includes('may be in a different order'));
-  const [txt,index]=shared.at(-1);
-  assert(txt.name===before[0].name&&(await txt.text()).includes('Edited in Search.')&&index.name==='search-embeddings.json');
-  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'Index must cover the entire folder');
+  const [txt]=shared.at(-1);
+  assert(shared.at(-1).length===1&&txt.name===before[0].name&&(await txt.text()).includes('Edited in Search.'),'Edit must share only the replacement TXT');
+  const indexButton=document.getElementById('searchIndexUpdateButton');
+  assert(indexButton.classList.contains('has-pending-index-update'),'Editing must leave a separate index save pending');
+  indexButton.click();await wait(()=>shared.length===count+2&&!indexButton.disabled);
+  const [index]=shared.at(-1);
+  assert(shared.at(-1).length===1&&index.name==='search-embeddings.json','Index save must share only the JSON');
+  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'The separate index must cover the entire folder');
   assert(!oldResult.isConnected&&document.getElementById('searchQueryInput').value==='match','Refresh must keep the query and rebuild the results');
  });
 });
@@ -346,9 +351,14 @@ await test('iPhone Combine only offers Save and folder guidance for modified tex
  await withActiveShare(async()=>{
   const count=shared.length;
   save.click();await wait(()=>panel.hidden&&shared.length===count+1);
-  const [txt,index]=shared.at(-1);
-  assert((await txt.text()).includes('Edited in Combine.')&&index.name==='search-embeddings.json');
-  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'Combine must index files outside its selected subset');
+  const [txt]=shared.at(-1);
+  assert(shared.at(-1).length===1&&(await txt.text()).includes('Edited in Combine.'),'Combine must share only the replacement TXT');
+  const indexButton=document.getElementById('searchIndexUpdateButton');
+  assert(indexButton.classList.contains('has-pending-index-update'),'Combine must keep the separate Search index update pending');
+  indexButton.click();await wait(()=>shared.length===count+2&&!indexButton.disabled);
+  const [index]=shared.at(-1);
+  assert(shared.at(-1).length===1&&index.name==='search-embeddings.json');
+  assert(JSON.parse(await index.text()).files.includes('unselected.txt'),'The separate index must include transcripts outside the Combine subset');
  });
 });
 await test('Desktop Search and Combine hide Save for clean text and use matching Cancel styles',async()=>{

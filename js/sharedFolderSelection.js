@@ -13,11 +13,10 @@ export function transcriptSaveLocation(source, childFolder) {
 
 export function transcriptReplacementGuidance(source, filename) {
     const { folder, parentHint } = transcriptSaveLocation(source);
-    const files = `“${filename}” and “search-embeddings.json”`;
     return {
         folder, parentHint,
-        before: `In Save to Files, save ${files} together. Replace the existing files if prompted.`,
-        after: `Check in Files that ${files} are in ${folder}.${parentHint}`
+        before: `In Save to Files, save “${filename}” and choose Replace if offered. Files can keep a numbered copy without asking.`,
+        after: `Transcript shared. In Files, check the edited text in “${filename}” in ${folder}. A numbered copy does not replace the original.${parentHint}`
     };
 }
 
