@@ -122,6 +122,8 @@ window.addEventListener("storage", event => {
     if (event.key === null || event.key?.startsWith("memora.whisper-eligibility") || event.key?.startsWith("memora.whisper-production-evidence")) void refreshQualifiedWhisperModels();
 });
 const languageSelect = document.getElementById("languageSelect");
+const languageOptions = Array.from(languageSelect?.options ?? []);
+const showMoreLanguagesButton = document.getElementById("showMoreLanguagesButton");
 const operationSelect = document.getElementById("operationSelect");
 const paragraphingCheckbox = document.getElementById("paragraphingCheckbox");
 const transcribeButton = document.getElementById("transcribeButton");
@@ -799,6 +801,20 @@ if (languageSelect) {
         "change",
         updateOperationAvailability
     );
+}
+
+if (languageSelect && showMoreLanguagesButton) {
+    for (const option of languageOptions) {
+        if (!option.hasAttribute("data-primary-language")) option.remove();
+    }
+    showMoreLanguagesButton.hidden = false;
+    showMoreLanguagesButton.addEventListener("click", () => {
+        const language = languageSelect.value;
+        languageSelect.replaceChildren(...languageOptions);
+        languageSelect.value = language;
+        showMoreLanguagesButton.hidden = true;
+        languageSelect.focus();
+    }, { once: true });
 }
 
 // Establish the correct initial state when Memora loads.
@@ -2247,17 +2263,8 @@ async function readAudioMetadata(file,embeddedIdentity=null) {
 
 
 function formatLanguageName(language) {
-
-    const names = {
-        en: "English",
-        pt: "Portuguese",
-        es: "Spanish",
-        fr: "French",
-        de: "German",
-        sa: "Sanskrit"
-    };
-
-    return names[language] || language;
+    const option = languageOptions.find(option => option.value === language);
+    return option?.label || language;
 }
 
 
