@@ -116,6 +116,7 @@
                     <div class="shared-folder-row"><h2>Audio Source</h2><output data-audio-folder>None Selected</output><button id="sourceButton" type="button">
                             Select Audio Folder
                         </button></div>
+                    <div class="shared-folder-row"><h2>Transcript Destination</h2><output id="transcribeDestinationFolder" data-transcript-folder>None Selected</output><button type="button" data-select-transcript="transcribe">Select Transcript Folder</button></div>
 
                     <p id="audioCacheStatus" class="settings-note" role="status"></p>
                     <div id="audioSourceActivity" class="audio-source-activity" role="status" hidden><span class="audio-source-spinner" aria-hidden="true"></span><span>Opening Audio Source…</span><span id="audioSourceElapsed" aria-hidden="true">Elapsed: 0s</span></div>
@@ -210,37 +211,7 @@
                     Create paragraphs
                 </label>
 
-                <div id="transcriptionDestinationSection" class="destination-section">
-
-                    <div class="shared-folder-row"><h3>Transcript Destination</h3><output data-transcript-folder>None Selected</output><button type="button" data-select-transcript="transcribe">Select Transcript Destination</button></div>
-
-                    <div
-                        id="desktopTranscriptionDestinationOptions"
-                        class="destination-options"
-                    >
-
-                        <button
-                            id="sourceDestinationButton"
-                            type="button"
-                        >
-                            Use Source Folder
-                        </button>
-
-                        <button
-                            id="transcriptionDestinationButton"
-                            type="button"
-                        >
-                            Create "transcription" Subfolder
-                        </button>
-
-                        <button
-                            id="destinationButton"
-                            type="button"
-                        >
-                            Browse for Another Folder
-                        </button>
-
-                    </div>
+                <div class="destination-section">
 
                     <div
                         id="iphoneTranscriptionDestinationOptions"

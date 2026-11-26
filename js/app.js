@@ -69,16 +69,6 @@ let storageModulePromise = import("./storage.js");
 let storageManagerModulePromise = import("./storageManager.js");
 
 const sourceButton = document.getElementById("sourceButton");
-const destinationButton = document.getElementById("destinationButton");
-const sourceDestinationButton =
-    document.getElementById("sourceDestinationButton");
-const transcriptionDestinationButton =
-    document.getElementById("transcriptionDestinationButton");
-
-const transcriptionDestinationSection =
-    document.getElementById("transcriptionDestinationSection");
-const desktopTranscriptionDestinationOptions =
-    document.getElementById("desktopTranscriptionDestinationOptions");
 const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
 const iphoneExportButton =
@@ -214,7 +204,7 @@ let destinationHandle = null;
 
 let pendingIPhoneExports = [];
 let exportBatchLocation=null,exportBatchState="unattempted";
-let exportBatchDestination=null, implicitIPhoneDestination=null, alternateIPhoneDestination=null;
+let exportBatchDestination=null, alternateIPhoneDestination=null;
 const batchSaveReceipts = new Map();
 let batchSaveChecks = new Map();
 const batchVerifyButton = document.getElementById("iphoneExportVerifyButton");
@@ -285,20 +275,6 @@ function renderCombineTranscriptList(){
 }
 async function retainPendingCombineList(){return true;}
 let combineDestinationHandle = null;
-
-function setActiveDestinationButton(button) {
-
-    document
-        .querySelectorAll(".destination-options button")
-        .forEach(otherButton => {
-            otherButton.classList.remove("active");
-        });
-
-    if (button) {
-        button.classList.add("active");
-    }
-}
-
 
 function setActiveCombineDestinationButton(button) {
 
@@ -470,16 +446,6 @@ async function getSearchModule() {
 // --------------------------------------------------
 
 function updateDestinationVisibility(isFileInput) {
-    if (transcriptionDestinationSection) {
-        transcriptionDestinationSection.hidden = false;
-    }
-
-    if (desktopTranscriptionDestinationOptions) {
-        desktopTranscriptionDestinationOptions.hidden = false;
-        desktopTranscriptionDestinationOptions.style.display =
-            isFileInput ? "none" : "flex";
-    }
-
     if (iphoneTranscriptionDestinationOptions) {
         iphoneTranscriptionDestinationOptions.hidden = false;
         iphoneTranscriptionDestinationOptions.style.display =
@@ -514,9 +480,6 @@ function updateDestinationVisibility(isFileInput) {
 // Before a source is selected, use the available folder-access pathway.
 // The common destination selector stays visible on both pathways.
 updateDestinationVisibility(!window.showDirectoryPicker);
-if (transcriptionDestinationSection) {
-    transcriptionDestinationSection.hidden = false;
-}
 
 // Keep Combine output controls hidden until a text source is selected.
 // The source selection will reveal the appropriate desktop or iPhone controls.
@@ -578,15 +541,11 @@ function updateSharedFolderControls(){
 }
 function applySharedTranscriptSelection(){
     const state=sharedFolders.snapshot();
-    destinationHandle=state.transcript?.source||null;
-    destinationButton.textContent='Browse for Another Folder';
-    const chooseDestination=document.querySelector('[data-select-transcript="transcribe"]');
-    chooseDestination.textContent=state.audio?.kind==='file-input' ? 'Choose Optional Destination' : 'Select Transcript Destination';
+    destinationHandle=state.transcript?.source||state.audio;
     document.querySelectorAll('[data-audio-folder]').forEach(node=>node.textContent=sharedFolders.audioLabel());
     document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
     renderCombineTranscriptList();
-    const hasDefault=state.folders.some(folder=>folder.name.toLowerCase()==='transcription');
-    transcriptionDestinationButton.textContent=hasDefault?'Use "transcription" Folder':'Create "transcription" Folder';
+    if (!state.transcript) document.getElementById('transcribeDestinationFolder').textContent=sharedFolders.audioLabel();
     renderTranscriptionGate();
 }
 function clearSharedCombineRows(){
@@ -623,31 +582,46 @@ function publishTranscribeDestination(snapshot){
     document.getElementById('transcribeDestinationStatus').textContent=snapshot?`Transcripts: ${snapshot.records.length} loaded.${snapshot.cacheError?' Local metadata cache unavailable.':''}`:
         sourceHandle?.kind==='file-input'?'Choose where to save in Files after transcription.':'Transcripts: Select a destination.';
 }
-async function chooseSharedTranscript(view,{browse=false,source:chosenSource=null,label:chosenLabel=null}={}){
+async function chooseSharedTranscript(view){
     if(sharedFolderOperation||sourceSelectionRequested||transcriptionBatchActive||isSearchSourceBusy())return;
     sharedFolderOperation=true;updateSharedFolderControls();
     try{
         if(!await confirmSharedFolderChange())return;
         const state=sharedFolders.snapshot();
-        let selected=chosenSource?{source:chosenSource,label:chosenLabel||chosenSource.name}:null;
-        if(selected){/* A lower shortcut selected an already granted folder. */}
-        else if(!browse){
-            const answer=await askIdentity({title:view==='transcribe'?'Select Transcript Destination':'Select Transcript Folder',message:'Choose an existing folder, or name a new destination.',choices:[
-                ...state.folders.map((folder,index)=>({action:String(index),label:`${state.audio.name} / ${folder.name}`})),
-                ...(view==='transcribe'&&state.audio?[{action:'new',label:'New Transcript Folder…',run:async()=>{
-                    const name=prompt('Transcript folder name','transcription');if(!name)throw new DOMException('Cancelled.','AbortError');
-                    if(/[\\/:\x00-\x1f]/.test(name)||name==='.'||name==='..')throw Error('Use a folder name without path separators.');
-                    const candidates=[...state.folders,...(state.transcript?.source.parentAudioName===state.audio.name?[state.transcript]:[])];
-                    const existing=candidates.find(folder=>folder.name.normalize('NFC').toLowerCase()===name.normalize('NFC').toLowerCase());if(existing)return existing.source;
-                    return state.audio.kind==='directory'?await (await getStorageModule()).getSubfolder(state.audio,name,true):{kind:'file-input',selectionScope:'selection',files:[],name,parentAudioName:state.audio.name,intended:true};
-                }}]:[]),
-                {action:'browse',label:'Browse for Another Folder',run:async()=>await (await getStorageModule()).selectFolder()},
-                {action:'cancel',label:'Cancel'}]});
-            if(answer.action==='cancel')return;
-            selected=answer.action==='browse'||answer.action==='new'?{source:answer.value,label:answer.action==='new'?`${state.audio.name} / ${answer.value.name}`:`${answer.value.name} (Selected Separately)`}:{...state.folders[Number(answer.action)],label:`${state.audio.name} / ${state.folders[Number(answer.action)].name}`};
-        }else{
-            const source=await (await getStorageModule()).selectFolder();selected={source,label:`${source.name} (Selected Separately)`};
+        const {audio} = state;
+        const folders = audio?.kind === 'directory' ? await discoverTranscriptFolders(audio) : state.folders;
+        const transcribe = view === 'transcribe';
+        const choices = folders.map(({name, source}) => ({
+            action: `child:${name}`, label: `${audio.name} / ${name}`,
+            run: () => ({source, label: `${audio.name} / ${name}`})
+        }));
+        if (transcribe && audio) {
+            const selectNamedFolder = async name => {
+                const candidates = [...folders, ...(state.transcript?.source.parentAudioName === audio.name ? [state.transcript] : [])];
+                const existing = candidates.find(folder => folder.name.normalize('NFC').toLowerCase() === name.normalize('NFC').toLowerCase());
+                const source = existing?.source || (audio.kind === 'directory'
+                    ? await (await getStorageModule()).getSubfolder(audio, name, true)
+                    : {kind:'file-input', selectionScope:'selection', files:[], name, parentAudioName:audio.name, intended:true});
+                return {source, label: `${audio.name} / ${source.name}`};
+            };
+            choices.push({action:'audio', label:'Use Audio Source Folder', run: () => ({source:audio, label:audio.name})});
+            if (!folders.some(folder => folder.name.toLowerCase() === 'transcription')) {
+                choices.push({action:'create-transcription', label:'Create “transcription” Folder', run: () => selectNamedFolder('transcription')});
+            }
+            choices.push({action:'new', label:'New Transcript Folder…', run: async () => {
+                const name = prompt('Transcript folder name', 'transcription');
+                if (!name) throw new DOMException('Cancelled.', 'AbortError');
+                if (/[\\/:\x00-\x1f]/.test(name) || name === '.' || name === '..') throw Error('Use a folder name without path separators.');
+                return selectNamedFolder(name);
+            }});
         }
+        choices.push({action:'browse', label:'Browse for Another Folder', run: async () => {
+            const source = await (await getStorageModule()).selectFolder();
+            return {source, label: `${source.name} (Selected Separately)`};
+        }}, {action:'cancel', label:'Cancel'});
+        const answer = await askIdentity({title:'Select Transcript Folder', message:transcribe ? 'Choose an existing folder, or name a new destination.' : 'Choose an existing transcript folder.', choices});
+        if (answer.action === 'cancel') return;
+        const selected = answer.value;
         // A failed read does not replace the previous shared selection.
         let destinationSession;
         if(view==='combine')destinationSession=await openCombineSource(selected.source);
@@ -657,7 +631,6 @@ async function chooseSharedTranscript(view,{browse=false,source:chosenSource=nul
         sharedFolders.setTranscript(selected.source,selected.label);
         applySharedTranscriptSelection();
         publishTranscribeDestination(destinationSession);
-        destinationButton.textContent='Browse for Another Folder';
         if(view!=='combine'){
             textSourceHandle=null;combineFolderSession=null;combineListOrigin=null;combineDestinationHandle=null;renderCombineTranscriptList();
             clearSharedCombineRows();
@@ -731,11 +704,9 @@ async function loadAudioSource() {
         identityWorkflow.reset();identityWorkflow=selectedIdentityWorkflow;
         sourceHandle=selectedSource;
         destinationHandle=null;
-        implicitIPhoneDestination=null;
         alternateIPhoneDestination=null;
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
-        setActiveDestinationButton(null);
         sourceButton.textContent='Select Audio Folder';
         sharedFolders.setAudio(sourceHandle,children,files,selectedIdentityWorkflow.getSession().getInventory());
         applySharedTranscriptSelection();
@@ -768,19 +739,6 @@ if (iphoneExportButton) {
 batchVerifyButton.addEventListener("click", verifyIPhoneTranscripts);
 
 
-sourceDestinationButton.addEventListener('click',async()=>{
-    if(!sourceHandle||sourceHandle.kind==='file-input')return;
-    await chooseSharedTranscript('transcribe',{source:sourceHandle,label:sourceHandle.name});
-});
-transcriptionDestinationButton.addEventListener('click',async()=>{
-    if(!sourceHandle||sourceHandle.kind==='file-input')return;
-    try{
-        const child=await (await getStorageModule()).getSubfolder(sourceHandle,'transcription',true);
-        await chooseSharedTranscript('transcribe',{source:child,label:`${sourceHandle.name} / transcription`});
-    }catch(error){if(error.name!=='AbortError')alert(error.message);}
-});
-
-destinationButton.addEventListener('click',()=>chooseSharedTranscript('transcribe',{browse:true}));
 
 
 // --------------------------------------------------
@@ -876,13 +834,7 @@ transcribeButton.addEventListener(
         // using the recordings selected at that moment.
         if (isIPhoneSource) {
             resetIPhoneExportState();
-            if (!destinationHandle) {
-                implicitIPhoneDestination ??= {
-                    kind: 'file-input', selectionScope: 'selection', files: [],
-                    name: 'transcription', parentAudioName: sourceHandle.name, intended: true
-                };
-            }
-            exportBatchDestination = destinationHandle || implicitIPhoneDestination;
+            exportBatchDestination = destinationHandle;
             exportBatchLocation = transcriptSaveLocation(exportBatchDestination).folder;
         }
         identityWorkflow.invalidateDestination();
@@ -891,7 +843,6 @@ transcribeButton.addEventListener(
 
             transcriptionBatchActive = true;
             updateSharedFolderControls();
-            for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = true;
             transcribeButton.disabled = true;
 
             transcriptionOutput.textContent = "";
@@ -1048,7 +999,6 @@ transcribeButton.addEventListener(
 
             transcriptionBatchActive = false;
             updateSharedFolderControls();
-            for (const button of [sourceButton,destinationButton,sourceDestinationButton,transcriptionDestinationButton]) button.disabled = false;
             loadedSharedCombine=loadedSharedSearch=null;
             await refreshQualifiedWhisperModels();
         }

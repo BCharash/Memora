@@ -55,9 +55,10 @@ await test('Concurrent initial reads create one stored snapshot before Settings 
  await clearTranscriptCatalogueCache();const source=()=>({kind:'file-input',selectionScope:'folder',name:'Concurrent transcript',files:[new File([header()],'a.txt')]});const snapshots=await Promise.all([readTranscriptFolder(source()),readTranscriptFolder(source())]);assert(snapshots.every(s=>!s.cacheError));const db=await openMemoraDatabase();const rows=await new Promise((resolve,reject)=>{const request=db.transaction('transcriptCatalogues').objectStore('transcriptCatalogues').getAll();request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});db.close();assert(rows.length===1);
 });
 await test('Session gate guards only untouched primary departures and resets per app session',()=>{const gate=createTranscriptionGate();assert(!gate.snapshot().guarded);gate.leave();assert(!gate.snapshot().guarded);gate.setTranscriptSource(true);assert(gate.snapshot().guarded);gate.activity();gate.leave();assert(!gate.snapshot().guarded&&gate.snapshot().enabled);assert(!createTranscriptionGate().snapshot().guarded);});
-await test('Actual page opens with source at top and destination below; Settings alone does not gate it',async()=>{
+await test('Actual page puts the destination immediately after Audio Source; Settings alone does not gate it',async()=>{
  const parsed=new DOMParser().parseFromString(await(await fetch('../index.html')).text(),'text/html');parsed.querySelectorAll('script').forEach(s=>s.remove());document.body.replaceChildren(...parsed.body.childNodes);await import('../js/app.js');await wait(()=>document.getElementById('modelSelect').value==='tiny');
- assert(!document.querySelector('.source-section [data-select-transcript=transcribe]'));assert(document.querySelector('#transcriptionDestinationSection [data-select-transcript=transcribe]'));assert(!document.getElementById('transcriptionWorkspace').hidden);assert((document.getElementById('desktopTranscriptionDestinationOptions').style.display==='none')===!window.showDirectoryPicker,'Initial phone controls exposed native-only destinations');click('settingsButton');click('settingsButton');assert(!document.getElementById('transcriptionWorkspace').hidden&&document.getElementById('enableTranscriptionButton').hidden);click('combineTab');click('transcriptionTab');assert(!document.getElementById('transcriptionWorkspace').hidden&&document.getElementById('enableTranscriptionButton').hidden,'An untouched return with no transcript folder was gated');
+ const audioRow=document.getElementById('sourceButton').closest('.shared-folder-row');
+ assert(audioRow.nextElementSibling.querySelector('[data-select-transcript=transcribe]').textContent==='Select Transcript Folder');assert(!document.getElementById('transcriptionWorkspace').hidden);click('settingsButton');click('settingsButton');assert(!document.getElementById('transcriptionWorkspace').hidden&&document.getElementById('enableTranscriptionButton').hidden);click('combineTab');click('transcriptionTab');assert(!document.getElementById('transcriptionWorkspace').hidden&&document.getElementById('enableTranscriptionButton').hidden,'An untouched return with no transcript folder was gated');
 });
 const root=directory('Parent'),child=await root.root.getDirectoryHandle('transcription',{create:true});await seedAudio(root.root,'renamed.wav',ID);await put(child,'existing.txt',header());await put(child,'memora-transcript-archive.json','DO NOT READ OR CHANGE');root.state.files.set('memora-audio-source.json',new TextEncoder().encode('KEEP OLD AUDIO JSON'));
 await test('Combine source selection keeps audio access without preparing Transcribe, and ignores old JSON',async()=>{
@@ -76,7 +77,7 @@ await test('Desktop writes only TXT and preserves existing Archive UUID without 
  document.getElementById('paragraphingCheckbox').checked=false;const box=document.querySelector('#recordings .recording-checkbox');box.checked=true;box.dispatchEvent(new Event('change'));await wait(()=>!document.getElementById('transcribeButton').disabled);click('transcribeButton');await wait(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.');let files=[];for await(const [name,handle]of child.entries())if(name.endsWith('.txt'))files.push(await handle.getFile());assert(files.length===2);const created=files.find(file=>file.name!=='existing.txt');assert(readTranscriptIdentity(await created.text()).archiveUuid===UUID);assert(await(await(await child.getFileHandle('memora-transcript-archive.json')).getFile()).text()==='DO NOT READ OR CHANGE');
  const before=calls.length;await put(child,'existing.txt',header(ID,f.OTHER));click('transcribeButton');await wait(()=>document.getElementById('transcriptionStatus').textContent.includes('Choose one transcript collection'));assert(calls.length===before,'Changed/conflicting destination reached inference');await put(child,'existing.txt',header());
 });
-await test('Desktop lower destination selector creates an empty folder and its first TXT without a sidecar',async()=>{
+await test('Desktop transcript folder picker creates an empty folder and its first TXT without a sidecar',async()=>{
  const original=window.prompt;window.prompt=()=> 'created below';try{document.querySelector('[data-select-transcript=transcribe]').click();await choose('New Transcript Folder…');await wait(()=>!document.getElementById('sourceButton').disabled&&document.querySelector('[data-transcript-folder]').textContent.includes('created below'));}finally{window.prompt=original;}
  const target=await root.root.getDirectoryHandle('created below');let names=[];for await(const [name]of target.entries())names.push(name);assert(!names.length);const before=calls.length;click('transcribeButton');await wait(()=>calls.length>before&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');names=[];for await(const [name]of target.entries())names.push(name);assert(names.length===1&&names[0].endsWith('.txt'));assert(readTranscriptIdentity(await(await(await target.getFileHandle(names[0])).getFile()).text()).archiveUuid!==UUID);
  document.querySelector('[data-select-transcript=transcribe]').click();await choose('Parent / transcription');await wait(()=>!document.getElementById('sourceButton').disabled&&document.querySelector('[data-transcript-folder]').textContent==='Parent / transcription');
@@ -119,16 +120,27 @@ await test('Combine scope shows Search description without Memora, survives tab 
 });
 const phone={kind:'file-input',name:'Phone 2018',selectionScope:'folder',files:[new File([f.wav([f.wavChunk('imID',f.payload(ID))])],'memo.wav'),new File([JSON.stringify({schemaVersion:1,audioSourceId:f.OTHER,recordings:[{recordingId:ID,audioRelativePath:'memo.wav',identityOrigin:'imuse-embedded'}]})],'memora-audio-source.json')]};let shared=[],cancel=false;
 Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{assert(Object.keys(data).join()==='files');if(cancel)throw new DOMException('Cancelled','AbortError');shared.push(data.files);}});
-await test('Phone can name an empty/new destination without reading files or requiring JSON',async()=>{
+await test('Phone can plan a transcription subfolder without requiring JSON',async()=>{
  selections.push(phone);click('sourceButton');await wait(()=>!document.getElementById('sourceButton').disabled&&document.querySelector('[data-audio-folder]').textContent==='Phone 2018');assert(!document.getElementById('saveRecordingListButton'),'Retired audio JSON save control returned');
- const original=window.prompt;window.prompt=()=> 'new transcripts';document.querySelector('[data-select-transcript=transcribe]').click();await choose('New Transcript Folder…');await wait(()=>!document.getElementById('sourceButton').disabled&&document.querySelector('[data-transcript-folder]').textContent.includes('new transcripts'));window.prompt=original;
- assert(document.getElementById('destinationButton').textContent==='Browse for Another Folder');assert(!document.getElementById('saveTranscriptArchiveButton'));document.querySelector('#recordings .recording-checkbox').checked=true;click('transcribeButton');await wait(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.'&&!document.getElementById('iphoneExportButton').disabled);assert(document.getElementById('iphoneExportLocation').textContent==='Save in: Phone 2018 / new transcripts');assert(parseFloat(getComputedStyle(document.getElementById('iphoneExportLocation')).fontSize)>parseFloat(getComputedStyle(document.getElementById('audioCacheStatus')).fontSize),'Destination is still small status text');
+ document.querySelector('[data-select-transcript=transcribe]').click();await choose('Create “transcription” Folder');await wait(()=>!document.getElementById('sourceButton').disabled&&document.getElementById('transcribeDestinationFolder').textContent==='Phone 2018 / transcription');
+ assert(!document.getElementById('saveTranscriptArchiveButton'));document.querySelector('#recordings .recording-checkbox').checked=true;click('transcribeButton');await wait(()=>document.getElementById('transcriptionStatus').textContent==='Transcription complete.'&&!document.getElementById('iphoneExportButton').disabled);
+ const destination=document.getElementById('iphoneExportLocation');
+ assert(destination.textContent==='Save in: Phone 2018 / transcription');
+ assert(document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
+ const frame=document.createElement('iframe');
+ const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+ frame.srcdoc=`<!doctype html><link rel="stylesheet" href="${new URL('../css/style.css',location.href)}">${destination.outerHTML}<p class="settings-note">Status</p>`;
+ document.body.append(frame);await loaded;
+ try{
+  const doc=frame.contentDocument,style=element=>frame.contentWindow.getComputedStyle(element);
+  assert(parseFloat(style(doc.getElementById(destination.id)).fontSize)>parseFloat(style(doc.querySelector('.settings-note')).fontSize),'The destination must be larger than status text');
+ }finally{frame.remove();}
 });
 await test('Never-saved warning, canceled save retry, TXT-only share and post-share verification are distinct',async()=>{
  const pendingClose=new Event('beforeunload',{cancelable:true});window.dispatchEvent(pendingClose);assert(pendingClose.defaultPrevented,'Unsaved TXT no longer protected on close');
  click('transcribeButton');await wait(()=>document.querySelector('dialog[open]'));assert(document.querySelector('dialog[open]').textContent.includes('There are transcripts waiting to be saved'));await choose('Keep pending transcripts');
  cancel=true;click('iphoneExportButton');await wait(()=>!document.getElementById('iphoneExportButton').disabled);assert(!shared.length&&document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));
- cancel=false;click('iphoneExportButton');await wait(()=>shared.length===1&&!document.getElementById('iphoneExportButton').disabled);assert(shared[0].length===1&&shared[0][0].name.endsWith('.txt'));assert(!document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));click('transcribeButton');await wait(()=>document.querySelector('dialog[open]'));assert(document.querySelector('dialog[open]').textContent.includes('Please verify that your transcripts were saved in Phone 2018 / new transcripts'));await choose('Keep pending transcripts');
+ cancel=false;click('iphoneExportButton');await wait(()=>shared.length===1&&!document.getElementById('iphoneExportButton').disabled);assert(shared[0].length===1&&shared[0][0].name.endsWith('.txt'));assert(!document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));click('transcribeButton');await wait(()=>document.querySelector('dialog[open]'));assert(document.querySelector('dialog[open]').textContent.includes('Please verify that your transcripts were saved in Phone 2018 / transcription'));await choose('Keep pending transcripts');
 });
 await test('A second new batch resets save warnings and pulse instead of inheriting the previous share result',async()=>{
  const before=calls.length;click('transcribeButton');await choose('Discard pending transcripts');await wait(()=>calls.length>before&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');assert(document.getElementById('iphoneExportButton').classList.contains('has-pending-exports'));click('transcribeButton');await wait(()=>document.querySelector('dialog[open]'));assert(document.querySelector('dialog[open]').textContent.includes('There are transcripts waiting to be saved'));await choose('Keep pending transcripts');
@@ -140,7 +152,7 @@ await test('Settings places named folder caches together with matching disclosur
  assert(audio.compareDocumentPosition(metadata)&Node.DOCUMENT_POSITION_FOLLOWING);assert(metadata.compareDocumentPosition(registry)&Node.DOCUMENT_POSITION_FOLLOWING);assert(metadata.previousElementSibling.classList.contains('settings-section-divider'));
  const toggle=metadata.querySelector('button');assert(getComputedStyle(toggle).width===getComputedStyle(audio.querySelector('button')).width);assert(document.documentElement.scrollWidth<=window.innerWidth,'Settings has horizontal overflow');toggle.click();
  await wait(()=>document.querySelector('#settingsTranscriptMetadataDetail .settings-item'));
- const detail=document.getElementById('settingsTranscriptMetadataDetail');assert(toggle.textContent==='Hide'&&detail.textContent.includes('new transcripts')&&detail.textContent.includes('Phone 2018'));
+ const detail=document.getElementById('settingsTranscriptMetadataDetail');assert(toggle.textContent==='Hide'&&detail.textContent.includes('transcription')&&detail.textContent.includes('Phone 2018'));
  assert(detail.querySelectorAll('.settings-item').length===(await listTranscriptCatalogueCache()).length,'Folder scopes collapsed into a report');
  assert(detail.querySelector('.settings-selection-actions').compareDocumentPosition(detail.querySelector('.settings-item'))&Node.DOCUMENT_POSITION_FOLLOWING);
  toggle.click();assert(detail.hidden&&toggle.textContent==='View');toggle.click();await wait(()=>!detail.hidden&&detail.querySelector('.settings-item'));
@@ -202,6 +214,7 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  result.querySelector('.search-transcript-edit-button').click();
  const editor=result.querySelector('textarea'),selection=()=>editor.value.slice(editor.selectionStart,editor.selectionEnd);
  const previous=result.querySelector('.search-transcript-previous-match'),next=result.querySelector('.search-transcript-next-match');
+ assert(previous.parentElement.children.length===2&&previous.nextElementSibling===next,'Only Previous and Next should appear in the match navigation');
  const preview=result.querySelector('.search-transcript-match-preview');
  const save=result.querySelector('.search-transcript-save-button');
  const saveHint=result.querySelector('.search-transcript-save-controls .settings-note');
@@ -228,6 +241,8 @@ await test('iPhone Search preserves the entire transcript and moves selection be
  try{
   const doc=iframe.contentDocument;
   const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
+  const prevRect=rect('.search-transcript-previous-match'),nextRect=rect('.search-transcript-next-match');
+  assert(prevRect.top===nextRect.top&&prevRect.right<nextRect.left&&prevRect.height>=44&&nextRect.height>=44,'Match controls must fit side by side with phone-sized tap targets');
   const editorStyle=iframe.contentWindow.getComputedStyle(doc.querySelector('textarea'));
   assert(editorStyle.overflowY==='auto'&&editorStyle.overscrollBehaviorY==='contain','Search textarea must contain vertical scroll at its edges');
   const prompt=doc.querySelector('.search-transcript-save-controls .settings-note');
@@ -479,19 +494,19 @@ await test('Desktop Search and Combine hide Save for clean text and use matching
   return markup;
  }
 });
-await test('iPhone transcription starts without a selected destination and suggests the default child at save time',async()=>{
+await test('iPhone transcription defaults to the audio folder when there is no transcription child',async()=>{
  const source={...phone,name:'Phone Without Destination'};
  selections.push(source);
  click('transcriptionTab');click('sourceButton');
  await choose('Discard pending transcripts');
  await wait(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().audio===source);
- assert(!sharedFolders.snapshot().transcript,'Fixture must have no destination');
+ assert(!sharedFolders.snapshot().transcript&&document.getElementById('transcribeDestinationFolder').textContent===source.name,'Only Transcribe should default to the audio folder');
  const before=calls.length;
  document.querySelector('#recordings .recording-checkbox').checked=true;
  click('transcribeButton');
  await wait(()=>calls.length>before&&!document.getElementById('iphoneExportButton').disabled);
- assert(document.getElementById('iphoneExportLocation').textContent.includes('Phone Without Destination / transcription'));
- assert(document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
+ assert(document.getElementById('iphoneExportLocation').textContent==='Save in: Phone Without Destination');
+ assert(!document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
 });
 await test('iPhone can transcribe beside a mixed collection without adopting either archive identity',async()=>{
  const name='Phone Mixed Collections';
@@ -667,7 +682,7 @@ await test('iPhone verifies a whole transcript batch and retries only a numbered
   assert(first&&second&&shared.at(-1).length===2,'New transcripts must still share as one batch');
   const observed=file=>new File([file],file.name,{lastModified:Date.now()});
   const duplicate=new File([second],second.name.replace(/\.txt$/,' 2.txt'),{lastModified:Date.now()});
-  selections.push({kind:'file-input',name:'transcription',files:[observed(first),duplicate]});
+  selections.push({kind:'file-input',name:source.name,files:[observed(first),duplicate]});
   verify.click();await wait(()=>!verify.disabled&&details.textContent.includes('1 of 2 verified'));
   assert(details.textContent.includes(duplicate.name)&&details.textContent.includes('around the save attempt'));
   const retry=details.querySelector('button');
@@ -675,10 +690,29 @@ await test('iPhone verifies a whole transcript batch and retries only a numbered
   assert(details.contains(retry)&&shared.length===count+1,'Cancel must retain the unresolved file for retry');
   cancel=false;retry.click();await wait(()=>!verify.disabled&&shared.length===count+2);
   assert(shared.at(-1).length===1&&shared.at(-1)[0]===second,'Retry must share only the unresolved transcript');
-  selections.push({kind:'file-input',name:'transcription',files:[observed(first),observed(second)]});
+  selections.push({kind:'file-input',name:source.name,files:[observed(first),observed(second)]});
   verify.click();await wait(()=>!verify.disabled&&details.textContent.includes('2 of 2 verified'));
   assert(verify.hidden&&!details.querySelector('button'),'The fully verified batch must clear the verify and retry actions');
  });
+});
+await test('Desktop defaults to the audio folder and can create the standard transcription child from the picker',async()=>{
+ const {root:audio}=directory('Desktop Without Destination');
+ await seedAudio(audio,'desktop.wav',ID);
+ selections.push(audio);
+ click('sourceButton');
+ const destination=document.getElementById('transcribeDestinationFolder');
+ await wait(()=>!document.getElementById('sourceButton').disabled&&destination.textContent===audio.name);
+ document.querySelector('#recordings .recording-checkbox').checked=true;
+ const before=calls.length;
+ click('transcribeButton');
+ await wait(()=>calls.length===before+1&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
+ const entries=[];
+ for await(const [name] of audio.entries()) entries.push(name);
+ assert(entries.some(name=>name.endsWith('.txt'))&&!entries.includes('transcription'),'The default save must write to the audio folder');
+ document.querySelector('[data-select-transcript=transcribe]').click();
+ await choose('Create “transcription” Folder');
+ await wait(()=>!document.getElementById('sourceButton').disabled&&destination.textContent===audio.name+' / transcription');
+ assert((await audio.getDirectoryHandle('transcription')).kind==='directory');
 });
 await test('Comparison ignores lower-model duplicates and admits edits and highest-model numbered copies',async()=>{
  const {getEditedTranscriptChoices,selectHighestModelRecords}=await import('../js/combine.js');

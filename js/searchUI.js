@@ -1494,14 +1494,6 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         updateMatchNavigationButtons();
     }
 
-    function clearMarkedTextSelection() {
-        if (!textarea) return;
-        const position = textarea.selectionEnd ?? 0;
-        if (!usesMobileEditorControls) textarea.focus({ preventScroll: true });
-        textarea.setSelectionRange(position, position);
-        updateMatchNavigationButtons();
-    }
-
     function ensureEditorCreated() {
         if (editorPanel) return;
 
@@ -1516,10 +1508,6 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
 
         matchNavigation = document.createElement("div");
         matchNavigation.className = "search-transcript-match-navigation";
-        matchNavigation.style.display = "flex";
-        matchNavigation.style.alignItems = "center";
-        matchNavigation.style.gap = "0.5rem";
-        matchNavigation.style.marginBlock = "0.4rem";
 
         previousMatchButton = makeSearchEditButton("↑ Previous match", "search-transcript-previous-match");
         previousMatchButton.title = "Move to the previous marked text";
@@ -1527,13 +1515,10 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
         nextMatchButton = makeSearchEditButton("↓ Next match", "search-transcript-next-match");
         nextMatchButton.title = "Move to the next marked text";
         nextMatchButton.setAttribute("aria-label", "Next marked text");
-        const clearMatchButton = makeSearchEditButton("Clear selection", "search-transcript-clear-match");
-        clearMatchButton.title = "Clear the current text selection without changing the transcript";
-        clearMatchButton.setAttribute("aria-label", "Clear current match selection");
         // Prevent mouse clicks on the navigation controls from blurring the
         // textarea. This keeps the selected text visibly highlighted, including
         // when a greyed-out control is clicked at either end of the match list.
-        [previousMatchButton, clearMatchButton, nextMatchButton].forEach(button => {
+        [previousMatchButton, nextMatchButton].forEach(button => {
             button.addEventListener("mousedown", event => event.preventDefault());
             // Keep the insertion point and keyboard in place when navigating
             // from an already focused textarea on a touch device.
@@ -1545,12 +1530,11 @@ function addTranscriptEditor(section, group, transcriptTextElement, header, tran
             if (previousMatchButton.getAttribute("aria-disabled") === "true") return;
             navigateMarkedText(-1);
         });
-        clearMatchButton.addEventListener("click", clearMarkedTextSelection);
         nextMatchButton.addEventListener("click", () => {
             if (nextMatchButton.getAttribute("aria-disabled") === "true") return;
             navigateMarkedText(1);
         });
-        matchNavigation.append(previousMatchButton, clearMatchButton, nextMatchButton);
+        matchNavigation.append(previousMatchButton, nextMatchButton);
 
         const actions = document.createElement("div");
         actions.className = "search-transcript-editor-actions";

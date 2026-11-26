@@ -603,6 +603,21 @@ button:disabled {
     line-height: 1.6;
 }
 
+.search-transcript-match-navigation {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block: 0.4rem;
+}
+
+.search-transcript-match-navigation button {
+    width: auto;
+    min-height: 44px;
+    padding-inline: 0.65rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
 @media (max-width: 600px) {
 
     .app-header {
@@ -1542,8 +1557,7 @@ button:disabled {
         flex-direction: column;
     }
 
-    .search-transcript-editor-actions,
-    .search-transcript-match-navigation {
+    .search-transcript-editor-actions {
         flex-wrap: wrap;
     }
 

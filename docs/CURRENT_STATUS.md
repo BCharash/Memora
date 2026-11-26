@@ -22,11 +22,11 @@ Source preparation has activity/progress feedback. Browser/iCloud preparation ma
 
 ## Transcription and saving
 
-Audio Source is at the top; Transcript Destination controls are below the transcription settings. Desktop can use/create transcription, use the source or browse for a destination. Destination TXT metadata is read before a new collection is used. A new empty destination needs no JSON; its first generated TXT carries its session Archive UUID.
+Transcript Destination sits directly below Audio Source. Select Transcript Folder opens a single picker for existing folders, the audio source itself, and new destinations. The default is an existing transcription subfolder when available, or the audio folder. Destination TXT metadata is read before a new collection is used. A new empty destination needs no JSON; its first generated TXT carries its session Archive UUID.
 
 Initial Transcribe setup is visible. After an untouched departure to Combine/Search, return is guarded by **Enable Transcription** only if a transcript source/destination has been selected. Settings alone does not trigger the gate. Shared audio-only selection can prepare visible unchecked recordings without inference. Enabling Transcription reuses available shared access; it does not automatically transcribe.
 
-Desktop writes TXT to its granted destination. iPhone can begin without choosing a transcript destination. The export uses a known or optional selected folder when available, otherwise it suggests `transcription` under the audio folder and explains how to create it in Files. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
+Desktop writes TXT to its granted destination. iPhone can begin without choosing a transcript destination. The export shows the intended folder. Choosing Create “transcription” Folder on iPhone adds a prompt to create that folder in Save to Files, while desktop creates it from the picker. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
 
 ## Combine and Search
 
@@ -36,7 +36,7 @@ When the list clears, the combined title returns to **Combined Transcription**. 
 
 Search and Combine show **Save** only after the text changes and hide it again if the original text is restored. **Cancel** remains visible with the same styling. The two actions sit below the textarea. The file-sharing routes show the original filename and destination so the user can replace it and verify the result.
 
-Search **Show transcript** displays the entire text with colored matches. **Edit** opens the entire text and focuses the first match. Previous and Next navigate matches across line breaks and repeated spaces. A preview shows the match when the box loses focus. On narrow screens, Edit, Show transcript and Hide result sit below the filename.
+Search **Show transcript** displays the entire text with colored matches. **Edit** opens the entire text and focuses the first match. Previous and Next sit on one row and navigate matches across line breaks and repeated spaces. Tap elsewhere in the editor to place the cursor and clear the selection. A preview shows the match when the box loses focus. On narrow screens, Edit, Show transcript and Hide result sit below the filename.
 
 Search terms are separated with **semicolons**; commas stay inside a term. Suggested document titles and Combine origin descriptions retain that delimiter. Each term participates in lexical and semantic retrieval. Qualifying lexical results precede semantic-only results; current semantic ranking uses sentence-heavy fusion and contextual representations. MiniLM remains the embedding model.
 
