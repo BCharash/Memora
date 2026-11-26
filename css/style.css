@@ -1897,11 +1897,6 @@ button:disabled {
 .shared-folder-row { display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0; }
 .shared-folder-row h2 { margin:0; }
 .shared-folder-row output { flex:1 1 180px;min-width:0;overflow-wrap:anywhere;border:1px solid var(--border,#71809b);border-radius:6px;padding:8px 10px; }
-.stacked-transcribe-folders > .shared-folder-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-}
-.stacked-transcribe-folders > .shared-folder-row button { width: 100%; }
 .shared-folder-note { margin:0 0 10px; }
 
 .export-location { font-size:1.1rem;font-weight:600;overflow-wrap:anywhere;margin:10px 0; }
