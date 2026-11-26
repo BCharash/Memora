@@ -123,7 +123,7 @@ window.addEventListener("storage", event => {
 });
 const languageSelect = document.getElementById("languageSelect");
 const languageOptions = Array.from(languageSelect?.options ?? []);
-const showMoreLanguagesButton = document.getElementById("showMoreLanguagesButton");
+const TRANSCRIPTION_LANGUAGE_STORAGE_KEY = "memora.transcription-language";
 const operationSelect = document.getElementById("operationSelect");
 const paragraphingCheckbox = document.getElementById("paragraphingCheckbox");
 const transcribeButton = document.getElementById("transcribeButton");
@@ -797,24 +797,46 @@ function updateOperationAvailability() {
 }
 
 if (languageSelect) {
-    languageSelect.addEventListener(
-        "change",
-        updateOperationAvailability
-    );
-}
-
-if (languageSelect && showMoreLanguagesButton) {
-    for (const option of languageOptions) {
-        if (!option.hasAttribute("data-primary-language")) option.remove();
+    let selectedLanguage = languageSelect.value;
+    let showAllLanguages = false;
+    try {
+        const savedLanguage = localStorage.getItem(TRANSCRIPTION_LANGUAGE_STORAGE_KEY);
+        if (languageOptions.some(option => option.value === savedLanguage)) {
+            selectedLanguage = savedLanguage;
+        }
+    } catch {
+        // The picker still works when browser storage is unavailable.
     }
-    showMoreLanguagesButton.hidden = false;
-    showMoreLanguagesButton.addEventListener("click", () => {
-        const language = languageSelect.value;
-        languageSelect.replaceChildren(...languageOptions);
-        languageSelect.value = language;
-        showMoreLanguagesButton.hidden = true;
-        languageSelect.focus();
-    }, { once: true });
+
+    const toggleOption = document.createElement("option");
+    toggleOption.value = "toggle-language-list";
+
+    function renderLanguageOptions() {
+        const visibleOptions = showAllLanguages ? languageOptions : languageOptions.filter(
+            option => option.hasAttribute("data-primary-language") || option.value === selectedLanguage
+        );
+        toggleOption.textContent = showAllLanguages ? "Show fewer languages…" : "Show more languages…";
+        languageSelect.replaceChildren(...visibleOptions, toggleOption);
+        languageSelect.value = selectedLanguage;
+    }
+
+    renderLanguageOptions();
+    languageSelect.addEventListener("change", () => {
+        if (languageSelect.value === toggleOption.value) {
+            showAllLanguages = !showAllLanguages;
+            renderLanguageOptions();
+            return;
+        }
+
+        selectedLanguage = languageSelect.value;
+        if (!showAllLanguages) renderLanguageOptions();
+        try {
+            localStorage.setItem(TRANSCRIPTION_LANGUAGE_STORAGE_KEY, selectedLanguage);
+        } catch {
+            // Keep the selection for this session.
+        }
+        updateOperationAvailability();
+    });
 }
 
 // Establish the correct initial state when Memora loads.
