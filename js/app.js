@@ -11,6 +11,7 @@ import { askIdentity } from "./identityDialog.js";
 import { renderWhisperExecutionReport, renderWhisperReviewNotice } from "./whisperExecutionReports.js";
 import { atWhisperFailureBoundary } from "./whisperFailures.js";
 import { startRuntimeDiagnostics, recordRuntimeDiagnostic } from "./runtimeDiagnostics.js";
+import { isIOS, runtimeIdentity } from "./runtime.js";
 import { listQualifiedWhisperProductionModels } from "./whisperProductionEligibility.js";
 import { displayBuildInfo } from "./build-info.js";
 import { formatWhisperDiagnostics, formatTranscriptionTimings } from "./whisperDiagnostics.js";
@@ -69,6 +70,9 @@ let storageModulePromise = import("./storage.js");
 let storageManagerModulePromise = import("./storageManager.js");
 
 const sourceButton = document.getElementById("sourceButton");
+if (isIOS && runtimeIdentity.deviceType === "phone") {
+    sourceButton.closest(".source-section").classList.add("stacked-transcribe-folders");
+}
 const iphoneTranscriptionDestinationOptions =
     document.getElementById("iphoneTranscriptionDestinationOptions");
 const iphoneExportButton =
