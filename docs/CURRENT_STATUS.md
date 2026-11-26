@@ -22,17 +22,17 @@ Source preparation has activity/progress feedback. Browser/iCloud preparation ma
 
 ## Transcription and saving
 
-Transcript Destination sits directly below Audio Source. Select Transcript Folder opens a single picker for existing folders, the audio source itself, and new destinations. The default is an existing transcription subfolder when available, or the audio folder. Destination TXT metadata is read before a new collection is used. A new empty destination needs no JSON; its first generated TXT carries its session Archive UUID.
+Transcript Destination sits directly below Audio Source. Select Transcript Folder opens a single picker for existing folders, the audio source itself, and new destinations. An existing transcription subfolder is preselected. Otherwise the destination stays blank and a status line shows the preferred path. The audio folder remains an explicit choice. Desktop prompts for a destination before transcription. Destination TXT metadata is read before a new collection is used. A new empty destination needs no JSON; its first generated TXT carries its session Archive UUID.
 
 Initial Transcribe setup is visible. After an untouched departure to Combine/Search, return is guarded by **Enable Transcription** only if a transcript source/destination has been selected. Settings alone does not trigger the gate. Shared audio-only selection can prepare visible unchecked recordings without inference. Enabling Transcription reuses available shared access; it does not automatically transcribe.
 
-Desktop writes TXT to its granted destination. iPhone can begin without choosing a transcript destination. The export shows the intended folder. Choosing Create “transcription” Folder on iPhone adds a prompt to create that folder in Save to Files, while desktop creates it from the picker. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
+Desktop writes TXT to its granted destination. iPhone can begin without choosing a transcript destination. The export shows the intended folder and suggests the preferred transcription child when the destination is blank. Choosing Create “transcription” Folder on iPhone adds a prompt to create that folder in Save to Files, while desktop creates it from the picker. Pending warnings distinguish transcripts awaiting sharing from files that need placement verification. Cancellation or failure retains the batch.
 
 ## Combine and Search
 
 Combine reads selected-folder TXT metadata/text and displays its current list. The box below **Transcripts** shows the folder and **All** for a folder load, or **Search: description** for a Search handoff. Search handoff keeps the selected subset; tab returns preserve it, while selecting a transcript folder loads that folder and resets the origin to All. The selector remains Select Transcript Folder.
 
-When the list clears, the combined title returns to **Combined Transcription**. Unchecking every transcript hides DOCX/HTML options and preserves the current title. On iPhone, TXT, DOCX and HTML exports suggest the transcript source's `combined` subfolder and allow the user to choose another destination.
+When the list clears, the combined title returns to **Combined Transcription**. Unchecking every transcript hides DOCX/HTML options and preserves the current title. Combine Destination preselects an existing `combined` child when Memora can see it. Otherwise it stays blank and shows the preferred path. Desktop prompts for a destination before export. On iPhone, TXT, DOCX and HTML use the chosen folder or suggest the preferred child in Save to Files.
 
 Search and Combine show **Save** only after the text changes and hide it again if the original text is restored. **Cancel** remains visible with the same styling. The two actions sit below the textarea. The file-sharing routes show the original filename and destination so the user can replace it and verify the result.
 

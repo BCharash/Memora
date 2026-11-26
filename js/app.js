@@ -164,12 +164,6 @@ const appIcon =
 const textSourceButton =
     document.getElementById("textSourceButton");
 
-const combineSourceDestinationButton =
-    document.getElementById("combineSourceDestinationButton");
-
-const combineFolderDestinationButton =
-    document.getElementById("combineFolderDestinationButton");
-
 const combineDestinationButton =
     document.getElementById("combineDestinationButton");
 
@@ -204,7 +198,7 @@ let destinationHandle = null;
 
 let pendingIPhoneExports = [];
 let exportBatchLocation=null,exportBatchState="unattempted";
-let exportBatchDestination=null, alternateIPhoneDestination=null;
+let exportBatchDestination=null, implicitIPhoneDestination=null, alternateIPhoneDestination=null;
 const batchSaveReceipts = new Map();
 let batchSaveChecks = new Map();
 const batchVerifyButton = document.getElementById("iphoneExportVerifyButton");
@@ -253,8 +247,11 @@ function updateCombineOutputOptions() {
     const location = document.getElementById("iphoneCombineExportLocation");
     location.hidden = !hasSelection || textSourceHandle?.kind !== "file-input";
     if (!location.hidden) {
-        const { folder, parentHint } = transcriptSaveLocation(textSourceHandle, "combined");
-        location.textContent = `Suggested folder in Save to Files: ${folder}.${parentHint} Create “combined” inside the transcript folder if needed, or choose another destination.`;
+        const folder = combineDestination?.label || preferredCombinePath();
+        const createHint = !combineDestination || combineDestination.create
+            ? ' Create “combined” inside the transcript folder if needed.' : '';
+        const {parentHint} = transcriptSaveLocation(combineDestination?.source || textSourceHandle);
+        location.textContent = `Save in: ${folder}. Choose this folder in Save to Files.${parentHint}${createHint}`;
     }
     if (getTranscriptFileCount() === 0) {
         combineTitleInput.value = DEFAULT_COMBINE_TITLE;
@@ -274,55 +271,82 @@ function renderCombineTranscriptList(){
     if(combineFolderSession)combineTranscriptListStatus.textContent=`Transcripts: ${combineFolderSession.records.length} loaded.${combineFolderSession.cacheError?' Local metadata cache unavailable.':''}${combineFolderSession.issues?.length?' '+combineFolderSession.issues.join(' '):''}`;
 }
 async function retainPendingCombineList(){return true;}
-let combineDestinationHandle = null;
+let combineDestination = null;
+let combineDestinationParent = "";
 
-function setActiveCombineDestinationButton(button) {
+function preferredCombinePath() {
+    return `${combineDestinationParent} / combined`;
+}
 
-    document
-        .querySelectorAll("#combinePanel .destination-options button")
-        .forEach(otherButton => {
-            otherButton.classList.remove("active");
-        });
+function renderDestinationHint(id, path, description) {
+    const hint = document.getElementById(id);
+    hint.hidden = !path;
+    hint.textContent = path ? `Preferred location for ${description} is ${path}.` : "";
+}
 
-    if (button) {
-        button.classList.add("active");
+function renderCombineDestination() {
+    combineDestinationSection.hidden = !textSourceHandle;
+    document.getElementById("combineDestinationFolder").textContent = combineDestination?.label || "None Selected";
+    renderDestinationHint("combinePreferredDestination",
+        textSourceHandle && !combineDestination ? preferredCombinePath() : "", "combined documents");
+    updateCombineOutputOptions();
+}
+
+async function findCombinedFolder(source) {
+    if (source.kind === "file-input") {
+        if (source.childFolderNames?.has("combined") ||
+            source.files.some(file => file.webkitRelativePath?.startsWith(`${source.name}/combined/`))) {
+            return {kind: "file-input", name: "combined", parentAudioName: source.name};
+        }
+        return;
+    }
+    try {
+        return await (await getStorageModule()).getSubfolder(source, "combined", false);
+    } catch (error) {
+        if (error.name !== "NotFoundError") console.warn("Unable to check the combined folder:", error);
     }
 }
 
+async function loadCombineDestination(source, label) {
+    combineDestinationParent = label?.replace(/ \(Selected Separately\)$/, "") || transcriptSaveLocation(source).folder;
+    const child = await findCombinedFolder(source);
+    combineDestination = child ? {source: child, label: preferredCombinePath()} : null;
+    renderCombineDestination();
+}
 
-async function updateCombineFolderButton() {
-
-    if (!textSourceHandle) {
-        combineFolderDestinationButton.textContent =
-            'Create "combined" Folder';
-        return;
-    }
-
+async function chooseCombineDestination() {
+    const parent = textSourceHandle;
+    if (!parent || sharedFolderOperation || transcriptionBatchActive || isSearchSourceBusy() ||
+        combineTextButton.disabled || combineShareExportUI.isBusy()) return false;
+    sharedFolderOperation = true;
+    updateSharedFolderControls();
     try {
-
-        const storage =
-            await getStorageModule();
-
-        await storage.getSubfolder(
-            textSourceHandle,
-            "combined",
-            false
-        );
-
-        combineFolderDestinationButton.textContent =
-            'Use "combined" Folder';
-
-    } catch (error) {
-
-        if (error.name === "NotFoundError") {
-            combineFolderDestinationButton.textContent =
-                'Create "combined" Folder';
-        } else {
-            console.error(
-                "Unable to check combined folder:",
-                error
-            );
-        }
+        const child = await findCombinedFolder(parent);
+        const choice = await askIdentity({
+            title: "Select Combined Folder",
+            message: `Preferred location for combined documents is ${preferredCombinePath()}.`,
+            choices: [
+                {action: "combined", label: child ? 'Use “combined” Folder' : 'Create “combined” Folder', run: async () => {
+                    if (parent.kind === "file-input") {
+                        return {source: child, label: preferredCombinePath(), create: !child};
+                    }
+                    return {source: child || await (await getStorageModule()).getSubfolder(parent, "combined", true), label: preferredCombinePath()};
+                }},
+                {action: "parent", label: "Use Transcript Source Folder", run: () => ({source: parent, label: combineDestinationParent})},
+                {action: "browse", label: "Browse for Another Folder", run: async () => {
+                    const source = await (await getStorageModule()).selectFolder();
+                    return {source, label: transcriptSaveLocation(source).folder};
+                }},
+                {action: "cancel", label: "Cancel"}
+            ]
+        });
+        if (choice.action === "cancel" || textSourceHandle !== parent) return false;
+        combineDestination = choice.value;
+        renderCombineDestination();
+        return true;
+    } finally {
+        sharedFolderOperation = false;
+        updateSharedFolderControls();
     }
 }
 
@@ -452,10 +476,6 @@ function updateDestinationVisibility(isFileInput) {
             isFileInput ? "flex" : "none";
     }
 
-    if (combineDestinationSection) {
-        combineDestinationSection.hidden = isFileInput;
-    }
-
     // The three desktop Combine output buttons are direct-write actions.
     // On iPhone they are replaced by the single format-specific share button.
     if (combineTextButton) {
@@ -537,15 +557,16 @@ let loadedSharedCombine=null,loadedSharedSearch=null;
 let transcribeDestinationSession=null;
 function updateSharedFolderControls(){
     const busy=transcriptionBatchActive||sourceSelectionRequested||sharedFolderOperation||isSearchSourceBusy();
-    document.querySelectorAll('[data-select-audio],[data-select-transcript],#sourceButton,#textSourceButton,#searchSourceButton').forEach(button=>button.disabled=busy);
+    document.querySelectorAll('[data-select-audio],[data-select-transcript],#sourceButton,#textSourceButton,#searchSourceButton,#combineDestinationButton').forEach(button=>button.disabled=busy);
 }
 function applySharedTranscriptSelection(){
     const state=sharedFolders.snapshot();
-    destinationHandle=state.transcript?.source||state.audio;
+    destinationHandle=state.transcript?.source||null;
     document.querySelectorAll('[data-audio-folder]').forEach(node=>node.textContent=sharedFolders.audioLabel());
     document.querySelectorAll('[data-transcript-folder]').forEach(node=>node.textContent=sharedFolders.transcriptLabel());
     renderCombineTranscriptList();
-    if (!state.transcript) document.getElementById('transcribeDestinationFolder').textContent=sharedFolders.audioLabel();
+    renderDestinationHint("transcribePreferredDestination",
+        state.audio && !destinationHandle ? `${state.audio.name} / transcription` : "", "transcripts");
     renderTranscriptionGate();
 }
 function clearSharedCombineRows(){
@@ -553,8 +574,9 @@ function clearSharedCombineRows(){
 }
 function resetSharedConsumers(){
     loadedSharedCombine=loadedSharedSearch=null;
-    textSourceHandle=null;combineFolderSession=null;combineListOrigin=null;combineDestinationHandle=null;
+    textSourceHandle=null;combineFolderSession=null;combineListOrigin=null;combineDestination=null;
     renderCombineTranscriptList();
+    renderCombineDestination();
     clearSharedCombineRows();
     resetSharedSearchSource();
 }
@@ -624,7 +646,7 @@ async function chooseSharedTranscript(view){
         const selected = answer.value;
         // A failed read does not replace the previous shared selection.
         let destinationSession;
-        if(view==='combine')destinationSession=await openCombineSource(selected.source);
+        if(view==='combine')destinationSession=await openCombineSource(selected.source, selected.label);
         else if(view!=='transcribe')await readTranscriptFolder(selected.source);
         try{destinationSession ||= await prepareTranscribeDestination(selected.source);}
         catch(error){if(view==='transcribe')throw error;destinationSession={status:'blocked',error,source:selected.source};}
@@ -632,13 +654,15 @@ async function chooseSharedTranscript(view){
         applySharedTranscriptSelection();
         publishTranscribeDestination(destinationSession);
         if(view!=='combine'){
-            textSourceHandle=null;combineFolderSession=null;combineListOrigin=null;combineDestinationHandle=null;renderCombineTranscriptList();
+            textSourceHandle=null;combineFolderSession=null;combineListOrigin=null;combineDestination=null;renderCombineTranscriptList();
+            renderCombineDestination();
             clearSharedCombineRows();
         }
         loadedSharedCombine=view==='combine'?selected.source:null;
         loadedSharedSearch=null;
         resetSharedSearchSource();
         if(view==='search'){await openSearchSource(selected.source);loadedSharedSearch=selected.source;}
+        return true;
     }catch(error){if(error.name!=='AbortError'){
         if(view==='combine')combineStatus.textContent=`Unable to read the text source folder. ${error.message}`;
         else alert(error.message);
@@ -661,7 +685,7 @@ async function ensureSharedTranscriptForActiveView(){
     if([...panel.querySelectorAll('textarea')].some(editor=>editor.value!==editor.defaultValue&&!editor.parentElement.hidden))return;
     sharedFolderOperation=true;updateSharedFolderControls();
     try{
-        if(view==='combine'){await openCombineSource(source);loadedSharedCombine=source;}
+        if(view==='combine'){await openCombineSource(source, sharedFolders.transcriptLabel());loadedSharedCombine=source;}
         else{await openSearchSource(source);loadedSharedSearch=source;}
     }catch(error){if(view==='combine')combineStatus.textContent=`Unable to read the transcript source. ${error.message}`;else alert(error.message);}
     finally{sharedFolderOperation=false;updateSharedFolderControls();await refreshQualifiedWhisperModels();}
@@ -704,6 +728,7 @@ async function loadAudioSource() {
         identityWorkflow.reset();identityWorkflow=selectedIdentityWorkflow;
         sourceHandle=selectedSource;
         destinationHandle=null;
+        implicitIPhoneDestination=null;
         alternateIPhoneDestination=null;
         resetIPhoneExportState();
         updateDestinationVisibility(sourceHandle.kind==='file-input');
@@ -814,16 +839,8 @@ transcribeButton.addEventListener(
         const isIPhoneSource =
             sourceHandle?.kind === "file-input";
 
-        if (!destinationHandle && !isIPhoneSource) {
-
-            alert(
-                "Please select a destination folder first."
-            );
-
-            return;
-        }
-
         if(sharedFolderOperation||sourceSelectionRequested||isSearchSourceBusy())return;
+        if (!destinationHandle && !isIPhoneSource && !await chooseSharedTranscript("transcribe")) return;
         if(transcribeDestinationSession?.status==='blocked'){alert(transcribeDestinationSession.error.message);return;}
         if (pendingTranscriptSaves.length) {
             alert("Retry the pending transcript save before starting another transcription."); return;
@@ -834,7 +851,11 @@ transcribeButton.addEventListener(
         // using the recordings selected at that moment.
         if (isIPhoneSource) {
             resetIPhoneExportState();
-            exportBatchDestination = destinationHandle;
+            implicitIPhoneDestination ??= {
+                kind: "file-input", selectionScope: "selection", files: [],
+                name: "transcription", parentAudioName: sourceHandle.name, intended: true
+            };
+            exportBatchDestination = destinationHandle || implicitIPhoneDestination;
             exportBatchLocation = transcriptSaveLocation(exportBatchDestination).folder;
         }
         identityWorkflow.invalidateDestination();
@@ -1265,6 +1286,7 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
 
     if(!await retainPendingCombineList())return;
     combineFolderSession=null;
+    const previousSource = textSourceHandle;
     textSourceHandle = searchSourceHandle;
     const searchTitle = createSearchCombineTitle(searchQuery);
     combineListOrigin = {
@@ -1275,50 +1297,18 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     combineSearchHighlights.checked = false;
     renderCombineTranscriptList();
 
-    combineDestinationHandle = null;
-    setActiveCombineDestinationButton(null);
-
     if (combineTitleInput) {
         const audioName = getCombineAudioSourceName(searchSourceHandle, records);
         const title = searchTitle || DEFAULT_COMBINE_TITLE;
         combineTitleInput.value = audioName ? `${audioName} - ${title}` : title;
     }
 
-    if (textSourceHandle) {
-
-        const isFileInput =
-            textSourceHandle.kind === "file-input";
-
-        if (combineDestinationSection) {
-            combineDestinationSection.hidden = isFileInput;
-        }
-
-        if (combineTextButton) {
-            combineTextButton.hidden = isFileInput;
-        }
-
-        if (combineDOCXButton) {
-            combineDOCXButton.hidden = isFileInput;
-        }
-
-        if (combineHTMLButton) {
-            combineHTMLButton.hidden = isFileInput;
-        }
-
-        if (iphoneCombineDestinationOptions) {
-            iphoneCombineDestinationOptions.hidden =
-                !isFileInput;
-
-            iphoneCombineDestinationOptions.style.display =
-                isFileInput ? "block" : "none";
-        }
-
-        if (!isFileInput) {
-            await updateCombineFolderButton();
-        }
-
-        textSourceButton.textContent = 'Select Transcript Folder';
+    updateDestinationVisibility(textSourceHandle.kind === "file-input");
+    if (previousSource !== textSourceHandle) {
+        const selected = sharedFolders.snapshot().transcript;
+        await loadCombineDestination(textSourceHandle, selected?.source === textSourceHandle ? selected.label : "");
     }
+    textSourceButton.textContent = 'Select Transcript Folder';
 
     await displayTranscriptFiles(files);
 
@@ -1357,7 +1347,7 @@ function createFolderCombineTitle(source, records) {
     return audioName ? `${audioName} - ${folderTitle}` : folderTitle;
 }
 
-async function openCombineSource(selectedSource) {
+async function openCombineSource(selectedSource, label) {
     combineStatus.textContent='Reading transcript files…';
     const snapshot=await readTranscriptFolder(selectedSource,{onProgress:({completed,total})=>{
         combineStatus.textContent=`Reading transcript files: ${completed} of ${total}…`;
@@ -1375,9 +1365,7 @@ async function openCombineSource(selectedSource) {
             createFolderCombineTitle(selectedSource, snapshot.records);
     }
 
-    combineDestinationHandle = null;
-    setActiveCombineDestinationButton(null);
-    if(textSourceHandle.kind==='directory')await updateCombineFolderButton();
+    await loadCombineDestination(selectedSource, label);
 
     await displayTranscriptFiles(
         files, undefined, {complete: snapshot.complete}
@@ -1395,111 +1383,11 @@ async function openCombineSource(selectedSource) {
 if(textSourceButton)textSourceButton.addEventListener('click',()=>chooseSharedTranscript('combine'));
 
 
-if (combineSourceDestinationButton) {
-
-    combineSourceDestinationButton.addEventListener(
-        "click",
-        () => {
-
-            if (!textSourceHandle) {
-                alert("Please select a text source folder first.");
-                return;
-            }
-
-            combineDestinationHandle =
-                textSourceHandle;
-
-            setActiveCombineDestinationButton(
-                combineSourceDestinationButton
-            );
-        }
-    );
-}
-
-
-if (combineFolderDestinationButton) {
-
-    combineFolderDestinationButton.addEventListener(
-        "click",
-        async () => {
-
-            if (!textSourceHandle) {
-                alert("Please select a text source folder first.");
-                return;
-            }
-
-            try {
-
-                const storage =
-                    await getStorageModule();
-
-                combineDestinationHandle =
-                    await storage.getSubfolder(
-                        textSourceHandle,
-                        "combined",
-                        true
-                    );
-
-                combineFolderDestinationButton.textContent =
-                    'Use "combined" Folder';
-
-                setActiveCombineDestinationButton(
-                    combineFolderDestinationButton
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "combined folder error:",
-                    error
-                );
-
-                combineStatus.textContent =
-                    "Unable to access the combined folder.";
-            }
-        }
-    );
-}
-
-
-if (combineDestinationButton) {
-
-    combineDestinationButton.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                const storage =
-                    await getStorageModule();
-
-                combineDestinationHandle =
-                    await storage.selectFolder();
-
-                setActiveCombineDestinationButton(
-                    combineDestinationButton
-                );
-
-                combineDestinationButton.textContent =
-                    `Output: ${combineDestinationHandle.name}`;
-
-            } catch (error) {
-
-                if (error.name !== "AbortError") {
-
-                    console.error(
-                        "Combine destination error:",
-                        error
-                    );
-
-                    combineStatus.textContent =
-                        "Unable to select the output folder.";
-                }
-            }
-        }
-    );
-}
-
+combineDestinationButton.addEventListener("click", () => {
+    chooseCombineDestination().catch(error => {
+        combineStatus.textContent = error.message;
+    });
+});
 
 const combineShareExportUI = initCombineShareExportUI({
     getTranscriptFileCount,
@@ -1604,13 +1492,9 @@ async function combineSelectedFiles(
         return;
     }
 
-    if (!isIPhoneSource && !combineDestinationHandle) {
-
-        combineStatus.textContent =
-            "Please select an output folder first.";
-
-        return;
-    }
+    if (sharedFolderOperation) return;
+    if (!isIPhoneSource && !combineDestination && !await chooseCombineDestination()) return;
+    const combineDestinationHandle = combineDestination?.source;
 
     try {
 
@@ -2178,7 +2062,8 @@ async function exportIPhoneTranscripts(retryFile){
         const destination=exportBatchDestination;
         if(destination?.kind==='file-input'){
             const names=new Set(files.map(file=>file.name));
-            destination.files=[...destination.files.filter(file=>!names.has(file.name)),...files.map(file=>{
+            destination.files=[...destination.files.filter(file=>!names.has(file.name) ||
+                (file.webkitRelativePath && file.webkitRelativePath !== `${destination.name}/${file.name}`)),...files.map(file=>{
                 const snapshot=new File([file],file.name,{type:file.type,lastModified:file.lastModified});Object.defineProperty(snapshot,'webkitRelativePath',{value:`${destination.name}/${file.name}`});return snapshot;
             })];destination.selectionScope='selection';loadedSharedCombine=loadedSharedSearch=null;
         }

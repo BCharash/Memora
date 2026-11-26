@@ -117,6 +117,7 @@
                             Select Audio Folder
                         </button></div>
                     <div class="shared-folder-row"><h2>Transcript Destination</h2><output id="transcribeDestinationFolder" data-transcript-folder>None Selected</output><button type="button" data-select-transcript="transcribe">Select Transcript Folder</button></div>
+                    <p id="transcribePreferredDestination" class="settings-note" role="status" hidden></p>
 
                     <p id="audioCacheStatus" class="settings-note" role="status"></p>
                     <div id="audioSourceActivity" class="audio-source-activity" role="status" hidden><span class="audio-source-spinner" aria-hidden="true"></span><span>Opening Audio Source…</span><span id="audioSourceElapsed" aria-hidden="true">Elapsed: 0s</span></div>
@@ -356,33 +357,9 @@
                     <label><input type="checkbox" id="combineSearchHighlights"> Include search highlights in DOCX and HTML</label>
                 </div>
 
-                <div id="combineDestinationSection" class="destination-section">
-
-                    <div class="destination-options">
-
-                        <button
-                            id="combineSourceDestinationButton"
-                            type="button"
-                        >
-                            Use Source Folder
-                        </button>
-
-                        <button
-                            id="combineFolderDestinationButton"
-                            type="button"
-                        >
-                            Create "combined" Folder
-                        </button>
-
-                        <button
-                            id="combineDestinationButton"
-                            type="button"
-                        >
-                            Browse for Another Folder
-                        </button>
-
-                    </div>
-
+                <div id="combineDestinationSection" class="destination-section" hidden>
+                    <div class="shared-folder-row"><h2>Combine Destination</h2><output id="combineDestinationFolder">None Selected</output><button id="combineDestinationButton" type="button">Select Combined Folder</button></div>
+                    <p id="combinePreferredDestination" class="settings-note" role="status" hidden></p>
                 </div>
 
 

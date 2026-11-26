@@ -128,6 +128,7 @@ export function initCombineShareExportUI({
     return {
         exportFile,
         getFormat,
+        isBusy: () => busy,
         reset,
         setBusy,
         updateButton

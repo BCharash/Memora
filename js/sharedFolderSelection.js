@@ -29,13 +29,21 @@ export function renderSaveDestination(container, { before, folder, parentHint })
 
 export function rebaseTranscriptFolder(root, name) {
     const prefix = `${root.name}/${name}/`;
-    const files = root.files.filter(file => file.webkitRelativePath?.startsWith(prefix) &&
-        !file.webkitRelativePath.slice(prefix.length).includes('/')).map(file => {
+    const files = [];
+    const childFolderNames = new Set();
+    for (const file of root.files) {
+        if (!file.webkitRelativePath?.startsWith(prefix)) continue;
+        const relativePath = file.webkitRelativePath.slice(prefix.length);
+        const slash = relativePath.indexOf('/');
+        if (slash !== -1) {
+            childFolderNames.add(relativePath.slice(0, slash));
+            continue;
+        }
         const snapshot = new File([file], file.name, {type:file.type,lastModified:file.lastModified});
-        Object.defineProperty(snapshot, 'webkitRelativePath', {value:`${name}/${file.name}`});
-        return snapshot;
-    });
-    return {kind:'file-input',name,files,selectionScope:root.selectionScope, parentAudioName:root.name};
+        Object.defineProperty(snapshot, 'webkitRelativePath', {value:`${name}/${relativePath}`});
+        files.push(snapshot);
+    }
+    return {kind:'file-input', name, files, childFolderNames, selectionScope:root.selectionScope, parentAudioName:root.name};
 }
 export async function discoverTranscriptFolders(root) {
     const folders=[];
@@ -47,7 +55,7 @@ export async function discoverTranscriptFolders(root) {
         const names=new Set();
         for(const file of root.files) {
             const parts=file.webkitRelativePath?.split('/');
-            if(parts?.length===3 && parts[0]===root.name) names.add(parts[1]);
+            if(parts?.length>=3 && parts[0]===root.name) names.add(parts[1]);
         }
         for(const name of names) folders.push({name,source:rebaseTranscriptFolder(root,name)});
     } else throw Error('Select an Audio Source folder.');

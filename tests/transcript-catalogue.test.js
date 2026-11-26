@@ -388,6 +388,18 @@ await test('iPhone Combine only offers Save and folder guidance for modified tex
  const searchResult=document.querySelector('.search-result-file');
  document.querySelector('.search-use-combine-button').click();
  await wait(()=>!document.getElementById('combinePanel').hidden&&document.querySelector('#transcripts .combine-edit-toggle'));
+ const destination=document.getElementById('combineDestinationFolder');
+ const preferred=document.getElementById('combinePreferredDestination');
+ const guidance=document.getElementById('iphoneCombineExportLocation');
+ const picker=document.getElementById('combineDestinationButton');
+ assert(destination.textContent==='None Selected'&&!preferred.hidden&&preferred.textContent.includes('2018 / transcription / combined'));
+ assert(guidance.textContent.includes('2018 / transcription / combined')&&guidance.textContent.includes('Create'));
+ picker.click();await choose('Use Transcript Source Folder');
+ await wait(()=>!picker.disabled&&preferred.hidden);
+ assert(destination.textContent==='2018 / transcription'&&!guidance.textContent.includes('Create'));
+ picker.click();await choose('Create “combined” Folder');
+ await wait(()=>!picker.disabled&&destination.textContent==='2018 / transcription / combined');
+ assert(guidance.textContent.includes('Create'),'A planned iPhone destination must explain folder creation in Files');
  const edit=document.querySelector('#transcripts .combine-edit-toggle');
  edit.click();
  const panel=document.querySelector('#transcripts .combine-transcript-editor');
@@ -494,19 +506,20 @@ await test('Desktop Search and Combine hide Save for clean text and use matching
   return markup;
  }
 });
-await test('iPhone transcription defaults to the audio folder when there is no transcription child',async()=>{
+await test('iPhone starts with a blank destination and suggests the preferred transcription child at save time',async()=>{
  const source={...phone,name:'Phone Without Destination'};
  selections.push(source);
  click('transcriptionTab');click('sourceButton');
  await choose('Discard pending transcripts');
  await wait(()=>!document.getElementById('sourceButton').disabled&&sharedFolders.snapshot().audio===source);
- assert(!sharedFolders.snapshot().transcript&&document.getElementById('transcribeDestinationFolder').textContent===source.name,'Only Transcribe should default to the audio folder');
+ assert(!sharedFolders.snapshot().transcript&&document.getElementById('transcribeDestinationFolder').textContent==='None Selected','The audio folder must not be selected as the destination');
  const before=calls.length;
  document.querySelector('#recordings .recording-checkbox').checked=true;
  click('transcribeButton');
  await wait(()=>calls.length>before&&!document.getElementById('iphoneExportButton').disabled);
- assert(document.getElementById('iphoneExportLocation').textContent==='Save in: Phone Without Destination');
- assert(!document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
+ assert(document.getElementById('iphoneExportLocation').textContent==='Save in: Phone Without Destination / transcription');
+ assert(document.getElementById('transcribePreferredDestination').textContent.includes('Phone Without Destination / transcription'));
+ assert(document.getElementById('iphoneExportFolderHelp').textContent.includes('Create'));
 });
 await test('iPhone can transcribe beside a mixed collection without adopting either archive identity',async()=>{
  const name='Phone Mixed Collections';
@@ -699,7 +712,7 @@ await test('iPhone verifies a whole transcript batch and retries only a numbered
   assert(first&&second&&shared.at(-1).length===2,'New transcripts must still share as one batch');
   const observed=file=>new File([file],file.name,{lastModified:Date.now()});
   const duplicate=new File([second],second.name.replace(/\.txt$/,' 2.txt'),{lastModified:Date.now()});
-  selections.push({kind:'file-input',name:source.name,files:[observed(first),duplicate]});
+  selections.push({kind:'file-input',name:'transcription',files:[observed(first),duplicate]});
   verify.click();await wait(()=>!verify.disabled&&details.textContent.includes('1 of 2 verified'));
   assert(details.textContent.includes(duplicate.name)&&details.textContent.includes('around the save attempt'));
   const retry=details.querySelector('button');
@@ -707,29 +720,46 @@ await test('iPhone verifies a whole transcript batch and retries only a numbered
   assert(details.contains(retry)&&shared.length===count+1,'Cancel must retain the unresolved file for retry');
   cancel=false;retry.click();await wait(()=>!verify.disabled&&shared.length===count+2);
   assert(shared.at(-1).length===1&&shared.at(-1)[0]===second,'Retry must share only the unresolved transcript');
-  selections.push({kind:'file-input',name:source.name,files:[observed(first),observed(second)]});
+  selections.push({kind:'file-input',name:'transcription',files:[observed(first),observed(second)]});
   verify.click();await wait(()=>!verify.disabled&&details.textContent.includes('2 of 2 verified'));
   assert(verify.hidden&&!details.querySelector('button'),'The fully verified batch must clear the verify and retry actions');
  });
 });
-await test('Desktop defaults to the audio folder and can create the standard transcription child from the picker',async()=>{
+await test('Desktop prompts for the preferred Transcribe and Combine destinations',async()=>{
  const {root:audio}=directory('Desktop Without Destination');
  await seedAudio(audio,'desktop.wav',ID);
  selections.push(audio);
  click('sourceButton');
  const destination=document.getElementById('transcribeDestinationFolder');
- await wait(()=>!document.getElementById('sourceButton').disabled&&destination.textContent===audio.name);
+ const preferred=document.getElementById('transcribePreferredDestination');
+ await wait(()=>!document.getElementById('sourceButton').disabled&&!preferred.hidden);
+ assert(destination.textContent==='None Selected'&&preferred.textContent.includes(audio.name+' / transcription'));
  document.querySelector('#recordings .recording-checkbox').checked=true;
  const before=calls.length;
  click('transcribeButton');
- await wait(()=>calls.length===before+1&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
- const entries=[];
- for await(const [name] of audio.entries()) entries.push(name);
- assert(entries.some(name=>name.endsWith('.txt'))&&!entries.includes('transcription'),'The default save must write to the audio folder');
- document.querySelector('[data-select-transcript=transcribe]').click();
  await choose('Create “transcription” Folder');
- await wait(()=>!document.getElementById('sourceButton').disabled&&destination.textContent===audio.name+' / transcription');
- assert((await audio.getDirectoryHandle('transcription')).kind==='directory');
+ await wait(()=>calls.length===before+1&&document.getElementById('transcriptionStatus').textContent==='Transcription complete.');
+ assert(preferred.hidden&&destination.textContent===audio.name+' / transcription');
+ const transcriptFolder=await audio.getDirectoryHandle('transcription');
+ click('combineTab');
+ await wait(()=>document.querySelector('#transcripts .recording-checkbox'));
+ const combineDestination=document.getElementById('combineDestinationFolder');
+ const combinePreferred=document.getElementById('combinePreferredDestination');
+ assert(combineDestination.textContent==='None Selected'&&!combinePreferred.hidden&&combinePreferred.textContent.includes(audio.name+' / transcription / combined'));
+ const row=document.querySelector('#transcripts .recording-checkbox');
+ if(!row.checked)row.click();
+ click('combineTextButton');
+ await choose('Create “combined” Folder');
+ await wait(()=>combinePreferred.hidden&&!document.getElementById('combineTextButton').disabled);
+ assert(combineDestination.textContent===audio.name+' / transcription / combined');
+ const combined=await transcriptFolder.getDirectoryHandle('combined');
+ const entries=[];
+ for await(const [name] of combined.entries())entries.push(name);
+ assert(entries.some(name=>name.endsWith('.txt')),'The export must write to the newly selected combined folder');
+ click('textSourceButton');
+ await choose(audio.name+' / transcription');
+ await wait(()=>!document.getElementById('textSourceButton').disabled);
+ assert(combineDestination.textContent===audio.name+' / transcription / combined'&&combinePreferred.hidden,'Opening the transcript source must preselect the existing combined folder');
 });
 await test('Comparison ignores lower-model duplicates and admits edits and highest-model numbered copies',async()=>{
  const {getEditedTranscriptChoices,selectHighestModelRecords}=await import('../js/combine.js');
