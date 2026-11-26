@@ -656,10 +656,27 @@ await test('Combined edit metadata is optional and includes only the confirmed e
  assert(fields.find(([name])=>name==='editedInMemora')?.[2]==='2026-11-25','DOCX and HTML metadata must use only the edit date');
  assert(!getCombinedMetadataFields({...record,memoraEdit:{...record.memoraEdit,confirmed:false}}).some(([name])=>name==='editedInMemora'));
  const read=(options)=>new DOMParser().parseFromString(createCombinedHTML([record],'Combined',options),'text/html');
- const hidden=read(defaultCombineMetadata).querySelector('[data-metadata-field="editedInMemora"]');
+ const omitted=read(defaultCombineMetadata);
+ const selector='#metadataDisplayFields input[value="editedInMemora"]';
+ const hidden=omitted.querySelector('[data-metadata-field="editedInMemora"]');
  const included=read({...defaultCombineMetadata,editedInMemora:true});
  const visible=included.querySelector('[data-metadata-field="editedInMemora"]');
  assert(hidden.hidden&&!visible.hidden&&visible.textContent==='Edited in Memora: 2026-11-25');
+ assert(omitted.querySelector(selector)?.checked===false&&included.querySelector(selector)?.checked===true,'The HTML checkbox must reflect the export option');
+ const allOptions=Object.fromEntries(Object.keys(defaultCombineMetadata).map(key=>[key,true]));
+ assert(read(allOptions).querySelector(selector)?.checked===true,'The checkbox must be available when all metadata starts visible');
+ const frame=document.createElement('iframe');
+ const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+ frame.srcdoc=createCombinedHTML([record],'Combined');
+ document.body.append(frame);await loaded;
+ try {
+  const doc=frame.contentDocument;
+  doc.getElementById('showMetadataOptions').click();
+  const toggle=doc.querySelector(selector);
+  const date=doc.querySelector('[data-metadata-field="editedInMemora"]');
+  toggle.click();assert(!date.hidden,'Checking the exported control must show the edit date');
+  toggle.click();assert(date.hidden,'Unchecking the exported control must hide the edit date');
+ } finally {frame.remove();}
  assert(!included.documentElement.outerHTML.includes(record.memoraEdit.target),'Internal destination filename must never be exported');
 });
 await test('iPhone verifies a whole transcript batch and retries only a numbered copy',async()=>{

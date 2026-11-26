@@ -17,7 +17,8 @@ export function createCombinedHTML(
 ) {
 
     const defaultSort = inferDefaultSort(records);
-    const hasOmittedFields = Object.keys(defaultCombineMetadata).some(key => !metadataOptions[key]);
+    const showMetadataControls = Object.keys(defaultCombineMetadata).some(key => !metadataOptions[key]) ||
+        records.some(record => record.memoraEdit?.confirmed);
     const hasSearchHighlights = records.some(record => record.searchHighlights?.length);
 
     const sections =
@@ -457,14 +458,14 @@ export function createCombinedHTML(
                             </div>
                         </div>
                     </div>
-                    ${hasOmittedFields ? `
+                    ${showMetadataControls ? `
                         <div class="metadata-display-options">
                             <label>
                                 <input id="showMetadataOptions" type="checkbox" autocomplete="off" aria-controls="metadataDisplayFields">
                                 Metadata display options
                             </label>
                             <div class="metadata-display-fields" id="metadataDisplayFields" hidden>
-                                ${[["title", "Transcript title"], ...getCombinedMetadataFields({}), ["separator", "Separator"]].map(([key, label]) =>
+                                ${[["title", "Transcript title"], ...getCombinedMetadataFields({}), ["editedInMemora", "Edited in Memora"], ["separator", "Separator"]].map(([key, label]) =>
                                     `<label><input type="checkbox" value="${key}" autocomplete="off" ${metadataOptions[key] ? "checked" : ""}> ${label}</label>`
                                 ).join("\n")}
                             </div>
