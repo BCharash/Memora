@@ -253,9 +253,6 @@ function updateCombineOutputOptions() {
         const {parentHint} = transcriptSaveLocation(combineDestination?.source || textSourceHandle);
         location.textContent = `Save in: ${folder}. Choose this folder in Save to Files.${parentHint}${createHint}`;
     }
-    if (getTranscriptFileCount() === 0) {
-        combineTitleInput.value = DEFAULT_COMBINE_TITLE;
-    }
 }
 function renderCombineTranscriptList(){
     const box=document.getElementById('combineListOrigin');
@@ -1297,12 +1294,6 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     combineSearchHighlights.checked = false;
     renderCombineTranscriptList();
 
-    if (combineTitleInput) {
-        const audioName = getCombineAudioSourceName(searchSourceHandle, records);
-        const title = searchTitle || DEFAULT_COMBINE_TITLE;
-        combineTitleInput.value = audioName ? `${audioName} - ${title}` : title;
-    }
-
     updateDestinationVisibility(textSourceHandle.kind === "file-input");
     if (previousSource !== textSourceHandle) {
         const selected = sharedFolders.snapshot().transcript;
@@ -1311,6 +1302,11 @@ async function useSearchSelectionInCombine(files, searchQuery, searchSourceHandl
     textSourceButton.textContent = 'Select Transcript Folder';
 
     await displayTranscriptFiles(files);
+    if (getTranscriptFileCount() > 0) {
+        const audioName = getCombineAudioSourceName(searchSourceHandle, records);
+        const title = searchTitle || DEFAULT_COMBINE_TITLE;
+        combineTitleInput.value = audioName ? `${audioName} - ${title}` : title;
+    }
 
     const selectedCount = records.length || files.length;
     combineStatus.textContent =
@@ -1360,16 +1356,14 @@ async function openCombineSource(selectedSource, label) {
     updateDestinationVisibility(textSourceHandle.kind === 'file-input');
     const files=snapshot.files;
 
-    if (combineTitleInput) {
-        combineTitleInput.value =
-            createFolderCombineTitle(selectedSource, snapshot.records);
-    }
-
     await loadCombineDestination(selectedSource, label);
 
     await displayTranscriptFiles(
         files, undefined, {complete: snapshot.complete}
     );
+    if (getTranscriptFileCount() > 0) {
+        combineTitleInput.value = createFolderCombineTitle(selectedSource, snapshot.records);
+    }
 
     textSourceButton.textContent = 'Select Transcript Folder';
 
@@ -1410,6 +1404,7 @@ if (combineTitleInput) {
 initCombineUI({
     getCombineModule,
     onSelectionChanged: ({preserveShareStatus = false} = {}) => {
+        if (getTranscriptFileCount() === 0) combineTitleInput.value = DEFAULT_COMBINE_TITLE;
         updateCombineOutputOptions();
         if (preserveShareStatus) combineShareExportUI.updateButton();
         else combineShareExportUI.reset();

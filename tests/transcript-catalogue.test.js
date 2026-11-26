@@ -90,9 +90,22 @@ await test('Search still reads its embeddings JSON while loading TXT metadata lo
  const {sharedSearchArchives}=await import('./shared-production-search-fixtures.js');await put(child,'search-embeddings.json',JSON.stringify({marker:'keep embedding archive'}));click('searchTab');await wait(()=>document.getElementById('searchIndexStatus').textContent.includes('Search ready'));assert(sharedSearchArchives.at(-1).marker==='keep embedding archive');assert(JSON.parse(await(await(await child.getFileHandle('search-embeddings.json')).getFile()).text()).marker==='keep embedding archive');click('transcriptionTab');
 });
 await test('Combine scope shows Search description without Memora, survives tab returns, and resets to All on folder load',async()=>{
+ const title=document.getElementById('combineTitleInput');
+ const folderTitle='Parent - Combined transcription';
  click('combineTab');await wait(()=>!document.getElementById('textSourceButton').disabled);click('textSourceButton');await choose('Parent / transcription');
  await wait(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('combineListScope').textContent==='All');
  assert(document.getElementById('combineListFolder').textContent==='Parent / transcription');
+ assert(title.value===folderTitle,'Choosing the folder in Combine must use the folder title');
+ for(const [tab,selector] of [['transcriptionTab','[data-select-transcript=transcribe]'],['searchTab','#searchSourceButton']]){
+  click(tab);
+  const picker=document.querySelector(selector);
+  await wait(()=>!picker.disabled);
+  picker.click();await choose('Parent / transcription');
+  await wait(()=>!picker.disabled);
+  click('combineTab');
+  await wait(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('combineListScope').textContent==='All');
+  assert(title.value===folderTitle,`Choosing the folder from ${tab} must use the same title`);
+ }
  click('searchTab');await wait(()=>!document.getElementById('searchButton').disabled);
  const input=document.getElementById('searchQueryInput');input.value='What did I say about dreams?; Silence, stillness';input.dispatchEvent(new Event('input'));
  click('searchButton');await wait(()=>document.querySelector('.search-use-combine-button'));
@@ -100,10 +113,12 @@ await test('Combine scope shows Search description without Memora, survives tab 
  await wait(()=>!document.getElementById('combinePanel').hidden&&document.getElementById('combineListScope').textContent==='Search: Dreams; Silence, Stillness');
  assert(document.getElementById('combineListFolder').textContent==='Parent / transcription');
  assert(document.getElementById('textSourceButton').textContent==='Select Transcript Folder');
- assert(document.getElementById('combineTitleInput').value==='Memora — Search: Dreams; Silence, Stillness');
+ const searchTitle='Parent - Search: Dreams; Silence, Stillness';
+ assert(title.value===searchTitle,'Passing Search results must retain the search-specific title');
  assert(document.querySelectorAll('#transcripts .recording-checkbox').length===1,'Search subset replaced by full folder');
- click('searchTab');click('combineTab');assert(document.getElementById('combineListScope').textContent==='Search: Dreams; Silence, Stillness');
+ click('searchTab');click('combineTab');assert(document.getElementById('combineListScope').textContent==='Search: Dreams; Silence, Stillness'&&title.value===searchTitle);
  click('textSourceButton');await choose('Parent / transcription');await wait(()=>!document.getElementById('textSourceButton').disabled&&document.getElementById('combineListScope').textContent==='All');
+ assert(title.value===folderTitle,'Explicitly choosing a folder again must restore the folder title');
  const headings=[document.querySelector('#combinePanel .folder-heading'),...document.querySelectorAll('#combinePanel .shared-folder-row h2')];
  assert(new Set(headings.map(h=>getComputedStyle(h).fontSize)).size===1,'Folder and list heading sizes differ');
  const frame=document.createElement('iframe');frame.style.width='390px';frame.style.height='700px';document.body.append(frame);
