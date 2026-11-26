@@ -7,6 +7,7 @@ Current save and editor reference **2026-11-26.4**, database schema **10**. The 
 | Question | Read |
 |---|---|
 | What works now, what needs testing, and what comes next? | [Current status and resume instructions](CURRENT_STATUS.md) |
+| How can Memora reduce iPhone resource pressure and automate Whisper self-tests? | [Resource Management](Resource_Management.md) |
 | Where should desktop Codex resume the iPhone 2017 audio-load investigation? | [Crash investigation handoff](iPhone_2017_Audio_Load_Investigation.md); observations, source findings and options, no code authorized |
 | Where do iPhone saves go, and how do the transcript editors behave? | [iPhone save flow audit](iPhone_Save_Flow_Audit.md) |
 | How do I run a relevant check safely? | [Test guide](../tests/README.md) |
