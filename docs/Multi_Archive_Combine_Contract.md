@@ -4,6 +4,20 @@ Reviewed **21 November 2026**, source **95fe938**, application **2026-11-21.10**
 
 Both originals remain complete in the dated archive: [architecture](archive/2026-11-21-contracts/MEMORA_COMBINE_ARCHITECTURE.md) and [Phase 1 contracts](archive/2026-11-21-contracts/MEMORA_COMBINE_PHASE_1_CONTRACTS.md). Their obsolete manifest/source-UUID/filename-keyed-cache prerequisites are superseded by [current identity/storage](Recording_Identity_and_Storage.md). Their unique requirements, experiments and earlier approval boundaries are preserved.
 
+## 26 November 2026 design direction
+
+Search stays scoped to one archive at a time, with its own index and ranking. Combine can collect selected transcripts across Search passes in the same archive and across separately searched archives. An **Add to Combine** action appends the selection while retaining earlier members, order, checkboxes, workspace title and drafts. Each pass retains its archive and query description. Repeated selection of the same logical recording adds provenance and applicable highlights to its existing row. Match highlights are tied to the transcript version they came from and need validation if the text changes.
+
+The first stage is an in-session Combine workspace. Give each member a source association and an exact saved-file reference where available. Use archive UUID, Recording ID and operation for identified transcripts. Preserve separate rows for independent archives and for transcription versus translation. Keep unresolved sources visible and leave the original file as the only target of a source transcript edit. Workspace persistence can follow without being required for the initial workflow.
+
+Combine should accept TXT, DOCX and HTML. Treat a supported Memora TXT transcript as an individual transcript. A future Memora combined document with validated references can restore multiple members and their provenance. For older exports or ordinary documents without reliable references, the proposed fallback is to import readable content as document excerpts, preserve paragraphs and source labels, and allow an explicit audio association. Scope an initial plain import to one excerpt per file. Faithful recovery of recording boundaries, highlights and audio links from legacy exports needs separate evidence and rules. Imported document excerpts belong to the workspace and have no automatic write-back to an archive TXT.
+
+For playback in Combine, keep the audio folder association with each source and resolve verified Recording IDs within that source. Retain known relative paths for navigation and fallback. Duplicate basenames across archive folders need independent bindings. A missing or ambiguous match should name the archive and prompt for its audio folder or an explicit file choice. Each source keeps its binding when the user changes the active Search archive.
+
+For exported HTML, include per-record source keys, known relative paths and recording identities. Use validated relative links when a usable path is known. For portable or moved exports, provide folder selection for each source and keep the reader's matches scoped to that source and its relative paths. Persisted file access and session-local browser audio URLs cannot travel in the document. Text remains readable when audio is unavailable. The existing reader registers audio by basename, so two different recordings named `memo.m4a` cannot safely share its current lookup. The reader needs source-aware matching before multi-archive playback ships.
+
+Prove additive Search handoffs and two-archive playback first, including identical filenames, renamed audio and missing access. Then add the three document readers and round-trip provenance, followed by source-aware standalone HTML playback and optional workspace persistence. This is a proposal recorded for review. No application implementation was requested.
+
 ## Status and prerequisites
 
 | Area | Current source | Still required / status |
@@ -11,7 +25,7 @@ Both originals remain complete in the dated archive: [architecture](archive/2026
 | Embedded/reproducible audio identity and TXT Archive UUID | Implemented; no inventory sidecars required. | Preserve identities and explicit conflicts; do not reintroduce source UUID binding. |
 | Durable full-text cache variants and folder metadata | Implemented. | Not a workspace, archive registry or file-access grant. |
 | Shared audio/transcript selection and ID-first playback | One active shared audio source; current folder/subset flow. | Retain separately scoped access for each contributing archive. |
-| Model-family preference | Shared selector used before Search indexing and Combine selection. | Same-family counter tie-breaker and new multi-source integration/dirty-state cases remain. |
+| Model-family preference | Shared selector used before Search indexing and Combine selection. | Preserve the current confirmed-edit and explicit-preference rules across source scopes. |
 | Combine list | Replaced on folder load; selected Search subset replaces list. | Additive multi-archive membership, durable-reference row identity, independent source refresh/removal. |
 | Editing | Explicit saved-text paths and existing conflict checks. | Full exact-target/dirty-editor behavior under multi-source preference changes. |
 | Persistent workspace/import | Not implemented. | Membership/state persistence and reviewed Merge/Replace/import. |
@@ -38,9 +52,9 @@ Evaluate currently accessible candidates before Search matching/indexing, on rel
 |---|---|
 | Different recognized model families | Highest available family: tiny < base < small < medium < Large. Historical large/large-v3 rank together without rewriting provenance. |
 | Higher family appears / winner disappears | Reevaluate; choose next valid ranked candidate if available. No candidates leaves unresolved. |
-| Same recognized family versions | Agreed target: highest recognized filename counter; unsuffixed = 1. **Unimplemented.** Define iPhone Files naming behavior before claiming parity. |
-| Winner edited | Same candidate with current text; invalidate only affected derived data. |
-| Lower-family alternative edited | Remains lower-ranked; no automatic correction propagation or preference override. |
+| Same recognized family versions | Current rule keeps the first encountered unedited version and offers comparison for numbered copies of the highest model. |
+| Confirmed Memora edit | Current rule gives a confirmed edit priority over an unedited copy, including a higher-model copy. |
+| Explicit preference | Preserve the current **Use once** and **Make default** choices, scoped to the applicable logical reference. |
 | Unknown/conflicting identity or ambiguous counter/model naming | Explicit conflict/unresolved state; no invented timestamp, generation, precision or filesystem creation-date priority. |
 | Different archive or operation | Independent reference regardless of content/name similarity. |
 
@@ -81,13 +95,13 @@ Keep unavailable members visible, ask for the specific missing archive/source, a
 
 Persistable native handles may still require renewed permission. iPhone file snapshots generally require reselection after reload. The goal is reusable current-session access, not a promise of invisible future access. Do not add a global default audio source that can retarget old members.
 
-Preserve existing standalone HTML behavior: desktop relative-audio handling and current iPhone playback suppression are separate from live app permissions. The exported reader does not inherit the app's selected folders.
+Standalone HTML uses export-relative audio paths when desktop can calculate them. iPhone exports carry the transcript's relative path. The exported reader needs its own folder access when those paths cannot resolve.
 
 ## Output and document references
 
 Readable exports remain full static TXT/DOCX/HTML with selected resolved transcript text and paragraphs. The proposed structured payload contains references/order/provenance/settings, **not another authoritative transcript body**. Existing exports never update automatically.
 
-Reimport restores references and resolves current preferred TXT. The round-trip target is references, order, provenance and settings, not a historical text snapshot. Imported visible Word/HTML/TXT text must never overwrite source transcripts. No arbitrary third-party import, old combined-format compatibility parser or external Word-edit synchronization is in initial scope.
+Structured reimport restores references and resolves current preferred TXT. The round-trip target is references, order, provenance and settings. A separate readable-content import can handle documents that lack a supported reference payload, as proposed above. Imported Word, HTML or TXT content must never overwrite source transcripts.
 
 Future Output order: heading → editable title → four inclusion controls → existing platform-specific generation/delivery.
 
@@ -129,7 +143,7 @@ Retained policy: default **90 days**, configurable integer **1–365**; expiry f
 After documentation and the separate JavaScript structural review:
 1. Review concrete multi-source membership/access and interface behavior, including same-name and copy identity.
 2. Add an in-session multi-archive list using durable references and source-specific audio access; retain existing controls and prove two-source playback/edit/selection.
-3. Complete shared preference/counter and dirty-editor rules without deleting alternatives.
+3. Preserve the shared preference rules and protect exact editor targets across additions and source changes.
 4. Design preserving workspace persistence through database.js and explicitly test reload/permission/unresolved behavior.
 5. Finalize/validate import schema, framing and bounded extraction before activating Merge/Replace.
 6. Add portable metadata and Output controls with unchanged readable generation, then real desktop/iPhone acceptance.

@@ -1,6 +1,6 @@
 # Architecture and file workflows
 
-File and editor workflows updated **24 November 2026** against source **06c4155**, application **2026-11-24.10**, database **10**.
+File, editor and export workflows updated **26 November 2026** against source **214b9f5**, application **2026-11-26.4**, database **10**.
 
 Use [current status](CURRENT_STATUS.md) for the resume boundary, [identity and storage](Recording_Identity_and_Storage.md) for exact data responsibilities, and [tests](../tests/README.md) for verification. Original guides remain in the [dated contract archive](archive/README.md#contracts-superseded-by-current-references--21-november-2026).
 
@@ -43,9 +43,9 @@ One session selection is reused across tabs. This is not a persistent library, r
 
 ## Transcribe and destination handling
 
-The source is above the transcription settings; destination controls remain below them. Model, language and operation controls stay grouped; paragraphing applies only when enabled. [Current status](CURRENT_STATUS.md#transcription-and-saving) owns the exact Enable Transcription and pending-save UI rules.
+Transcript Destination sits directly beneath Audio Source, above the transcription settings. Model, language and operation controls stay grouped; paragraphing applies only when enabled. [Current status](CURRENT_STATUS.md#transcription-and-saving) owns the exact Enable Transcription and pending-save UI rules.
 
-Desktop may use/create transcription, select the source destination or browse. A selected destination's current TXT supplies its collection identity; an empty one gets a session identity carried by its first TXT. Existing conflicting identities must not be silently rewritten.
+Desktop preselects an existing transcription folder. If it is missing, the field stays blank and shows the preferred path in a status line. The picker can create the preferred child, use the audio folder, or browse. Transcribe prompts for a destination before starting if the field is blank. A selected destination's current TXT supplies its collection identity; an empty one gets a session identity carried by its first TXT. Existing conflicting identities must not be silently rewritten.
 
 An iPhone empty/new destination may be a named intended location rather than a readable/writable folder grant. The app can prepare named files and guidance; the user still chooses Files placement. It does not discover inaccessible empty folders or silently write to them.
 
@@ -57,8 +57,8 @@ Native TXT writing and local text caching are distinct operations. Current saveP
 |---|---|---|
 | New transcripts | TXT in the granted destination. The local cache is separate. | Named TXT batch with the intended folder, known parent and instructions for creating a newly named child. |
 | Edited transcript | Write to the original accessible target after the existing content-change checks. Save the Search index with a separate action. | Share the replacement TXT by itself. Check its exact filename and edited contents in Files, then use Update Search Index to share the JSON separately. |
-| Combined TXT/DOCX/HTML | Use the output folder controls and selected document format. | Suggest the `combined` subfolder and allow another folder in Files. |
-| Search embeddings archive | Write the JSON to the transcript source. | Share `search-embeddings.json` beside the TXT files. The pending pulse stops after a successful share and the standard button supports repeat saves. |
+| Combined TXT/DOCX/HTML | Preselect a known `combined` child or show the preferred path and prompt for a destination on export. | Guide Save to Files to the selected or preferred `combined` folder. Include creation instructions when needed. |
+| Search embeddings archive | Write the JSON to the transcript source. | Share `search-embeddings.json` beside the TXT files. The pending pulse stops after a successful share. Verifying the current JSON disables the button until there are new changes. |
 | Cached transcripts | Export selected cached TXT to a writable folder, skipping existing names. | Share to a recovery folder with file count and known archive context. |
 | Diagnostic reports | Download or copy where supported. | Share the named report and check it in the chosen folder. Copy or manual alternatives depend on the report. |
 
@@ -78,7 +78,7 @@ Both editors compare current text with the original before showing Save and any 
 
 Search reads current TXT, chooses preferred model-family records, reconciles derived vectors and retains its independent index file. [Search methodology](Search_Methodology.md) details ranking, parsing and current performance limitations. [Paragraphing methodology](Paragraphing_Methodology.md) explains why existing paragraph structure is preserved.
 
-Existing exported documents are static readable artifacts. Standalone HTML has its own reader/audio behavior and does not inherit live app handles. Proposed collection-reference import/output metadata and persistent workspaces are in the [future Combine contract](Multi_Archive_Combine_Contract.md), not current exporter guarantees.
+Existing exported documents are static readable artifacts. Standalone HTML has its own reader and audio access. Its Metadata display options include a toggle for confirmed edit dates. The document retains the controls it had when exported. Proposed collection-reference import/output metadata and persistent workspaces are in the [future Combine contract](Multi_Archive_Combine_Contract.md), not current exporter guarantees.
 
 ## Operational boundaries
 

@@ -1,6 +1,6 @@
 # Memora — current status and resume instructions
 
-Save and editor workflows updated **25 November 2026** for application **2026-11-25.9**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
+Save, editor and export workflows updated **26 November 2026** for application **2026-11-26.4**, database schema **10**. See the [iPhone save flow audit](iPhone_Save_Flow_Audit.md) for destinations, revision history and device checks.
 
 ## Current behavior
 
@@ -34,7 +34,7 @@ Combine reads selected-folder TXT metadata/text and displays its current list. T
 
 When the list clears, the combined title returns to **Combined Transcription**. Unchecking every transcript hides DOCX/HTML options and preserves the current title. Combine Destination preselects an existing `combined` child when Memora can see it. Otherwise it stays blank and shows the preferred path. Desktop prompts for a destination before export. On iPhone, TXT, DOCX and HTML use the chosen folder or suggest the preferred child in Save to Files.
 
-Search and Combine show **Save** only after the text changes and hide it again if the original text is restored. **Cancel** remains visible with the same styling. The two actions sit below the textarea. The file-sharing routes show the original filename and destination so the user can replace it and verify the result.
+Search and Combine show **Save** only after the text changes and hide it again if the original text is restored. **Cancel** remains visible with the same styling. The two actions sit below the textarea. Save brings the transcript footer and verification into view, and Cancel returns to the transcript header. The file-sharing routes show the original filename and destination so the user can replace it and verify the result.
 
 Search **Show transcript** displays the entire text with colored matches. **Edit** opens the entire text and focuses the first match. Previous and Next sit on one row and navigate matches across line breaks and repeated spaces. Tap elsewhere in the editor to place the cursor and clear the selection. A preview shows the match when the box loses focus. On narrow screens, Edit, Show transcript and Hide result sit below the filename.
 
@@ -46,7 +46,7 @@ Both desktop and iPhone keep **Update Search Index** separate from the transcrip
 
 The optional **Verify in Files** action checks contents and modification time. A confirmed edit becomes the default across Search and Combine even when a higher model exists. Alternative versions can be compared, and Combine can use the alternate in the current output. Index update guidance explains why the save is pending, including when deleting an indexed TXT is the only change.
 
-Verification appears beside each save after sharing. Edited TXT verification stays with the transcript, with a Search status fallback if its result is absent. Transcribe checks an entire batch with one folder selection and offers single-file retries for any unresolved files. A successful check clears the instructions and Verify action and leaves a confirmation. A partial batch keeps the action available.
+Verification appears beside each save after sharing. Edited TXT verification stays with the transcript, with a Search status fallback if its result is absent. Transcribe checks an entire batch with one folder selection and offers single-file retries for any unresolved files. A successful check clears the instructions and Verify action and leaves a confirmation. A partial batch keeps the action available. Verifying the current Search JSON disables Update Search Index until the index changes again.
 
 **Use once** overrides a version for the next successful Combine export and survives a canceled or failed attempt. **Make default** remembers an explicit version for Search and Combine in this browser, scoped to the archive, recording and operation. **Reset to automatic** or removal from **Settings → Preferred transcript versions** restores automatic selection. Settings lists explicitly saved preferences only.
 
@@ -87,7 +87,15 @@ Browser-version changes alone do not invalidate qualification within the same re
 
 Successful production execution history expires after 24 hours; failures/interruption records remain until selected for clearing. Durable eligibility incidents/decisions and stability observations are separate from clearable histories. See the [current Whisper guide](Whisper_Architecture_and_Qualification.md) and separate [failure/review contract](Whisper_Execution_Failure_Contract.md). The new [memory handoff](Memora_Whisper_Memory_Handoff.md) is preserved unchanged as future feasibility-first work; no memory instrumentation or model policy changed.
 
+## Exported HTML
+
+New HTML exports offer **Edited in Memora** under **Metadata display options**. The export setting controls whether the box starts checked. Confirmed Memora edits contribute the edit date, without the internal target filename. The user confirmed that refreshing the cache fixed a missing checkbox on a new export. Previously generated HTML keeps the controls embedded at export time.
+
+Search remains scoped to one archive. Additive Search handoffs, TXT/DOCX/HTML imports and source-specific audio linking in Combine are proposals. [Multi-archive Combine contract](Multi_Archive_Combine_Contract.md)
+
 ## Validation and acceptance
+
+For **2026-11-26.4**, headless Edge passed **47** catalogue/app checks with one pre-existing Combine title assertion failure. Coverage included both desktop destination pickers, existing combined-folder preselection, iPhone destination guidance and the HTML edit-date checkbox. Native iPhone Files behavior still needs device verification.
 
 For **2026-11-25.9**, headless Edge passed **45** catalogue/app checks, including one visible Combine row, one-time and persistent choices, optional edit date export, and the iPhone batch and individual save verification flows. The two baseline failures remain. Actual iPhone verification still needs a device check.
 

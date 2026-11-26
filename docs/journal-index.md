@@ -1,6 +1,6 @@
 # Memora design journal — whole document and five volumes
 
-Synchronized **25 November 2026**, journal version **50**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the earlier audit scope and findings.
+Synchronized **26 November 2026**, journal version **51**. The [whole journal](design-journal.md) is the canonical chronological record. The five volumes contain the same section bodies in smaller reading units. Use [CURRENT_STATUS](CURRENT_STATUS.md) for implemented behavior and work remaining, and the [documentation review](Documentation_Review_2026-11-19.md) for the earlier audit scope and findings.
 
 | Representation | Actual sections | Main subjects |
 |---|---|---|
@@ -29,13 +29,15 @@ Section [62.43](design-journal.md#6243-iphone-save-destinations-and-transcript-e
 
 Section [62.44](design-journal.md#6244-iphone-overwrite-behavior-and-separate-saves) records the 25 November destination behavior, archive identity findings, duplicate files and confirmed single-file overwrite correction through **2026-11-25.3**.
 
+Sections [62.45](design-journal.md#6245-save-verification-folder-selectors-and-exported-edit-dates) and [62.46](design-journal.md#6246-multi-source-combine-direction) record the save and HTML changes through 2026-11-26.4 and the multi-source Combine design review.
+
 ## Recent material in Volume 5
 
 - **Section 60:** runtime/database ownership; canonical model definitions; self-test/production workers, reports, eligibility and reviews; saved observations and summary context.
 - **Section 61:** completed archive migration; embedded recording identity; source-list design, validation, persistence/recovery and production/header integration.
 - **Section 62:** compact successful-test summary; Transcribe/Combine controls; Settings cache management; audio/transcript JSON reconciliation and naming; browser-version continuity; simpler metadata/counter decisions; source-scoped audio guidance; documentation review; parent-folder access test and resume handoff; 20 November recording-identity/rebuild checkpoints; shared parent access and bundled iPhone saves; revised Enable Transcription and save/status guidance plan; 21 November implementation retires the transcript JSON only, adds local metadata and explicit transcription intent.
 
-The later entries explicitly supersede earlier proposals where necessary. In particular, detailed Whisper TXT metadata/backfill and an extra transcription timestamp were dropped. Counter priority remains agreed but unimplemented; whole-folder iPhone audio removal parity is implemented. Transcribe destination reconciliation and shared parent access are implemented through .7. Search shared-scan reconciliation, portable imports/workspace and broader recursive ownership remain future work. Section 62.22 preserves the earlier plan. Section 62.23 implements the later approved TXT-catalogue/session/save changes as candidate 2026-11-21.1, including retirement of transcript JSON while retaining audio JSON and embeddings.
+The later entries explicitly supersede earlier proposals where necessary. In particular, detailed Whisper TXT metadata/backfill and an extra transcription timestamp were dropped. Current equal-model priority keeps the first unedited version; whole-folder iPhone audio removal parity is implemented. Transcribe destination reconciliation and shared parent access are implemented through .7. Search shared-scan reconciliation, portable imports/workspace and broader recursive ownership remain future work. Section 62.22 preserves the earlier plan. Section 62.23 implements the later approved TXT-catalogue/session/save changes as candidate 2026-11-21.1, including retirement of transcript JSON while retaining audio JSON and embeddings.
 
 ## Keeping both representations synchronized
 

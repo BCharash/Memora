@@ -127,7 +127,7 @@ These are documentation observations for future review, not authorization to cha
 
 Selected result transcripts can be passed to Combine. Their origin box shows the folder and **Search: description**, using the suggested document title without its Memora prefix. Semicolons remain between terms; commas within terms remain intact. Returning across tabs retains that subset/origin; explicitly selecting a transcript folder loads All.
 
-The description identifies list origin, not a persistent query-history entry, current checkbox count or multi-archive collection. A new query/selection should not be confused with implemented persistent Search history.
+The description identifies list origin, not a persistent query-history entry, current checkbox count or multi-archive collection. Search stays scoped to one archive. The proposed Combine workspace would accumulate selected transcripts from multiple passes and archives while preserving each pass origin. [Multi-archive Combine contract](Multi_Archive_Combine_Contract.md)
 
 ## Research lessons worth retaining
 

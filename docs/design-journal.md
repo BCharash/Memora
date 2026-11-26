@@ -1,7 +1,7 @@
 # Memora Design Journal
 
-**Version:** 50
-**Status:** Living document through section 62.44 (25 November 2026)
+**Version:** 51
+**Status:** Living document through section 62.46 (26 November 2026)
 **Project:** Memora  
 **Purpose:** Organize, transcribe, preserve, and combine recordings from Apple Voice Memos and other audio sources.
 
@@ -4926,3 +4926,18 @@ Build **.2** added an alternate suggested folder for a selected collection with 
 The user reported that the mixed TXT and JSON share silently kept numbered copies without offering Replace. Inspection found four distinct TXT bodies for the same recording, archive and model, and three index filenames. One numbered TXT predated this test. Search picks the first tie within the same model family and reads only the exact index filename, so numbered copies can hide the intended edit. Reselecting the folder after deletion excludes missing TXT files. The next successful index replacement drops stale entries, although deletion alone may leave the update button hidden.
 
 Build **.3** separated the two actions and explained Replace and numbered copies beside the intended filenames. The user confirmed on iPhone that the split corrected the problem. **Keep one file per share when a duplicate warning and Replace are needed.** Sharing multiple TXT files with name collisions remains untested. The headless suite passed 38 checks with two pre-existing failures. [Save flow and device evidence](iPhone_Save_Flow_Audit.md#iphone-overwrite-rule)
+
+### 62.45 Save verification, folder selectors and exported edit dates
+
+**26 November 2026** · Through application **2026-11-26.4**, source **214b9f5**
+
+The later 25 November builds added exact-content checks for iPhone TXT and JSON saves, edited-copy preference and version choices, and batch transcript verification with individual retries. Search now updates the live index while leaving the displayed result list in place. It advises rerunning Search after a saved edit, so the user can review any new matches or rankings. Saving in either editor closes it before offering verification at the transcript footer. Cancel returns to the header. A verified current JSON disables its update button until there are new changes.
+
+On 26 November, Transcribe moved its destination selector beneath Audio Source and Search placed Previous and Next match on one row. The iPhone-only stacked folder layout from **.2** was reverted. Build **.3** added the **Edited in Memora** checkbox to newly exported HTML. Inspection of the supplied HTML found two dates and no checkbox. The user confirmed that refreshing the cache resolved it. Build **.4** aligned the Transcribe and Combine destination pickers. Each preselects a known preferred child, shows a preferred-path hint when blank, prompts before a desktop write and guides iPhone Save to Files. The final browser run passed 47 checks with one existing Combine title assertion failure. Native iPhone Files acceptance remains open. [Current status](CURRENT_STATUS.md) · [iPhone flow audit](iPhone_Save_Flow_Audit.md)
+
+
+### 62.46 Multi-source Combine direction
+
+**26 November 2026** · Design review
+
+Keep each Search pass within one archive. Combine should accumulate selected results across passes and accept TXT, DOCX and HTML sources. The design groups each transcript by its source and carries those associations into playback and standalone HTML. Imported documents with reliable Memora references can resolve recordings. Readable excerpts from other files need explicit associations where provenance is absent. Prove additive membership and two-archive playback first, then document import and exported HTML playback. [Design contract](Multi_Archive_Combine_Contract.md)

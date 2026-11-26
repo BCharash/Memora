@@ -1,6 +1,6 @@
 # Memora documentation
 
-Current save and editor reference **2026-11-25.3**, database schema **10**. The [current handoff](CURRENT_STATUS.md) records browser coverage, the confirmed iPhone overwrite correction and remaining device checks.
+Current save and editor reference **2026-11-26.4**, database schema **10**. The [current handoff](CURRENT_STATUS.md) records browser coverage, the confirmed iPhone overwrite correction and remaining device checks.
 
 ## Start here
 
